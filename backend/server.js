@@ -7,20 +7,17 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Mock database - in production, use MongoDB
 const batches = new Map();
 let batchCounter = 1;
 
-// Mock blockchain connection - replace with actual provider
 const PROVIDER_URL = process.env.INFURA_URL || 'https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID';
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '0x...';
 const PRIVATE_KEY = process.env.PRIVATE_KEY || '0x...';
 
-// Contract ABI (simplified)
+
 const CONTRACT_ABI = [
     "function createBatch(string batchId, string farmerName, string farmerAddress, string cropType, uint256 quantity, string harvestDate, string origin, string certifications, string description) public",
     "function updateBatch(string batchId, string stage, string actor, string location, string notes) public",
@@ -28,12 +25,7 @@ const CONTRACT_ABI = [
     "function getBatchUpdates(string batchId) public view returns (tuple(string stage, string actor, string location, uint256 timestamp, string notes, address updatedBy)[])"
 ];
 
-// Initialize blockchain connection (commented out for demo)
-// const provider = new ethers.JsonRpcProvider(PROVIDER_URL);
-// const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
-// const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, wallet);
 
-// Helper functions
 function generateBatchId() {
     const id = `CROP-2024-${String(batchCounter).padStart(3, '0')}`;
     batchCounter++;
@@ -60,9 +52,6 @@ function simulateBlockchainHash() {
     return '0x' + Math.random().toString(16).substr(2, 64);
 }
 
-// Routes
-
-// Create new crop batch
 app.post('/api/batches', async (req, res) => {
     try {
         const {
@@ -76,7 +65,6 @@ app.post('/api/batches', async (req, res) => {
             description
         } = req.body;
 
-        // Validate input
         if (!farmerName || !cropType || !quantity || !harvestDate || !origin) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
@@ -109,12 +97,6 @@ app.post('/api/batches', async (req, res) => {
             blockchainHash: simulateBlockchainHash()
         };
 
-        // In production, interact with smart contract:
-        // await contract.createBatch(
-        //     batchId, farmerName, farmerAddress, cropType,
-        //     quantity, harvestDate, origin, certifications, description
-        // );
-
         batches.set(batchId, batch);
 
         res.json({ success: true, batch });
@@ -124,7 +106,6 @@ app.post('/api/batches', async (req, res) => {
     }
 });
 
-// Get batch by ID
 app.get('/api/batches/:batchId', async (req, res) => {
     try {
         const { batchId } = req.params;
@@ -134,10 +115,6 @@ app.get('/api/batches/:batchId', async (req, res) => {
             return res.status(404).json({ error: 'Batch not found' });
         }
 
-        // In production, fetch from smart contract:
-        // const contractBatch = await contract.getBatch(batchId);
-        // const contractUpdates = await contract.getBatchUpdates(batchId);
-
         res.json({ success: true, batch });
     } catch (error) {
         console.error('Error fetching batch:', error);
@@ -145,7 +122,6 @@ app.get('/api/batches/:batchId', async (req, res) => {
     }
 });
 
-// Update batch
 app.put('/api/batches/:batchId', async (req, res) => {
     try {
         const { batchId } = req.params;
@@ -156,7 +132,6 @@ app.put('/api/batches/:batchId', async (req, res) => {
             return res.status(404).json({ error: 'Batch not found' });
         }
 
-        // Validate input
         if (!actor || !stage || !location) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
@@ -172,10 +147,6 @@ app.put('/api/batches/:batchId', async (req, res) => {
         batch.updates.push(update);
         batch.currentStage = stage;
         batch.blockchainHash = simulateBlockchainHash();
-
-        // In production, interact with smart contract:
-        // await contract.updateBatch(batchId, stage, actor, location, notes);
-
         batches.set(batchId, batch);
 
         res.json({ success: true, batch });
@@ -185,7 +156,6 @@ app.put('/api/batches/:batchId', async (req, res) => {
     }
 });
 
-// Get all batches (for admin dashboard)
 app.get('/api/batches', async (req, res) => {
     try {
         const allBatches = Array.from(batches.values());
@@ -218,7 +188,6 @@ app.get('/api/batches', async (req, res) => {
     }
 });
 
-// Health check
 app.get('/api/health', (req, res) => {
     res.json({ 
         success: true, 
@@ -227,13 +196,11 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ error: 'Something went wrong!' });
 });
 
-// Start server
 app.listen(PORT, () => {
     console.log(`CropChain API server running on port ${PORT}`);
     console.log(`Health check: http://localhost:${PORT}/api/health`);
