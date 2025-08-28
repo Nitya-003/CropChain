@@ -1,10 +1,5 @@
 pragma solidity ^0.8.19;
 
-/**
- * @title CropChain
- * @dev Smart contract for tracking crop supply chain on blockchain
- * @author CropChain Team
- */
 contract CropChain {
     
     struct CropBatch {
@@ -22,7 +17,6 @@ contract CropChain {
         bool exists;
     }
     
-    // Structure to store supply chain updates
     struct SupplyChainUpdate {
         string stage; // farmer, mandi, transport, retailer
         string actor;
@@ -31,19 +25,15 @@ contract CropChain {
         string notes;
         address updatedBy;
     }
-    
-    // Mappings
+
     mapping(string => CropBatch) public cropBatches;
     mapping(string => SupplyChainUpdate[]) public batchUpdates;
     mapping(address => bool) public authorizedActors;
     
-    // Arrays to track all batch IDs
     string[] public allBatchIds;
     
-    // Contract owner
     address public owner;
     
-    // Events
     event BatchCreated(
         string indexed batchId,
         string farmerName,
@@ -62,7 +52,6 @@ contract CropChain {
     
     event ActorAuthorized(address indexed actor, bool authorized);
     
-    // Modifiers
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner can call this function");
         _;
@@ -81,9 +70,6 @@ contract CropChain {
         _;
     }
     
-    /**
-     * @dev Constructor sets the contract deployer as owner
-     */
     constructor() {
         owner = msg.sender;
         authorizedActors[msg.sender] = true;
