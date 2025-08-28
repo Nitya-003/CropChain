@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
 /**
@@ -8,7 +7,6 @@ pragma solidity ^0.8.19;
  */
 contract CropChain {
     
-    // Structure to store crop batch information
     struct CropBatch {
         string batchId;
         string farmerName;
