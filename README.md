@@ -2,6 +2,8 @@
 
 CropChain is a comprehensive full-stack web application that enables transparent tracking of crop supply chains using blockchain technology. From farm to fork, every step in the supply chain is recorded immutably, providing complete traceability and building trust between all stakeholders.
 
+---
+
 ## 🌟 Features
 
 ### Core Functionality
@@ -17,6 +19,8 @@ CropChain is a comprehensive full-stack web application that enables transparent
 - **Real-time Timeline**: Visual supply chain journey with status indicators
 - **QR Code Scanner**: Simulate scanning QR codes for batch tracking
 - **Search & Filter**: Easy batch lookup and filtering capabilities
+
+---
 
 ## 🏗️ Architecture
 
@@ -39,6 +43,8 @@ CropChain is a comprehensive full-stack web application that enables transparent
 - **Language**: Solidity ^0.8.19
 - **Features**: Batch creation, supply chain updates, access control
 - **Security**: Role-based permissions and data validation
+
+---
 
 ## 🚀 Quick Start
 
@@ -106,6 +112,56 @@ CropChain is a comprehensive full-stack web application that enables transparent
    npx hardhat run scripts/deploy.js --network mumbai
    ```
 
+### System Architecture
+```mermaid
+graph TD
+    subgraph Client_Layer [Frontend - React & TypeScript]
+        UI[User Interface]
+        QR[QR Scanner/Generator]
+    end
+
+    subgraph Logic_Layer [Backend - Node.js & Express]
+        API[Express API]
+        JWT[JWT Auth]
+        ETH[Ethers.js Instance]
+    end
+
+    subgraph Storage_Layer [Data & Blockchain]
+        DB[(MongoDB Metadata)]
+        BC{Smart Contracts - Solidity}
+        Network[Polygon / Mumbai Testnet]
+    end
+
+    UI --> API
+    API --> JWT
+    API --> DB
+    API --> ETH
+    ETH --> BC
+    BC --> Network
+```
+
+### Supply Chain Lifecycle Flow
+```mermaid
+sequenceDiagram
+    participant F as Farmer
+    participant M as Mandi (Market)
+    participant T as Transport
+    participant R as Retailer
+    participant B as Blockchain (CropChain)
+
+    F->>B: Create Batch (Harvest Info)
+    B-->>F: Generate Unique Batch ID & QR
+    F->>M: Handover Crops
+    M->>B: Update Stage (Price & Quality)
+    M->>T: Handover to Logistics
+    T->>B: Update Stage (Location & Transit)
+    T->>R: Deliver to Store
+    R->>B: Update Stage (Received/Stocked)
+    Note over R,B: Immutable History Available for Consumer
+```
+
+---
+
 ## 📱 Usage
 
 ### For Farmers
@@ -131,6 +187,8 @@ CropChain is a comprehensive full-stack web application that enables transparent
 2. Monitor all batches and supply chain activity
 3. View analytics and statistics
 4. Manage system-wide operations
+
+---
 
 ## 🔧 Configuration
 
@@ -163,6 +221,7 @@ networks: {
   }
 }
 ```
+---
 
 ## 🧪 Testing
 
@@ -181,6 +240,7 @@ npm test
 ```bash
 npx hardhat test
 ```
+---
 
 ## 🚀 Deployment
 
@@ -205,6 +265,7 @@ npx hardhat run scripts/deploy.js --network mumbai
 # Polygon Mainnet
 npx hardhat run scripts/deploy.js --network polygon
 ```
+---
 
 ## 🔒 Security Features
 
@@ -214,6 +275,8 @@ npx hardhat run scripts/deploy.js --network polygon
 - **CORS Protection**: Configured CORS policies
 - **Environment Variables**: Sensitive data protected via env vars
 - **Smart Contract Auditing**: Comprehensive testing and validation
+
+---
 
 ## 🛠️ Technology Stack
 
@@ -243,6 +306,8 @@ npx hardhat run scripts/deploy.js --network polygon
 - GitHub Actions CI/CD
 - Docker Support
 
+---
+
 ## 📈 Roadmap
 
 ### Phase 1 (Current)
@@ -263,6 +328,8 @@ npx hardhat run scripts/deploy.js --network polygon
 - 📋 Marketplace integration
 - 📋 Government compliance features
 
+---
+
 ## 🤝 Contributing
 
 I welcome contributions! 
@@ -277,6 +344,7 @@ I welcome contributions!
 
 This project is licensed under the Apache License 2.0- see the [LICENSE](LICENSE) file for further details.
 
+---
 
 ## 🙏 Acknowledgments
 
