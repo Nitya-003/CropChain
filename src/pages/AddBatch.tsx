@@ -53,20 +53,20 @@ const AddBatch: React.FC = () => {
   if (success && generatedBatch) {
     return (
       <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 border-t-4 border-green-500">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 border-t-4 border-green-500">
           <div className="text-center">
-            <div className="bg-green-100 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
-              <Plus className="h-8 w-8 text-green-600" />
+            <div className="bg-green-100 dark:bg-green-900 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
+              <Plus className="h-8 w-8 text-green-600 dark:text-green-400" />
             </div>
-            <h2 className="text-3xl font-bold text-gray-800 mb-4">Batch Created Successfully!</h2>
-            <p className="text-gray-600 mb-8">Your crop batch has been recorded on the blockchain.</p>
-            
-            <div className="bg-gray-50 rounded-xl p-6 mb-6">
-              <p className="text-sm text-gray-600 mb-2">Batch ID</p>
-              <p className="text-2xl font-mono font-bold text-green-600">{generatedBatch.batchId}</p>
+            <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-4">Batch Created Successfully!</h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-8">Your crop batch has been recorded on the blockchain.</p>
+
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 mb-6">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Batch ID</p>
+              <p className="text-2xl font-mono font-bold text-green-600 dark:text-green-400">{generatedBatch.batchId}</p>
             </div>
 
-            <div className="bg-white border-2 border-gray-200 rounded-xl p-6 mb-6">
+            <div className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 rounded-xl p-6 mb-6">
               <img src={generatedBatch.qrCode} alt="QR Code" className="mx-auto mb-4 w-48 h-48" />
               <p className="text-sm text-gray-600">QR Code for Batch Tracking</p>
             </div>
@@ -86,16 +86,16 @@ const AddBatch: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold text-gray-800 mb-4">Add New Crop Batch</h1>
-        <p className="text-xl text-gray-600">Register your crop harvest on the blockchain for complete traceability</p>
+        <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-4">Add New Crop Batch</h1>
+        <p className="text-xl text-gray-600 dark:text-gray-300">Register your crop harvest on the blockchain for complete traceability</p>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-2xl p-8">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8">
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
-                <User className="h-4 w-4 mr-2 text-green-600" />
+              <label className="flex items-center text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">
+                <User className="h-4 w-4 mr-2 text-green-600 dark:text-green-400" />
                 Farmer Name
               </label>
               <input
@@ -103,15 +103,15 @@ const AddBatch: React.FC = () => {
                 name="farmerName"
                 value={formData.farmerName}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                 placeholder="Enter farmer's full name"
                 required
               />
             </div>
 
             <div>
-              <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
-                <MapPin className="h-4 w-4 mr-2 text-green-600" />
+              <label className="flex items-center text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">
+                <MapPin className="h-4 w-4 mr-2 text-green-600 dark:text-green-400" />
                 Farmer Address
               </label>
               <input
@@ -119,7 +119,7 @@ const AddBatch: React.FC = () => {
                 name="farmerAddress"
                 value={formData.farmerAddress}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                 placeholder="Complete address"
                 required
               />
@@ -128,14 +128,14 @@ const AddBatch: React.FC = () => {
 
           <div className="grid md:grid-cols-3 gap-6">
             <div>
-              <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
+              <label className="flex items-center text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">
                 Crop Type
               </label>
               <select
                 name="cropType"
                 value={formData.cropType}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                 required
               >
                 <option value="">Select crop type</option>
@@ -149,7 +149,7 @@ const AddBatch: React.FC = () => {
             </div>
 
             <div>
-              <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
+              <label className="flex items-center text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">
                 Quantity (kg)
               </label>
               <input
@@ -157,15 +157,15 @@ const AddBatch: React.FC = () => {
                 name="quantity"
                 value={formData.quantity}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                 placeholder="1000"
                 required
               />
             </div>
 
             <div>
-              <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
-                <Calendar className="h-4 w-4 mr-2 text-green-600" />
+              <label className="flex items-center text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">
+                <Calendar className="h-4 w-4 mr-2 text-green-600 dark:text-green-400" />
                 Harvest Date
               </label>
               <input
@@ -173,7 +173,7 @@ const AddBatch: React.FC = () => {
                 name="harvestDate"
                 value={formData.harvestDate}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                 required
               />
             </div>
@@ -181,8 +181,8 @@ const AddBatch: React.FC = () => {
 
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
-                <MapPin className="h-4 w-4 mr-2 text-green-600" />
+              <label className="flex items-center text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">
+                <MapPin className="h-4 w-4 mr-2 text-green-600 dark:text-green-400" />
                 Origin Location
               </label>
               <input
@@ -190,14 +190,14 @@ const AddBatch: React.FC = () => {
                 name="origin"
                 value={formData.origin}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                 placeholder="Farm location"
                 required
               />
             </div>
 
             <div>
-              <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
+              <label className="flex items-center text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">
                 Certifications
               </label>
               <input
@@ -205,14 +205,14 @@ const AddBatch: React.FC = () => {
                 name="certifications"
                 value={formData.certifications}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                 placeholder="Organic, Fair Trade, etc."
               />
             </div>
           </div>
 
           <div>
-            <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
+            <label className="flex items-center text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">
               Description
             </label>
             <textarea
@@ -220,7 +220,7 @@ const AddBatch: React.FC = () => {
               value={formData.description}
               onChange={handleChange}
               rows={4}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
               placeholder="Additional details about the crop batch..."
             />
           </div>
@@ -229,11 +229,10 @@ const AddBatch: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className={`px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 flex items-center space-x-2 ${
-                isLoading
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-green-600 hover:bg-green-700 transform hover:scale-105 shadow-lg'
-              } text-white`}
+              className={`px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 flex items-center space-x-2 ${isLoading
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-green-600 hover:bg-green-700 transform hover:scale-105 shadow-lg'
+                } text-white`}
             >
               {isLoading ? (
                 <>

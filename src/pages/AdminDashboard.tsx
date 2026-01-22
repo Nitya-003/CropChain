@@ -57,11 +57,11 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto space-y-8">
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-800 mb-4 flex items-center justify-center">
-          <Shield className="h-10 w-10 mr-4 text-green-600" />
+        <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-4 flex items-center justify-center">
+          <Shield className="h-10 w-10 mr-4 text-green-600 dark:text-green-400" />
           Admin Dashboard
         </h1>
-        <p className="text-xl text-gray-600">Monitor and manage the CropChain supply chain network</p>
+        <p className="text-xl text-gray-600 dark:text-gray-300">Monitor and manage the CropChain supply chain network</p>
       </div>
 
       {/* Stats Overview */}
@@ -126,43 +126,43 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Recent Batches Table */}
-      <div className="bg-white rounded-2xl shadow-xl p-6">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-          <Package className="h-6 w-6 mr-3 text-green-600" />
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+        <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
+          <Package className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
           Recent Batches
         </h2>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-4 px-6 font-semibold text-gray-700">Batch ID</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700">Farmer</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700">Crop Type</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700">Quantity</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700">Current Stage</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700">Date Created</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700">Status</th>
+              <tr className="border-b border-gray-200 dark:border-gray-700">
+                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Batch ID</th>
+                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Farmer</th>
+                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Crop Type</th>
+                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Quantity</th>
+                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Current Stage</th>
+                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Date Created</th>
+                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Status</th>
               </tr>
             </thead>
             <tbody>
               {batches.map((batch, index) => (
-                <tr key={batch.batchId} className={`border-b border-gray-100 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-green-50 transition-colors`}>
+                <tr key={batch.batchId} className={`border-b border-gray-100 dark:border-gray-700 ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'} hover:bg-green-50 dark:hover:bg-gray-600 transition-colors`}>
                   <td className="py-4 px-6">
-                    <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                    <span className="font-mono text-sm bg-gray-100 dark:bg-gray-600 dark:text-white px-2 py-1 rounded">
                       {batch.batchId}
                     </span>
                   </td>
                   <td className="py-4 px-6">
                     <div>
-                      <p className="font-medium text-gray-800">{batch.farmerName}</p>
-                      <p className="text-sm text-gray-600">{batch.origin}</p>
+                      <p className="font-medium text-gray-800 dark:text-white">{batch.farmerName}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{batch.origin}</p>
                     </div>
                   </td>
                   <td className="py-4 px-6">
-                    <span className="capitalize font-medium text-gray-800">{batch.cropType}</span>
+                    <span className="capitalize font-medium text-gray-800 dark:text-white">{batch.cropType}</span>
                   </td>
                   <td className="py-4 px-6">
-                    <span className="font-medium text-gray-800">{batch.quantity} kg</span>
+                    <span className="font-medium text-gray-800 dark:text-white">{batch.quantity} kg</span>
                   </td>
                   <td className="py-4 px-6">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getStageColor(batch.currentStage)}`}>
@@ -170,12 +170,12 @@ const AdminDashboard: React.FC = () => {
                     </span>
                   </td>
                   <td className="py-4 px-6">
-                    <span className="text-gray-600">{formatDate(batch.createdAt)}</span>
+                    <span className="text-gray-600 dark:text-gray-300">{formatDate(batch.createdAt)}</span>
                   </td>
                   <td className="py-4 px-6">
                     <div className="flex items-center">
                       <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
-                      <span className="text-sm text-green-600 font-medium">Active</span>
+                      <span className="text-sm text-green-600 dark:text-green-400 font-medium">Active</span>
                     </div>
                   </td>
                 </tr>
@@ -187,43 +187,42 @@ const AdminDashboard: React.FC = () => {
 
       {/* Charts Section */}
       <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl shadow-xl p-6">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">Crop Types Distribution</h3>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+          <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Crop Types Distribution</h3>
           <div className="space-y-4">
             {['Rice', 'Wheat', 'Corn', 'Tomato'].map((crop, index) => {
               const percentage = Math.random() * 40 + 10;
               return (
                 <div key={crop} className="flex items-center">
-                  <span className="w-16 text-sm text-gray-600 capitalize">{crop}</span>
-                  <div className="flex-1 mx-4 bg-gray-200 rounded-full h-3">
-                    <div 
-                      className={`h-3 rounded-full ${
-                        index === 0 ? 'bg-green-500' : 
-                        index === 1 ? 'bg-blue-500' : 
-                        index === 2 ? 'bg-yellow-500' : 'bg-purple-500'
-                      }`}
+                  <span className="w-16 text-sm text-gray-600 dark:text-gray-300 capitalize">{crop}</span>
+                  <div className="flex-1 mx-4 bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                    <div
+                      className={`h-3 rounded-full ${index === 0 ? 'bg-green-500' :
+                        index === 1 ? 'bg-blue-500' :
+                          index === 2 ? 'bg-yellow-500' : 'bg-purple-500'
+                        }`}
                       style={{ width: `${percentage}%` }}
                     ></div>
                   </div>
-                  <span className="text-sm font-medium text-gray-700">{percentage.toFixed(1)}%</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{percentage.toFixed(1)}%</span>
                 </div>
               );
             })}
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-6">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">Monthly Activity</h3>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+          <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Monthly Activity</h3>
           <div className="flex items-end justify-between h-48 px-4">
             {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((month, index) => {
               const height = Math.random() * 120 + 30;
               return (
                 <div key={month} className="flex flex-col items-center">
-                  <div 
+                  <div
                     className="bg-gradient-to-t from-green-500 to-green-400 rounded-t-lg w-8 transition-all duration-500 hover:from-green-600 hover:to-green-500"
                     style={{ height: `${height}px` }}
                   ></div>
-                  <span className="text-xs text-gray-600 mt-2">{month}</span>
+                  <span className="text-xs text-gray-600 dark:text-gray-300 mt-2">{month}</span>
                 </div>
               );
             })}

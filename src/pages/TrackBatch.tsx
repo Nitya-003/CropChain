@@ -12,7 +12,7 @@ const TrackBatch: React.FC = () => {
 
   const handleSearch = async () => {
     if (!batchId.trim()) return;
-    
+
     setIsSearching(true);
     try {
       const foundBatch = await cropBatchService.getBatch(batchId);
@@ -37,12 +37,12 @@ const TrackBatch: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-800 mb-4">Track Crop Batch</h1>
-        <p className="text-xl text-gray-600">Scan QR code or enter Batch ID to view complete supply chain history</p>
+        <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-4">Track Crop Batch</h1>
+        <p className="text-xl text-gray-600 dark:text-gray-300">Scan QR code or enter Batch ID to view complete supply chain history</p>
       </div>
 
       {/* Search Section */}
-      <div className="bg-white rounded-2xl shadow-xl p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <input
@@ -50,7 +50,7 @@ const TrackBatch: React.FC = () => {
               value={batchId}
               onChange={(e) => setBatchId(e.target.value)}
               placeholder="Enter Batch ID (e.g., CROP-2024-001)"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-lg"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-lg"
             />
           </div>
           <div className="flex gap-3">
@@ -64,11 +64,10 @@ const TrackBatch: React.FC = () => {
             <button
               onClick={handleSearch}
               disabled={isSearching || !batchId.trim()}
-              className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 ${
-                isSearching || !batchId.trim()
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-green-600 hover:bg-green-700 transform hover:scale-105'
-              } text-white`}
+              className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 ${isSearching || !batchId.trim()
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-green-600 hover:bg-green-700 transform hover:scale-105'
+                } text-white`}
             >
               {isSearching ? (
                 <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
@@ -108,62 +107,62 @@ const TrackBatch: React.FC = () => {
 
           {/* Batch Details */}
           <div className="grid md:grid-cols-2 gap-8">
-            <div className="bg-white rounded-2xl shadow-xl p-6">
-              <h3 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-                <Package className="h-6 w-6 mr-3 text-green-600" />
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+              <h3 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
+                <Package className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
                 Crop Information
               </h3>
               <div className="space-y-4">
-                <div className="flex items-center p-4 bg-green-50 rounded-xl">
+                <div className="flex items-center p-4 bg-green-50 dark:bg-green-900/30 rounded-xl">
                   <div className="text-3xl mr-4">🌾</div>
                   <div>
-                    <p className="text-sm text-gray-600">Crop Type</p>
-                    <p className="text-lg font-semibold text-gray-800 capitalize">{batch.cropType}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Crop Type</p>
+                    <p className="text-lg font-semibold text-gray-800 dark:text-white capitalize">{batch.cropType}</p>
                   </div>
                 </div>
-                <div className="flex items-center p-4 bg-blue-50 rounded-xl">
+                <div className="flex items-center p-4 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
                   <div className="text-3xl mr-4">⚖️</div>
                   <div>
-                    <p className="text-sm text-gray-600">Quantity</p>
-                    <p className="text-lg font-semibold text-gray-800">{batch.quantity} kg</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Quantity</p>
+                    <p className="text-lg font-semibold text-gray-800 dark:text-white">{batch.quantity} kg</p>
                   </div>
                 </div>
-                <div className="flex items-center p-4 bg-purple-50 rounded-xl">
-                  <Calendar className="h-6 w-6 mr-4 text-purple-600" />
+                <div className="flex items-center p-4 bg-purple-50 dark:bg-purple-900/30 rounded-xl">
+                  <Calendar className="h-6 w-6 mr-4 text-purple-600 dark:text-purple-400" />
                   <div>
-                    <p className="text-sm text-gray-600">Harvest Date</p>
-                    <p className="text-lg font-semibold text-gray-800">{new Date(batch.harvestDate).toLocaleDateString()}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Harvest Date</p>
+                    <p className="text-lg font-semibold text-gray-800 dark:text-white">{new Date(batch.harvestDate).toLocaleDateString()}</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-xl p-6">
-              <h3 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-                <User className="h-6 w-6 mr-3 text-green-600" />
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+              <h3 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
+                <User className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
                 Farmer Details
               </h3>
               <div className="space-y-4">
-                <div className="flex items-center p-4 bg-yellow-50 rounded-xl">
+                <div className="flex items-center p-4 bg-yellow-50 dark:bg-yellow-900/30 rounded-xl">
                   <div className="text-3xl mr-4">👨‍🌾</div>
                   <div>
-                    <p className="text-sm text-gray-600">Farmer Name</p>
-                    <p className="text-lg font-semibold text-gray-800">{batch.farmerName}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Farmer Name</p>
+                    <p className="text-lg font-semibold text-gray-800 dark:text-white">{batch.farmerName}</p>
                   </div>
                 </div>
-                <div className="flex items-center p-4 bg-orange-50 rounded-xl">
-                  <MapPin className="h-6 w-6 mr-4 text-orange-600" />
+                <div className="flex items-center p-4 bg-orange-50 dark:bg-orange-900/30 rounded-xl">
+                  <MapPin className="h-6 w-6 mr-4 text-orange-600 dark:text-orange-400" />
                   <div>
-                    <p className="text-sm text-gray-600">Farm Location</p>
-                    <p className="text-lg font-semibold text-gray-800">{batch.origin}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Farm Location</p>
+                    <p className="text-lg font-semibold text-gray-800 dark:text-white">{batch.origin}</p>
                   </div>
                 </div>
                 {batch.certifications && (
-                  <div className="flex items-center p-4 bg-green-50 rounded-xl">
+                  <div className="flex items-center p-4 bg-green-50 dark:bg-green-900/30 rounded-xl">
                     <div className="text-3xl mr-4">🏅</div>
                     <div>
-                      <p className="text-sm text-gray-600">Certifications</p>
-                      <p className="text-lg font-semibold text-gray-800">{batch.certifications}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Certifications</p>
+                      <p className="text-lg font-semibold text-gray-800 dark:text-white">{batch.certifications}</p>
                     </div>
                   </div>
                 )}
@@ -172,20 +171,20 @@ const TrackBatch: React.FC = () => {
           </div>
 
           {/* Timeline */}
-          <div className="bg-white rounded-2xl shadow-xl p-6">
-            <h3 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-              <FileText className="h-6 w-6 mr-3 text-green-600" />
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+            <h3 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
+              <FileText className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
               Supply Chain Journey
             </h3>
             <Timeline events={batch.updates} />
           </div>
 
           {/* QR Code */}
-          <div className="bg-white rounded-2xl shadow-xl p-6 text-center">
-            <h3 className="text-2xl font-semibold text-gray-800 mb-6">QR Code</h3>
-            <div className="bg-gray-50 rounded-xl p-6 inline-block">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 text-center">
+            <h3 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6">QR Code</h3>
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 inline-block">
               <img src={batch.qrCode} alt="Batch QR Code" className="w-48 h-48 mx-auto" />
-              <p className="text-gray-600 mt-4">Share this QR code for instant batch verification</p>
+              <p className="text-gray-600 dark:text-gray-300 mt-4">Share this QR code for instant batch verification</p>
             </div>
           </div>
         </>
