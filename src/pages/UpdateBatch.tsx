@@ -25,7 +25,7 @@ const UpdateBatch: React.FC = () => {
 
   const handleSearch = async () => {
     if (!batchId.trim()) return;
-    
+
     setIsSearching(true);
     try {
       const foundBatch = await cropBatchService.getBatch(batchId);
@@ -70,14 +70,14 @@ const UpdateBatch: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-800 mb-4">Update Crop Batch</h1>
-        <p className="text-xl text-gray-600">Add supply chain updates to existing batches</p>
+        <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-4">Update Crop Batch</h1>
+        <p className="text-xl text-gray-600 dark:text-gray-300">Add supply chain updates to existing batches</p>
       </div>
 
       {/* Search Section */}
-      <div className="bg-white rounded-2xl shadow-xl p-6">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-          <Search className="h-6 w-6 mr-3 text-green-600" />
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+        <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
+          <Search className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
           Find Batch
         </h2>
         <div className="flex gap-4">
@@ -87,17 +87,16 @@ const UpdateBatch: React.FC = () => {
               value={batchId}
               onChange={(e) => setBatchId(e.target.value)}
               placeholder="Enter Batch ID (e.g., CROP-2024-001)"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
             />
           </div>
           <button
             onClick={handleSearch}
             disabled={isSearching || !batchId.trim()}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 ${
-              isSearching || !batchId.trim()
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700 transform hover:scale-105'
-            } text-white`}
+            className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 ${isSearching || !batchId.trim()
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700 transform hover:scale-105'
+              } text-white`}
           >
             {isSearching ? (
               <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
@@ -112,47 +111,47 @@ const UpdateBatch: React.FC = () => {
       {batch && (
         <>
           {/* Batch Info */}
-          <div className="bg-white rounded-2xl shadow-xl p-6">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-              <Package className="h-6 w-6 mr-3 text-green-600" />
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+            <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
+              <Package className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
               Batch Information
             </h2>
             <div className="grid md:grid-cols-3 gap-6">
-              <div className="bg-green-50 rounded-xl p-4">
-                <p className="text-sm text-gray-600 mb-1">Crop Type</p>
-                <p className="text-lg font-semibold text-gray-800 capitalize">{batch.cropType}</p>
+              <div className="bg-green-50 dark:bg-green-900/30 rounded-xl p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Crop Type</p>
+                <p className="text-lg font-semibold text-gray-800 dark:text-white capitalize">{batch.cropType}</p>
               </div>
-              <div className="bg-blue-50 rounded-xl p-4">
-                <p className="text-sm text-gray-600 mb-1">Quantity</p>
-                <p className="text-lg font-semibold text-gray-800">{batch.quantity} kg</p>
+              <div className="bg-blue-50 dark:bg-blue-900/30 rounded-xl p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Quantity</p>
+                <p className="text-lg font-semibold text-gray-800 dark:text-white">{batch.quantity} kg</p>
               </div>
-              <div className="bg-purple-50 rounded-xl p-4">
-                <p className="text-sm text-gray-600 mb-1">Farmer</p>
-                <p className="text-lg font-semibold text-gray-800">{batch.farmerName}</p>
+              <div className="bg-purple-50 dark:bg-purple-900/30 rounded-xl p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Farmer</p>
+                <p className="text-lg font-semibold text-gray-800 dark:text-white">{batch.farmerName}</p>
               </div>
             </div>
           </div>
 
           {/* Timeline */}
-          <div className="bg-white rounded-2xl shadow-xl p-6">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-              <Clock className="h-6 w-6 mr-3 text-green-600" />
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+            <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
+              <Clock className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
               Supply Chain Timeline
             </h2>
             <Timeline events={batch.updates} />
           </div>
 
           {/* Update Form */}
-          <div className="bg-white rounded-2xl shadow-xl p-6">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-              <RefreshCw className="h-6 w-6 mr-3 text-green-600" />
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+            <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
+              <RefreshCw className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
               Add New Update
             </h2>
             <form onSubmit={handleUpdate} className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
-                    <User className="h-4 w-4 mr-2 text-green-600" />
+                  <label className="flex items-center text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">
+                    <User className="h-4 w-4 mr-2 text-green-600 dark:text-green-400" />
                     Actor Name
                   </label>
                   <input
@@ -160,21 +159,21 @@ const UpdateBatch: React.FC = () => {
                     name="actor"
                     value={updateData.actor}
                     onChange={handleUpdateChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                     placeholder="Your name or company"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
+                  <label className="flex items-center text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">
                     Stage
                   </label>
                   <select
                     name="stage"
                     value={updateData.stage}
                     onChange={handleUpdateChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                     required
                   >
                     <option value="">Select stage</option>
@@ -187,8 +186,8 @@ const UpdateBatch: React.FC = () => {
 
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
-                    <MapPin className="h-4 w-4 mr-2 text-green-600" />
+                  <label className="flex items-center text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">
+                    <MapPin className="h-4 w-4 mr-2 text-green-600 dark:text-green-400" />
                     Location
                   </label>
                   <input
@@ -196,15 +195,15 @@ const UpdateBatch: React.FC = () => {
                     name="location"
                     value={updateData.location}
                     onChange={handleUpdateChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                     placeholder="Current location"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
-                    <Clock className="h-4 w-4 mr-2 text-green-600" />
+                  <label className="flex items-center text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">
+                    <Clock className="h-4 w-4 mr-2 text-green-600 dark:text-green-400" />
                     Date
                   </label>
                   <input
@@ -212,14 +211,14 @@ const UpdateBatch: React.FC = () => {
                     name="timestamp"
                     value={updateData.timestamp}
                     onChange={handleUpdateChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
+                <label className="flex items-center text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">
                   Notes
                 </label>
                 <textarea
@@ -227,7 +226,7 @@ const UpdateBatch: React.FC = () => {
                   value={updateData.notes}
                   onChange={handleUpdateChange}
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                   placeholder="Additional information about this update..."
                 />
               </div>
@@ -236,11 +235,10 @@ const UpdateBatch: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isUpdating}
-                  className={`px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 flex items-center space-x-2 ${
-                    isUpdating
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-green-600 hover:bg-green-700 transform hover:scale-105 shadow-lg'
-                  } text-white`}
+                  className={`px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 flex items-center space-x-2 ${isUpdating
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-green-600 hover:bg-green-700 transform hover:scale-105 shadow-lg'
+                    } text-white`}
                 >
                   {isUpdating ? (
                     <>
