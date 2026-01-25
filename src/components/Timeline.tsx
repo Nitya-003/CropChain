@@ -1,11 +1,23 @@
-import React from 'react';
-import { Calendar, MapPin, User, Clock } from 'lucide-react';
+import React from "react";
+import { motion } from "framer-motion";
+import {
+  Sprout,
+  Truck,
+  Store,
+  MapPin,
+  User,
+  Clock,
+} from "lucide-react";
+
+type Stage = "farmer" | "transport" | "retailer";
+type Status = "completed" | "pending" | "flagged";
 
 interface TimelineEvent {
-  stage: string;
+  stage: Stage;
   actor: string;
   location: string;
   timestamp: string;
+  status: Status;
   notes?: string;
 }
 
@@ -13,91 +25,97 @@ interface TimelineProps {
   events: TimelineEvent[];
 }
 
+const stageIconMap = {
+  farmer: Sprout,
+  transport: Truck,
+  retailer: Store,
+};
+
+const statusStyles = {
+  completed: {
+    dot: "bg-green-500",
+    badge: "text-green-600 bg-green-100",
+  },
+  pending: {
+    dot: "bg-gray-400",
+    badge: "text-gray-600 bg-gray-100",
+  },
+  flagged: {
+    dot: "bg-red-500",
+    badge: "text-red-600 bg-red-100",
+  },
+};
+
 const Timeline: React.FC<TimelineProps> = ({ events }) => {
-  const getStageIcon = (stage: string) => {
-    const icons = {
-      farmer: '🌾',
-      mandi: '🏪',
-      transport: '🚛',
-      retailer: '🏬'
-    };
-    return icons[stage as keyof typeof icons] || '📦';
-  };
-
-  const getStageColor = (stage: string) => {
-    const colors = {
-      farmer: 'bg-green-500',
-      mandi: 'bg-blue-500',
-      transport: 'bg-yellow-500',
-      retailer: 'bg-purple-500'
-    };
-    return colors[stage as keyof typeof colors] || 'bg-gray-500';
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+  const formatDate = (dateString: string) =>
+    new Date(dateString).toLocaleString("en-US", {
+      dateStyle: "medium",
+      timeStyle: "short",
     });
-  };
 
   return (
     <div className="relative">
-      {/* Timeline line */}
-      <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-300 dark:bg-gray-600"></div>
+      {/* Vertical line */}
+      <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-300" />
 
-      <div className="space-y-8">
-        {events.map((event, index) => (
-          <div key={index} className="relative flex items-start space-x-6">
-            {/* Timeline dot */}
-            <div className={`relative z-10 w-16 h-16 ${getStageColor(event.stage)} rounded-full flex items-center justify-center text-2xl shadow-lg`}>
-              {getStageIcon(event.stage)}
-            </div>
+      <div className="space-y-10">
+        {events.map((event, index) => {
+          const Icon = stageIconMap[event.stage];
+          const styles = statusStyles[event.status];
 
-            {/* Event card */}
-            <div className="flex-1 bg-white dark:bg-gray-700 rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 p-6 hover:shadow-xl transition-shadow">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
-                <h3 className="text-xl font-semibold text-gray-800 dark:text-white capitalize flex items-center">
-                  {event.stage}
-                  {index === 0 && (
-                    <span className="ml-3 px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300 text-xs rounded-full font-medium">
-                      Origin
-                    </span>
-                  )}
-                  {index === events.length - 1 && (
-                    <span className="ml-3 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 text-xs rounded-full font-medium">
-                      Latest
-                    </span>
-                  )}
-                </h3>
-                <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mt-2 sm:mt-0">
+          return (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.15 }}
+              className="relative flex items-start gap-6"
+            >
+              {/* Timeline dot */}
+              <div
+                className={`z-10 h-14 w-14 rounded-full flex items-center justify-center ${styles.dot} shadow-lg`}
+              >
+                <Icon className="h-6 w-6 text-white" />
+              </div>
+
+              {/* Card */}
+              <div className="flex-1 bg-white rounded-xl border p-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3">
+                  <h3 className="text-lg font-semibold capitalize">
+                    {event.stage}
+                  </h3>
+                  <span
+                    className={`text-xs font-medium px-2 py-1 rounded-full uppercase ${styles.badge}`}
+                  >
+                    {event.status}
+                  </span>
+                </div>
+
+                <div className="flex items-center text-sm text-gray-500 mb-4">
                   <Clock className="h-4 w-4 mr-1" />
                   {formatDate(event.timestamp)}
                 </div>
-              </div>
 
-              <div className="grid sm:grid-cols-2 gap-4 mb-4">
-                <div className="flex items-center text-gray-600 dark:text-gray-300">
-                  <User className="h-4 w-4 mr-2 text-green-600 dark:text-green-400" />
-                  <span className="font-medium">{event.actor}</span>
+                <div className="grid sm:grid-cols-2 gap-3 mb-4">
+                  <div className="flex items-center text-gray-700">
+                    <User className="h-4 w-4 mr-2 text-green-600" />
+                    {event.actor}
+                  </div>
+                  <div className="flex items-center text-gray-700">
+                    <MapPin className="h-4 w-4 mr-2 text-blue-600" />
+                    {event.location}
+                  </div>
                 </div>
-                <div className="flex items-center text-gray-600 dark:text-gray-300">
-                  <MapPin className="h-4 w-4 mr-2 text-blue-600 dark:text-blue-400" />
-                  <span>{event.location}</span>
-                </div>
-              </div>
 
-              {event.notes && (
-                <div className="bg-gray-50 dark:bg-gray-600 rounded-lg p-3">
-                  <p className="text-gray-700 dark:text-gray-200 text-sm">{event.notes}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
+                {event.notes && (
+                  <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700">
+                    {event.notes}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
     </div>
   );
