@@ -9,7 +9,6 @@ const axios = require('axios');
 
 // Configuration from environment or defaults
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:3001/api';
-const TEST_TIMEOUT = parseInt(process.env.TEST_TIMEOUT) || 5000;
 
 // Colors for console output
 const colors = {
@@ -136,7 +135,7 @@ async function testInputValidation() {
     
     for (const testCase of invalidBatchData) {
         try {
-            const response = await axios.post(`${API_BASE}/batches`, testCase.data);
+            await axios.post(`${API_BASE}/batches`, testCase.data);
             log(`  ${testCase.name}: ✗ Should have failed but succeeded`, 'red');
         } catch (error) {
             if (error.response?.status === 400 && error.response.data.error === testCase.expectedError) {
@@ -215,7 +214,7 @@ async function testNoSQLInjection() {
     
     for (const attempt of injectionAttempts) {
         try {
-            const response = await axios.post(`${API_BASE}/batches`, attempt.data);
+            await axios.post(`${API_BASE}/batches`, attempt.data);
             log(`  ${attempt.name}: ✗ Injection not blocked`, 'red');
         } catch (error) {
             if (error.response?.status === 400) {
@@ -242,7 +241,7 @@ async function testBatchIdValidation() {
     
     for (const batchId of invalidBatchIds) {
         try {
-            const response = await axios.get(`${API_BASE}/batches/${batchId}`);
+            await axios.get(`${API_BASE}/batches/${batchId}`);
             log(`  Invalid batch ID "${batchId}": ✗ Should have been rejected`, 'red');
         } catch (error) {
             if (error.response?.status === 400) {
@@ -291,7 +290,7 @@ async function testUpdateValidation(batchId) {
     
     for (const testCase of invalidUpdates) {
         try {
-            const response = await axios.put(`${API_BASE}/batches/${batchId}`, testCase.data);
+            await axios.put(`${API_BASE}/batches/${batchId}`, testCase.data);
             log(`  ${testCase.name}: ✗ Should have failed but succeeded`, 'red');
         } catch (error) {
             if (error.response?.status === 400) {

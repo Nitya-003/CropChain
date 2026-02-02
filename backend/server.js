@@ -25,12 +25,20 @@ app.use(helmet({
 }));
 
 // Rate limiting configurations - All configurable via environment variables
+const parseEnvInt = (envVar, defaultValue) => {
+    const parsed = parseInt(envVar);
+    return isNaN(parsed) ? defaultValue : parsed;
+};
+
+const rateLimitWindowMs = parseEnvInt(process.env.RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000);
+const rateLimitMaxRequests = parseEnvInt(process.env.RATE_LIMIT_MAX_REQUESTS, 100);
+
 const generalLimiter = rateLimit({
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // Default: 15 minutes
-    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // Default: 100 requests
+    windowMs: rateLimitWindowMs, // Default: 15 minutes
+    max: rateLimitMaxRequests, // Default: 100 requests
     message: {
         error: 'Too many requests from this IP, please try again later.',
-        retryAfter: `${Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000) / 60000)} minutes`
+        retryAfter: `${Math.ceil(rateLimitWindowMs / 60000)} minutes`
     },
     standardHeaders: true,
     legacyHeaders: false,
@@ -41,22 +49,22 @@ const generalLimiter = rateLimit({
 });
 
 const authLimiter = rateLimit({
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // Default: 15 minutes
-    max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 5, // Default: 5 requests
+    windowMs: rateLimitWindowMs, // Default: 15 minutes
+    max: parseEnvInt(process.env.AUTH_RATE_LIMIT_MAX, 5), // Default: 5 requests
     message: {
         error: 'Too many authentication attempts from this IP, please try again later.',
-        retryAfter: `${Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000) / 60000)} minutes`
+        retryAfter: `${Math.ceil(rateLimitWindowMs / 60000)} minutes`
     },
     standardHeaders: true,
     legacyHeaders: false,
 });
 
 const batchLimiter = rateLimit({
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // Default: 15 minutes
-    max: parseInt(process.env.BATCH_RATE_LIMIT_MAX) || 20, // Default: 20 requests
+    windowMs: rateLimitWindowMs, // Default: 15 minutes
+    max: parseEnvInt(process.env.BATCH_RATE_LIMIT_MAX, 20), // Default: 20 requests
     message: {
         error: 'Too many batch operations from this IP, please try again later.',
-        retryAfter: `${Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000) / 60000)} minutes`
+        retryAfter: `${Math.ceil(rateLimitWindowMs / 60000)} minutes`
     },
     standardHeaders: true,
     legacyHeaders: false,
@@ -140,22 +148,33 @@ const createBatchSchema = z.object({
         .regex(/^[a-zA-Z\s-]+$/, 'Crop type contains invalid characters'),
     
     quantity: z.union([
-        z.string().regex(/^\d+$/, 'Quantity must be a valid number').transform(Number),
+        z.string()
+            .regex(/^\d+$/, 'Quantity must be a valid number')
+            .refine(val => val.length <= 7, 'Quantity must be between 1 and 1,000,000')
+            .refine(val => !/^0\d+$/.test(val), 'Quantity must not contain leading zeros')
+            .transform(Number),
         z.number()
     ]).refine(val => val > 0 && val <= 1000000, 'Quantity must be between 1 and 1,000,000'),
     
     harvestDate: z.string()
         .regex(/^\d{4}-\d{2}-\d{2}$/, 'Harvest date must be in YYYY-MM-DD format')
         .refine(date => {
-            const parsed = new Date(date);
+            const parsed = new Date(date + 'T00:00:00.000Z'); // Parse as UTC
             const now = new Date();
-            const oneYearAgo = new Date();
-            oneYearAgo.setFullYear(now.getFullYear() - 1);
             
-            // Set time to start of day for accurate comparison
-            now.setHours(23, 59, 59, 999);
+            // Normalize comparison bounds to UTC date-only values
+            const todayUtc = new Date(Date.UTC(
+                now.getUTCFullYear(),
+                now.getUTCMonth(),
+                now.getUTCDate()
+            ));
+            const oneYearAgoUtc = new Date(Date.UTC(
+                todayUtc.getUTCFullYear() - 1,
+                todayUtc.getUTCMonth(),
+                todayUtc.getUTCDate()
+            ));
             
-            return parsed <= now && parsed >= oneYearAgo;
+            return parsed <= todayUtc && parsed >= oneYearAgoUtc;
         }, 'Harvest date must be within the last year and not in the future'),
     
     origin: z.string()
@@ -199,8 +218,8 @@ const updateBatchSchema = z.object({
 });
 
 const batchIdSchema = z.string()
-    .regex(/^CROP-\d{4}-\d{3}$/, 'Invalid batch ID format')
-    .or(z.string().min(1, 'Batch ID is required'));
+    .min(1, 'Batch ID is required')
+    .regex(/^CROP-\d{4}-\d{3}$/, 'Invalid batch ID format');
 
 // Validation middleware
 const validateRequest = (schema) => {
@@ -538,7 +557,16 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// Global error handler
+// Handle 404 routes (must come before error handler)
+app.use('*', (req, res) => {
+    console.log(`[404] Route not found: ${req.method} ${req.originalUrl} from IP: ${req.ip}`);
+    res.status(404).json({
+        error: 'Route not found',
+        message: 'The requested endpoint does not exist'
+    });
+});
+
+// Global error handler (must be last middleware)
 app.use((err, req, res, next) => {
     console.error(`[ERROR] ${err.stack} - IP: ${req.ip}`);
     
@@ -549,15 +577,6 @@ app.use((err, req, res, next) => {
         error: 'Internal server error',
         message: isDevelopment ? err.message : 'Something went wrong!',
         ...(isDevelopment && { stack: err.stack })
-    });
-});
-
-// Handle 404 routes
-app.use('*', (req, res) => {
-    console.log(`[404] Route not found: ${req.method} ${req.originalUrl} from IP: ${req.ip}`);
-    res.status(404).json({
-        error: 'Route not found',
-        message: 'The requested endpoint does not exist'
     });
 });
 
@@ -578,7 +597,7 @@ app.listen(PORT, () => {
     console.log('\n⚙️  Configuration:');
     console.log(`  • CORS origins: ${allowedOrigins.length > 0 ? allowedOrigins.join(', ') : 'None configured'}`);
     console.log(`  • Max file size: ${Math.round(maxFileSize / 1024 / 1024)}MB`);
-    console.log(`  • Rate limit window: ${Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000) / 60000)} minutes`);
+    console.log(`  • Rate limit window: ${Math.ceil(rateLimitWindowMs / 60000)} minutes`);
     
     // Warnings for production
     if (process.env.NODE_ENV === 'production') {
