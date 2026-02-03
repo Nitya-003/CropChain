@@ -1,0 +1,43 @@
+name: CropChain Welcome Message
+
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Welcome New Issue
+        if: github.event_name == 'issues'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "🚜 **Welcome to the CropChain Ecosystem!**\n\nThank you for opening this issue. Traceability and transparency in agriculture start with great feedback like yours! \n\nOur maintainers will review this shortly. Please make sure you have:\n- [ ] Used the **Issue Template**.\n- [ ] Provided logs or screenshots if reporting a bug.\n- [ ] Specified if the issue relates to the **Smart Contracts**, **Backend**, or **Frontend**.\n\n🌟 **Star the repo to support transparent supply chains!**"
+            })
+
+      - name: Welcome New PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "🚀 **Impressive! A new contribution to CropChain!**\n\nThank you for your Pull Request. To help us merge this smoothly, please ensure:\n- [ ] **Tests Pass:** You have run `npx hardhat test` for contract changes.\n- [ ] **Security:** No `.env` files or private keys are committed.\n- [ ] **UI Standards:** Any frontend changes follow our 'Apple-level' design system.\n- [ ] **Documentation:** You've updated the README if you added new environment variables.\n\nWe will review your code soon. Happy building! 🌾✨"
+            })
