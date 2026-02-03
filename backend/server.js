@@ -290,8 +290,28 @@ if (missingRecommended.length > 0 && process.env.NODE_ENV === 'production') {
     console.warn('⚠️  Missing recommended environment variables for production:', missingRecommended.join(', '));
 }
 
+/* -------------------- Multer (memory storage) -------------------- */
+const upload = multer({
+    storage: multer.memoryStorage()
+});
+
+/* -------------------- Pinata IPFS config -------------------- */
+const pinata = new pinataSDK(
+    process.env.PINATA_API_KEY,
+    process.env.PINATA_SECRET_API_KEY
+);
+
+/* -------------------- In-memory storage -------------------- */
 const batches = new Map();
 let batchCounter = 1;
+
+/* -------------------- Blockchain config (unchanged) -------------------- */
+const PROVIDER_URL =
+    process.env.INFURA_URL ||
+    'https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID';
+
+const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '0x...';
+const PRIVATE_KEY = process.env.PRIVATE_KEY || '0x...';
 
 // Blockchain configuration - All from environment variables
 const PROVIDER_URL = process.env.INFURA_URL || process.env.ALCHEMY_URL;
@@ -310,6 +330,7 @@ const CONTRACT_ABI = [
     "function getBatchUpdates(string batchId) public view returns (tuple(string stage, string actor, string location, uint256 timestamp, string notes, address updatedBy)[])"
 ];
 
+/* -------------------- Helpers -------------------- */
 function generateBatchId() {
     const id = `CROP-2024-${String(batchCounter).padStart(3, '0')}`;
     batchCounter++;
@@ -391,11 +412,27 @@ app.post('/api/batches', batchLimiter, validateRequest(createBatchSchema), async
     try {
         const validatedData = req.validatedBody;
 
+        /* ---------- Upload image to IPFS (if provided) ---------- */
+        let imageCid = null;
+        if (req.file) {
+            const result = await pinata.pinFileToIPFS(req.file.buffer);
+            imageCid = result.IpfsHash;
+        }
+
         const batchId = generateBatchId();
         const qrCode = await generateQRCode(batchId);
 
         const batch = {
             batchId,
+            farmerName,
+            farmerAddress,
+            cropType,
+            quantity: parseInt(quantity),
+            harvestDate,
+            origin,
+            certifications: certifications || '',
+            description: description || '',
+            imageCid, // ✅ ONLY CID STORED
             farmerName: validatedData.farmerName,
             farmerAddress: validatedData.farmerAddress,
             cropType: validatedData.cropType,
@@ -438,6 +475,8 @@ app.post('/api/batches', batchLimiter, validateRequest(createBatchSchema), async
     }
 });
 
+/* ==================== GET SINGLE BATCH ==================== */
+app.get('/api/batches/:batchId', async (req, res) => {
 app.get('/api/batches/:batchId', batchLimiter, validateBatchId, async (req, res) => {
     try {
         const { batchId } = req.params;
@@ -462,6 +501,8 @@ app.get('/api/batches/:batchId', batchLimiter, validateBatchId, async (req, res)
     }
 });
 
+/* ==================== UPDATE BATCH ==================== */
+app.put('/api/batches/:batchId', async (req, res) => {
 app.put('/api/batches/:batchId', batchLimiter, validateBatchId, validateRequest(updateBatchSchema), async (req, res) => {
     try {
         const { batchId } = req.params;
@@ -505,27 +546,36 @@ app.put('/api/batches/:batchId', batchLimiter, validateBatchId, validateRequest(
     }
 });
 
+/* ==================== GET ALL BATCHES ==================== */
+app.get('/api/batches', async (req, res) => {
 app.get('/api/batches', batchLimiter, async (req, res) => {
     try {
         const allBatches = Array.from(batches.values());
         const uniqueFarmers = new Set(allBatches.map(b => b.farmerName)).size;
-        const totalQuantity = allBatches.reduce((sum, batch) => sum + batch.quantity, 0);
-        
+        const totalQuantity = allBatches.reduce(
+            (sum, batch) => sum + batch.quantity,
+            0
+        );
+
         const stats = {
             totalBatches: allBatches.length,
             totalFarmers: uniqueFarmers,
             totalQuantity,
             recentBatches: allBatches.filter(batch => {
-                const weekAgo = new Date();
-                weekAgo.setDate(weekAgo.getDate() - 30);
-                return new Date(batch.createdAt) > weekAgo;
+                const monthAgo = new Date();
+                monthAgo.setDate(monthAgo.getDate() - 30);
+                return new Date(batch.createdAt) > monthAgo;
             })
         };
 
-        const sortedBatches = allBatches.sort((a, b) => 
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        const sortedBatches = allBatches.sort(
+            (a, b) =>
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime()
         );
 
+        res.json({
+            success: true,
         console.log(`[SUCCESS] Batches list retrieved from IP: ${req.ip}`);
 
         res.json({ 
@@ -542,9 +592,10 @@ app.get('/api/batches', batchLimiter, async (req, res) => {
     }
 });
 
+/* ==================== HEALTH CHECK ==================== */
 app.get('/api/health', (req, res) => {
-    res.json({ 
-        success: true, 
+    res.json({
+        success: true,
         message: 'CropChain API is running',
         timestamp: new Date().toISOString(),
         version: '1.0.0',
@@ -566,6 +617,7 @@ app.use('*', (req, res) => {
     });
 });
 
+/* ==================== ERROR HANDLER ==================== */
 // Global error handler (must be last middleware)
 app.use((err, req, res, next) => {
     console.error(`[ERROR] ${err.stack} - IP: ${req.ip}`);
@@ -580,6 +632,7 @@ app.use((err, req, res, next) => {
     });
 });
 
+/* ==================== START SERVER ==================== */
 app.listen(PORT, () => {
     console.log(`🚀 CropChain API server running on port ${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
