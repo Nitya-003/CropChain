@@ -69,7 +69,7 @@ const AIChatbot: React.FC = () => {
       
       // Remove typing indicator and add error message
       aiChatService.removeTypingIndicator();
-      const errorMsg = aiChatService.addMessage(
+      aiChatService.addMessage(
         "I'm sorry, I encountered an error. Please try again or contact support if the issue persists.",
         'assistant'
       );
