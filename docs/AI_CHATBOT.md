@@ -294,16 +294,21 @@ async chat(message, batchService) {
 }
 ```
 
-### Lazy Loading
-The chatbot component is loaded only when needed:
+### Integration in App
+The chatbot component is imported and rendered directly in the main application:
 
 ```tsx
-const AIChatbot = React.lazy(() => import('./components/AIChatbot'));
-
 // In App.tsx
-<Suspense fallback={<div>Loading chat...</div>}>
-  <AIChatbot />
-</Suspense>
+import AIChatbot from './components/AIChatbot';
+
+function App() {
+  return (
+    <div>
+      {/* other app content */}
+      <AIChatbot />
+    </div>
+  );
+}
 ```
 
 ## Troubleshooting
