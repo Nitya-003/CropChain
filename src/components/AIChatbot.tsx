@@ -61,7 +61,7 @@ const AIChatbot: React.FC = () => {
       aiChatService.removeTypingIndicator();
       
       // Add AI response
-      const aiMsg = aiChatService.addMessage(response.response, 'assistant');
+      aiChatService.addMessage(response.response, 'assistant');
       setMessages(aiChatService.getMessages());
 
     } catch (error) {
