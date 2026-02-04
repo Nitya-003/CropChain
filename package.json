@@ -16,7 +16,8 @@
     "verify:mumbai": "hardhat verify --network mumbai",
     "verify:polygon": "hardhat verify --network polygon",
     "node": "hardhat node",
-    "clean": "hardhat clean"
+    "clean": "hardhat clean",
+    "setup:ai": "node scripts/setup-ai-chatbot.js"
   },
   "keywords": [
     "blockchain",
@@ -64,6 +65,7 @@
     "@types/qrcode": "^1.5.5",
     "@types/react-router-dom": "^5.3.3",
     "dotenv": "^16.3.1",
+    "framer-motion": "^11.0.0",
     "lucide-react": "^0.344.0",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
