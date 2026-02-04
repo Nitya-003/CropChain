@@ -542,7 +542,7 @@ const batchServiceForAI = {
 
 app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, res) => {
     try {
-        const { message, context } = req.validatedBody;
+        const { message } = req.validatedBody;
         
         console.log(`[AI CHAT] Request from IP: ${req.ip} - Message: "${message.substring(0, 50)}..."`);
         
