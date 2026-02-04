@@ -126,9 +126,12 @@ const createBatchSchema = z.object({
         errorMap: () => ({ message: 'Crop type must be one of: rice, wheat, corn, tomato' })
     }),
     
-    quantity: z.number()
-        .min(1, 'Quantity must be at least 1')
-        .max(1000000, 'Quantity must be less than 1,000,000'),
+    quantity: z.preprocess(
+        (val) => (typeof val === 'string' ? Number(val) : val),
+        z.number()
+            .min(1, 'Quantity must be at least 1')
+            .max(1000000, 'Quantity must be less than 1,000,000')
+    ),
     
     harvestDate: z.string()
         .regex(/^\d{4}-\d{2}-\d{2}$/, 'Harvest date must be in YYYY-MM-DD format')
