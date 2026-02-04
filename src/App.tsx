@@ -6,6 +6,7 @@ import AddBatch from './pages/AddBatch';
 import UpdateBatch from './pages/UpdateBatch';
 import TrackBatch from './pages/TrackBatch';
 import AdminDashboard from './pages/AdminDashboard';
+import AIChatbot from './components/AIChatbot';
 
 function App() {
   return (
@@ -21,6 +22,9 @@ function App() {
             <Route path="/admin" element={<AdminDashboard />} />
           </Routes>
         </main>
+        
+        {/* AI Chatbot - Available on all pages */}
+        <AIChatbot />
       </div>
     </Router>
   );

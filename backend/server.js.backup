@@ -24,24 +24,33 @@ app.use(helmet({
     crossOriginEmbedderPolicy: false
 }));
 
-// Rate limiting configurations
-const rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
-const rateLimitMaxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100;
+// Rate limiting configurations - All configurable via environment variables
+const parseEnvInt = (envVar, defaultValue) => {
+    const parsed = parseInt(envVar);
+    return isNaN(parsed) ? defaultValue : parsed;
+};
+
+const rateLimitWindowMs = parseEnvInt(process.env.RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000);
+const rateLimitMaxRequests = parseEnvInt(process.env.RATE_LIMIT_MAX_REQUESTS, 100);
 
 const generalLimiter = rateLimit({
-    windowMs: rateLimitWindowMs,
-    max: rateLimitMaxRequests,
+    windowMs: rateLimitWindowMs, // Default: 15 minutes
+    max: rateLimitMaxRequests, // Default: 100 requests
     message: {
         error: 'Too many requests from this IP, please try again later.',
         retryAfter: `${Math.ceil(rateLimitWindowMs / 60000)} minutes`
     },
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => {
+        // Skip rate limiting for health checks in production monitoring
+        return req.path === '/api/health' && process.env.NODE_ENV === 'production';
+    }
 });
 
 const authLimiter = rateLimit({
-    windowMs: rateLimitWindowMs,
-    max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 5,
+    windowMs: rateLimitWindowMs, // Default: 15 minutes
+    max: parseEnvInt(process.env.AUTH_RATE_LIMIT_MAX, 5), // Default: 5 requests
     message: {
         error: 'Too many authentication attempts from this IP, please try again later.',
         retryAfter: `${Math.ceil(rateLimitWindowMs / 60000)} minutes`
@@ -51,8 +60,8 @@ const authLimiter = rateLimit({
 });
 
 const batchLimiter = rateLimit({
-    windowMs: rateLimitWindowMs,
-    max: parseInt(process.env.BATCH_RATE_LIMIT_MAX) || 20,
+    windowMs: rateLimitWindowMs, // Default: 15 minutes
+    max: parseEnvInt(process.env.BATCH_RATE_LIMIT_MAX, 20), // Default: 20 requests
     message: {
         error: 'Too many batch operations from this IP, please try again later.',
         retryAfter: `${Math.ceil(rateLimitWindowMs / 60000)} minutes`
@@ -61,39 +70,44 @@ const batchLimiter = rateLimit({
     legacyHeaders: false,
 });
 
+// Apply general rate limiting to all requests
 app.use(generalLimiter);
 
-// CORS configuration
+// CORS configuration - Production ready with environment-based origins
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
     ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
     : [];
 
+// Add FRONTEND_URL if specified
 if (process.env.FRONTEND_URL) {
     allowedOrigins.push(process.env.FRONTEND_URL);
 }
 
+// Only allow localhost in development
 if (process.env.NODE_ENV === 'development') {
     allowedOrigins.push('http://localhost:3000', 'http://localhost:5173');
 }
 
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow requests with no origin (mobile apps, Postman, curl, etc.)
-        if (!origin) {
+        // Allow requests with no origin (mobile apps, Postman, etc.)
+        if (!origin && process.env.NODE_ENV === 'development') {
             return callback(null, true);
         }
         
         if (allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
+            console.warn(`[CORS] Blocked request from origin: ${origin}`);
             callback(new Error('Not allowed by CORS'));
         }
     },
-    credentials: true
+    credentials: true,
+    optionsSuccessStatus: 200
 }));
 
-// Body parsing
-const maxFileSize = parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024;
+// Body parsing with configurable size limits
+const maxFileSize = parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024; // Default: 10MB
 
 app.use(express.json({ 
     limit: maxFileSize,
@@ -101,7 +115,8 @@ app.use(express.json({
         try {
             JSON.parse(buf);
         } catch (e) {
-            res.status(400).json({ error: 'Invalid JSON' });
+            res.status(400).json({ error: 'Invalid JSON payload' });
+            throw new Error('Invalid JSON');
         }
     }
 }));
@@ -109,36 +124,57 @@ app.use(express.json({
 app.use(express.urlencoded({ extended: true, limit: maxFileSize }));
 
 // NoSQL injection protection
-app.use(mongoSanitize());
+app.use(mongoSanitize({
+    replaceWith: '_',
+    onSanitize: ({ req, key }) => {
+        console.warn(`Sanitized key: ${key} in request from IP: ${req.ip}`);
+    }
+}));
 
-// Validation schemas
+// Validation schemas using Zod
 const createBatchSchema = z.object({
     farmerName: z.string()
         .min(2, 'Farmer name must be at least 2 characters')
         .max(100, 'Farmer name must be less than 100 characters')
-        .regex(/^[a-zA-Z\s.-]+$/, 'Farmer name can only contain letters, spaces, periods, and hyphens'),
+        .regex(/^[a-zA-Z\s.'-]+$/, 'Farmer name contains invalid characters'),
     
     farmerAddress: z.string()
         .min(10, 'Farmer address must be at least 10 characters')
         .max(500, 'Farmer address must be less than 500 characters'),
     
-    cropType: z.enum(['rice', 'wheat', 'corn', 'tomato'], {
-        errorMap: () => ({ message: 'Crop type must be one of: rice, wheat, corn, tomato' })
-    }),
+    cropType: z.string()
+        .min(2, 'Crop type must be at least 2 characters')
+        .max(50, 'Crop type must be less than 50 characters')
+        .regex(/^[a-zA-Z\s-]+$/, 'Crop type contains invalid characters'),
     
-    quantity: z.number()
-        .min(1, 'Quantity must be at least 1')
-        .max(1000000, 'Quantity must be less than 1,000,000'),
+    quantity: z.union([
+        z.string()
+            .regex(/^\d+$/, 'Quantity must be a valid number')
+            .refine(val => val.length <= 7, 'Quantity must be between 1 and 1,000,000')
+            .refine(val => !/^0\d+$/.test(val), 'Quantity must not contain leading zeros')
+            .transform(Number),
+        z.number()
+    ]).refine(val => val > 0 && val <= 1000000, 'Quantity must be between 1 and 1,000,000'),
     
     harvestDate: z.string()
         .regex(/^\d{4}-\d{2}-\d{2}$/, 'Harvest date must be in YYYY-MM-DD format')
-        .refine((date) => {
-            const harvestDate = new Date(date);
-            const oneYearAgo = new Date();
-            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-            const today = new Date();
+        .refine(date => {
+            const parsed = new Date(date + 'T00:00:00.000Z'); // Parse as UTC
+            const now = new Date();
             
-            return harvestDate >= oneYearAgo && harvestDate <= today;
+            // Normalize comparison bounds to UTC date-only values
+            const todayUtc = new Date(Date.UTC(
+                now.getUTCFullYear(),
+                now.getUTCMonth(),
+                now.getUTCDate()
+            ));
+            const oneYearAgoUtc = new Date(Date.UTC(
+                todayUtc.getUTCFullYear() - 1,
+                todayUtc.getUTCMonth(),
+                todayUtc.getUTCDate()
+            ));
+            
+            return parsed <= todayUtc && parsed >= oneYearAgoUtc;
         }, 'Harvest date must be within the last year and not in the future'),
     
     origin: z.string()
@@ -160,7 +196,7 @@ const updateBatchSchema = z.object({
     actor: z.string()
         .min(2, 'Actor name must be at least 2 characters')
         .max(100, 'Actor name must be less than 100 characters')
-        .regex(/^[a-zA-Z\s.-]+$/, 'Actor name can only contain letters, spaces, periods, and hyphens'),
+        .regex(/^[a-zA-Z\s.'-]+$/, 'Actor name contains invalid characters'),
     
     stage: z.enum(['farmer', 'mandi', 'transport', 'retailer'], {
         errorMap: () => ({ message: 'Stage must be one of: farmer, mandi, transport, retailer' })
@@ -229,20 +265,65 @@ const validateBatchId = (req, res, next) => {
     }
 };
 
-// In-memory storage
+// Environment validation - Ensure required variables are set
+const requiredEnvVars = [
+    'NODE_ENV'
+];
+
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+    console.error('❌ Missing required environment variables:', missingEnvVars.join(', '));
+    console.error('Please check your .env file and ensure all required variables are set.');
+    process.exit(1);
+}
+
+// Warn about missing optional but recommended variables
+const recommendedEnvVars = [
+    'FRONTEND_URL',
+    'MONGODB_URI',
+    'JWT_SECRET'
+];
+
+const missingRecommended = recommendedEnvVars.filter(envVar => !process.env[envVar]);
+if (missingRecommended.length > 0 && process.env.NODE_ENV === 'production') {
+    console.warn('⚠️  Missing recommended environment variables for production:', missingRecommended.join(', '));
+}
+
+/* -------------------- Multer (memory storage) -------------------- */
+const upload = multer({
+    storage: multer.memoryStorage()
+});
+
+/* -------------------- Pinata IPFS config -------------------- */
+const pinata = new pinataSDK(
+    process.env.PINATA_API_KEY,
+    process.env.PINATA_SECRET_API_KEY
+);
+
+/* -------------------- In-memory storage -------------------- */
 const batches = new Map();
 let batchCounter = 1;
 
-// Blockchain configuration
+/* -------------------- Blockchain config (updated) -------------------- */
+// Blockchain configuration - All from environment variables
 const PROVIDER_URL = process.env.INFURA_URL || process.env.ALCHEMY_URL || 'https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID';
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '0x...';
 const PRIVATE_KEY = process.env.PRIVATE_KEY || '0x...';
 
+// Validate blockchain configuration if needed
 if (process.env.NODE_ENV === 'production' && (!PROVIDER_URL || !CONTRACT_ADDRESS || !PRIVATE_KEY)) {
     console.warn('⚠️  Blockchain configuration incomplete. Running in demo mode.');
 }
 
-// Helper functions
+const CONTRACT_ABI = [
+    "function createBatch(string batchId, string farmerName, string farmerAddress, string cropType, uint256 quantity, string harvestDate, string origin, string certifications, string description) public",
+    "function updateBatch(string batchId, string stage, string actor, string location, string notes) public",
+    "function getBatch(string batchId) public view returns (tuple(string batchId, string farmerName, string farmerAddress, string cropType, uint256 quantity, string harvestDate, string origin, string certifications, string description, uint256 createdAt, address creator, bool exists))",
+    "function getBatchUpdates(string batchId) public view returns (tuple(string stage, string actor, string location, uint256 timestamp, string notes, address updatedBy)[])"
+];
+
+/* -------------------- Helpers -------------------- */
 function generateBatchId() {
     const id = `CROP-2024-${String(batchCounter).padStart(3, '0')}`;
     batchCounter++;
@@ -277,9 +358,16 @@ const securityLogger = (req, res, next) => {
     
     console.log(`[${timestamp}] ${req.method} ${req.path} - IP: ${ip} - User-Agent: ${userAgent}`);
     
+    // Log suspicious patterns
     const suspiciousPatterns = [
-        /\$where/i, /\$ne/i, /\$gt/i, /\$lt/i, /\$regex/i,
-        /javascript:/i, /<script/i, /union.*select/i
+        /\$where/i,
+        /\$ne/i,
+        /\$gt/i,
+        /\$lt/i,
+        /\$regex/i,
+        /javascript:/i,
+        /<script/i,
+        /union.*select/i
     ];
     
     const requestString = JSON.stringify(req.body) + JSON.stringify(req.query) + JSON.stringify(req.params);
@@ -295,43 +383,9 @@ const securityLogger = (req, res, next) => {
 
 app.use(securityLogger);
 
-// Initialize with sample data
-const sampleBatch = {
-    batchId: 'CROP-2024-001',
-    farmerName: 'Rajesh Kumar',
-    farmerAddress: 'Village Rampur, District Meerut, UP',
-    cropType: 'rice',
-    quantity: 1000,
-    harvestDate: '2024-01-15',
-    origin: 'Rampur, Meerut',
-    certifications: 'Organic, Fair Trade',
-    description: 'High-quality Basmati rice grown using traditional methods',
-    createdAt: new Date().toISOString(),
-    currentStage: 'mandi',
-    updates: [
-        {
-            stage: 'farmer',
-            actor: 'Rajesh Kumar',
-            location: 'Rampur, Meerut',
-            timestamp: '2024-01-15T10:00:00.000Z',
-            notes: 'Initial harvest recorded'
-        },
-        {
-            stage: 'mandi',
-            actor: 'Punjab Mandi',
-            location: 'Ludhiana Market',
-            timestamp: '2024-01-16T14:30:00.000Z',
-            notes: 'Quality checked and processed'
-        }
-    ],
-    qrCode: 'data:image/png;base64,sample',
-    blockchainHash: '0x123456789abcdef'
-};
+// Routes with security middleware
 
-batches.set('CROP-2024-001', sampleBatch);
-batchCounter = 2;
-
-// Auth routes (placeholder)
+// Auth routes (placeholder for future authentication)
 app.post('/api/auth/login', authLimiter, (req, res) => {
     res.status(501).json({ 
         error: 'Authentication not implemented yet',
@@ -346,10 +400,18 @@ app.post('/api/auth/register', authLimiter, (req, res) => {
     });
 });
 
-// Batch routes
+// Batch routes with rate limiting and validation
 app.post('/api/batches', batchLimiter, validateRequest(createBatchSchema), async (req, res) => {
     try {
         const validatedData = req.validatedBody;
+
+        /* ---------- Upload image to IPFS (if provided) ---------- */
+        let imageCid = null;
+        if (req.file) {
+            const result = await pinata.pinFileToIPFS(req.file.buffer);
+            imageCid = result.IpfsHash;
+        }
+
         const batchId = generateBatchId();
         const qrCode = await generateQRCode(batchId);
 
@@ -361,8 +423,9 @@ app.post('/api/batches', batchLimiter, validateRequest(createBatchSchema), async
             quantity: validatedData.quantity,
             harvestDate: validatedData.harvestDate,
             origin: validatedData.origin,
-            certifications: validatedData.certifications,
-            description: validatedData.description,
+            certifications: validatedData.certifications || '',
+            description: validatedData.description || '',
+            imageCid, // ✅ ONLY CID STORED
             createdAt: new Date().toISOString(),
             currentStage: 'farmer',
             updates: [
@@ -379,6 +442,8 @@ app.post('/api/batches', batchLimiter, validateRequest(createBatchSchema), async
         };
 
         batches.set(batchId, batch);
+
+        // Log successful batch creation
         console.log(`[SUCCESS] Batch created: ${batchId} by ${validatedData.farmerName} from IP: ${req.ip}`);
 
         res.status(201).json({ 
@@ -395,6 +460,8 @@ app.post('/api/batches', batchLimiter, validateRequest(createBatchSchema), async
     }
 });
 
+/* ==================== GET SINGLE BATCH ==================== */
+app.get('/api/batches/:batchId', async (req, res) => {
 app.get('/api/batches/:batchId', batchLimiter, validateBatchId, async (req, res) => {
     try {
         const { batchId } = req.params;
@@ -419,6 +486,8 @@ app.get('/api/batches/:batchId', batchLimiter, validateBatchId, async (req, res)
     }
 });
 
+/* ==================== UPDATE BATCH ==================== */
+app.put('/api/batches/:batchId', async (req, res) => {
 app.put('/api/batches/:batchId', batchLimiter, validateBatchId, validateRequest(updateBatchSchema), async (req, res) => {
     try {
         const { batchId } = req.params;
@@ -462,11 +531,16 @@ app.put('/api/batches/:batchId', batchLimiter, validateBatchId, validateRequest(
     }
 });
 
+/* ==================== GET ALL BATCHES ==================== */
+app.get('/api/batches', async (req, res) => {
 app.get('/api/batches', batchLimiter, async (req, res) => {
     try {
         const allBatches = Array.from(batches.values());
         const uniqueFarmers = new Set(allBatches.map(b => b.farmerName)).size;
-        const totalQuantity = allBatches.reduce((sum, batch) => sum + batch.quantity, 0);
+        const totalQuantity = allBatches.reduce(
+            (sum, batch) => sum + batch.quantity,
+            0
+        );
 
         const stats = {
             totalBatches: allBatches.length,
@@ -476,11 +550,13 @@ app.get('/api/batches', batchLimiter, async (req, res) => {
                 const monthAgo = new Date();
                 monthAgo.setDate(monthAgo.getDate() - 30);
                 return new Date(batch.createdAt) > monthAgo;
-            }).length
+            })
         };
 
         const sortedBatches = allBatches.sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            (a, b) =>
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime()
         );
 
         console.log(`[SUCCESS] Batches list retrieved from IP: ${req.ip}`);
@@ -499,9 +575,10 @@ app.get('/api/batches', batchLimiter, async (req, res) => {
     }
 });
 
-// AI Chat functionality
+/* ==================== AI CHAT ROUTE ==================== */
 const aiService = require('./services/aiService');
 
+// AI Chat validation schema
 const chatSchema = z.object({
     message: z.string()
         .min(1, 'Message cannot be empty')
@@ -515,6 +592,7 @@ const chatSchema = z.object({
     }).optional()
 });
 
+// Create a batch service interface for AI
 const batchServiceForAI = {
     async getBatch(batchId) {
         return batches.get(batchId);
@@ -546,8 +624,10 @@ app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, 
         
         console.log(`[AI CHAT] Request from IP: ${req.ip} - Message: "${message.substring(0, 50)}..."`);
         
+        // Get AI response
         const aiResponse = await aiService.chat(message, batchServiceForAI);
         
+        // Log successful interaction
         console.log(`[AI CHAT SUCCESS] Response generated for IP: ${req.ip}`);
         
         res.json({
@@ -563,6 +643,7 @@ app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, 
     } catch (error) {
         console.error('AI Chat error:', error);
         
+        // Fallback response on error
         res.status(500).json({
             success: false,
             response: "I'm sorry, I'm having trouble processing your request right now. Please try asking about batch tracking, QR codes, or supply chain processes.",
@@ -572,7 +653,7 @@ app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, 
     }
 });
 
-// Health check
+/* ==================== HEALTH CHECK ==================== */
 app.get('/api/health', (req, res) => {
     res.json({
         success: true,
@@ -591,7 +672,7 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// 404 handler
+// Handle 404 routes (must come before error handler)
 app.use('*', (req, res) => {
     console.log(`[404] Route not found: ${req.method} ${req.originalUrl} from IP: ${req.ip}`);
     res.status(404).json({
@@ -600,10 +681,12 @@ app.use('*', (req, res) => {
     });
 });
 
-// Error handler
+/* ==================== ERROR HANDLER ==================== */
+// Global error handler (must be last middleware)
 app.use((err, req, res, next) => {
     console.error(`[ERROR] ${err.stack} - IP: ${req.ip}`);
     
+    // Don't leak error details in production
     const isDevelopment = process.env.NODE_ENV === 'development';
     
     res.status(500).json({ 
@@ -613,24 +696,27 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Start server
+/* ==================== START SERVER ==================== */
 app.listen(PORT, () => {
     console.log(`🚀 CropChain API server running on port ${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
     
+    // Security features status
     console.log('\n🔒 Security features enabled:');
-    console.log(`  ✓ Rate limiting (${rateLimitMaxRequests} req/window)`);
+    console.log(`  ✓ Rate limiting (${process.env.RATE_LIMIT_MAX_REQUESTS || 100} req/window)`);
     console.log(`  ✓ NoSQL injection protection`);
     console.log(`  ✓ Input validation with Zod`);
     console.log(`  ✓ Security headers with Helmet`);
     console.log(`  ✓ Request logging and monitoring`);
     
+    // Configuration status
     console.log('\n⚙️  Configuration:');
     console.log(`  • CORS origins: ${allowedOrigins.length > 0 ? allowedOrigins.join(', ') : 'None configured'}`);
     console.log(`  • Max file size: ${Math.round(maxFileSize / 1024 / 1024)}MB`);
     console.log(`  • Rate limit window: ${Math.ceil(rateLimitWindowMs / 60000)} minutes`);
     
+    // Warnings for production
     if (process.env.NODE_ENV === 'production') {
         console.log('\n🏭 Production mode warnings:');
         if (!process.env.MONGODB_URI) {
