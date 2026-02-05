@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, TrendingUp, Package, Users, Calendar, BarChart3, Copy, Check } from 'lucide-react';
 import { cropBatchService } from '../services/cropBatchService';
+import { StatsCardSkeleton, TableSkeleton, ChartSkeleton } from '../components/skeletons';
 
 const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState({
@@ -59,8 +60,41 @@ const AdminDashboard: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin h-12 w-12 border-4 border-green-600 border-t-transparent rounded-full"></div>
+      <div className="max-w-7xl mx-auto space-y-8">
+        <div className="text-center">
+          <div className="h-12 bg-gray-300 dark:bg-gray-700 rounded w-64 mx-auto mb-4"></div>
+          <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded w-96 mx-auto"></div>
+        </div>
+
+        <div className="grid md:grid-cols-4 gap-6">
+          <StatsCardSkeleton />
+          <StatsCardSkeleton />
+          <StatsCardSkeleton />
+          <StatsCardSkeleton />
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+          <div className="flex items-center mb-6">
+            <div className="h-6 w-6 bg-gray-300 dark:bg-gray-700 rounded mr-3"></div>
+            <div className="h-7 bg-gray-300 dark:bg-gray-700 rounded w-40"></div>
+          </div>
+          <TableSkeleton />
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          <ChartSkeleton />
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 animate-pulse">
+            <div className="h-7 bg-gray-300 dark:bg-gray-700 rounded w-48 mb-4"></div>
+            <div className="flex items-end justify-between h-48 px-4">
+              {[1, 2, 3, 4, 5, 6].map((item) => (
+                <div key={item} className="flex flex-col items-center">
+                  <div className="bg-gray-300 dark:bg-gray-600 rounded-t-lg w-8 transition-all duration-500 h-20"></div>
+                  <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-8 mt-2"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
