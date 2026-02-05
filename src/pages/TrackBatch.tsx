@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Search, QrCode, Package, Calendar, MapPin, User, FileText, Copy, Check } from 'lucide-react';
 import { cropBatchService } from '../services/cropBatchService';
-import Timeline from '../components/Timeline';
+// import Timeline from '../components/Timeline';
 import QRScanner from '../components/QRScanner';
+import {TrackBatchSkeleton} from '../components/skeletons';
 
 const TrackBatch: React.FC = () => {
   const [batchId, setBatchId] = useState('');
@@ -25,6 +26,7 @@ const TrackBatch: React.FC = () => {
     if (!batchId.trim()) return;
 
     setIsSearching(true);
+    setBatch(null);
     try {
       const foundBatch = await cropBatchService.getBatch(batchId);
       setBatch(foundBatch);
@@ -96,6 +98,8 @@ const TrackBatch: React.FC = () => {
           </div>
         )}
       </div>
+
+      {isSearching && <TrackBatchSkeleton />}
 
       {batch && (
         <>
@@ -200,7 +204,7 @@ const TrackBatch: React.FC = () => {
               <FileText className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
               Supply Chain Journey
             </h3>
-            <Timeline events={batch.updates} />
+            {/* <Timeline events={batch.updates} /> */}
           </div>
 
           {/* QR Code */}
