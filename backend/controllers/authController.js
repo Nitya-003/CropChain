@@ -1,30 +1,39 @@
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const bcrypt = require('bcryptjs');
+const { z } = require('zod');
 require('dotenv').config();
 
+// Validation Schemas
+const registerSchema = z.object({
+    name: z.string().min(2, 'Name must be at least 2 characters'),
+    email: z.string().email('Please provide a valid email'),
+    password: z.string().min(6, 'Password must be at least 6 characters').max(12, 'Password must be less than 12 characters'),
+    role: z.enum(['farmer', 'transporter'], {
+        errorMap: () => ({ message: 'Invalid role. Only farmer and transporter are allowed.' })
+    })
+});
+
+const loginSchema = z.object({
+    email: z.string().email('Please provide a valid email'),
+    password: z.string().min(1, 'Password is required')
+});
 
 
 const registerUser = async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
-        console.log("name", name);
-        console.log("email", email);
-        console.log("password", password);
-        console.log("role", role);
-        //data validation could be added here or in middleware
+        // Validate request body
+        const validationResult = registerSchema.safeParse(req.body);
 
-
-        if (password.length > 12 || password.length < 6) {
+        if (!validationResult.success) {
             return res.status(400).json({
-                error: 'Registration failed',
-                message: 'Password must be at least 6 characters long and at most 12 characters long'
+                error: 'Validation failed',
+                message: validationResult.error.errors[0].message,
+                details: validationResult.error.errors.map(err => err.message)
             });
         }
 
-        if (role != "farmer" || role != "transporter") {
-            return res.status(400).json({ error: 'Registration failed', message: 'Invalid role' });
-        }
+        const { name, email, password, role } = validationResult.data;
 
         // Check if user exists
         const userExists = await User.findOne({ email });
@@ -60,12 +69,14 @@ const registerUser = async (req, res) => {
                     role: user.role
                 }
             });
+
         } else {
             res.status(400).json({
                 error: 'Registration failed',
                 message: 'Invalid user data'
             });
         }
+
     } catch (error) {
         res.status(500).json({
             error: 'Registration failed',
@@ -77,7 +88,17 @@ const registerUser = async (req, res) => {
 
 const loginUser = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        // Validate request body
+        const validationResult = loginSchema.safeParse(req.body);
+
+        if (!validationResult.success) {
+            return res.status(400).json({
+                error: 'Validation failed',
+                message: validationResult.error.errors[0].message
+            });
+        }
+
+        const { email, password } = validationResult.data;
 
         const user = await User.findOne({ email }).select('+password');
 
