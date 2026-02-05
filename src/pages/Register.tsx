@@ -7,7 +7,7 @@ const Register: React.FC = () => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [role, setRole] = useState<'farmer' | 'transporter' | 'admin'>('farmer');
+    const [role, setRole] = useState<'farmer' | 'transporter'>('farmer');
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -121,7 +121,6 @@ const Register: React.FC = () => {
                                 >
                                     <option value="farmer">Farmer</option>
                                     <option value="transporter">Transporter</option>
-                                    <option value="admin">Admin</option>
                                 </select>
                             </div>
                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
