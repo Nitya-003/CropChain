@@ -6,6 +6,7 @@ import AddBatch from './pages/AddBatch';
 import UpdateBatch from './pages/UpdateBatch';
 import TrackBatch from './pages/TrackBatch';
 import AdminDashboard from './pages/AdminDashboard';
+import NotFound from './pages/NotFound';
 
 function App() {
   return (
@@ -19,6 +20,9 @@ function App() {
             <Route path="/update-batch" element={<UpdateBatch />} />
             <Route path="/track-batch" element={<TrackBatch />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            
+            {/* MUST BE LAST - catch-all for 404 */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
       </div>
