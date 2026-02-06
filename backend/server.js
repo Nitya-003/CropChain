@@ -575,25 +575,6 @@ app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, 
     }
 });
 
-// Health check
-app.get('/api/health', (req, res) => {
-    res.json({
-        success: true,
-        message: 'CropChain API is running',
-        timestamp: new Date().toISOString(),
-        version: '1.0.0',
-        security: {
-            rateLimiting: 'enabled',
-            mongoSanitize: 'enabled',
-            helmet: 'enabled',
-            validation: 'enabled'
-        },
-        features: {
-            aiChatbot: process.env.OPENAI_API_KEY ? 'enabled' : 'fallback_mode'
-        }
-    });
-});
-
 // 404 handler
 app.use('*', (req, res) => {
     console.log(`[404] Route not found: ${req.method} ${req.originalUrl} from IP: ${req.ip}`);
