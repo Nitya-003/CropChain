@@ -10,69 +10,27 @@ import AddBatch from './pages/AddBatch';
 import UpdateBatch from './pages/UpdateBatch';
 import TrackBatch from './pages/TrackBatch';
 import AdminDashboard from './pages/AdminDashboard';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import AccessDenied from './pages/AccessDenied';
-import AIChatbot from './components/AIChatbot';
+import NotFound from './pages/NotFound';
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
-          <Header />
-          <main className="container mx-auto px-4 py-8">
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/access-denied" element={<AccessDenied />} />
-
-              {/* Protected Routes */}
-              <Route
-                path="/add-batch"
-                element={
-                  <ProtectedRoute allowedRoles={['farmer']}>
-                    <AddBatch />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/update-batch"
-                element={
-                  <ProtectedRoute allowedRoles={['transporter']}>
-                    <UpdateBatch />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/track-batch"
-                element={
-                  <ProtectedRoute>
-                    <TrackBatch />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/admin"
-                element={
-                  <ProtectedRoute allowedRoles={['admin']}>
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                }
-              />
-            </Routes>
-          </main>
-
-          {/* AI Chatbot - Available on all pages */}
-          <AIChatbot />
-        </div>
-      </Router>
-    </AuthProvider>
+    <Router>
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+        <Header />
+        <main className="container mx-auto px-4 py-8">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/add-batch" element={<AddBatch />} />
+            <Route path="/update-batch" element={<UpdateBatch />} />
+            <Route path="/track-batch" element={<TrackBatch />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+            
+            {/* MUST BE LAST - catch-all for 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </main>
+      </div>
+    </Router>
   );
 }
 
