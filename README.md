@@ -1,6 +1,7 @@
 # CropChain - Blockchain Crop Supply Chain Tracker
 
   <p align="center">
+    <img src="https://img.shields.io/badge/Apertre-3.0-orange?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Apertre 3.0 Badge">
     <img src="https://img.shields.io/badge/DSCWoC-2026-blueviolet?style=for-the-badge&logo=rocket" alt="DSCWoC Badge">
     <img src="https://img.shields.io/badge/Mission-Open%20Source-ff69b4?style=for-the-badge&logo=github" alt="Mission Badge">
   </p>
@@ -17,6 +18,7 @@ CropChain is a comprehensive full-stack web application that enables transparent
 - **QR Code Generation**: Unique QR codes for each batch enabling instant verification
 - **Multi-Role Support**: Different interfaces for farmers, markets, transporters, and retailers
 - **Admin Dashboard**: Comprehensive monitoring and analytics for supply chain managers
+- **AI-Powered Assistant**: Intelligent chatbot for crop tracking support and stakeholder guidance
 
 ### User Experience
 - **Beautiful, Modern UI**: Apple-level design aesthetics with smooth animations
@@ -24,6 +26,7 @@ CropChain is a comprehensive full-stack web application that enables transparent
 - **Real-time Timeline**: Visual supply chain journey with status indicators
 - **QR Code Scanner**: Simulate scanning QR codes for batch tracking
 - **Search & Filter**: Easy batch lookup and filtering capabilities
+- **Conversational AI**: Natural language interface for system guidance and batch queries
 
 ---
 
@@ -42,6 +45,7 @@ CropChain is a comprehensive full-stack web application that enables transparent
 - **QR Codes**: QRCode library for batch QR generation
 - **Database**: MongoDB for metadata storage
 - **Authentication**: JWT-based auth system
+- **AI Integration**: OpenAI GPT-4o mini for intelligent assistance
 
 ### Smart Contracts (Solidity)
 - **Platform**: Ethereum/Polygon compatible
@@ -87,11 +91,19 @@ CropChain is a comprehensive full-stack web application that enables transparent
 
 5. **Environment Setup**
    ```bash
-   # Copy environment file
+   # Copy environment files
    cp backend/.env.example backend/.env
+   cp .env.example .env
    
    # Edit with your configuration
    nano backend/.env
+   nano .env
+   ```
+
+6. **Configure AI Chatbot** (Optional)
+   ```bash
+   # Add OpenAI API key to backend/.env
+   echo "OPENAI_API_KEY=your_openai_api_key_here" >> backend/.env
    ```
 
 ### Development Setup
@@ -193,6 +205,17 @@ sequenceDiagram
 3. View analytics and statistics
 4. Manage system-wide operations
 
+### AI Assistant Usage
+1. **Access**: Click the floating chat button (bottom-right corner) on any page
+2. **Quick Actions**: Use suggested buttons for common tasks
+3. **Natural Queries**: Ask questions like:
+   - "Where is batch CROP-2024-001?"
+   - "How do I create a new batch?"
+   - "What does immutable record mean?"
+   - "Help me track my shipment"
+4. **Context Awareness**: The AI understands your current page and provides relevant help
+5. **Function Calling**: AI can search batches and provide real-time data
+
 ---
 
 ## 🔧 Configuration
@@ -215,6 +238,21 @@ MONGODB_URI=mongodb://localhost:27017/cropchain
 
 # Security
 JWT_SECRET=your_secret_key
+
+# AI Chatbot (Optional)
+OPENAI_API_KEY=your_openai_api_key_here
+AI_MODEL=gpt-4o-mini
+AI_MAX_TOKENS=500
+AI_TEMPERATURE=0.7
+```
+
+**Frontend (.env)**
+```env
+# API Configuration
+VITE_API_URL=http://localhost:3001
+
+# Development
+VITE_DEV_MODE=true
 ```
 
 **Smart Contracts (hardhat.config.js)**
@@ -291,6 +329,7 @@ npx hardhat run scripts/deploy.js --network polygon
 - React Router
 - Lucide React Icons
 - QRCode.js
+- Framer Motion (animations)
 
 **Backend**
 - Node.js + Express
@@ -298,6 +337,8 @@ npx hardhat run scripts/deploy.js --network polygon
 - MongoDB + Mongoose
 - JWT Authentication
 - QRCode Generation
+- OpenAI API Integration
+- Axios HTTP Client
 
 **Blockchain**
 - Solidity ^0.8.19
@@ -320,18 +361,21 @@ npx hardhat run scripts/deploy.js --network polygon
 - ✅ QR code generation and scanning
 - ✅ Multi-role interfaces
 - ✅ Admin dashboard
+- ✅ AI-powered chatbot assistant
 
 ### Phase 2 (Next)
 - 🔄 IoT Sensor Integration
 - 🔄 Advanced analytics and reporting
 - 🔄 Mobile app development
 - 🔄 Multi-language support
+- 🔄 Enhanced AI capabilities (voice, image recognition)
 
 ### Phase 3 (Future)
 - 📋 AI-powered quality prediction
 - 📋 Carbon footprint tracking
 - 📋 Marketplace integration
 - 📋 Government compliance features
+- 📋 Predictive supply chain analytics
 
 ---
 

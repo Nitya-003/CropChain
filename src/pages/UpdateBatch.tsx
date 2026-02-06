@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { RefreshCw, Search, Package, Clock, User, MapPin } from 'lucide-react';
 import { cropBatchService } from '../services/cropBatchService';
-import Timeline from '../components/Timeline';
+// import Timeline from '../components/Timeline';
+import { FormSkeleton, BatchInfoSkeleton } from '../components/skeletons';
 
 const UpdateBatch: React.FC = () => {
   const [batchId, setBatchId] = useState('');
@@ -27,6 +28,8 @@ const UpdateBatch: React.FC = () => {
     if (!batchId.trim()) return;
 
     setIsSearching(true);
+    setBatch(null); 
+
     try {
       const foundBatch = await cropBatchService.getBatch(batchId);
       setBatch(foundBatch);
@@ -108,7 +111,45 @@ const UpdateBatch: React.FC = () => {
         </div>
       </div>
 
-      {batch && (
+      {/* LOADING STATE 1: Searching for batch */}
+      {isSearching && (
+        <div className="space-y-6">
+          <BatchInfoSkeleton />
+          <FormSkeleton />
+        </div>
+      )}
+
+      {/* LOADING STATE 2: Updating batch (show real batch info + form skeleton) */}
+      {!isSearching && isUpdating && batch && (
+        <>
+          {/* Show the ACTUAL batch information (not skeleton) */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+            <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
+              <Package className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
+              Batch Information
+            </h2>
+            <div className="grid md:grid-cols-3 gap-6">
+              <div className="bg-green-50 dark:bg-green-900/30 rounded-xl p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Crop Type</p>
+                <p className="text-lg font-semibold text-gray-800 dark:text-white capitalize">{batch.cropType}</p>
+              </div>
+              <div className="bg-blue-50 dark:bg-blue-900/30 rounded-xl p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Quantity</p>
+                <p className="text-lg font-semibold text-gray-800 dark:text-white">{batch.quantity} kg</p>
+              </div>
+              <div className="bg-purple-50 dark:bg-purple-900/30 rounded-xl p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Farmer</p>
+                <p className="text-lg font-semibold text-gray-800 dark:text-white">{batch.farmerName}</p>
+              </div>
+            </div>
+          </div>
+
+          <FormSkeleton />
+          </>
+      )}
+
+      {/* NORMAL STATE: Show everything (not searching, not updating) */}
+      {!isSearching && !isUpdating && batch && (
         <>
           {/* Batch Info */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
@@ -138,7 +179,7 @@ const UpdateBatch: React.FC = () => {
               <Clock className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
               Supply Chain Timeline
             </h2>
-            <Timeline events={batch.updates} />
+            {/* <Timeline events={batch.updates} /> */}
           </div>
 
           {/* Update Form */}
