@@ -8,6 +8,7 @@ const QRCode = require('qrcode');
 const { z } = require('zod');
 const connectDB = require('./config/db');
 require('dotenv').config();
+const mainRoutes = require("./routes/index");
 
 // Connect to Database
 connectDB();
@@ -115,6 +116,9 @@ app.use(express.urlencoded({ extended: true, limit: maxFileSize }));
 
 // NoSQL injection protection
 app.use(mongoSanitize());
+
+// mount health check main router
+app.use("/api", mainRoutes);
 
 // Validation schemas
 const createBatchSchema = z.object({
