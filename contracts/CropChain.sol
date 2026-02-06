@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
 contract CropChain {
@@ -15,6 +16,7 @@ contract CropChain {
         uint256 createdAt;
         address creator;
         bool exists;
+        bool isRecalled;   // NEW
     }
     
     struct SupplyChainUpdate {
@@ -51,6 +53,8 @@ contract CropChain {
     );
     
     event ActorAuthorized(address indexed actor, bool authorized);
+    
+    event BatchRecalled(string indexed batchId, address indexed triggeredBy);
     
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner can call this function");
@@ -97,7 +101,7 @@ contract CropChain {
         string memory _origin,
         string memory _certifications,
         string memory _description
-    ) public onlyAuthorized {
+    ) public onlyAuthorized whenNotPaused {
         require(!cropBatches[_batchId].exists, "Batch already exists");
         require(bytes(_batchId).length > 0, "Batch ID cannot be empty");
         require(bytes(_farmerName).length > 0, "Farmer name cannot be empty");
@@ -116,7 +120,8 @@ contract CropChain {
             description: _description,
             createdAt: block.timestamp,
             creator: msg.sender,
-            exists: true
+            exists: true,
+            isRecalled: false
         });
         
         // Add initial farmer update
@@ -150,6 +155,7 @@ contract CropChain {
         string memory _location,
         string memory _notes
     ) public onlyAuthorized batchExists(_batchId) {
+        require(!cropBatches[_batchId].isRecalled, "Batch is recalled");
         require(bytes(_stage).length > 0, "Stage cannot be empty");
         require(bytes(_actor).length > 0, "Actor cannot be empty");
         require(bytes(_location).length > 0, "Location cannot be empty");
@@ -165,6 +171,20 @@ contract CropChain {
         }));
         
         emit BatchUpdated(_batchId, _stage, _actor, _location, msg.sender);
+    }
+    
+    /**
+     * @dev Recall a batch (emergency/admin function)
+     * @param _batchId ID of the batch to recall
+     */
+    function recallBatch(string memory _batchId)
+        public
+        onlyOwner
+        batchExists(_batchId)
+    {
+        cropBatches[_batchId].isRecalled = true;
+
+        emit BatchRecalled(_batchId, msg.sender);
     }
     
     /**

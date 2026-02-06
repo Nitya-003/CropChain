@@ -13,7 +13,7 @@ app.use(express.json());
 const batches = new Map();
 let batchCounter = 1;
 
-const PROVIDER_URL = process.env.INFURA_URL || 'https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID';
+const PROVIDER_URL = process.env.INFURA_URL || 'https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID ';
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '0x...';
 const PRIVATE_KEY = process.env.PRIVATE_KEY || '0x...';
 
@@ -84,6 +84,7 @@ app.post('/api/batches', async (req, res) => {
             description: description || '',
             createdAt: new Date().toISOString(),
             currentStage: 'farmer',
+            isRecalled: false,   // ADD THIS
             updates: [
                 {
                     stage: 'farmer',
@@ -115,6 +116,10 @@ app.get('/api/batches/:batchId', async (req, res) => {
             return res.status(404).json({ error: 'Batch not found' });
         }
 
+        if (batch.isRecalled) {
+            console.log("🚨 ALERT: Recalled batch viewed:", batchId);
+        }
+
         res.json({ success: true, batch });
     } catch (error) {
         console.error('Error fetching batch:', error);
@@ -130,6 +135,11 @@ app.put('/api/batches/:batchId', async (req, res) => {
         const batch = batches.get(batchId);
         if (!batch) {
             return res.status(404).json({ error: 'Batch not found' });
+        }
+
+        if (batch.isRecalled) {
+            console.log("🚨 ALERT: Attempt to update recalled batch:", batchId);
+            return res.status(400).json({ error: 'Batch is recalled and cannot be updated' });
         }
 
         if (!actor || !stage || !location) {
@@ -154,6 +164,23 @@ app.put('/api/batches/:batchId', async (req, res) => {
         console.error('Error updating batch:', error);
         res.status(500).json({ error: 'Failed to update batch' });
     }
+});
+
+// Recall a batch (admin simulation)
+app.post('/api/batches/:batchId/recall', (req, res) => {
+    const { batchId } = req.params;
+    const batch = batches.get(batchId);
+
+    if (!batch) {
+        return res.status(404).json({ error: 'Batch not found' });
+    }
+
+    batch.isRecalled = true;
+    batches.set(batchId, batch);
+
+    console.log("🚨 RECALL ALERT 🚨 Batch recalled:", batchId, "Owner:", batch.farmerName);
+
+    res.json({ success: true, message: 'Batch recalled successfully', batch });
 });
 
 app.get('/api/batches', async (req, res) => {
