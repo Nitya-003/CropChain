@@ -8,6 +8,7 @@ const QRCode = require('qrcode');
 const { z } = require('zod');
 const connectDB = require('./config/db');
 require('dotenv').config();
+const mainRoutes = require("./routes/index");
 
 // Connect to Database
 connectDB();
@@ -115,6 +116,9 @@ app.use(express.urlencoded({ extended: true, limit: maxFileSize }));
 
 // NoSQL injection protection
 app.use(mongoSanitize());
+
+// mount health check main router
+app.use("/api", mainRoutes);
 
 // Validation schemas
 const createBatchSchema = z.object({
@@ -569,25 +573,6 @@ app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, 
             timestamp: new Date().toISOString()
         });
     }
-});
-
-// Health check
-app.get('/api/health', (req, res) => {
-    res.json({
-        success: true,
-        message: 'CropChain API is running',
-        timestamp: new Date().toISOString(),
-        version: '1.0.0',
-        security: {
-            rateLimiting: 'enabled',
-            mongoSanitize: 'enabled',
-            helmet: 'enabled',
-            validation: 'enabled'
-        },
-        features: {
-            aiChatbot: process.env.OPENAI_API_KEY ? 'enabled' : 'fallback_mode'
-        }
-    });
 });
 
 // 404 handler
