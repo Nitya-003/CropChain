@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
 
-router.get('status', (req, res) => {
+router.get('/status', (req, res) => {
     const state = mongoose.connection.readyState;
 
     const stateMap = {
@@ -11,7 +11,7 @@ router.get('status', (req, res) => {
         2: "connecting",
         3: "disconnecting"
     }
-    
+
     res.json({
         status: "online",
         database: stateMap[state] || "unknown",
