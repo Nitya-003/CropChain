@@ -2,52 +2,77 @@
 pragma solidity ^0.8.19;
 
 contract CropChain {
-    
+
+    /* ================= ENUMS ================= */
+
+    /**
+     * @dev Supply chain stages
+     */
+    enum Stage {
+        Farmer,
+        Mandi,
+        Transport,
+        Retailer
+    }
+
+    /**
+     * @dev Actor roles
+     */
+    enum ActorRole {
+        None,
+        Farmer,
+        Mandi,
+        Transporter,
+        Retailer,
+        Admin
+    }
+
+    /* ================= STRUCTS ================= */
+
     struct CropBatch {
-        string batchId;
-        string farmerName;
-        string farmerAddress;
-        string cropType;
+        bytes32 batchId; // Gas-optimized batch identifier   
+        string ipfsCID;   // All farmer and crop metadata is stored off-chain on IPFS as JSON.
         uint256 quantity;
-        string harvestDate;
-        string origin;
-        string certifications;
-        string description;
         uint256 createdAt;
         address creator;
         bool exists;
         bool isRecalled;   // NEW
     }
-    
+
     struct SupplyChainUpdate {
-        string stage; // farmer, mandi, transport, retailer
-        string actor;
+        Stage stage;
+        string actorName;
         string location;
         uint256 timestamp;
         string notes;
         address updatedBy;
     }
 
-    mapping(string => CropBatch) public cropBatches;
-    mapping(string => SupplyChainUpdate[]) public batchUpdates;
-    mapping(address => bool) public authorizedActors;
-    
-    string[] public allBatchIds;
-    
+    /* ================= STORAGE ================= */
+
+    mapping(bytes32 => CropBatch) public cropBatches;
+    mapping(bytes32 => SupplyChainUpdate[]) public batchUpdates;
+
+    mapping(address => ActorRole) public roles;
+
+    bytes32[] public allBatchIds;
+
     address public owner;
-    
+    bool public paused = false;
+
+    /* ================= EVENTS ================= */
+
     event BatchCreated(
-        string indexed batchId,
-        string farmerName,
-        string cropType,
+        bytes32 indexed batchId,
+        string ipfsCID,
         uint256 quantity,
         address indexed creator
     );
-    
+
     event BatchUpdated(
-        string indexed batchId,
-        string stage,
-        string actor,
+        bytes32 indexed batchId,
+        Stage stage,
+        string actorName,
         string location,
         address indexed updatedBy
     );
@@ -57,39 +82,84 @@ contract CropChain {
     event BatchRecalled(string indexed batchId, address indexed triggeredBy);
     
     modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner can call this function");
+        require(msg.sender == owner, "Only owner");
         _;
     }
-    
-    modifier onlyAuthorized() {
-        require(
-            authorizedActors[msg.sender] || msg.sender == owner,
-            "Not authorized to perform this action"
-        );
+
+    modifier whenNotPaused() {
+        require(!paused, "Contract paused");
         _;
     }
-    
-    modifier batchExists(string memory _batchId) {
-        require(cropBatches[_batchId].exists, "Batch does not exist");
+
+    modifier batchExists(bytes32 _batchId) {
+        require(cropBatches[_batchId].exists, "Batch not found");
         _;
     }
-    
+
+    /* ================= CONSTRUCTOR ================= */
+
     constructor() {
         owner = msg.sender;
-        authorizedActors[msg.sender] = true;
+        roles[msg.sender] = ActorRole.Admin;
     }
-    
+
+    /* ================= ROLE MANAGEMENT ================= */
+
     /**
-     * @dev Create a new crop batch
-     * @param _batchId Unique identifier for the batch
-     * @param _farmerName Name of the farmer
-     * @param _farmerAddress Address of the farmer
-     * @param _cropType Type of crop (rice, wheat, etc.)
-     * @param _quantity Quantity in kilograms
-     * @param _harvestDate Date of harvest
-     * @param _origin Origin location
-     * @param _certifications Certifications (organic, fair trade, etc.)
-     * @param _description Additional description
+     * @dev Assign role to user
+     */
+    function setRole(address _user, ActorRole _role)
+        public
+        onlyOwner
+    {
+        require(_user != address(0), "Invalid address");
+
+        roles[_user] = _role;
+
+        emit RoleUpdated(_user, _role);
+    }
+
+    /* ================= INTERNAL HELPERS ================= */
+
+    /**
+     * @dev Check if role can update stage
+     */
+    function _canUpdate(Stage _stage, ActorRole _role)
+        internal
+        pure
+        returns (bool)
+    {
+        if (_stage == Stage.Farmer && _role == ActorRole.Farmer) return true;
+        if (_stage == Stage.Mandi && _role == ActorRole.Mandi) return true;
+        if (_stage == Stage.Transport && _role == ActorRole.Transporter) return true;
+        if (_stage == Stage.Retailer && _role == ActorRole.Retailer) return true;
+
+        return false;
+    }
+
+    /**
+     * @dev Validate stage order
+     */
+    function _isNextStage(bytes32 _batchId, Stage _newStage)
+        internal
+        view
+        returns (bool)
+    {
+        SupplyChainUpdate[] storage updates = batchUpdates[_batchId];
+
+        if (updates.length == 0) {
+            return _newStage == Stage.Farmer;
+        }
+
+        Stage last = updates[updates.length - 1].stage;
+
+        return uint256(_newStage) == uint256(last) + 1;
+    }
+
+    /* ================= BATCH CREATION ================= */
+
+    /**
+     * @dev Create new batch
      */
     function createBatch(
         string memory _batchId,
@@ -110,48 +180,40 @@ contract CropChain {
         // Create the crop batch
         cropBatches[_batchId] = CropBatch({
             batchId: _batchId,
-            farmerName: _farmerName,
-            farmerAddress: _farmerAddress,
-            cropType: _cropType,
+            ipfsCID: _ipfsCID,
             quantity: _quantity,
-            harvestDate: _harvestDate,
-            origin: _origin,
-            certifications: _certifications,
-            description: _description,
             createdAt: block.timestamp,
             creator: msg.sender,
             exists: true,
             isRecalled: false
         });
-        
-        // Add initial farmer update
-        batchUpdates[_batchId].push(SupplyChainUpdate({
-            stage: "farmer",
-            actor: _farmerName,
-            location: _origin,
-            timestamp: block.timestamp,
-            notes: "Initial harvest recorded",
-            updatedBy: msg.sender
-        }));
-        
-        // Add to all batch IDs array
+
+        // Initial farmer record
+        batchUpdates[_batchId].push(
+            SupplyChainUpdate({
+                stage: Stage.Farmer,
+                actorName: "Farmer",
+                location: "From IPFS",
+                timestamp: block.timestamp,
+                notes: "Initial harvest",
+                updatedBy: msg.sender
+            })
+        );
+
         allBatchIds.push(_batchId);
-        
-        emit BatchCreated(_batchId, _farmerName, _cropType, _quantity, msg.sender);
+
+        emit BatchCreated(_batchId, _ipfsCID, _quantity, msg.sender);
     }
-    
+
+    /* ================= BATCH UPDATE ================= */
+
     /**
-     * @dev Add supply chain update to existing batch
-     * @param _batchId ID of the batch to update
-     * @param _stage Current stage (farmer, mandi, transport, retailer)
-     * @param _actor Name of the actor performing the update
-     * @param _location Current location
-     * @param _notes Additional notes
+     * @dev Update batch stage
      */
     function updateBatch(
-        string memory _batchId,
-        string memory _stage,
-        string memory _actor,
+        bytes32 _batchId,
+        Stage _stage,
+        string memory _actorName,
         string memory _location,
         string memory _notes
     ) public onlyAuthorized batchExists(_batchId) {
@@ -200,96 +262,69 @@ contract CropChain {
     {
         return cropBatches[_batchId];
     }
-    
-    /**
-     * @dev Get all updates for a specific batch
-     * @param _batchId ID of the batch
-     * @return Array of SupplyChainUpdate structs
-     */
-    function getBatchUpdates(string memory _batchId) 
-        public 
-        view 
-        batchExists(_batchId) 
-        returns (SupplyChainUpdate[] memory) 
+
+    function getBatchUpdates(bytes32 _batchId)
+        public
+        view
+        batchExists(_batchId)
+        returns (SupplyChainUpdate[] memory)
     {
         return batchUpdates[_batchId];
     }
-    
-    /**
-     * @dev Get total number of batches
-     * @return Total count of batches
-     */
+
+    function getLatestUpdate(bytes32 _batchId)
+        public
+        view
+        batchExists(_batchId)
+        returns (SupplyChainUpdate memory)
+    {
+        SupplyChainUpdate[] memory updates = batchUpdates[_batchId];
+
+        require(updates.length > 0, "No updates");
+
+        return updates[updates.length - 1];
+    }
+
     function getTotalBatches() public view returns (uint256) {
         return allBatchIds.length;
     }
-    
-    /**
-     * @dev Get batch ID by index
-     * @param _index Index in the allBatchIds array
-     * @return Batch ID at the specified index
-     */
-    function getBatchIdByIndex(uint256 _index) public view returns (string memory) {
-        require(_index < allBatchIds.length, "Index out of bounds");
+
+    function getBatchIdByIndex(uint256 _index)
+        public
+        view
+        returns (bytes32)
+    {
+        require(_index < allBatchIds.length, "Out of bounds");
+
         return allBatchIds[_index];
     }
-    
-    /**
-     * @dev Authorize or deauthorize an actor
-     * @param _actor Address of the actor
-     * @param _authorized True to authorize, false to deauthorize
-     */
-    function setAuthorizedActor(address _actor, bool _authorized) public onlyOwner {
-        authorizedActors[_actor] = _authorized;
-        emit ActorAuthorized(_actor, _authorized);
-    }
-    
-    /**
-     * @dev Check if an address is authorized
-     * @param _actor Address to check
-     * @return True if authorized, false otherwise
-     */
-    function isAuthorized(address _actor) public view returns (bool) {
-        return authorizedActors[_actor];
-    }
-    
-    /**
-     * @dev Get the latest update for a batch
-     * @param _batchId ID of the batch
-     * @return Latest SupplyChainUpdate for the batch
-     */
-    function getLatestUpdate(string memory _batchId) 
-        public 
-        view 
-        batchExists(_batchId) 
-        returns (SupplyChainUpdate memory) 
+
+    /* ================= ADMIN ================= */
+
+    function transferOwnership(address _newOwner)
+        public
+        onlyOwner
     {
-        SupplyChainUpdate[] memory updates = batchUpdates[_batchId];
-        require(updates.length > 0, "No updates found for this batch");
-        return updates[updates.length - 1];
-    }
-    
-    /**
-     * @dev Transfer ownership of the contract
-     * @param _newOwner Address of the new owner
-     */
-    function transferOwnership(address _newOwner) public onlyOwner {
-        require(_newOwner != address(0), "New owner cannot be zero address");
+        require(_newOwner != address(0), "Invalid address");
+
+        address previous = owner;
+
         owner = _newOwner;
-        authorizedActors[_newOwner] = true;
+
+        roles[_newOwner] = ActorRole.Admin;
+
+        emit OwnershipTransferred(previous, _newOwner);
     }
-    
+
     /**
-     * @dev Emergency function to pause contract operations
-     * This is a simple implementation - in production, consider using OpenZeppelin's Pausable
+     * @dev Pause/unpause system
      */
-    bool public paused = false;
-    
-    modifier whenNotPaused() {
-        require(!paused, "Contract is paused");
-        _;
-    }
-    
-    function setPaused(bool _paused) public onlyOwner {
+    function setPaused(bool _paused)
+        public
+        onlyOwner
+    {
         paused = _paused;
+
+        emit Paused(msg.sender, _paused);
     }
 }

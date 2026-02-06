@@ -16,7 +16,8 @@
     "verify:mumbai": "hardhat verify --network mumbai",
     "verify:polygon": "hardhat verify --network polygon",
     "node": "hardhat node",
-    "clean": "hardhat clean"
+    "clean": "hardhat clean",
+    "setup:ai": "node scripts/setup-ai-chatbot.js"
   },
   "keywords": [
     "blockchain",
@@ -44,6 +45,7 @@
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.18",
     "chai": "^4.3.8",
+    "cypress": "^15.9.0",
     "eslint": "^9.9.1",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.11",
@@ -63,6 +65,7 @@
     "@types/qrcode": "^1.5.5",
     "@types/react-router-dom": "^5.3.3",
     "dotenv": "^16.3.1",
+    "framer-motion": "^11.0.0",
     "lucide-react": "^0.344.0",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, TrendingUp, Package, Users, Calendar, BarChart3 } from 'lucide-react';
+import { Shield, TrendingUp, Package, Users, Calendar, BarChart3, Copy, Check } from 'lucide-react';
 import { cropBatchService } from '../services/cropBatchService';
+import { StatsCardSkeleton, TableSkeleton, ChartSkeleton } from '../components/skeletons';
 
 const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState({
@@ -11,6 +12,17 @@ const AdminDashboard: React.FC = () => {
   });
   const [batches, setBatches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copyToClipboard = async (batchId: string) => {
+    try {
+      await navigator.clipboard.writeText(batchId);
+      setCopiedId(batchId);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   useEffect(() => {
     loadDashboardData();
@@ -48,8 +60,41 @@ const AdminDashboard: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin h-12 w-12 border-4 border-green-600 border-t-transparent rounded-full"></div>
+      <div className="max-w-7xl mx-auto space-y-8">
+        <div className="text-center">
+          <div className="h-12 bg-gray-300 dark:bg-gray-700 rounded w-64 mx-auto mb-4"></div>
+          <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded w-96 mx-auto"></div>
+        </div>
+
+        <div className="grid md:grid-cols-4 gap-6">
+          <StatsCardSkeleton />
+          <StatsCardSkeleton />
+          <StatsCardSkeleton />
+          <StatsCardSkeleton />
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+          <div className="flex items-center mb-6">
+            <div className="h-6 w-6 bg-gray-300 dark:bg-gray-700 rounded mr-3"></div>
+            <div className="h-7 bg-gray-300 dark:bg-gray-700 rounded w-40"></div>
+          </div>
+          <TableSkeleton />
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          <ChartSkeleton />
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 animate-pulse">
+            <div className="h-7 bg-gray-300 dark:bg-gray-700 rounded w-48 mb-4"></div>
+            <div className="flex items-end justify-between h-48 px-4">
+              {[1, 2, 3, 4, 5, 6].map((item) => (
+                <div key={item} className="flex flex-col items-center">
+                  <div className="bg-gray-300 dark:bg-gray-600 rounded-t-lg w-8 transition-all duration-500 h-20"></div>
+                  <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-8 mt-2"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -148,9 +193,22 @@ const AdminDashboard: React.FC = () => {
               {batches.map((batch, index) => (
                 <tr key={batch.batchId} className={`border-b border-gray-100 dark:border-gray-700 ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'} hover:bg-green-50 dark:hover:bg-gray-600 transition-colors`}>
                   <td className="py-4 px-6">
-                    <span className="font-mono text-sm bg-gray-100 dark:bg-gray-600 dark:text-white px-2 py-1 rounded">
-                      {batch.batchId}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm bg-gray-100 dark:bg-gray-600 dark:text-white px-2 py-1 rounded">
+                        {batch.batchId}
+                      </span>
+                      <button
+                        onClick={() => copyToClipboard(batch.batchId)}
+                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-500 rounded transition-colors"
+                        title={copiedId === batch.batchId ? 'Copied!' : 'Copy Batch ID'}
+                      >
+                        {copiedId === batch.batchId ? (
+                          <Check className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <Copy className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                        )}
+                      </button>
+                    </div>
                   </td>
                   <td className="py-4 px-6">
                     <div>
