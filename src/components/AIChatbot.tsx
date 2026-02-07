@@ -33,7 +33,7 @@ const AIChatbot: React.FC = () => {
       );
       setMessages([welcomeMessage]);
     }
-  }, []);
+  }, []); // Only run once on mount
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
