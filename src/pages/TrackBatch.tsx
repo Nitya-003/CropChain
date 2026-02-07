@@ -103,6 +103,12 @@ const TrackBatch: React.FC = () => {
 
       {batch && (
         <>
+          {batch?.isRecalled && (
+            <div className="bg-red-600 text-white p-4 rounded-lg text-center font-bold mb-6 animate-pulse">
+              🚨 RECALLED – Do NOT consume this batch
+            </div>
+          )}
+
           {/* Batch Header */}
           <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-2xl shadow-xl p-8 text-white">
             <div className="flex items-center justify-between">

@@ -36,6 +36,7 @@ contract CropChain {
         uint256 createdAt;
         address creator;
         bool exists;
+        bool isRecalled;   // NEW
     }
 
     struct SupplyChainUpdate {
@@ -75,15 +76,11 @@ contract CropChain {
         string location,
         address indexed updatedBy
     );
-
-    event RoleUpdated(address indexed user, ActorRole role);
-
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    event Paused(address indexed caller, bool paused);
-
-    /* ================= MODIFIERS ================= */
-
+    
+    event ActorAuthorized(address indexed actor, bool authorized);
+    
+    event BatchRecalled(string indexed batchId, address indexed triggeredBy);
+    
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
         _;
@@ -165,28 +162,30 @@ contract CropChain {
      * @dev Create new batch
      */
     function createBatch(
-        bytes32 _batchId,
-        string memory _ipfsCID,
-        uint256 _quantity
-    )
-        public
-        whenNotPaused
-    {
-        require(roles[msg.sender] == ActorRole.Farmer || roles[msg.sender] == ActorRole.Admin,
-            "Only farmer/admin");
-
-        require(!cropBatches[_batchId].exists, "Batch exists");
-        require(_batchId != bytes32(0), "Invalid batch ID");
-        require(bytes(_ipfsCID).length > 0, "Invalid CID");
-        require(_quantity > 0, "Invalid quantity");
-
+        string memory _batchId,
+        string memory _farmerName,
+        string memory _farmerAddress,
+        string memory _cropType,
+        uint256 _quantity,
+        string memory _harvestDate,
+        string memory _origin,
+        string memory _certifications,
+        string memory _description
+    ) public onlyAuthorized whenNotPaused {
+        require(!cropBatches[_batchId].exists, "Batch already exists");
+        require(bytes(_batchId).length > 0, "Batch ID cannot be empty");
+        require(bytes(_farmerName).length > 0, "Farmer name cannot be empty");
+        require(_quantity > 0, "Quantity must be greater than 0");
+        
+        // Create the crop batch
         cropBatches[_batchId] = CropBatch({
             batchId: _batchId,
             ipfsCID: _ipfsCID,
             quantity: _quantity,
             createdAt: block.timestamp,
             creator: msg.sender,
-            exists: true
+            exists: true,
+            isRecalled: false
         });
 
         // Initial farmer record
@@ -217,47 +216,49 @@ contract CropChain {
         string memory _actorName,
         string memory _location,
         string memory _notes
-    )
+    ) public onlyAuthorized batchExists(_batchId) {
+        require(!cropBatches[_batchId].isRecalled, "Batch is recalled");
+        require(bytes(_stage).length > 0, "Stage cannot be empty");
+        require(bytes(_actor).length > 0, "Actor cannot be empty");
+        require(bytes(_location).length > 0, "Location cannot be empty");
+        
+        // Add the update
+        batchUpdates[_batchId].push(SupplyChainUpdate({
+            stage: _stage,
+            actor: _actor,
+            location: _location,
+            timestamp: block.timestamp,
+            notes: _notes,
+            updatedBy: msg.sender
+        }));
+        
+        emit BatchUpdated(_batchId, _stage, _actor, _location, msg.sender);
+    }
+    
+    /**
+     * @dev Recall a batch (emergency/admin function)
+     * @param _batchId ID of the batch to recall
+     */
+    function recallBatch(string memory _batchId)
         public
-        whenNotPaused
+        onlyOwner
         batchExists(_batchId)
     {
-        ActorRole role = roles[msg.sender];
+        cropBatches[_batchId].isRecalled = true;
 
-        require(role != ActorRole.None, "No role");
-        require(_canUpdate(_stage, role), "Role not allowed");
-        require(_isNextStage(_batchId, _stage), "Wrong stage order");
-
-        require(bytes(_actorName).length > 0, "Invalid actor");
-        require(bytes(_location).length > 0, "Invalid location");
-
-        batchUpdates[_batchId].push(
-            SupplyChainUpdate({
-                stage: _stage,
-                actorName: _actorName,
-                location: _location,
-                timestamp: block.timestamp,
-                notes: _notes,
-                updatedBy: msg.sender
-            })
-        );
-
-        emit BatchUpdated(
-            _batchId,
-            _stage,
-            _actorName,
-            _location,
-            msg.sender
-        );
+        emit BatchRecalled(_batchId, msg.sender);
     }
-
-    /* ================= VIEW FUNCTIONS ================= */
-
-    function getBatch(bytes32 _batchId)
-        public
-        view
-        batchExists(_batchId)
-        returns (CropBatch memory)
+    
+    /**
+     * @dev Get crop batch information
+     * @param _batchId ID of the batch
+     * @return CropBatch struct
+     */
+    function getBatch(string memory _batchId) 
+        public 
+        view 
+        batchExists(_batchId) 
+        returns (CropBatch memory) 
     {
         return cropBatches[_batchId];
     }
