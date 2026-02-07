@@ -99,9 +99,10 @@ class SyncManager {
         
         // Increment attempts
         await offlineStorage.incrementQueueAttempts(item.id);
+        const updatedAttempts = item.attempts + 1;
         
         // If max retries reached, mark as failed
-        if (item.attempts >= this.MAX_RETRIES) {
+        if (updatedAttempts >= this.MAX_RETRIES) {
           if (item.type === 'batch') {
             await offlineStorage.updateBatchStatus(
               item.referenceId,
