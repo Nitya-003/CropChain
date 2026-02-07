@@ -232,9 +232,10 @@ class OfflineCropBatchService {
 
     if (pendingBatch) {
       const qrCode = await this.generateQRCode(batchId);
+      const pendingData = pendingBatch.data as Omit<CropBatch, 'qrCode' | 'syncStatus' | 'pendingId'>;
       return {
         batchId: batchId,
-        ...pendingBatch.data,
+        ...pendingData,
         qrCode,
         syncStatus: pendingBatch.status,
         pendingId: pendingBatch.id,
