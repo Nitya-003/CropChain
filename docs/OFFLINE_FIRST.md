@@ -11,7 +11,7 @@ CropChain implements a robust offline-first architecture that allows farmers and
 - **Offline Updates**: Record supply chain updates while offline
 - **Automatic Background Sync**: Changes sync automatically when online
 - **Conflict Resolution**: Last-write-wins strategy for concurrent updates
-- **Retry Logic**: Failed syncs automatically retry with exponential backoff
+- **Retry Logic**: Failed syncs automatically retry (up to 3 attempts)
 - **Visual Indicators**: Clear UI feedback for sync status
 
 ### 🔧 Technical Implementation
