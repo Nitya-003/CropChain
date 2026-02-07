@@ -151,19 +151,52 @@ class OfflineCropBatchService {
     // Save update to IndexedDB
     await offlineStorage.savePendingUpdate(batchId, updateData);
 
-    // Create a mock updated batch for immediate UI feedback
-    const batch = await this.getBatch(batchId);
-    
+    // Prepare the update for immediate UI feedback
     const update = {
-      stage: String(updateData.stage || ''),
-      actor: String(updateData.actor || ''),
-      location: String(updateData.location || ''),
-      timestamp: String(updateData.timestamp || new Date().toISOString()),
-      notes: String(updateData.notes || '')
+      stage: String((updateData as any).stage || ''),
+      actor: String((updateData as any).actor || ''),
+      location: String((updateData as any).location || ''),
+      timestamp: String((updateData as any).timestamp || new Date().toISOString()),
+      notes: String((updateData as any).notes || '')
     };
 
+    // Try to load the existing batch; if unavailable (e.g., offline and not cached),
+    // create an optimistic batch so the UI can still reflect the pending update.
+    let batch: CropBatch;
+    try {
+      batch = await this.getBatch(batchId);
+    } catch (error) {
+      console.warn('[OfflineCropBatchService] Could not load existing batch, creating optimistic batch for offline update:', error);
+      batch = {
+        batchId,
+        farmerName: String((updateData as any).farmerName || ''),
+        farmerAddress: String((updateData as any).farmerAddress || ''),
+        cropType: String((updateData as any).cropType || ''),
+        quantity: Number((updateData as any).quantity || 0),
+        harvestDate: String((updateData as any).harvestDate || new Date().toISOString()),
+        origin: String((updateData as any).origin || ''),
+        certifications: (updateData as any).certifications
+          ? String((updateData as any).certifications)
+          : undefined,
+        description: (updateData as any).description
+          ? String((updateData as any).description)
+          : undefined,
+        createdAt: new Date().toISOString(),
+        currentStage: String((updateData as any).stage || ''),
+        updates: [],
+        qrCode: '',
+        blockchainHash: undefined,
+        syncStatus: 'pending',
+        pendingId: undefined
+      };
+    }
+
+    if (!batch.updates) {
+      batch.updates = [];
+    }
+
     batch.updates.push(update);
-    batch.currentStage = String(updateData.stage || '');
+    batch.currentStage = String((updateData as any).stage || batch.currentStage);
     batch.syncStatus = 'pending';
 
     // Trigger sync if online
