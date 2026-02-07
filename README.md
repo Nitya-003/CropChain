@@ -19,6 +19,7 @@ CropChain is a comprehensive full-stack web application that enables transparent
 - **Multi-Role Support**: Different interfaces for farmers, markets, transporters, and retailers
 - **Admin Dashboard**: Comprehensive monitoring and analytics for supply chain managers
 - **AI-Powered Assistant**: Intelligent chatbot for crop tracking support and stakeholder guidance
+- **Offline-First Architecture**: Work without internet - data syncs automatically when online
 
 ### User Experience
 - **Beautiful, Modern UI**: Apple-level design aesthetics with smooth animations
@@ -27,6 +28,8 @@ CropChain is a comprehensive full-stack web application that enables transparent
 - **QR Code Scanner**: Simulate scanning QR codes for batch tracking
 - **Search & Filter**: Easy batch lookup and filtering capabilities
 - **Conversational AI**: Natural language interface for system guidance and batch queries
+- **Offline Mode**: Create batches and updates without internet connectivity
+- **Auto-Sync**: Changes automatically sync to blockchain when connection restored
 
 ---
 
@@ -362,8 +365,11 @@ npx hardhat run scripts/deploy.js --network polygon
 - ✅ Multi-role interfaces
 - ✅ Admin dashboard
 - ✅ AI-powered chatbot assistant
+- ✅ Offline-first data logging with background sync
 
 ### Phase 2 (Next)
+- 🔄 Service Worker background sync
+- 🔄 Progressive Web App (PWA)
 - 🔄 IoT Sensor Integration
 - 🔄 Advanced analytics and reporting
 - 🔄 Mobile app development
@@ -376,6 +382,7 @@ npx hardhat run scripts/deploy.js --network polygon
 - 📋 Marketplace integration
 - 📋 Government compliance features
 - 📋 Predictive supply chain analytics
+- 📋 Offline image caching and compression
 
 ---
 
