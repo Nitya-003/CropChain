@@ -279,7 +279,22 @@ class OfflineCropBatchService {
       stats: {
         totalBatches: pendingBatches.length,
         totalFarmers: new Set(pendingBatches.map(b => b.data.farmerName)).size,
-        totalQuantity: pendingBatches.reduce((sum, b) => sum + parseInt(b.data.quantity || 0), 0),
+        totalQuantity: pendingBatches.reduce((sum, b) => {
+          const data = b.data as Record<string, unknown>;
+          const rawQuantity = 'quantity' in data ? data.quantity : 0;
+          let quantity = 0;
+
+          if (typeof rawQuantity === 'number') {
+            quantity = rawQuantity;
+          } else if (typeof rawQuantity === 'string') {
+            const parsed = Number(rawQuantity);
+            if (!Number.isNaN(parsed)) {
+              quantity = parsed;
+            }
+          }
+
+          return sum + quantity;
+        }, 0),
         recentBatches: pendingBatches.length,
       },
       batches: pendingBatches.map(b => ({
