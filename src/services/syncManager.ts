@@ -15,7 +15,6 @@ class SyncManager {
   private statusListeners: Array<(status: SyncStatus) => void> = [];
   private currentStatus: SyncStatus = 'idle';
   private readonly MAX_RETRIES = 3;
-  private readonly RETRY_DELAY = 5000; // 5 seconds
 
   constructor() {
     // Listen for online/offline events
