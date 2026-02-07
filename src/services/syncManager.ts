@@ -41,7 +41,9 @@ class SyncManager {
     // Check for pending items every 30 seconds when online
     setInterval(() => {
       if (navigator.onLine && !this.syncInProgress) {
-        this.checkAndSync();
+        void this.checkAndSync().catch(error => {
+          console.error('[SyncManager] Periodic sync check failed:', error);
+        });
       }
     }, 30000);
   }
