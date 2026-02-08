@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 
 const sidebarVariants = {
   open: {
@@ -20,6 +21,18 @@ const backdropVariants = {
 
 const Sidebar = ({ isOpen, setIsOpen, navItems }) => {
   const location = useLocation();
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+
+    // cleanup when component unmounts
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [isOpen]);
   return (
     <AnimatePresence>
       {isOpen && (
