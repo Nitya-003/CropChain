@@ -517,7 +517,7 @@ app.listen(PORT, async () => {
     console.log('\n🔒 Security features enabled:');
     console.log(`  ✓ Rate limiting (${rateLimitMaxRequests} req/window)`);
     console.log(`  ✓ NoSQL injection protection`);
-    console.log(`  ✓ Input validation with Zod`);
+    console.log(`  ✓ Input validation with Joi`);
     console.log(`  ✓ Security headers with Helmet`);
     console.log(`  ✓ Request logging and monitoring`);
 
