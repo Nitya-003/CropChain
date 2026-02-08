@@ -1,0 +1,209 @@
+{
+  "app": {
+    "title": "क्रॉपचेन",
+    "tagline": "ब्लॉकचेन फसल आपूर्ति श्रृंखला ट्रैकर"
+  },
+  "nav": {
+    "home": "होम",
+    "addBatch": "बैच जोड़ें",
+    "updateLogistics": "लॉजिस्टिक्स अपडेट करें",
+    "trackBatch": "बैच ट्रैक करें",
+    "admin": "एडमिन",
+    "login": "लॉगिन",
+    "register": "रजिस्टर",
+    "logout": "लॉगआउट"
+  },
+  "common": {
+    "submit": "जमा करें",
+    "cancel": "रद्द करें",
+    "save": "सहेजें",
+    "delete": "हटाएं",
+    "edit": "संपादित करें",
+    "search": "खोजें",
+    "loading": "लोड हो रहा है...",
+    "error": "त्रुटि",
+    "success": "सफलता",
+    "close": "बंद करें",
+    "back": "वापस",
+    "next": "अगला",
+    "previous": "पिछला",
+    "selectLanguage": "भाषा चुनें"
+  },
+  "home": {
+    "welcome": "क्रॉपचेन में आपका स्वागत है",
+    "subtitle": "खेत से कांटे तक पारदर्शी फसल आपूर्ति श्रृंखला ट्रैकिंग",
+    "description": "ब्लॉकचेन तकनीक का उपयोग करके आपूर्ति श्रृंखला के हर चरण में अपनी फसलों को ट्रैक करें। पारदर्शिता सुनिश्चित करें, विश्वास बनाएं और प्रामाणिकता सत्यापित करें।",
+    "getStarted": "शुरू करें",
+    "learnMore": "और जानें",
+    "whyChoose": "क्रॉपचेन क्यों चुनें?",
+    "supplyChainVisibility": "पूर्ण आपूर्ति श्रृंखला दृश्यता",
+    "transformSupplyChain": "अपनी आपूर्ति श्रृंखला को बदलने के लिए तैयार हैं?",
+    "joinThousands": "पारदर्शी खाद्य पता लगाने के लिए क्रॉपचेन का उपयोग करने वाले हजारों किसानों, बाजारों और खुदरा विक्रेताओं में शामिल हों।",
+    "getStartedToday": "आज ही शुरू करें",
+    "features": {
+      "title": "विशेषताएं",
+      "blockchain": {
+        "title": "ब्लॉकचेन सुरक्षा",
+        "description": "ब्लॉकचेन पर अपरिवर्तनीय रिकॉर्ड"
+      },
+      "tracking": {
+        "title": "रियल-टाइम ट्रैकिंग",
+        "description": "हर चरण में फसलों को ट्रैक करें"
+      },
+      "transparency": {
+        "title": "पूर्ण पारदर्शिता",
+        "description": "सभी हितधारकों के लिए पूर्ण दृश्यता"
+      },
+      "foodSafety": {
+        "title": "खाद्य सुरक्षा",
+        "description": "पूर्ण पता लगाने की क्षमता हर कदम पर खाद्य सुरक्षा और गुणवत्ता सुनिश्चित करती है"
+      },
+      "consumerTrust": {
+        "title": "उपभोक्ता विश्वास",
+        "description": "पारदर्शी आपूर्ति श्रृंखला किसानों और उपभोक्ताओं के बीच विश्वास बनाती है"
+      },
+      "premiumPricing": {
+        "title": "प्रीमियम मूल्य निर्धारण",
+        "description": "पता लगाने योग्य फसलें बाजार में प्रीमियम कीमतों की मांग करती हैं"
+      },
+      "globalStandards": {
+        "title": "वैश्विक मानक",
+        "description": "अंतर्राष्ट्रीय खाद्य सुरक्षा और गुणवत्ता मानकों को पूरा करें"
+      }
+    },
+    "stages": {
+      "farmer": {
+        "title": "किसान",
+        "description": "फसल रोपण और कटाई"
+      },
+      "mandi": {
+        "title": "मंडी",
+        "description": "बाजार एकत्रीकरण और गुणवत्ता जांच"
+      },
+      "transport": {
+        "title": "परिवहन",
+        "description": "लॉजिस्टिक्स और वितरण"
+      },
+      "retailer": {
+        "title": "रिटेलर",
+        "description": "उपभोक्ताओं को अंतिम बिक्री"
+      }
+    }
+  },
+  "auth": {
+    "loginTitle": "क्रॉपचेन में लॉगिन करें",
+    "registerTitle": "क्रॉपचेन के लिए रजिस्टर करें",
+    "email": "ईमेल",
+    "password": "पासवर्ड",
+    "name": "नाम",
+    "role": "भूमिका",
+    "selectRole": "अपनी भूमिका चुनें",
+    "farmer": "किसान",
+    "transporter": "ट्रांसपोर्टर",
+    "admin": "एडमिन",
+    "loginButton": "लॉगिन करें",
+    "registerButton": "रजिस्टर करें",
+    "noAccount": "खाता नहीं है?",
+    "haveAccount": "पहले से खाता है?",
+    "forgotPassword": "पासवर्ड भूल गए?"
+  },
+  "batch": {
+    "addTitle": "नया बैच जोड़ें",
+    "updateTitle": "बैच लॉजिस्टिक्स अपडेट करें",
+    "trackTitle": "बैच ट्रैक करें",
+    "trackSubtitle": "पूर्ण आपूर्ति श्रृंखला इतिहास देखने के लिए क्यूआर कोड स्कैन करें या बैच आईडी दर्ज करें",
+    "batchId": "बैच आईडी",
+    "cropType": "फसल का प्रकार",
+    "selectCropType": "फसल का प्रकार चुनें",
+    "quantity": "मात्रा",
+    "unit": "इकाई",
+    "kg": "किलो",
+    "harvestDate": "कटाई की तारीख",
+    "location": "स्थान",
+    "farmer": "किसान",
+    "farmerName": "किसान का नाम",
+    "farmerAddress": "किसान का पता",
+    "origin": "मूल/खेत का स्थान",
+    "certifications": "प्रमाणपत्र",
+    "description": "विवरण",
+    "status": "स्थिति",
+    "qrCode": "क्यूआर कोड",
+    "scanQR": "क्यूआर स्कैन करें",
+    "enterBatchId": "बैच आईडी दर्ज करें",
+    "enterBatchIdPlaceholder": "बैच आईडी दर्ज करें (उदा., CROP-2024-001)",
+    "searchBatch": "बैच खोजें",
+    "track": "ट्रैक करें",
+    "tracking": "ट्रैक हो रहा है...",
+    "createBatch": "बैच बनाएं",
+    "creatingBatch": "बैच बनाया जा रहा है...",
+    "updateBatch": "बैच अपडेट करें",
+    "updatingBatch": "अपडेट हो रहा है...",
+    "batchDetails": "बैच विवरण",
+    "supplyChain": "आपूर्ति श्रृंखला",
+    "timeline": "समयरेखा",
+    "batchNotFound": "बैच नहीं मिला",
+    "tryAgain": "एक अलग बैच आईडी के साथ पुनः प्रयास करें",
+    "currentStatus": "वर्तमान स्थिति",
+    "createdOn": "बनाया गया",
+    "lastUpdated": "अंतिम अपडेट",
+    "copyBatchId": "बैच आईडी कॉपी करें",
+    "copied": "कॉपी हो गया!",
+    "supplyChainHistory": "आपूर्ति श्रृंखला इतिहास",
+    "noHistory": "अभी तक कोई आपूर्ति श्रृंखला इतिहास उपलब्ध नहीं है",
+    "batchCreatedSuccess": "बैच सफलतापूर्वक बनाया गया!",
+    "batchCreatedMessage": "आपका फसल बैच ब्लॉकचेन पर रिकॉर्ड कर दिया गया है।",
+    "batchUpdatedSuccess": "बैच सफलतापूर्वक अपडेट किया गया!",
+    "batchUpdatedMessage": "आपूर्ति श्रृंखला जानकारी अपडेट कर दी गई है।",
+    "viewBatch": "बैच देखें",
+    "createAnother": "एक और बैच बनाएं",
+    "crops": {
+      "rice": "चावल",
+      "wheat": "गेहूं",
+      "corn": "मक्का",
+      "tomato": "टमाटर",
+      "potato": "आलू",
+      "onion": "प्याज",
+      "cotton": "कपास",
+      "sugarcane": "गन्ना"
+    }
+  },
+  "status": {
+    "harvested": "कटाई की गई",
+    "atMandi": "मंडी में",
+    "inTransit": "ट्रांजिट में",
+    "atRetailer": "रिटेलर के पास",
+    "sold": "बेचा गया"
+  },
+  "actors": {
+    "farmer": "किसान",
+    "mandi": "मंडी",
+    "transporter": "ट्रांसपोर्टर",
+    "retailer": "रिटेलर"
+  },
+  "admin": {
+    "dashboard": "एडमिन डैशबोर्ड",
+    "totalBatches": "कुल बैच",
+    "activeBatches": "सक्रिय बैच",
+    "completedBatches": "पूर्ण बैच",
+    "users": "उपयोगकर्ता",
+    "statistics": "आंकड़े",
+    "recentActivity": "हाल की गतिविधि"
+  },
+  "chatbot": {
+    "title": "एआई सहायक",
+    "placeholder": "क्रॉपचेन के बारे में मुझसे कुछ भी पूछें...",
+    "send": "भेजें",
+    "quickActions": {
+      "trackBatch": "बैच ट्रैक करें",
+      "addBatch": "नया बैच जोड़ें",
+      "help": "क्रॉपचेन का उपयोग कैसे करें?"
+    }
+  },
+  "errors": {
+    "notFound": "पेज नहीं मिला",
+    "accessDenied": "पहुंच अस्वीकृत",
+    "unauthorized": "आपके पास इस पेज तक पहुंचने की अनुमति नहीं है",
+    "serverError": "सर्वर त्रुटि हुई",
+    "networkError": "नेटवर्क त्रुटि। कृपया अपना कनेक्शन जांचें।"
+  }
+}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { UserPlus, Mail, Lock, User, Briefcase, Loader } from 'lucide-react';
 
@@ -11,6 +12,7 @@ const Register: React.FC = () => {
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const { t } = useTranslation();
     const { register } = useAuth();
     const navigate = useNavigate();
 
@@ -36,7 +38,7 @@ const Register: React.FC = () => {
                     <div className="mx-auto bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mb-4 backdrop-blur-sm">
                         <UserPlus className="w-8 h-8 text-white" />
                     </div>
-                    <h2 className="text-2xl font-bold text-white">Create Account</h2>
+                    <h2 className="text-2xl font-bold text-white">{t('auth.registerTitle')}</h2>
                     <p className="text-green-100 mt-2">Join the CropChain network</p>
                 </div>
 
@@ -50,7 +52,7 @@ const Register: React.FC = () => {
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Full Name
+                                {t('auth.name')}
                             </label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -69,7 +71,7 @@ const Register: React.FC = () => {
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Email Address
+                                {t('auth.email')}
                             </label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -88,7 +90,7 @@ const Register: React.FC = () => {
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Password
+                                {t('auth.password')}
                             </label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -108,7 +110,7 @@ const Register: React.FC = () => {
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Role
+                                {t('auth.role')}
                             </label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -119,8 +121,8 @@ const Register: React.FC = () => {
                                     onChange={(e) => setRole(e.target.value as any)}
                                     className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
                                 >
-                                    <option value="farmer">Farmer</option>
-                                    <option value="transporter">Transporter</option>
+                                    <option value="farmer">{t('auth.farmer')}</option>
+                                    <option value="transporter">{t('auth.transporter')}</option>
                                 </select>
                             </div>
                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -136,18 +138,18 @@ const Register: React.FC = () => {
                             {isSubmitting ? (
                                 <>
                                     <Loader className="animate-spin -ml-1 mr-2 h-4 w-4" />
-                                    Creating Account...
+                                    {t('common.loading')}
                                 </>
                             ) : (
-                                'Create Account'
+                                t('auth.registerButton')
                             )}
                         </button>
                     </form>
 
                     <div className="mt-6 text-center text-sm">
-                        <span className="text-gray-500 dark:text-gray-400">Already have an account?</span>{' '}
+                        <span className="text-gray-500 dark:text-gray-400">{t('auth.haveAccount')}</span>{' '}
                         <Link to="/login" className="font-medium text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300">
-                            Sign in instead
+                            {t('nav.login')}
                         </Link>
                     </div>
                 </div>

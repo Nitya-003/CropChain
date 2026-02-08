@@ -1,43 +1,23 @@
-import React from "react";
-import Sidebar from "./Sidebar";
-import { Link, useLocation } from "react-router-dom";
-import { useState } from "react";
-import {
-  Wheat,
-  Plus,
-  RefreshCw,
-  Search,
-  Shield,
-  Sun,
-  Moon,
-  LogIn,
-  LogOut,
-  User,
-} from "lucide-react";
-import { useTheme } from "../context/ThemeContext";
-import { useAuth } from "../context/AuthContext";
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Wheat, Plus, RefreshCw, Search, Shield, Sun, Moon, LogIn, LogOut, User } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
+import LanguageSwitcher from './LanguageSwitcher';
 
 const Header: React.FC = () => {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const { user, isAuthenticated, logout } = useAuth();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { t } = useTranslation();
+
   const allNavItems = [
-    { path: "/", label: "Home", icon: Wheat, roles: ["*"] },
-    { path: "/add-batch", label: "Add Batch", icon: Plus, roles: ["farmer"] },
-    {
-      path: "/update-batch",
-      label: "Update Logistics",
-      icon: RefreshCw,
-      roles: ["transporter"],
-    },
-    {
-      path: "/track-batch",
-      label: "Track Batch",
-      icon: Search,
-      roles: ["farmer", "transporter", "admin"],
-    },
-    { path: "/admin", label: "Admin", icon: Shield, roles: ["admin"] },
+    { path: '/', label: t('nav.home'), icon: Wheat, roles: ['*'] },
+    { path: '/add-batch', label: t('nav.addBatch'), icon: Plus, roles: ['farmer'] },
+    { path: '/update-batch', label: t('nav.updateLogistics'), icon: RefreshCw, roles: ['transporter'] },
+    { path: '/track-batch', label: t('nav.trackBatch'), icon: Search, roles: ['farmer', 'transporter', 'admin'] },
+    { path: '/admin', label: t('nav.admin'), icon: Shield, roles: ['admin'] },
   ];
 
   const navItems = allNavItems.filter((item) => {
@@ -47,15 +27,12 @@ const Header: React.FC = () => {
   });
 
   return (
-    <header className='bg-white dark:bg-gray-800 shadow-lg border-b-4 border-green-500'>
-      <div className='container mx-auto px-4'>
-        <div className='flex items-center justify-between h-16'>
-          <Link
-            to='/'
-            className='flex items-center space-x-3 text-2xl font-bold text-green-700 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors'
-          >
-            <Wheat className='h-8 w-8' />
-            <span>CropChain</span>
+    <header className="bg-white dark:bg-gray-800 shadow-lg border-b-4 border-green-500">
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between h-16">
+          <Link to="/" className="flex items-center space-x-3 text-2xl font-bold text-green-700 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors">
+            <Wheat className="h-8 w-8" />
+            <span>{t('app.title')}</span>
           </Link>
 
           <nav className='hidden md:flex items-center space-x-6'>
@@ -78,7 +55,10 @@ const Header: React.FC = () => {
 
             <div className='h-6 w-px bg-gray-300 dark:bg-gray-600'></div>
 
-            <div className='flex items-center space-x-3'>
+            <div className="flex items-center space-x-3">
+              {/* Language Switcher */}
+              <LanguageSwitcher />
+
               <button
                 onClick={toggleTheme}
                 className='p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white transition-colors'
@@ -106,8 +86,8 @@ const Header: React.FC = () => {
                     onClick={logout}
                     className='flex items-center space-x-1 px-3 py-1.5 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors'
                   >
-                    <LogOut className='h-4 w-4' />
-                    <span>Logout</span>
+                    <LogOut className="h-4 w-4" />
+                    <span>{t('nav.logout')}</span>
                   </button>
                 </div>
               ) : (
@@ -116,14 +96,14 @@ const Header: React.FC = () => {
                     to='/login'
                     className='flex items-center space-x-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-green-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors'
                   >
-                    <LogIn className='h-4 w-4' />
-                    <span>Login</span>
+                    <LogIn className="h-4 w-4" />
+                    <span>{t('nav.login')}</span>
                   </Link>
                   <Link
                     to='/register'
                     className='px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg shadow-sm hover:shadow transition-all'
                   >
-                    Register
+                    {t('nav.register')}
                   </Link>
                 </div>
               )}

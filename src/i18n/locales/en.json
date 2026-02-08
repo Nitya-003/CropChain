@@ -1,0 +1,209 @@
+{
+  "app": {
+    "title": "CropChain",
+    "tagline": "Blockchain Crop Supply Chain Tracker"
+  },
+  "nav": {
+    "home": "Home",
+    "addBatch": "Add Batch",
+    "updateLogistics": "Update Logistics",
+    "trackBatch": "Track Batch",
+    "admin": "Admin",
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout"
+  },
+  "common": {
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "selectLanguage": "Select Language"
+  },
+  "home": {
+    "welcome": "Welcome to CropChain",
+    "subtitle": "Transparent Crop Supply Chain Tracking from Farm to Fork",
+    "description": "Track your crops through every stage of the supply chain using blockchain technology. Ensure transparency, build trust, and verify authenticity.",
+    "getStarted": "Get Started",
+    "learnMore": "Learn More",
+    "whyChoose": "Why Choose CropChain?",
+    "supplyChainVisibility": "Complete Supply Chain Visibility",
+    "transformSupplyChain": "Ready to Transform Your Supply Chain?",
+    "joinThousands": "Join thousands of farmers, markets, and retailers using CropChain for transparent food traceability.",
+    "getStartedToday": "Get Started Today",
+    "features": {
+      "title": "Features",
+      "blockchain": {
+        "title": "Blockchain Security",
+        "description": "Immutable records on the blockchain"
+      },
+      "tracking": {
+        "title": "Real-time Tracking",
+        "description": "Track crops at every stage"
+      },
+      "transparency": {
+        "title": "Full Transparency",
+        "description": "Complete visibility for all stakeholders"
+      },
+      "foodSafety": {
+        "title": "Food Safety",
+        "description": "Complete traceability ensures food safety and quality at every step"
+      },
+      "consumerTrust": {
+        "title": "Consumer Trust",
+        "description": "Transparent supply chain builds trust between farmers and consumers"
+      },
+      "premiumPricing": {
+        "title": "Premium Pricing",
+        "description": "Traceable crops command premium prices in the market"
+      },
+      "globalStandards": {
+        "title": "Global Standards",
+        "description": "Meet international food safety and quality standards"
+      }
+    },
+    "stages": {
+      "farmer": {
+        "title": "Farmer",
+        "description": "Crop planting and harvesting"
+      },
+      "mandi": {
+        "title": "Mandi",
+        "description": "Market aggregation and quality check"
+      },
+      "transport": {
+        "title": "Transport",
+        "description": "Logistics and distribution"
+      },
+      "retailer": {
+        "title": "Retailer",
+        "description": "Final sale to consumers"
+      }
+    }
+  },
+  "auth": {
+    "loginTitle": "Login to CropChain",
+    "registerTitle": "Register for CropChain",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "role": "Role",
+    "selectRole": "Select your role",
+    "farmer": "Farmer",
+    "transporter": "Transporter",
+    "admin": "Admin",
+    "loginButton": "Login",
+    "registerButton": "Register",
+    "noAccount": "Don't have an account?",
+    "haveAccount": "Already have an account?",
+    "forgotPassword": "Forgot Password?"
+  },
+  "batch": {
+    "addTitle": "Add New Batch",
+    "updateTitle": "Update Batch Logistics",
+    "trackTitle": "Track Batch",
+    "trackSubtitle": "Scan QR code or enter Batch ID to view complete supply chain history",
+    "batchId": "Batch ID",
+    "cropType": "Crop Type",
+    "selectCropType": "Select crop type",
+    "quantity": "Quantity",
+    "unit": "Unit",
+    "kg": "kg",
+    "harvestDate": "Harvest Date",
+    "location": "Location",
+    "farmer": "Farmer",
+    "farmerName": "Farmer Name",
+    "farmerAddress": "Farmer Address",
+    "origin": "Origin/Farm Location",
+    "certifications": "Certifications",
+    "description": "Description",
+    "status": "Status",
+    "qrCode": "QR Code",
+    "scanQR": "Scan QR",
+    "enterBatchId": "Enter Batch ID",
+    "enterBatchIdPlaceholder": "Enter Batch ID (e.g., CROP-2024-001)",
+    "searchBatch": "Search Batch",
+    "track": "Track",
+    "tracking": "Tracking...",
+    "createBatch": "Create Batch",
+    "creatingBatch": "Creating Batch...",
+    "updateBatch": "Update Batch",
+    "updatingBatch": "Updating...",
+    "batchDetails": "Batch Details",
+    "supplyChain": "Supply Chain",
+    "timeline": "Timeline",
+    "batchNotFound": "Batch not found",
+    "tryAgain": "Try again with a different Batch ID",
+    "currentStatus": "Current Status",
+    "createdOn": "Created On",
+    "lastUpdated": "Last Updated",
+    "copyBatchId": "Copy Batch ID",
+    "copied": "Copied!",
+    "supplyChainHistory": "Supply Chain History",
+    "noHistory": "No supply chain history available yet",
+    "batchCreatedSuccess": "Batch Created Successfully!",
+    "batchCreatedMessage": "Your crop batch has been recorded on the blockchain.",
+    "batchUpdatedSuccess": "Batch Updated Successfully!",
+    "batchUpdatedMessage": "Supply chain information has been updated.",
+    "viewBatch": "View Batch",
+    "createAnother": "Create Another Batch",
+    "crops": {
+      "rice": "Rice",
+      "wheat": "Wheat",
+      "corn": "Corn",
+      "tomato": "Tomato",
+      "potato": "Potato",
+      "onion": "Onion",
+      "cotton": "Cotton",
+      "sugarcane": "Sugarcane"
+    }
+  },
+  "status": {
+    "harvested": "Harvested",
+    "atMandi": "At Mandi",
+    "inTransit": "In Transit",
+    "atRetailer": "At Retailer",
+    "sold": "Sold"
+  },
+  "actors": {
+    "farmer": "Farmer",
+    "mandi": "Mandi",
+    "transporter": "Transporter",
+    "retailer": "Retailer"
+  },
+  "admin": {
+    "dashboard": "Admin Dashboard",
+    "totalBatches": "Total Batches",
+    "activeBatches": "Active Batches",
+    "completedBatches": "Completed Batches",
+    "users": "Users",
+    "statistics": "Statistics",
+    "recentActivity": "Recent Activity"
+  },
+  "chatbot": {
+    "title": "AI Assistant",
+    "placeholder": "Ask me anything about CropChain...",
+    "send": "Send",
+    "quickActions": {
+      "trackBatch": "Track a batch",
+      "addBatch": "Add new batch",
+      "help": "How to use CropChain?"
+    }
+  },
+  "errors": {
+    "notFound": "Page not found",
+    "accessDenied": "Access Denied",
+    "unauthorized": "You don't have permission to access this page",
+    "serverError": "Server error occurred",
+    "networkError": "Network error. Please check your connection."
+  }
+}
