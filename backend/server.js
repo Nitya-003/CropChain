@@ -240,29 +240,30 @@ app.post('/api/batches', batchLimiter, validateRequest(createBatchSchema), async
         const qrCode = await generateQRCode(batchId);
 
         const batch = {
-            batchId,
-            farmerName: validatedData.farmerName,
-            farmerAddress: validatedData.farmerAddress,
-            cropType: validatedData.cropType,
-            quantity: validatedData.quantity,
-            harvestDate: validatedData.harvestDate,
-            origin: validatedData.origin,
-            certifications: validatedData.certifications,
-            description: validatedData.description,
-            createdAt: new Date().toISOString(),
-            currentStage: 'farmer',
-            isRecalled: false,   // ADD THIS
-            updates: [
-                {
-                    stage: 'farmer',
-                    actor: validatedData.farmerName,
-                    location: validatedData.origin,
-                    timestamp: validatedData.harvestDate,
-                    notes: validatedData.description || 'Initial harvest recorded'
-                }
-            ],
-            qrCode,
-            blockchainHash: simulateBlockchainHash()
+          batchId,
+          farmerId: validatedData.farmerId,
+          farmerName: validatedData.farmerName,
+          farmerAddress: validatedData.farmerAddress,
+          cropType: validatedData.cropType,
+          quantity: validatedData.quantity,
+          harvestDate: validatedData.harvestDate,
+          origin: validatedData.origin,
+          certifications: validatedData.certifications,
+          description: validatedData.description,
+          createdAt: new Date().toISOString(),
+          currentStage: "farmer",
+          isRecalled: false, // ADD THIS
+          updates: [
+            {
+              stage: "farmer",
+              actor: validatedData.farmerName,
+              location: validatedData.origin,
+              timestamp: validatedData.harvestDate,
+              notes: validatedData.description || "Initial harvest recorded",
+            },
+          ],
+          qrCode,
+          blockchainHash: simulateBlockchainHash(),
         };
 
         batches.set(batchId, batch);
