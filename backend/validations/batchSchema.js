@@ -1,6 +1,8 @@
 const Joi = require("joi");
 
 const createBatchSchema = Joi.object({
+  farmerId: Joi.string().alphanum().min(5).max(50).required(),
+  
   farmerName: Joi.string()
     .min(2)
     .max(100)
