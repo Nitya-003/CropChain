@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { LogIn, Mail, Lock, Loader } from 'lucide-react';
 
@@ -9,6 +10,7 @@ const Login: React.FC = () => {
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const { t } = useTranslation();
     const { login } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
@@ -37,7 +39,7 @@ const Login: React.FC = () => {
                     <div className="mx-auto bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mb-4 backdrop-blur-sm">
                         <LogIn className="w-8 h-8 text-white" />
                     </div>
-                    <h2 className="text-2xl font-bold text-white">Welcome Back</h2>
+                    <h2 className="text-2xl font-bold text-white">{t('auth.loginTitle')}</h2>
                     <p className="text-green-100 mt-2">Sign in to your CropChain account</p>
                 </div>
 
@@ -51,7 +53,7 @@ const Login: React.FC = () => {
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Email Address
+                                {t('auth.email')}
                             </label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -70,7 +72,7 @@ const Login: React.FC = () => {
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Password
+                                {t('auth.password')}
                             </label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -95,18 +97,18 @@ const Login: React.FC = () => {
                             {isSubmitting ? (
                                 <>
                                     <Loader className="animate-spin -ml-1 mr-2 h-4 w-4" />
-                                    Signing in...
+                                    {t('common.loading')}
                                 </>
                             ) : (
-                                'Sign In'
+                                t('auth.loginButton')
                             )}
                         </button>
                     </form>
 
                     <div className="mt-6 text-center text-sm">
-                        <span className="text-gray-500 dark:text-gray-400">Don't have an account?</span>{' '}
+                        <span className="text-gray-500 dark:text-gray-400">{t('auth.noAccount')}</span>{' '}
                         <Link to="/register" className="font-medium text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300">
-                            Create one now
+                            {t('nav.register')}
                         </Link>
                     </div>
                 </div>

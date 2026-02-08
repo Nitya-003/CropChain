@@ -1,36 +1,39 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Shield, Truck, Store, Users, TrendingUp, Globe } from 'lucide-react';
 
 const Home: React.FC = () => {
+  const { t } = useTranslation();
+
   const benefits = [
     {
       icon: Shield,
-      title: 'Food Safety',
-      description: 'Complete traceability ensures food safety and quality at every step'
+      title: t('home.features.foodSafety.title'),
+      description: t('home.features.foodSafety.description')
     },
     {
       icon: Users,
-      title: 'Consumer Trust',
-      description: 'Transparent supply chain builds trust between farmers and consumers'
+      title: t('home.features.consumerTrust.title'),
+      description: t('home.features.consumerTrust.description')
     },
     {
       icon: TrendingUp,
-      title: 'Premium Pricing',
-      description: 'Traceable crops command premium prices in the market'
+      title: t('home.features.premiumPricing.title'),
+      description: t('home.features.premiumPricing.description')
     },
     {
       icon: Globe,
-      title: 'Global Standards',
-      description: 'Meet international food safety and quality standards'
+      title: t('home.features.globalStandards.title'),
+      description: t('home.features.globalStandards.description')
     }
   ];
 
   const stages = [
-    { icon: '🌾', title: 'Farmer', description: 'Crop planting and harvesting' },
-    { icon: '🏪', title: 'Mandi', description: 'Market aggregation and quality check' },
-    { icon: '🚛', title: 'Transport', description: 'Logistics and distribution' },
-    { icon: '🏬', title: 'Retailer', description: 'Final sale to consumers' }
+    { icon: '🌾', title: t('home.stages.farmer.title'), description: t('home.stages.farmer.description') },
+    { icon: '🏪', title: t('home.stages.mandi.title'), description: t('home.stages.mandi.description') },
+    { icon: '🚛', title: t('home.stages.transport.title'), description: t('home.stages.transport.description') },
+    { icon: '🏬', title: t('home.stages.retailer.title'), description: t('home.stages.retailer.description') }
   ];
 
   return (
@@ -39,25 +42,24 @@ const Home: React.FC = () => {
       <section className="text-center py-16">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-5xl md:text-6xl font-bold text-gray-800 dark:text-white mb-6">
-            Track Your Crops with
-            <span className="text-green-600 dark:text-green-400 block">Blockchain Technology</span>
+            {t('home.welcome')}
+            <span className="text-green-600 dark:text-green-400 block">{t('app.tagline')}</span>
           </h1>
           <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
-            CropChain provides complete transparency in the agricultural supply chain using immutable blockchain records.
-            From farm to fork, every step is traceable, verified, and secure.
+            {t('home.description')}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/add-batch"
               className="bg-green-600 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-green-700 transform hover:scale-105 transition-all duration-200 shadow-lg"
             >
-              Start Tracking
+              {t('home.getStarted')}
             </Link>
             <Link
               to="/track-batch"
               className="bg-white dark:bg-gray-800 text-green-600 dark:text-green-400 px-8 py-4 rounded-lg font-semibold text-lg border-2 border-green-600 hover:bg-green-50 dark:hover:bg-gray-700 transform hover:scale-105 transition-all duration-200 shadow-lg"
             >
-              Track a Batch
+              {t('nav.trackBatch')}
             </Link>
           </div>
         </div>
@@ -67,7 +69,7 @@ const Home: React.FC = () => {
       <section className="py-16">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-4xl font-bold text-center text-gray-800 dark:text-white mb-12">
-            Complete Supply Chain Visibility
+            {t('home.supplyChainVisibility')}
           </h2>
           <div className="grid md:grid-cols-4 gap-8">
             {stages.map((stage, index) => (
@@ -90,7 +92,7 @@ const Home: React.FC = () => {
       <section className="py-16 bg-white dark:bg-gray-800 rounded-3xl shadow-xl">
         <div className="max-w-6xl mx-auto px-8">
           <h2 className="text-4xl font-bold text-center text-gray-800 dark:text-white mb-12">
-            Why Choose CropChain?
+            {t('home.whyChoose')}
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {benefits.map((benefit, index) => (
@@ -107,15 +109,15 @@ const Home: React.FC = () => {
       {/* CTA Section */}
       <section className="py-16 text-center">
         <div className="max-w-4xl mx-auto bg-gradient-to-r from-green-600 to-blue-600 rounded-3xl p-12 text-white shadow-2xl">
-          <h2 className="text-4xl font-bold mb-6">Ready to Transform Your Supply Chain?</h2>
+          <h2 className="text-4xl font-bold mb-6">{t('home.transformSupplyChain')}</h2>
           <p className="text-xl mb-8 opacity-90">
-            Join thousands of farmers, markets, and retailers using CropChain for transparent food traceability.
+            {t('home.joinThousands')}
           </p>
           <Link
             to="/add-batch"
             className="bg-white text-green-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transform hover:scale-105 transition-all duration-200 shadow-lg"
           >
-            Get Started Today
+            {t('home.getStartedToday')}
           </Link>
         </div>
       </section>

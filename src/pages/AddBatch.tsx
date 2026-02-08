@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { Plus, Upload, MapPin, Calendar, User } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cropBatchService } from '../services/cropBatchService';
 
 const AddBatch: React.FC = () => {
+  const { t } = useTranslation();
+  
   const [formData, setFormData] = useState({
     farmerName: '',
     farmerAddress: '',
@@ -69,10 +72,10 @@ const AddBatch: React.FC = () => {
               <Plus className="h-8 w-8 text-green-600 dark:text-green-400" />
             </div>
             <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-4">
-              Batch Created Successfully!
+              {t('batch.batchCreatedSuccess')}
             </h2>
             <p className="text-gray-600 dark:text-gray-300 mb-8">
-              Your crop batch has been recorded on the blockchain.
+              {t('batch.batchCreatedMessage')}
             </p>
           </div>
         </div>
@@ -101,11 +104,11 @@ const AddBatch: React.FC = () => {
             onChange={handleChange}
             required
           >
-            <option value="">Select crop type</option>
-            <option value="rice">Rice</option>
-            <option value="wheat">Wheat</option>
-            <option value="corn">Corn</option>
-            <option value="tomato">Tomato</option>
+            <option value="">{t('batch.selectCropType')}</option>
+            <option value="rice">{t('batch.crops.rice')}</option>
+            <option value="wheat">{t('batch.crops.wheat')}</option>
+            <option value="corn">{t('batch.crops.corn')}</option>
+            <option value="tomato">{t('batch.crops.tomato')}</option>
           </select>
 
           {/* Quantity */}
@@ -129,7 +132,7 @@ const AddBatch: React.FC = () => {
           />
 
           <button type="submit" disabled={isLoading}>
-            {isLoading ? 'Creating Batch...' : 'Create Batch'}
+            {isLoading ? t('batch.creatingBatch') : t('batch.createBatch')}
           </button>
         </form>
       </div>

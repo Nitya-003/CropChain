@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, QrCode, Package, Calendar, MapPin, User, FileText, Copy, Check } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cropBatchService } from '../services/cropBatchService';
 // import Timeline from '../components/Timeline';
 import QRScanner from '../components/QRScanner';
@@ -11,6 +12,8 @@ const TrackBatch: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [copied, setCopied] = useState(false);
+  
+  const { t } = useTranslation();
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -50,8 +53,8 @@ const TrackBatch: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-4">Track Crop Batch</h1>
-        <p className="text-xl text-gray-600 dark:text-gray-300">Scan QR code or enter Batch ID to view complete supply chain history</p>
+        <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-4">{t('batch.trackTitle')}</h1>
+        <p className="text-xl text-gray-600 dark:text-gray-300">{t('batch.trackSubtitle')}</p>
       </div>
 
       {/* Search Section */}
@@ -62,7 +65,7 @@ const TrackBatch: React.FC = () => {
               type="text"
               value={batchId}
               onChange={(e) => setBatchId(e.target.value)}
-              placeholder="Enter Batch ID (e.g., CROP-2024-001)"
+              placeholder={t('batch.enterBatchIdPlaceholder')}
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-lg"
             />
           </div>
@@ -72,7 +75,7 @@ const TrackBatch: React.FC = () => {
               className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all duration-200 flex items-center space-x-2"
             >
               <QrCode className="h-5 w-5" />
-              <span>Scan QR</span>
+              <span>{t('batch.scanQR')}</span>
             </button>
             <button
               onClick={handleSearch}
@@ -87,7 +90,7 @@ const TrackBatch: React.FC = () => {
               ) : (
                 <Search className="h-5 w-5" />
               )}
-              <span>{isSearching ? 'Tracking...' : 'Track'}</span>
+              <span>{isSearching ? t('batch.tracking') : t('batch.track')}</span>
             </button>
           </div>
         </div>
@@ -118,7 +121,7 @@ const TrackBatch: React.FC = () => {
                   <button
                     onClick={() => copyToClipboard(batch.batchId)}
                     className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                    title={copied ? 'Copied!' : 'Copy Batch ID'}
+                    title={copied ? t('batch.copied') : t('batch.copyBatchId')}
                   >
                     {copied ? (
                       <Check className="h-5 w-5 text-green-300" />
@@ -225,11 +228,11 @@ const TrackBatch: React.FC = () => {
       )}
 
       {batch === null && batchId && !isSearching && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
           <div className="text-6xl mb-4">❌</div>
-          <h3 className="text-2xl font-semibold text-red-800 mb-2">Batch Not Found</h3>
+          <h3 className="text-2xl font-semibold text-red-800 mb-2">{t('batch.batchNotFound')}</h3>
           <p className="text-red-600">No batch found with ID: {batchId}</p>
-          <p className="text-red-600 mt-2">Please check the ID and try again.</p>
+          <p className="text-red-600 mt-2">{t('batch.tryAgain')}</p>
         </div>
       )}
     </div>
