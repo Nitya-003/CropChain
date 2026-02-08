@@ -5,10 +5,12 @@ import './index.css';
 import { ThemeProvider } from './context/ThemeContext';
 import './i18n/config'; // Initialize i18n
 
-createRoot(document.getElementById('root')!).render(
+createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <ThemeProvider>
-      <App />
-    </ThemeProvider>
-  </StrictMode>
+    <AuthProvider>
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
+    </AuthProvider>
+  </StrictMode>,
 );
