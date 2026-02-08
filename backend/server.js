@@ -5,13 +5,14 @@ const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const { ethers } = require('ethers');
 const QRCode = require('qrcode');
-const { z } = require('zod');
 const connectDB = require('./config/db');
 require('dotenv').config();
 const mainRoutes = require("./routes/index");
+const validateRequest = require('./middleware/validator');
+const { createBatchSchema } = require('./validations/batchSchema');
 
 // Connect to Database
-connectDB();
+connectDB(); 
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -120,126 +121,10 @@ app.use(mongoSanitize());
 // mount health check main router
 app.use("/api", mainRoutes);
 
-// Validation schemas
-const createBatchSchema = z.object({
-    farmerName: z.string()
-        .min(2, 'Farmer name must be at least 2 characters')
-        .max(100, 'Farmer name must be less than 100 characters')
-        .regex(/^[a-zA-Z\s.-]+$/, 'Farmer name can only contain letters, spaces, periods, and hyphens'),
-
-    farmerAddress: z.string()
-        .min(10, 'Farmer address must be at least 10 characters')
-        .max(500, 'Farmer address must be less than 500 characters'),
-
-    cropType: z.enum(['rice', 'wheat', 'corn', 'tomato'], {
-        errorMap: () => ({ message: 'Crop type must be one of: rice, wheat, corn, tomato' })
-    }),
-
-    quantity: z.preprocess(
-        (val) => (typeof val === 'string' ? Number(val) : val),
-        z.number()
-            .min(1, 'Quantity must be at least 1')
-            .max(1000000, 'Quantity must be less than 1,000,000')
-    ),
-
-    harvestDate: z.string()
-        .regex(/^\d{4}-\d{2}-\d{2}$/, 'Harvest date must be in YYYY-MM-DD format')
-        .refine((date) => {
-            const harvestDate = new Date(date);
-            const oneYearAgo = new Date();
-            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-            const today = new Date();
-
-            return harvestDate >= oneYearAgo && harvestDate <= today;
-        }, 'Harvest date must be within the last year and not in the future'),
-
-    origin: z.string()
-        .min(5, 'Origin must be at least 5 characters')
-        .max(200, 'Origin must be less than 200 characters'),
-
-    certifications: z.string()
-        .max(500, 'Certifications must be less than 500 characters')
-        .optional()
-        .default(''),
-
-    description: z.string()
-        .max(1000, 'Description must be less than 1000 characters')
-        .optional()
-        .default('')
-});
-
-const updateBatchSchema = z.object({
-    actor: z.string()
-        .min(2, 'Actor name must be at least 2 characters')
-        .max(100, 'Actor name must be less than 100 characters')
-        .regex(/^[a-zA-Z\s.-]+$/, 'Actor name can only contain letters, spaces, periods, and hyphens'),
-
-    stage: z.enum(['farmer', 'mandi', 'transport', 'retailer'], {
-        errorMap: () => ({ message: 'Stage must be one of: farmer, mandi, transport, retailer' })
-    }),
-
-    location: z.string()
-        .min(5, 'Location must be at least 5 characters')
-        .max(200, 'Location must be less than 200 characters'),
-
-    notes: z.string()
-        .max(1000, 'Notes must be less than 1000 characters')
-        .optional()
-        .default(''),
-
-    timestamp: z.string()
-        .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/, 'Invalid timestamp format')
-        .optional()
-        .default(() => new Date().toISOString())
-});
-
-const batchIdSchema = z.string()
-    .min(1, 'Batch ID is required')
-    .regex(/^CROP-\d{4}-\d{3}$/, 'Invalid batch ID format');
+// Validation schema
 
 // Validation middleware
-const validateRequest = (schema) => {
-    return (req, res, next) => {
-        try {
-            const validated = schema.parse(req.body);
-            req.validatedBody = validated;
-            next();
-        } catch (error) {
-            if (error instanceof z.ZodError) {
-                const errorMessages = error.errors.map(err => ({
-                    field: err.path.join('.'),
-                    message: err.message
-                }));
 
-                return res.status(400).json({
-                    error: 'Validation failed',
-                    details: errorMessages
-                });
-            }
-
-            console.error('Validation error:', error);
-            return res.status(500).json({ error: 'Internal validation error' });
-        }
-    };
-};
-
-const validateBatchId = (req, res, next) => {
-    try {
-        const { batchId } = req.params;
-        batchIdSchema.parse(batchId);
-        next();
-    } catch (error) {
-        if (error instanceof z.ZodError) {
-            return res.status(400).json({
-                error: 'Invalid batch ID format',
-                details: error.errors.map(err => err.message)
-            });
-        }
-
-        console.error('Batch ID validation error:', error);
-        return res.status(500).json({ error: 'Internal validation error' });
-    }
-};
 
 // In-memory storage
 const batches = new Map();
@@ -351,7 +236,7 @@ app.use('/api/auth', authLimiter, authRoutes);
 // Batch routes
 app.post('/api/batches', batchLimiter, validateRequest(createBatchSchema), async (req, res) => {
     try {
-        const validatedData = req.validatedBody;
+        const validatedData = req.body;
         const batchId = generateBatchId();
         const qrCode = await generateQRCode(batchId);
 
@@ -428,7 +313,7 @@ app.get('/api/batches/:batchId', batchLimiter, validateBatchId, async (req, res)
 app.put('/api/batches/:batchId', batchLimiter, validateBatchId, validateRequest(updateBatchSchema), async (req, res) => {
     try {
         const { batchId } = req.params;
-        const validatedData = req.validatedBody;
+        const validatedData = req.body;
 
         const batch = batches.get(batchId);
         if (!batch) {
@@ -530,17 +415,8 @@ app.get('/api/batches', async (req, res) => {
 // AI Chat functionality
 const aiService = require('./services/aiService');
 
-const chatSchema = z.object({
-    message: z.string()
-        .min(1, 'Message cannot be empty')
-        .max(1000, 'Message must be less than 1000 characters')
-        .trim(),
-
-    context: z.object({
-        currentPage: z.string().optional(),
-        batchId: z.string().optional(),
-        userRole: z.string().optional()
-    }).optional()
+const chatSchema = ({
+   
 });
 
 const batchServiceForAI = {
