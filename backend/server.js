@@ -9,7 +9,8 @@ const connectDB = require('./config/db');
 require('dotenv').config();
 const mainRoutes = require("./routes/index");
 const validateRequest = require('./middleware/validator');
-const { createBatchSchema } = require('./validations/batchSchema');
+const { createBatchSchema,updateBatchSchema} = require("./validations/batchSchema");
+const Joi = require("joi");
 
 // Connect to Database
 connectDB(); 
@@ -283,7 +284,7 @@ app.post('/api/batches', batchLimiter, validateRequest(createBatchSchema), async
     }
 });
 
-app.get('/api/batches/:batchId', batchLimiter, validateBatchId, async (req, res) => {
+app.get('/api/batches/:batchId', batchLimiter, async (req, res) => {
     try {
         const { batchId } = req.params;
         const batch = batches.get(batchId);
@@ -310,7 +311,7 @@ app.get('/api/batches/:batchId', batchLimiter, validateBatchId, async (req, res)
     }
 });
 
-app.put('/api/batches/:batchId', batchLimiter, validateBatchId, validateRequest(updateBatchSchema), async (req, res) => {
+app.put('/api/batches/:batchId', batchLimiter, validateRequest(updateBatchSchema), async (req, res) => {
     try {
         const { batchId } = req.params;
         const validatedData = req.body;
@@ -325,7 +326,7 @@ app.put('/api/batches/:batchId', batchLimiter, validateBatchId, validateRequest(
             return res.status(400).json({ error: 'Batch is recalled and cannot be updated' });
         }
 
-        if (!actor || !stage || !location) {
+        if (!validatedData.actor || !validatedData.stage || !validatedData.location) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
@@ -415,8 +416,9 @@ app.get('/api/batches', async (req, res) => {
 // AI Chat functionality
 const aiService = require('./services/aiService');
 
-const chatSchema = ({
-   
+const chatSchema = Joi.object({
+  message: Joi.string().min(1).max(1000).required(),
+  context: Joi.object().optional(),
 });
 
 const batchServiceForAI = {
@@ -446,7 +448,7 @@ const batchServiceForAI = {
 
 app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, res) => {
     try {
-        const { message } = req.validatedBody;
+        const { message } = req.body;
 
         console.log(`[AI CHAT] Request from IP: ${req.ip} - Message: "${message.substring(0, 50)}..."`);
 
