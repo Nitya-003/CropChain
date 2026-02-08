@@ -1,5 +1,6 @@
 const request = require("supertest");
 const app = require("../server");
+const mongoose = require("mongoose");
 
 describe("Batch API Endpoints", () => {
   //  tests will go inside here! 
@@ -17,5 +18,9 @@ describe("Batch API Endpoints", () => {
     // check if the server did what we expected
     expect(res.statusCode).toEqual(400);
     expect(res.body).toHaveProperty("error");
+  });
+  
+  afterAll(async () => {
+    await mongoose.connection.close(); // Tells Mongoose to shut down the connection
   });
 });
