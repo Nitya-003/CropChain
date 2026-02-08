@@ -502,7 +502,9 @@ app.listen(PORT, async () => {
     console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
 
     // Create admin user on startup
-    await createAdmin();
+    if(process.env.NODE_ENV !== 'test') {
+        await createAdmin();
+    }
 
     console.log(`Admin user created successfully`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
