@@ -51,7 +51,7 @@ const Sidebar = ({ isOpen, setIsOpen, navItems }) => {
             animate='open'
             exit='closed'
             variants={sidebarVariants}
-            className='fixed top-0 right-0 h-full w-64 bg-white dark:bg-gray-900 z-50 shadow-2xl flex flex-col'
+            className='fixed top-0 left-0 h-full w-64 bg-white dark:bg-gray-900 z-50 shadow-2xl flex flex-col'
           >
             <div className='p-4 flex justify-end'>
               <button
