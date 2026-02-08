@@ -25,4 +25,24 @@ const createBatchSchema = Joi.object({
   description: Joi.string().max(1000).allow(""),
 });
 
-module.exports = { createBatchSchema };
+const updateBatchSchema = Joi.object({
+  batchId: Joi.string().required(),
+
+  stage: Joi.string()
+    .valid("Mandi", "Transport", "Retailer")
+    .required()
+    .messages({
+      "any.only": "Stage must be one of: Mandi, Transport, or Retailer",
+    }),
+
+  actor: Joi.string().min(2).max(100).required(),
+  location: Joi.string().min(2).max(200).required(),
+  notes: Joi.string().max(500).allow(""),
+  timestamp: Joi.date()
+    .iso()
+    .max("now")
+    .default(() => new Date()),
+});
+
+
+module.exports = { createBatchSchema, updateBatchSchema };
