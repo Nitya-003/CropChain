@@ -10,7 +10,7 @@ require('dotenv').config();
 const mainRoutes = require("./routes/index");
 const validateRequest = require('./middleware/validator');
 const { createBatchSchema,updateBatchSchema} = require("./validations/batchSchema");
-const Joi = require("joi");
+const { chatSchema } = require("./validations/chatSchema");
 
 // Connect to Database
 connectDB(); 
@@ -122,9 +122,7 @@ app.use(mongoSanitize());
 // mount health check main router
 app.use("/api", mainRoutes);
 
-// Validation schema
 
-// Validation middleware
 
 
 // In-memory storage
@@ -413,13 +411,7 @@ app.get('/api/batches', async (req, res) => {
     }
 });
 
-// AI Chat functionality
-const aiService = require('./services/aiService');
 
-const chatSchema = Joi.object({
-  message: Joi.string().min(1).max(1000).required(),
-  context: Joi.object().optional(),
-});
 
 const batchServiceForAI = {
     async getBatch(batchId) {
