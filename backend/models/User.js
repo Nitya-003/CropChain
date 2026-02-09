@@ -26,6 +26,36 @@ const userSchema = new mongoose.Schema({
         enum: ['farmer', 'transporter', 'admin'],
         default: 'farmer',
     },
+    walletAddress: {
+        type: String,
+        sparse: true,
+        unique: true,
+    },
+    verification: {
+        isVerified: {
+            type: Boolean,
+            default: false,
+        },
+        verifiedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+        },
+        verifiedAt: {
+            type: Date,
+        },
+        credentialHash: {
+            type: String,
+        },
+        signature: {
+            type: String,
+        },
+        revokedAt: {
+            type: Date,
+        },
+        revocationReason: {
+            type: String,
+        },
+    },
     createdAt: {
         type: Date,
         default: Date.now,

@@ -1,6 +1,6 @@
  import React from 'react';
  import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
- import ProtectedRoute from './components/ProtectedRoute';
+ import { AuthProvider } from './context/AuthContext';
 import Header from './components/Header';
 
 
@@ -9,6 +9,7 @@ import AddBatch from './pages/AddBatch';
 import UpdateBatch from './pages/UpdateBatch';
 import TrackBatch from './pages/TrackBatch';
 import AdminDashboard from './pages/AdminDashboard';
+import VerificationDashboard from './pages/VerificationDashboard';
 import NotFound from './pages/NotFound';
 
 // Components
@@ -28,6 +29,7 @@ function App() {
               <Route path="/update-batch" element={<UpdateBatch />} />
               <Route path="/track-batch" element={<TrackBatch />} />
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/verification" element={<VerificationDashboard />} />
               
               {/* MUST BE LAST - catch-all for 404 */}
               <Route path="*" element={<NotFound />} />
