@@ -30,6 +30,8 @@ const userSchema = new mongoose.Schema({
         type: String,
         sparse: true,
         unique: true,
+        lowercase: true,
+        trim: true,
     },
     verification: {
         isVerified: {
