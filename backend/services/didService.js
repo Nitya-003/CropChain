@@ -173,7 +173,7 @@ class DIDService {
                 isVerified: user.verification?.isVerified || false,
                 role: user.role,
                 verifiedAt: user.verification?.verifiedAt,
-                credentialHash: user.verification?.credentialHash,
+                credentialHash: user.verification?.isVerified ? user.verification?.credentialHash : null,
             };
         } catch (error) {
             throw error;
