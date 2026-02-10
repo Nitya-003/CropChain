@@ -91,13 +91,10 @@ export const verificationService = {
 
         const adminAddress = accounts[0];
 
-        // Get user details for message
         const token = localStorage.getItem('token');
-        const userResponse = await axios.get(`${API_URL}/verification/check/${userId}`);
-        const user = userResponse.data;
 
-        // Sign verification message
-        const message = `Verify user ${user.name} (${user.email}) with wallet ${walletAddress}`;
+        // Sign verification message with deterministic, non-PII content
+        const message = `Issue credential for user ${userId} with wallet ${walletAddress}`;
         const signature = await window.ethereum.request({
             method: 'personal_sign',
             params: [message, adminAddress],
