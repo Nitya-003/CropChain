@@ -60,24 +60,40 @@ class DIDService {
                 throw new Error('User is already verified');
             }
 
+            const linkedWalletAddress = user.walletAddress;
+
+            if (!linkedWalletAddress) {
+                throw new Error('User does not have a linked wallet address');
+            }
+
+            if (
+                walletAddress &&
+                walletAddress.toLowerCase() !== linkedWalletAddress.toLowerCase()
+            ) {
+                throw new Error('Provided wallet address does not match linked wallet address');
+            }
+
             // Generate credential hash
             const credentialHash = this.generateCredentialHash({
                 userId: user._id.toString(),
-                walletAddress,
+                walletAddress: linkedWalletAddress,
                 role: user.role,
                 timestamp: Date.now(),
             });
 
             // Verify signature
-            const message = `Verify user ${user.name} (${user.email}) with wallet ${walletAddress}`;
-            const isValidSignature = this.verifySignature(message, signature, verifier.walletAddress || walletAddress);
+            const message = `Verify user ${user.name} (${user.email}) with wallet ${linkedWalletAddress}`;
+            const isValidSignature = this.verifySignature(
+                message,
+                signature,
+                verifier.walletAddress || linkedWalletAddress
+            );
 
             if (!isValidSignature) {
                 throw new Error('Invalid verifier signature');
             }
 
             // Update user with verification
-            user.walletAddress = walletAddress;
             user.verification = {
                 isVerified: true,
                 verifiedBy: verifierId,
