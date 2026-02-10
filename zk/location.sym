@@ -1,0 +1,8 @@
+1,1,0,main.lat
+2,2,0,main.lon
+3,3,0,main.minLat
+4,4,0,main.maxLat
+5,5,0,main.minLon
+6,6,0,main.maxLon
+7,7,0,main.latRange
+8,8,0,main.lonRange
