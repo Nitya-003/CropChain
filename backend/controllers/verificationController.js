@@ -110,13 +110,46 @@ const checkVerification = async (req, res) => {
     try {
         const { userId } = req.params;
 
+        // Basic validation of userId (e.g., MongoDB ObjectId-style 24 hex chars)
+        if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+            return res.status(400).json({
+                error: 'Invalid request',
+                message: 'User ID is required',
+            });
+        }
+
+        if (!/^[a-fA-F0-9]{24}$/.test(userId)) {
+            return res.status(400).json({
+                error: 'Invalid user ID',
+                message: 'User ID must be a valid identifier',
+            });
+        }
+
         const result = await didService.checkVerificationStatus(userId);
 
         res.json(result);
     } catch (error) {
-        res.status(500).json({
+        let statusCode = 500;
+
+        const message = error && error.message ? error.message : 'An unexpected error occurred';
+        const name = error && error.name ? error.name : '';
+
+        // Map validation/format errors to 400
+        if (
+            name === 'CastError' ||
+            name === 'ValidationError' ||
+            /invalid/i.test(message)
+        ) {
+            statusCode = 400;
+        }
+        // Map "not found" semantics to 404
+        else if (/not found/i.test(message)) {
+            statusCode = 404;
+        }
+
+        res.status(statusCode).json({
             error: 'Verification check failed',
-            message: error.message,
+            message,
         });
     }
 };
