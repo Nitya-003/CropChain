@@ -200,9 +200,13 @@ app.use(securityLogger);
 
 // Import Routes
 const authRoutes = require('./routes/authRoutes');
+const verificationRoutes = require('./routes/verification');
 
 // Mount Auth Routes
 app.use('/api/auth', authLimiter, authRoutes);
+
+// Mount Verification Routes
+app.use('/api/verification', generalLimiter, verificationRoutes);
 
 // Batch routes - ALL USING MONGODB ONLY
 
