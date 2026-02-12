@@ -122,14 +122,11 @@ app.use(mongoSanitize());
 // mount health check main router
 app.use("/api", mainRoutes);
 
-
-
-
 // In-memory storage
 const batches = new Map();
 let batchCounter = 1;
 
-const PROVIDER_URL = process.env.INFURA_URL || 'https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID ';
+const PROVIDER_URL = process.env.INFURA_URL || 'https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID  ';
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '0x...';
 const PRIVATE_KEY = process.env.PRIVATE_KEY || '0x...';
 
@@ -252,7 +249,7 @@ app.post('/api/batches', batchLimiter, validateRequest(createBatchSchema), async
           description: validatedData.description,
           createdAt: new Date().toISOString(),
           currentStage: "farmer",
-          isRecalled: false, // ADD THIS
+          isRecalled: false,
           updates: [
             {
               stage: "farmer",
@@ -325,9 +322,7 @@ app.put('/api/batches/:batchId', batchLimiter, validateRequest(updateBatchSchema
             return res.status(400).json({ error: 'Batch is recalled and cannot be updated' });
         }
 
-        if (!validatedData.actor || !validatedData.stage || !validatedData.location) {
-            return res.status(400).json({ error: 'Missing required fields' });
-        }
+        // REMOVED: Redundant validation check (validateRequest middleware already handles this)
 
         const update = {
             stage: validatedData.stage,
@@ -412,8 +407,6 @@ app.get('/api/batches', async (req, res) => {
     }
 });
 
-
-
 const batchServiceForAI = {
     async getBatch(batchId) {
         return batches.get(batchId);
@@ -438,6 +431,9 @@ const batchServiceForAI = {
         };
     }
 };
+
+// AI Service import (ADD THIS if missing)
+const aiService = require('./services/aiService');
 
 app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, res) => {
     try {
