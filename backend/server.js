@@ -424,6 +424,9 @@ const batchServiceForAI = {
     }
 };
 
+// AI Service import (ADD THIS if missing)
+const aiService = require('./services/aiService');
+
 app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, res) => {
     try {
         const { message } = req.body;
