@@ -13,8 +13,11 @@ const validateRequest = require('./middleware/validator');
 const { createBatchSchema, updateBatchSchema } = require("./validations/batchSchema");
 const { chatSchema } = require("./validations/chatSchema");
 
+// Import MongoDB Model
+const Batch = require('./models/Batch');
+
 // Connect to Database
-connectDB(); 
+connectDB();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -137,17 +140,6 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 app.use(cors());
-// app.use(cors({
-//     origin: (origin, callback) => {
-//         if (!origin) return callback(null, true);
-//         if (allowedOrigins.includes(origin)) {
-//             callback(null, true);
-//         } else {
-//             callback(new Error('Not allowed by CORS'));
-//         }
-//     },
-//     credentials: true
-// }));
 
 // Body parsing
 const maxFileSize = parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024;
@@ -174,18 +166,8 @@ app.use(securityLogger);
 // Mount health check main router
 app.use("/api", mainRoutes);
 
-// Import Routes
-const authRoutes = require('./routes/authRoutes');
-
-// Mount Auth Routes (Refactored)
-app.use('/api/auth', authLimiter, authRoutes);
-
-// ==================== IN-MEMORY STORAGE ====================
-
-const batches = new Map();
-let batchCounter = 1;
-
-const PROVIDER_URL = process.env.INFURA_URL || 'https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID';
+// Blockchain configuration
+const PROVIDER_URL = process.env.INFURA_URL || 'https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID ';
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '0x...';
 const PRIVATE_KEY = process.env.PRIVATE_KEY || '0x...';
 
@@ -193,12 +175,37 @@ if (process.env.NODE_ENV === 'production' && (!PROVIDER_URL || !CONTRACT_ADDRESS
     console.warn('⚠️  Blockchain configuration incomplete. Running in demo mode.');
 }
 
-// ==================== HELPER FUNCTIONS ====================
+// Initialize blockchain provider and contract (reused for listener)
+let provider;
+let contractInstance;
+let wallet;
 
-function generateBatchId() {
-    const id = `CROP-2024-${String(batchCounter).padStart(3, '0')}`;
-    batchCounter++;
-    return id;
+if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY && PRIVATE_KEY !== '0x...') {
+    try {
+        provider = new ethers.JsonRpcProvider(PROVIDER_URL);
+        wallet = new ethers.Wallet(PRIVATE_KEY, provider);
+        
+        const contractABI = [
+            "event BatchCreated(bytes32 indexed batchId, address indexed farmer, uint256 quantity)",
+            "event BatchUpdated(bytes32 indexed batchId, string stage, address indexed actor)",
+            "function getBatch(bytes32 batchId) view returns (tuple(address farmer, uint256 quantity, string stage, bool exists))",
+            "function createBatch(bytes32 batchId, uint256 quantity, string memory metadata) returns (bool)"
+        ];
+        
+        contractInstance = new ethers.Contract(CONTRACT_ADDRESS, contractABI, wallet);
+        console.log('✓ Blockchain contract instance initialized');
+    } catch (error) {
+        console.error('Failed to initialize blockchain connection:', error.message);
+        contractInstance = null;
+    }
+} else {
+    console.log('ℹ️  Blockchain not configured - running without contract instance');
+}
+
+// Helper functions
+async function generateBatchId() {
+    const count = await Batch.countDocuments();
+    return `CROP-2024-${String(count + 1).padStart(3, '0')}`;
 }
 
 async function generateQRCode(batchId) {
@@ -221,54 +228,26 @@ function simulateBlockchainHash() {
     return '0x' + Math.random().toString(16).substr(2, 64);
 }
 
-// ==================== INITIALIZE SAMPLE DATA ====================
+// Import Routes
+const authRoutes = require('./routes/authRoutes');
+const verificationRoutes = require('./routes/verification');
 
-const sampleBatch = {
-    batchId: 'CROP-2024-001',
-    farmerName: 'Rajesh Kumar',
-    farmerAddress: 'Village Rampur, District Meerut, UP',
-    cropType: 'rice',
-    quantity: 1000,
-    harvestDate: '2024-01-15',
-    origin: 'Rampur, Meerut',
-    certifications: 'Organic, Fair Trade',
-    description: 'High-quality Basmati rice grown using traditional methods',
-    createdAt: new Date().toISOString(),
-    currentStage: 'mandi',
-    isRecalled: false,
-    updates: [
-        {
-            stage: 'farmer',
-            actor: 'Rajesh Kumar',
-            location: 'Rampur, Meerut',
-            timestamp: '2024-01-15T10:00:00.000Z',
-            notes: 'Initial harvest recorded'
-        },
-        {
-            stage: 'mandi',
-            actor: 'Punjab Mandi',
-            location: 'Ludhiana Market',
-            timestamp: '2024-01-16T14:30:00.000Z',
-            notes: 'Quality checked and processed'
-        }
-    ],
-    qrCode: 'data:image/png;base64,sample',
-    blockchainHash: '0x123456789abcdef'
-};
+// Mount Auth Routes
+app.use('/api/auth', authLimiter, authRoutes);
 
-batches.set('CROP-2024-001', sampleBatch);
-batchCounter = 2;
+// Mount Verification Routes
+app.use('/api/verification', generalLimiter, verificationRoutes);
 
-// ==================== BATCH ROUTES ====================
+// Batch routes - ALL USING MONGODB ONLY
 
-// Create batch
+// CREATE batch
 app.post('/api/batches', batchLimiter, validateRequest(createBatchSchema), async (req, res) => {
     try {
         const validatedData = req.body;
-        const batchId = generateBatchId();
+        const batchId = await generateBatchId();
         const qrCode = await generateQRCode(batchId);
 
-        const batch = {
+        const batch = await Batch.create({
             batchId,
             farmerId: validatedData.farmerId,
             farmerName: validatedData.farmerName,
@@ -279,23 +258,20 @@ app.post('/api/batches', batchLimiter, validateRequest(createBatchSchema), async
             origin: validatedData.origin,
             certifications: validatedData.certifications,
             description: validatedData.description,
-            createdAt: new Date().toISOString(),
             currentStage: "farmer",
             isRecalled: false,
-            updates: [
-                {
-                    stage: "farmer",
-                    actor: validatedData.farmerName,
-                    location: validatedData.origin,
-                    timestamp: validatedData.harvestDate,
-                    notes: validatedData.description || "Initial harvest recorded",
-                },
-            ],
             qrCode,
             blockchainHash: simulateBlockchainHash(),
-        };
+            syncStatus: 'pending',
+            updates: [{
+                stage: "farmer",
+                actor: validatedData.farmerName,
+                location: validatedData.origin,
+                timestamp: validatedData.harvestDate,
+                notes: validatedData.description || "Initial harvest recorded"
+            }]
+        });
 
-        batches.set(batchId, batch);
         console.log(`[SUCCESS] Batch created: ${batchId} by ${validatedData.farmerName} from IP: ${req.ip}`);
 
         res.status(201).json({
@@ -312,11 +288,11 @@ app.post('/api/batches', batchLimiter, validateRequest(createBatchSchema), async
     }
 });
 
-// Get single batch
+// GET one batch
 app.get('/api/batches/:batchId', batchLimiter, async (req, res) => {
     try {
         const { batchId } = req.params;
-        const batch = batches.get(batchId);
+        const batch = await Batch.findOne({ batchId });
 
         if (!batch) {
             console.log(`[NOT FOUND] Batch lookup failed: ${batchId} from IP: ${req.ip}`);
@@ -340,24 +316,20 @@ app.get('/api/batches/:batchId', batchLimiter, async (req, res) => {
     }
 });
 
-// Update batch
+// UPDATE batch
 app.put('/api/batches/:batchId', batchLimiter, validateRequest(updateBatchSchema), async (req, res) => {
     try {
         const { batchId } = req.params;
         const validatedData = req.body;
 
-        const batch = batches.get(batchId);
-        if (!batch) {
+        const existingBatch = await Batch.findOne({ batchId });
+        if (!existingBatch) {
             return res.status(404).json({ error: 'Batch not found' });
         }
 
-        if (batch.isRecalled) {
+        if (existingBatch.isRecalled) {
             console.log("🚨 ALERT: Attempt to update recalled batch:", batchId);
             return res.status(400).json({ error: 'Batch is recalled and cannot be updated' });
-        }
-
-        if (!validatedData.actor || !validatedData.stage || !validatedData.location) {
-            return res.status(400).json({ error: 'Missing required fields' });
         }
 
         const update = {
@@ -368,10 +340,16 @@ app.put('/api/batches/:batchId', batchLimiter, validateRequest(updateBatchSchema
             notes: validatedData.notes
         };
 
-        batch.updates.push(update);
-        batch.currentStage = validatedData.stage;
-        batch.blockchainHash = simulateBlockchainHash();
-        batches.set(batchId, batch);
+        const batch = await Batch.findOneAndUpdate(
+            { batchId },
+            {
+                $push: { updates: update },
+                currentStage: validatedData.stage,
+                blockchainHash: simulateBlockchainHash(),
+                syncStatus: 'pending'
+            },
+            { new: true }
+        );
 
         console.log(`[SUCCESS] Batch updated: ${batchId} to stage ${validatedData.stage} by ${validatedData.actor} from IP: ${req.ip}`);
 
@@ -391,48 +369,49 @@ app.put('/api/batches/:batchId', batchLimiter, validateRequest(updateBatchSchema
 
 // ==================== SECURED RECALL ENDPOINT ====================
 
-// Recall a batch (ADMIN ONLY - PROTECTED)
 app.post(
     '/api/batches/:batchId/recall',
-    batchLimiter,      // Rate limiting
-    auth,              // JWT authentication
-    admin,             // Admin role authorization
-    (req, res) => {
-        const { batchId } = req.params;
+    batchLimiter,
+    auth,
+    admin,
+    async (req, res) => {
+        try {
+            const { batchId } = req.params;
 
-        if (!batchId) {
-            return res.status(400).json({ error: 'Invalid batchId' });
+            const batch = await Batch.findOne({ batchId });
+
+            if (!batch) {
+                return res.status(404).json({ error: 'Batch not found' });
+            }
+
+            if (batch.isRecalled) {
+                return res.status(400).json({ error: 'Batch already recalled' });
+            }
+
+            batch.isRecalled = true;
+            await batch.save();
+
+            console.log(`🚨 RECALL by admin ${req.user?.email || 'unknown'} for batch ${batchId}`);
+
+            res.json({
+                success: true,
+                message: 'Batch recalled successfully',
+                recalledBy: req.user?.email,
+                recalledAt: new Date().toISOString(),
+                batch
+            });
+        } catch (error) {
+            console.error('Error recalling batch:', error);
+            res.status(500).json({ error: 'Failed to recall batch' });
         }
-
-        const batch = batches.get(batchId);
-
-        if (!batch) {
-            return res.status(404).json({ error: 'Batch not found' });
-        }
-
-        if (batch.isRecalled) {
-            return res.status(400).json({ error: 'Batch already recalled' });
-        }
-
-        batch.isRecalled = true;
-        batches.set(batchId, batch);
-
-        console.log(`🚨 RECALL by admin ${req.user?.email || req.user?.name || 'unknown'} for batch ${batchId}`);
-
-        res.json({
-            success: true,
-            message: 'Batch recalled successfully',
-            recalledBy: req.user?.email || req.user?.name,
-            recalledAt: new Date().toISOString(),
-            batch
-        });
     }
 );
 
-// Get all batches
+// GET all batches
 app.get('/api/batches', async (req, res) => {
     try {
-        const allBatches = Array.from(batches.values());
+        const allBatches = await Batch.find().sort({ createdAt: -1 });
+        
         const uniqueFarmers = new Set(allBatches.map(b => b.farmerName)).size;
         const totalQuantity = allBatches.reduce((sum, batch) => sum + batch.quantity, 0);
 
@@ -447,16 +426,12 @@ app.get('/api/batches', async (req, res) => {
             }).length
         };
 
-        const sortedBatches = allBatches.sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-
         console.log(`[SUCCESS] Batches list retrieved from IP: ${req.ip}`);
 
         res.json({
             success: true,
             stats,
-            batches: sortedBatches
+            batches: allBatches
         });
     } catch (error) {
         console.error('Error fetching batches:', error);
@@ -467,15 +442,14 @@ app.get('/api/batches', async (req, res) => {
     }
 });
 
-// ==================== AI CHAT SERVICE ====================
-
+// AI Service - MongoDB only
 const batchServiceForAI = {
     async getBatch(batchId) {
-        return batches.get(batchId);
+        return await Batch.findOne({ batchId });
     },
 
     async getDashboardStats() {
-        const allBatches = Array.from(batches.values());
+        const allBatches = await Batch.find();
         const uniqueFarmers = new Set(allBatches.map(b => b.farmerName)).size;
         const totalQuantity = allBatches.reduce((sum, batch) => sum + batch.quantity, 0);
 
@@ -555,6 +529,9 @@ app.use((err, req, res, next) => {
 // Import createAdmin script
 const createAdmin = require('./scripts/create-admin');
 
+// Import blockchain listener
+const startListener = require('./services/blockchainListener');
+
 // Start server
 app.listen(PORT, async () => {
     console.log(`🚀 CropChain API server running on port ${PORT}`);
@@ -596,6 +573,18 @@ app.listen(PORT, async () => {
     }
 
     console.log('\n✅ Server startup complete\n');
+
+    // Start blockchain event listener
+    if (contractInstance) {
+        try {
+            startListener(contractInstance);
+            console.log('🔗 Blockchain event listener started');
+        } catch (error) {
+            console.error('❌ Failed to start blockchain listener:', error.message);
+        }
+    } else {
+        console.log('ℹ️  Skipping blockchain listener (no contract instance available)');
+    }
 });
 
 module.exports = app;

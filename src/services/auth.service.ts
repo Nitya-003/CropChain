@@ -7,6 +7,12 @@ export interface User {
     name: string;
     email: string;
     role: 'farmer' | 'transporter' | 'admin';
+    walletAddress?: string;
+    verification?: {
+        isVerified: boolean;
+        verifiedAt?: string;
+        credentialHash?: string;
+    };
 }
 
 export interface LoginCredentials {
