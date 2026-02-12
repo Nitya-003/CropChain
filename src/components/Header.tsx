@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import LanguageSwitcher from './LanguageSwitcher';
+import Sidebar from './Sidebar';
 
 const Header: React.FC = () => {
   const location = useLocation();
@@ -26,6 +27,8 @@ const Header: React.FC = () => {
     return user && item.roles.includes(user.role);
   });
 
+  // Sidebar state for mobile navigation
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   return (
     <header className="bg-white dark:bg-gray-800 shadow-lg border-b-4 border-green-500">
       <div className="container mx-auto px-4">
