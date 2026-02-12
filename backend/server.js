@@ -3,13 +3,14 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
+const jwt = require('jsonwebtoken');
 const { ethers } = require('ethers');
 const QRCode = require('qrcode');
 const connectDB = require('./config/db');
 require('dotenv').config();
 const mainRoutes = require("./routes/index");
 const validateRequest = require('./middleware/validator');
-const { createBatchSchema,updateBatchSchema} = require("./validations/batchSchema");
+const { createBatchSchema, updateBatchSchema } = require("./validations/batchSchema");
 const { chatSchema } = require("./validations/chatSchema");
 
 // Connect to Database
@@ -18,7 +19,59 @@ connectDB();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Security middleware
+// ==================== MIDDLEWARE FUNCTIONS ====================
+
+// JWT Authentication Middleware
+const auth = (req, res, next) => {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+
+    if (!token) {
+        return res.status(401).json({ error: 'Unauthorized - No token provided' });
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (error) {
+        return res.status(401).json({ error: 'Invalid token' });
+    }
+};
+
+// Admin Role Middleware
+const admin = (req, res, next) => {
+    if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+    }
+    next();
+};
+
+// Security logging middleware
+const securityLogger = (req, res, next) => {
+    const timestamp = new Date().toISOString();
+    const ip = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get('User-Agent') || 'Unknown';
+
+    console.log(`[${timestamp}] ${req.method} ${req.path} - IP: ${ip} - User-Agent: ${userAgent}`);
+
+    const suspiciousPatterns = [
+        /\$where/i, /\$ne/i, /\$gt/i, /\$lt/i, /\$regex/i,
+        /javascript:/i, /<script/i, /union.*select/i
+    ];
+
+    const requestString = JSON.stringify(req.body) + JSON.stringify(req.query) + JSON.stringify(req.params);
+
+    suspiciousPatterns.forEach(pattern => {
+        if (pattern.test(requestString)) {
+            console.warn(`[SECURITY WARNING] Suspicious pattern detected from IP ${ip}: ${pattern}`);
+        }
+    });
+
+    next();
+};
+
+// ==================== SECURITY MIDDLEWARE SETUP ====================
+
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -86,11 +139,7 @@ if (process.env.NODE_ENV === 'development') {
 app.use(cors());
 // app.use(cors({
 //     origin: (origin, callback) => {
-//         // Allow requests with no origin (mobile apps, Postman, curl, etc.)
-//         if (!origin) {
-//             return callback(null, true);
-//         }
-
+//         if (!origin) return callback(null, true);
 //         if (allowedOrigins.includes(origin)) {
 //             callback(null, true);
 //         } else {
@@ -118,18 +167,25 @@ app.use(express.urlencoded({ extended: true, limit: maxFileSize }));
 
 // NoSQL injection protection
 app.use(mongoSanitize());
+app.use(securityLogger);
 
-// mount health check main router
+// ==================== ROUTES ====================
+
+// Mount health check main router
 app.use("/api", mainRoutes);
 
+// Import Routes
+const authRoutes = require('./routes/authRoutes');
 
+// Mount Auth Routes (Refactored)
+app.use('/api/auth', authLimiter, authRoutes);
 
+// ==================== IN-MEMORY STORAGE ====================
 
-// In-memory storage
 const batches = new Map();
 let batchCounter = 1;
 
-const PROVIDER_URL = process.env.INFURA_URL || 'https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID ';
+const PROVIDER_URL = process.env.INFURA_URL || 'https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID';
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '0x...';
 const PRIVATE_KEY = process.env.PRIVATE_KEY || '0x...';
 
@@ -137,7 +193,8 @@ if (process.env.NODE_ENV === 'production' && (!PROVIDER_URL || !CONTRACT_ADDRESS
     console.warn('⚠️  Blockchain configuration incomplete. Running in demo mode.');
 }
 
-// Helper functions
+// ==================== HELPER FUNCTIONS ====================
+
 function generateBatchId() {
     const id = `CROP-2024-${String(batchCounter).padStart(3, '0')}`;
     batchCounter++;
@@ -164,33 +221,8 @@ function simulateBlockchainHash() {
     return '0x' + Math.random().toString(16).substr(2, 64);
 }
 
-// Security logging middleware
-const securityLogger = (req, res, next) => {
-    const timestamp = new Date().toISOString();
-    const ip = req.ip || req.connection.remoteAddress;
-    const userAgent = req.get('User-Agent') || 'Unknown';
+// ==================== INITIALIZE SAMPLE DATA ====================
 
-    console.log(`[${timestamp}] ${req.method} ${req.path} - IP: ${ip} - User-Agent: ${userAgent}`);
-
-    const suspiciousPatterns = [
-        /\$where/i, /\$ne/i, /\$gt/i, /\$lt/i, /\$regex/i,
-        /javascript:/i, /<script/i, /union.*select/i
-    ];
-
-    const requestString = JSON.stringify(req.body) + JSON.stringify(req.query) + JSON.stringify(req.params);
-
-    suspiciousPatterns.forEach(pattern => {
-        if (pattern.test(requestString)) {
-            console.warn(`[SECURITY WARNING] Suspicious pattern detected from IP ${ip}: ${pattern}`);
-        }
-    });
-
-    next();
-};
-
-app.use(securityLogger);
-
-// Initialize with sample data
 const sampleBatch = {
     batchId: 'CROP-2024-001',
     farmerName: 'Rajesh Kumar',
@@ -203,6 +235,7 @@ const sampleBatch = {
     description: 'High-quality Basmati rice grown using traditional methods',
     createdAt: new Date().toISOString(),
     currentStage: 'mandi',
+    isRecalled: false,
     updates: [
         {
             stage: 'farmer',
@@ -226,13 +259,9 @@ const sampleBatch = {
 batches.set('CROP-2024-001', sampleBatch);
 batchCounter = 2;
 
-// Import Routes
-const authRoutes = require('./routes/authRoutes');
+// ==================== BATCH ROUTES ====================
 
-// Mount Auth Routes (Refactored)
-app.use('/api/auth', authLimiter, authRoutes);
-
-// Batch routes
+// Create batch
 app.post('/api/batches', batchLimiter, validateRequest(createBatchSchema), async (req, res) => {
     try {
         const validatedData = req.body;
@@ -240,30 +269,30 @@ app.post('/api/batches', batchLimiter, validateRequest(createBatchSchema), async
         const qrCode = await generateQRCode(batchId);
 
         const batch = {
-          batchId,
-          farmerId: validatedData.farmerId,
-          farmerName: validatedData.farmerName,
-          farmerAddress: validatedData.farmerAddress,
-          cropType: validatedData.cropType,
-          quantity: validatedData.quantity,
-          harvestDate: validatedData.harvestDate,
-          origin: validatedData.origin,
-          certifications: validatedData.certifications,
-          description: validatedData.description,
-          createdAt: new Date().toISOString(),
-          currentStage: "farmer",
-          isRecalled: false, // ADD THIS
-          updates: [
-            {
-              stage: "farmer",
-              actor: validatedData.farmerName,
-              location: validatedData.origin,
-              timestamp: validatedData.harvestDate,
-              notes: validatedData.description || "Initial harvest recorded",
-            },
-          ],
-          qrCode,
-          blockchainHash: simulateBlockchainHash(),
+            batchId,
+            farmerId: validatedData.farmerId,
+            farmerName: validatedData.farmerName,
+            farmerAddress: validatedData.farmerAddress,
+            cropType: validatedData.cropType,
+            quantity: validatedData.quantity,
+            harvestDate: validatedData.harvestDate,
+            origin: validatedData.origin,
+            certifications: validatedData.certifications,
+            description: validatedData.description,
+            createdAt: new Date().toISOString(),
+            currentStage: "farmer",
+            isRecalled: false,
+            updates: [
+                {
+                    stage: "farmer",
+                    actor: validatedData.farmerName,
+                    location: validatedData.origin,
+                    timestamp: validatedData.harvestDate,
+                    notes: validatedData.description || "Initial harvest recorded",
+                },
+            ],
+            qrCode,
+            blockchainHash: simulateBlockchainHash(),
         };
 
         batches.set(batchId, batch);
@@ -283,6 +312,7 @@ app.post('/api/batches', batchLimiter, validateRequest(createBatchSchema), async
     }
 });
 
+// Get single batch
 app.get('/api/batches/:batchId', batchLimiter, async (req, res) => {
     try {
         const { batchId } = req.params;
@@ -310,6 +340,7 @@ app.get('/api/batches/:batchId', batchLimiter, async (req, res) => {
     }
 });
 
+// Update batch
 app.put('/api/batches/:batchId', batchLimiter, validateRequest(updateBatchSchema), async (req, res) => {
     try {
         const { batchId } = req.params;
@@ -358,23 +389,47 @@ app.put('/api/batches/:batchId', batchLimiter, validateRequest(updateBatchSchema
     }
 });
 
-// Recall a batch (admin simulation)
-app.post('/api/batches/:batchId/recall', (req, res) => {
-    const { batchId } = req.params;
-    const batch = batches.get(batchId);
+// ==================== SECURED RECALL ENDPOINT ====================
 
-    if (!batch) {
-        return res.status(404).json({ error: 'Batch not found' });
+// Recall a batch (ADMIN ONLY - PROTECTED)
+app.post(
+    '/api/batches/:batchId/recall',
+    batchLimiter,      // Rate limiting
+    auth,              // JWT authentication
+    admin,             // Admin role authorization
+    (req, res) => {
+        const { batchId } = req.params;
+
+        if (!batchId) {
+            return res.status(400).json({ error: 'Invalid batchId' });
+        }
+
+        const batch = batches.get(batchId);
+
+        if (!batch) {
+            return res.status(404).json({ error: 'Batch not found' });
+        }
+
+        if (batch.isRecalled) {
+            return res.status(400).json({ error: 'Batch already recalled' });
+        }
+
+        batch.isRecalled = true;
+        batches.set(batchId, batch);
+
+        console.log(`🚨 RECALL by admin ${req.user?.email || req.user?.name || 'unknown'} for batch ${batchId}`);
+
+        res.json({
+            success: true,
+            message: 'Batch recalled successfully',
+            recalledBy: req.user?.email || req.user?.name,
+            recalledAt: new Date().toISOString(),
+            batch
+        });
     }
+);
 
-    batch.isRecalled = true;
-    batches.set(batchId, batch);
-
-    console.log("🚨 RECALL ALERT 🚨 Batch recalled:", batchId, "Owner:", batch.farmerName);
-
-    res.json({ success: true, message: 'Batch recalled successfully', batch });
-});
-
+// Get all batches
 app.get('/api/batches', async (req, res) => {
     try {
         const allBatches = Array.from(batches.values());
@@ -412,7 +467,7 @@ app.get('/api/batches', async (req, res) => {
     }
 });
 
-
+// ==================== AI CHAT SERVICE ====================
 
 const batchServiceForAI = {
     async getBatch(batchId) {
@@ -471,6 +526,8 @@ app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, 
     }
 });
 
+// ==================== ERROR HANDLERS ====================
+
 // 404 handler
 app.use('*', (req, res) => {
     console.log(`[404] Route not found: ${req.method} ${req.originalUrl} from IP: ${req.ip}`);
@@ -493,6 +550,8 @@ app.use((err, req, res, next) => {
     });
 });
 
+// ==================== SERVER STARTUP ====================
+
 // Import createAdmin script
 const createAdmin = require('./scripts/create-admin');
 
@@ -502,7 +561,7 @@ app.listen(PORT, async () => {
     console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
 
     // Create admin user on startup
-    if(process.env.NODE_ENV !== 'test') {
+    if (process.env.NODE_ENV !== 'test') {
         await createAdmin();
     }
 
@@ -515,6 +574,8 @@ app.listen(PORT, async () => {
     console.log(`  ✓ Input validation with Joi`);
     console.log(`  ✓ Security headers with Helmet`);
     console.log(`  ✓ Request logging and monitoring`);
+    console.log(`  ✓ JWT Authentication`);
+    console.log(`  ✓ Admin Role Authorization`);
 
     console.log('\n⚙️  Configuration:');
     console.log(`  • CORS origins: ${allowedOrigins.length > 0 ? allowedOrigins.join(', ') : 'None configured'}`);
