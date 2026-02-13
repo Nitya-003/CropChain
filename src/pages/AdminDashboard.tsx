@@ -20,9 +20,9 @@ const AdminDashboard: React.FC = () => {
 
   const loadDashboardData = async () => {
     try {
-      const dashboardData = await cropBatchService.getDashboardStats();
-      setStats(dashboardData.stats);
-      setBatches(dashboardData.batches);
+      const { batches, stats } = await realCropBatchService.getAllBatches();
+      setStats(stats);
+      setBatches(batches);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {

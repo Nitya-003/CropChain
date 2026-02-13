@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { RefreshCw, Search, Package, Clock, User, MapPin } from 'lucide-react';
-import { cropBatchService } from '../services/cropBatchService';
+import { realCropBatchService } from '../services/realCropBatchService';
 // import Timeline from '../components/Timeline';
 import { FormSkeleton, BatchInfoSkeleton } from '../components/skeletons';
 
@@ -31,7 +31,7 @@ const UpdateBatch: React.FC = () => {
     setBatch(null); 
 
     try {
-      const foundBatch = await cropBatchService.getBatch(batchId);
+      const foundBatch = await realCropBatchService.getBatch(batchId);
       setBatch(foundBatch);
     } catch (error) {
       console.error('Batch not found:', error);
@@ -47,7 +47,7 @@ const UpdateBatch: React.FC = () => {
 
     setIsUpdating(true);
     try {
-      const updatedBatch = await cropBatchService.updateBatch(batch.batchId, updateData);
+      const updatedBatch = await realCropBatchService.updateBatch(batch.batchId, updateData);
       setBatch(updatedBatch);
       setUpdateData({
         actor: '',

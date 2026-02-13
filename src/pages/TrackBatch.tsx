@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Search, QrCode, Package, Calendar, MapPin, User, FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { cropBatchService } from '../services/cropBatchService';
+import { realCropBatchService } from '../services/realCropBatchService';
 // import Timeline from '../components/Timeline';
 import QRScanner from '../components/QRScanner';
 import CopyButton from '../components/CopyButton';
@@ -21,7 +21,7 @@ const TrackBatch: React.FC = () => {
     setIsSearching(true);
     setBatch(null);
     try {
-      const foundBatch = await cropBatchService.getBatch(batchId);
+      const foundBatch = await realCropBatchService.getBatch(batchId);
       setBatch(foundBatch);
     } catch (error) {
       console.error('Batch not found:', error);
