@@ -1,6 +1,6 @@
- import React from 'react';
- import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
- import { AuthProvider } from './context/AuthContext';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
 import Header from './components/Header';
 
 
@@ -15,6 +15,8 @@ import NotFound from './pages/NotFound';
 // Components
 import AIChatbot from './components/AIChatbot';
 import SyncStatusIndicator from './components/SyncStatusIndicator';
+import Login from './pages/Login';
+import Register from './pages/Register';
 
 function App() {
   return (
@@ -25,20 +27,22 @@ function App() {
           <main className="container mx-auto px-4 py-8">
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
               <Route path="/add-batch" element={<AddBatch />} />
               <Route path="/update-batch" element={<UpdateBatch />} />
               <Route path="/track-batch" element={<TrackBatch />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/verification" element={<VerificationDashboard />} />
-              
+
               {/* MUST BE LAST - catch-all for 404 */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
-          
+
           {/* Sync Status Indicator - Shows offline/online and pending sync status */}
           <SyncStatusIndicator />
-          
+
           {/* AI Chatbot - Available on all pages */}
           <AIChatbot />
         </div>
