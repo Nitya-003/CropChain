@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Search, QrCode, Package, Calendar, MapPin, User, FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { cropBatchService } from '../services/cropBatchService';
+import Timeline from '../components/Timeline';
 import { realCropBatchService } from '../services/realCropBatchService';
 // import Timeline from '../components/Timeline';
 import QRScanner from '../components/QRScanner';
@@ -193,7 +195,7 @@ const TrackBatch: React.FC = () => {
               <FileText className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
               Supply Chain Journey
             </h3>
-            {/* <Timeline events={batch.updates} /> */}
+            <Timeline events={batch.updates} globalCertifications={batch.certifications} />
           </div>
 
           {/* QR Code */}
