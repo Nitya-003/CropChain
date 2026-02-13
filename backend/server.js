@@ -5,10 +5,13 @@ const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const { ethers } = require('ethers');
 const QRCode = require('qrcode');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./swagger');
 const connectDB = require('./config/db');
 require('dotenv').config();
 const mainRoutes = require("./routes/index");
 const validateRequest = require('./middleware/validator');
+const errorHandlerMiddleware = require('./middleware/errorHandler');
 const { createBatchSchema, updateBatchSchema } = require("./validations/batchSchema");
 const { chatSchema } = require("./validations/chatSchema");
 const apiResponse = require('./utils/apiResponse');
@@ -110,6 +113,12 @@ app.use(mongoSanitize());
 
 // mount health check main router
 app.use("/api", mainRoutes);
+
+// Swagger/OpenAPI Documentation
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'CropChain API Documentation'
+}));
 
 // Blockchain configuration
 const PROVIDER_URL = process.env.INFURA_URL || 'https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID';
@@ -351,7 +360,7 @@ app.put('/api/batches/:batchId', batchLimiter, validateRequest(updateBatchSchema
 });
 
 // RECALL batch
-app.post('/api/batches/:batchId/recall', async (req, res) => {
+app.post('/api/batches/:batchId/recall', batchLimiter, async (req, res) => {
     try {
         const { batchId } = req.params;
         const batch = await Batch.findOneAndUpdate(
@@ -384,7 +393,7 @@ app.post('/api/batches/:batchId/recall', async (req, res) => {
 });
 
 // GET all batches
-app.get('/api/batches', async (req, res) => {
+app.get('/api/batches', batchLimiter, async (req, res) => {
     try {
         const allBatches = await Batch.find().sort({ createdAt: -1 });
         
@@ -488,18 +497,8 @@ app.use('*', (req, res) => {
     res.status(404).json(response);
 });
 
-// Error handler
-app.use((err, req, res, next) => {
-    console.error(`[ERROR] ${err.stack} - IP: ${req.ip}`);
-
-    const isDevelopment = process.env.NODE_ENV === 'development';
-
-    res.status(500).json({
-        error: 'Internal server error',
-        message: isDevelopment ? err.message : 'Something went wrong!',
-        ...(isDevelopment && { stack: err.stack })
-    });
-});
+// Comprehensive Error Handler - Must be last middleware
+app.use(errorHandlerMiddleware);
 
 // Import createAdmin script
 const createAdmin = require('./scripts/create-admin');

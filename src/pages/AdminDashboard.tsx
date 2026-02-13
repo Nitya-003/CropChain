@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, TrendingUp, Package, Users, Calendar, BarChart3, Copy, Check } from 'lucide-react';
-import { cropBatchService } from '../services/cropBatchService';
+import { realCropBatchService } from '../services/realCropBatchService';
 import { StatsCardSkeleton, TableSkeleton, ChartSkeleton } from '../components/skeletons';
 
 const AdminDashboard: React.FC = () => {
@@ -30,9 +30,9 @@ const AdminDashboard: React.FC = () => {
 
   const loadDashboardData = async () => {
     try {
-      const dashboardData = await cropBatchService.getDashboardStats();
-      setStats(dashboardData.stats);
-      setBatches(dashboardData.batches);
+      const { batches, stats } = await realCropBatchService.getAllBatches();
+      setStats(stats);
+      setBatches(batches);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
