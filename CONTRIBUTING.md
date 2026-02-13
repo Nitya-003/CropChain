@@ -24,6 +24,7 @@ Before contributing, ensure you are familiar with:
 1. **Fork** the repository and create your branch from `main`.
 2. **Install** dependencies in both root and `/backend` folders.
 3. If you change Smart Contracts, ensure you run `npx hardhat test` to verify logic.
+4. If you change utility functions, run `npm run test:unit` to verify logic.
 4. **Commit** your changes with clear messages (e.g., `feat: add batch filtering by date`).
 5. **Push** to your fork and submit a Pull Request.
 

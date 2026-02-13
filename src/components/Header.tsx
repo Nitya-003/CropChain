@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Wheat, Plus, RefreshCw, Search, Shield, Sun, Moon, LogIn, LogOut, User } from 'lucide-react';
+import { Wheat, Plus, RefreshCw, Search, Shield, Sun, Moon, LogIn, LogOut, User, Sidebar as SidebarIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -10,6 +10,7 @@ import Sidebar from './Sidebar';
 const Header: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const location = useLocation();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { user, isAuthenticated, logout } = useAuth();
   const { t } = useTranslation();
@@ -20,6 +21,7 @@ const Header: React.FC = () => {
     { path: '/update-batch', label: t('nav.updateLogistics'), icon: RefreshCw, roles: ['transporter'] },
     { path: '/track-batch', label: t('nav.trackBatch'), icon: Search, roles: ['farmer', 'transporter', 'admin'] },
     { path: '/admin', label: t('nav.admin'), icon: Shield, roles: ['admin'] },
+
   ];
 
   const navItems = allNavItems.filter((item) => {
@@ -43,11 +45,10 @@ const Header: React.FC = () => {
                 <Link
                   key={path}
                   to={path}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 ${
-                    location.pathname === path
-                      ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 shadow-md"
-                      : "text-gray-600 dark:text-gray-300 hover:text-green-700 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-gray-700"
-                  }`}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 ${location.pathname === path
+                    ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 shadow-md"
+                    : "text-gray-600 dark:text-gray-300 hover:text-green-700 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-gray-700"
+                    }`}
                 >
                   <Icon className='h-4 w-4' />
                   <span className='font-medium'>{label}</span>
@@ -116,19 +117,7 @@ const Header: React.FC = () => {
               onClick={() => setIsSidebarOpen(true)} // This triggers the sidebar
               className='text-gray-600 dark:text-gray-300 hover:text-green-700 dark:hover:text-green-400'
             >
-              <svg
-                className='h-6 w-6'
-                fill='none'
-                viewBox='0 0 24 24'
-                stroke='currentColor'
-              >
-                <path
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                  strokeWidth={2}
-                  d='M4 6h16M4 12h16M4 18h16'
-                />
-              </svg>
+              <SidebarIcon className='h-6 w-6' />
             </button>
           </div>
         </div>

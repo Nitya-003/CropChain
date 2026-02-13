@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Upload, MapPin, Calendar, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { cropBatchService } from '../services/cropBatchService';
+import { realCropBatchService } from '../services/realCropBatchService';
 
 const AddBatch: React.FC = () => {
   const { t } = useTranslation();
@@ -34,7 +34,7 @@ const AddBatch: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const batch = await cropBatchService.createBatch(formData);
+      const batch = await realCropBatchService.createBatch(formData);
       setGeneratedBatch(batch);
       setSuccess(true);
       setFormData({
