@@ -11,6 +11,7 @@ const mainRoutes = require("./routes/index");
 const validateRequest = require('./middleware/validator');
 const { createBatchSchema, updateBatchSchema } = require("./validations/batchSchema");
 const { chatSchema } = require("./validations/chatSchema");
+const apiResponse = require('./utils/apiResponse');
 
 // Import MongoDB Model
 const Batch = require('./models/Batch');
@@ -244,17 +245,20 @@ app.post('/api/batches', batchLimiter, validateRequest(createBatchSchema), async
 
         console.log(`[SUCCESS] Batch created: ${batchId} by ${validatedData.farmerName} from IP: ${req.ip}`);
 
-        res.status(201).json({
-            success: true,
-            batch,
-            message: 'Batch created successfully'
-        });
+        const response = apiResponse.successResponse(
+            { batch },
+            'Batch created successfully',
+            201
+        );
+        res.status(201).json(response);
     } catch (error) {
         console.error('Error creating batch:', error);
-        res.status(500).json({
-            error: 'Failed to create batch',
-            message: 'An internal server error occurred'
-        });
+        const response = apiResponse.errorResponse(
+            'Failed to create batch',
+            'BATCH_CREATION_ERROR',
+            500
+        );
+        res.status(500).json(response);
     }
 });
 
@@ -266,23 +270,24 @@ app.get('/api/batches/:batchId', batchLimiter, async (req, res) => {
 
         if (!batch) {
             console.log(`[NOT FOUND] Batch lookup failed: ${batchId} from IP: ${req.ip}`);
-            return res.status(404).json({
-                error: 'Batch not found',
-                message: 'The requested batch ID does not exist'
-            });
+            const response = apiResponse.notFoundResponse('Batch', `ID: ${batchId}`);
+            return res.status(404).json(response);
         }
 
         if (batch.isRecalled) {
             console.log("🚨 ALERT: Recalled batch viewed:", batchId);
         }
 
-        res.json({ success: true, batch });
+        const response = apiResponse.successResponse({ batch }, 'Batch retrieved successfully');
+        res.json(response);
     } catch (error) {
         console.error('Error fetching batch:', error);
-        res.status(500).json({
-            error: 'Failed to fetch batch',
-            message: 'An internal server error occurred'
-        });
+        const response = apiResponse.errorResponse(
+            'Failed to fetch batch',
+            'BATCH_FETCH_ERROR',
+            500
+        );
+        res.status(500).json(response);
     }
 });
 
@@ -294,12 +299,18 @@ app.put('/api/batches/:batchId', batchLimiter, validateRequest(updateBatchSchema
 
         const existingBatch = await Batch.findOne({ batchId });
         if (!existingBatch) {
-            return res.status(404).json({ error: 'Batch not found' });
+            const response = apiResponse.notFoundResponse('Batch', `ID: ${batchId}`);
+            return res.status(404).json(response);
         }
 
         if (existingBatch.isRecalled) {
             console.log("🚨 ALERT: Attempt to update recalled batch:", batchId);
-            return res.status(400).json({ error: 'Batch is recalled and cannot be updated' });
+            const response = apiResponse.errorResponse(
+                'Batch is recalled and cannot be updated',
+                'BATCH_RECALLED',
+                400
+            );
+            return res.status(400).json(response);
         }
 
         const update = {
@@ -323,17 +334,19 @@ app.put('/api/batches/:batchId', batchLimiter, validateRequest(updateBatchSchema
 
         console.log(`[SUCCESS] Batch updated: ${batchId} to stage ${validatedData.stage} by ${validatedData.actor} from IP: ${req.ip}`);
 
-        res.json({
-            success: true,
-            batch,
-            message: 'Batch updated successfully'
-        });
+        const response = apiResponse.successResponse(
+            { batch },
+            'Batch updated successfully'
+        );
+        res.json(response);
     } catch (error) {
         console.error('Error updating batch:', error);
-        res.status(500).json({
-            error: 'Failed to update batch',
-            message: 'An internal server error occurred'
-        });
+        const response = apiResponse.errorResponse(
+            'Failed to update batch',
+            'BATCH_UPDATE_ERROR',
+            500
+        );
+        res.status(500).json(response);
     }
 });
 
@@ -348,18 +361,25 @@ app.post('/api/batches/:batchId/recall', async (req, res) => {
         );
 
         if (!batch) {
-            return res.status(404).json({ error: 'Batch not found' });
+            const response = apiResponse.notFoundResponse('Batch', `ID: ${batchId}`);
+            return res.status(404).json(response);
         }
 
         console.log("🚨 RECALL ALERT 🚨 Batch recalled:", batchId, "Owner:", batch.farmerName);
 
-        res.json({ success: true, message: 'Batch recalled successfully', batch });
+        const response = apiResponse.successResponse(
+            { batch },
+            'Batch recalled successfully'
+        );
+        res.json(response);
     } catch (error) {
         console.error('Error recalling batch:', error);
-        res.status(500).json({
-            error: 'Failed to recall batch',
-            message: 'An internal server error occurred'
-        });
+        const response = apiResponse.errorResponse(
+            'Failed to recall batch',
+            'BATCH_RECALL_ERROR',
+            500
+        );
+        res.status(500).json(response);
     }
 });
 
@@ -384,17 +404,19 @@ app.get('/api/batches', async (req, res) => {
 
         console.log(`[SUCCESS] Batches list retrieved from IP: ${req.ip}`);
 
-        res.json({
-            success: true,
-            stats,
-            batches: allBatches
-        });
+        const response = apiResponse.successResponse(
+            { stats, batches: allBatches },
+            'Batches retrieved successfully'
+        );
+        res.json(response);
     } catch (error) {
         console.error('Error fetching batches:', error);
-        res.status(500).json({
-            error: 'Failed to fetch batches',
-            message: 'An internal server error occurred'
-        });
+        const response = apiResponse.errorResponse(
+            'Failed to fetch batches',
+            'BATCHES_FETCH_ERROR',
+            500
+        );
+        res.status(500).json(response);
     }
 });
 
@@ -434,35 +456,36 @@ app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, 
 
         console.log(`[AI CHAT SUCCESS] Response generated for IP: ${req.ip}`);
 
-        res.json({
-            success: true,
-            response: aiResponse.message,
-            timestamp: new Date().toISOString(),
-            ...(aiResponse.functionCalled && {
-                functionCalled: aiResponse.functionCalled,
-                functionResult: aiResponse.functionResult
-            })
-        });
+        const response = apiResponse.successResponse(
+            {
+                response: aiResponse.message,
+                timestamp: new Date().toISOString(),
+                ...(aiResponse.functionCalled && {
+                    functionCalled: aiResponse.functionCalled,
+                    functionResult: aiResponse.functionResult
+                })
+            },
+            'Chat response generated successfully'
+        );
+        res.json(response);
 
     } catch (error) {
         console.error('AI Chat error:', error);
 
-        res.status(500).json({
-            success: false,
-            response: "I'm sorry, I'm having trouble processing your request right now. Please try asking about batch tracking, QR codes, or supply chain processes.",
-            error: 'AI service temporarily unavailable',
-            timestamp: new Date().toISOString()
-        });
+        const response = apiResponse.errorResponse(
+            "I'm sorry, I'm having trouble processing your request right now. Please try asking about batch tracking, QR codes, or supply chain processes.",
+            'AI_SERVICE_ERROR',
+            500
+        );
+        res.status(500).json(response);
     }
 });
 
 // 404 handler
 app.use('*', (req, res) => {
     console.log(`[404] Route not found: ${req.method} ${req.originalUrl} from IP: ${req.ip}`);
-    res.status(404).json({
-        error: 'Route not found',
-        message: 'The requested endpoint does not exist'
-    });
+    const response = apiResponse.notFoundResponse('Endpoint', `${req.method} ${req.originalUrl}`);
+    res.status(404).json(response);
 });
 
 // Error handler

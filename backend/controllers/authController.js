@@ -2,6 +2,7 @@ const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const bcrypt = require('bcryptjs');
 const { z } = require('zod');
+const apiResponse = require('../utils/apiResponse');
 require('dotenv').config();
 
 // Validation Schemas
@@ -26,11 +27,11 @@ const registerUser = async (req, res) => {
         const validationResult = registerSchema.safeParse(req.body);
 
         if (!validationResult.success) {
-            return res.status(400).json({
-                error: 'Validation failed',
-                message: validationResult.error.errors[0].message,
-                details: validationResult.error.errors.map(err => err.message)
-            });
+            return res.status(400).json(
+                apiResponse.validationErrorResponse(
+                    validationResult.error.errors.map(err => err.message)
+                )
+            );
         }
 
         const { name, email, password, role } = validationResult.data;
@@ -39,10 +40,9 @@ const registerUser = async (req, res) => {
         const userExists = await User.findOne({ email });
 
         if (userExists) {
-            return res.status(400).json({
-                error: 'Registration failed',
-                message: 'User already exists with this email'
-            });
+            return res.status(400).json(
+                apiResponse.conflictResponse('User already exists with this email')
+            );
         }
 
         // Hash password
@@ -58,30 +58,31 @@ const registerUser = async (req, res) => {
         });
 
         if (user) {
-            res.status(201).json({
-                success: true,
-                message: 'Registration successful',
-                token: generateToken(user._id, user.role, user.name),
-                user: {
-                    id: user._id,
-                    name: user.name,
-                    email: user.email,
-                    role: user.role
-                }
-            });
+            const response = apiResponse.successResponse(
+                {
+                    token: generateToken(user._id, user.role, user.name),
+                    user: {
+                        id: user._id,
+                        name: user.name,
+                        email: user.email,
+                        role: user.role
+                    }
+                },
+                'Registration successful',
+                201
+            );
+            res.status(201).json(response);
 
         } else {
-            res.status(400).json({
-                error: 'Registration failed',
-                message: 'Invalid user data'
-            });
+            res.status(400).json(
+                apiResponse.errorResponse('Invalid user data', 'REGISTRATION_ERROR', 400)
+            );
         }
 
     } catch (error) {
-        res.status(500).json({
-            error: 'Registration failed',
-            message: error.message || 'An internal server error occurred'
-        });
+        res.status(500).json(
+            apiResponse.errorResponse('Registration failed', 'REGISTRATION_FAILED', 500)
+        );
     }
 };
 
@@ -92,10 +93,11 @@ const loginUser = async (req, res) => {
         const validationResult = loginSchema.safeParse(req.body);
 
         if (!validationResult.success) {
-            return res.status(400).json({
-                error: 'Validation failed',
-                message: validationResult.error.errors[0].message
-            });
+            return res.status(400).json(
+                apiResponse.validationErrorResponse(
+                    validationResult.error.errors.map(err => err.message)
+                )
+            );
         }
 
         const { email, password } = validationResult.data;
@@ -103,29 +105,29 @@ const loginUser = async (req, res) => {
         const user = await User.findOne({ email }).select('+password');
 
         if (user && (await bcrypt.compare(password, user.password))) {
-            res.json({
-                success: true,
-                message: 'Login successful',
-                token: generateToken(user._id, user.role, user.name),
-                user: {
-                    id: user._id,
-                    name: user.name,
-                    email: user.email,
-                    role: user.role
-                }
-            });
+            const response = apiResponse.successResponse(
+                {
+                    token: generateToken(user._id, user.role, user.name),
+                    user: {
+                        id: user._id,
+                        name: user.name,
+                        email: user.email,
+                        role: user.role
+                    }
+                },
+                'Login successful'
+            );
+            res.json(response);
         } else {
-            res.status(401).json({
-                error: 'Authentication failed',
-                message: 'Invalid email or password'
-            });
+            res.status(401).json(
+                apiResponse.unauthorizedResponse('Invalid email or password')
+            );
         }
 
     } catch (error) {
-        res.status(500).json({
-            error: 'Login failed',
-            message: 'An internal server error occurred'
-        });
+        res.status(500).json(
+            apiResponse.errorResponse('Login failed', 'LOGIN_FAILED', 500)
+        );
     }
 };
 

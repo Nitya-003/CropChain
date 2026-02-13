@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
+const apiResponse = require("../utils/apiResponse");
 
 router.get('/status', (req, res) => {
     const state = mongoose.connection.readyState;
@@ -12,11 +13,16 @@ router.get('/status', (req, res) => {
         3: "disconnecting"
     }
 
-    res.json({
-        status: "online",
-        database: stateMap[state] || "unknown",
-        timestamp: new Date().toISOString()
-    })
+    const response = apiResponse.successResponse(
+        {
+            status: "online",
+            database: stateMap[state] || "unknown",
+            timestamp: new Date().toISOString()
+        },
+        'Server is running',
+        200
+    );
+    res.json(response);
 });
 
 

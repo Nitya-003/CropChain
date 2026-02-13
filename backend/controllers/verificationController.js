@@ -1,6 +1,7 @@
 const didService = require('../services/didService');
 const User = require('../models/User');
 const { z } = require('zod');
+const apiResponse = require('../utils/apiResponse');
 
 // Validation schemas
 const linkWalletSchema = z.object({
@@ -27,10 +28,11 @@ const linkWallet = async (req, res) => {
         const validationResult = linkWalletSchema.safeParse(req.body);
 
         if (!validationResult.success) {
-            return res.status(400).json({
-                error: 'Validation failed',
-                message: validationResult.error.errors[0].message,
-            });
+            return res.status(400).json(
+                apiResponse.validationErrorResponse(
+                    validationResult.error.errors.map(err => err.message)
+                )
+            );
         }
 
         const { walletAddress, signature } = validationResult.data;
@@ -40,10 +42,9 @@ const linkWallet = async (req, res) => {
 
         res.json(result);
     } catch (error) {
-        res.status(500).json({
-            error: 'Wallet linking failed',
-            message: error.message,
-        });
+        res.status(500).json(
+            apiResponse.errorResponse('Wallet linking failed', 'WALLET_LINKING_ERROR', 500)
+        );
     }
 };
 
@@ -55,10 +56,11 @@ const issueCredential = async (req, res) => {
         const validationResult = issueCredentialSchema.safeParse(req.body);
 
         if (!validationResult.success) {
-            return res.status(400).json({
-                error: 'Validation failed',
-                message: validationResult.error.errors[0].message,
-            });
+            return res.status(400).json(
+                apiResponse.validationErrorResponse(
+                    validationResult.error.errors.map(err => err.message)
+                )
+            );
         }
 
         const { userId, signature, walletAddress } = validationResult.data;
@@ -68,10 +70,9 @@ const issueCredential = async (req, res) => {
 
         res.json(result);
     } catch (error) {
-        res.status(400).json({
-            error: 'Credential issuance failed',
-            message: error.message,
-        });
+        res.status(400).json(
+            apiResponse.errorResponse('Credential issuance failed', 'CREDENTIAL_ISSUANCE_ERROR', 400)
+        );
     }
 };
 
@@ -83,10 +84,11 @@ const revokeCredential = async (req, res) => {
         const validationResult = revokeCredentialSchema.safeParse(req.body);
 
         if (!validationResult.success) {
-            return res.status(400).json({
-                error: 'Validation failed',
-                message: validationResult.error.errors[0].message,
-            });
+            return res.status(400).json(
+                apiResponse.validationErrorResponse(
+                    validationResult.error.errors.map(err => err.message)
+                )
+            );
         }
 
         const { userId, reason } = validationResult.data;
@@ -96,10 +98,9 @@ const revokeCredential = async (req, res) => {
 
         res.json(result);
     } catch (error) {
-        res.status(400).json({
-            error: 'Credential revocation failed',
-            message: error.message,
-        });
+        res.status(400).json(
+            apiResponse.errorResponse('Credential revocation failed', 'CREDENTIAL_REVOCATION_ERROR', 400)
+        );
     }
 };
 
@@ -112,17 +113,23 @@ const checkVerification = async (req, res) => {
 
         // Basic validation of userId (e.g., MongoDB ObjectId-style 24 hex chars)
         if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
-            return res.status(400).json({
-                error: 'Invalid request',
-                message: 'User ID is required',
-            });
+            return res.status(400).json(
+                apiResponse.errorResponse(
+                    'User ID is required',
+                    'MISSING_USERID',
+                    400
+                )
+            );
         }
 
         if (!/^[a-fA-F0-9]{24}$/.test(userId)) {
-            return res.status(400).json({
-                error: 'Invalid user ID',
-                message: 'User ID must be a valid identifier',
-            });
+            return res.status(400).json(
+                apiResponse.errorResponse(
+                    'User ID must be a valid identifier',
+                    'INVALID_USERID',
+                    400
+                )
+            );
         }
 
         const result = await didService.checkVerificationStatus(userId);
@@ -130,6 +137,7 @@ const checkVerification = async (req, res) => {
         res.json(result);
     } catch (error) {
         let statusCode = 500;
+        let errorCode = 'VERIFICATION_CHECK_ERROR';
 
         const message = error && error.message ? error.message : 'An unexpected error occurred';
         const name = error && error.name ? error.name : '';
@@ -141,16 +149,17 @@ const checkVerification = async (req, res) => {
             /invalid/i.test(message)
         ) {
             statusCode = 400;
+            errorCode = 'INVALID_DATA';
         }
         // Map "not found" semantics to 404
         else if (/not found/i.test(message)) {
             statusCode = 404;
+            errorCode = 'NOT_FOUND';
         }
 
-        res.status(statusCode).json({
-            error: 'Verification check failed',
-            message,
-        });
+        res.status(statusCode).json(
+            apiResponse.errorResponse(message, errorCode, statusCode)
+        );
     }
 };
 
@@ -164,16 +173,15 @@ const getUnverifiedUsers = async (req, res) => {
             role: { $ne: 'admin' },
         }).select('name email role walletAddress createdAt');
 
-        res.json({
-            success: true,
-            count: users.length,
-            users,
-        });
+        const response = apiResponse.successResponse(
+            { count: users.length, users },
+            'Unverified users retrieved successfully'
+        );
+        res.json(response);
     } catch (error) {
-        res.status(500).json({
-            error: 'Failed to fetch users',
-            message: error.message,
-        });
+        res.status(500).json(
+            apiResponse.errorResponse('Failed to fetch users', 'FETCH_USERS_ERROR', 500)
+        );
     }
 };
 
@@ -188,16 +196,15 @@ const getVerifiedUsers = async (req, res) => {
             .select('name email role walletAddress verification.verifiedAt verification.verifiedBy')
             .populate('verification.verifiedBy', 'name email');
 
-        res.json({
-            success: true,
-            count: users.length,
-            users,
-        });
+        const response = apiResponse.successResponse(
+            { count: users.length, users },
+            'Verified users retrieved successfully'
+        );
+        res.json(response);
     } catch (error) {
-        res.status(500).json({
-            error: 'Failed to fetch users',
-            message: error.message,
-        });
+        res.status(500).json(
+            apiResponse.errorResponse('Failed to fetch users', 'FETCH_USERS_ERROR', 500)
+        );
     }
 };
 
