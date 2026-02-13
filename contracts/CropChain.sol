@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-contract CropChain {
+import "./security/Pausable.sol";
+import "./security/ReentrancyGuard.sol";
+
+contract CropChain is Pausable, ReentrancyGuard {
 
     /* ================= ENUMS ================= */
 
@@ -47,17 +50,24 @@ contract CropChain {
         address updatedBy;
     }
 
+    struct PriceObservation {
+        uint256 timestamp;
+        uint256 price;
+    }
+
     /* ================= STORAGE ================= */
 
     mapping(bytes32 => CropBatch) public cropBatches;
     mapping(bytes32 => SupplyChainUpdate[]) public batchUpdates;
+    mapping(bytes32 => PriceObservation[]) private priceObservations;
+    mapping(address => uint256) public mandiLiquidity;
 
     mapping(address => ActorRole) public roles;
 
     bytes32[] public allBatchIds;
 
     address public owner;
-    bool public paused = false;
+    uint256 public twapWindow = 1 hours;
 
     /* ================= EVENTS ================= */
 
@@ -80,17 +90,16 @@ contract CropChain {
 
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
-    event Paused(address indexed caller, bool paused);
+    event CircuitBreakerToggled(address indexed caller, bool isPaused);
+    event LiquidityDeposited(address indexed mandi, uint256 amount);
+    event LiquidityWithdrawn(address indexed mandi, uint256 amount);
+    event CropPriceObserved(bytes32 indexed cropKey, uint256 price, uint256 timestamp);
+    event TWAPWindowUpdated(uint256 previousWindow, uint256 newWindow);
 
     /* ================= MODIFIERS ================= */
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
-        _;
-    }
-
-    modifier whenNotPaused() {
-        require(!paused, "Contract paused");
         _;
     }
 
@@ -114,11 +123,15 @@ contract CropChain {
     function setRole(address _user, ActorRole _role)
         public
         onlyOwner
+        nonReentrant
     {
+        // Checks
         require(_user != address(0), "Invalid address");
 
+        // Effects
         roles[_user] = _role;
 
+        // Interactions
         emit RoleUpdated(_user, _role);
     }
 
@@ -171,7 +184,9 @@ contract CropChain {
     )
         public
         whenNotPaused
+        nonReentrant
     {
+        // Checks
         require(roles[msg.sender] == ActorRole.Farmer || roles[msg.sender] == ActorRole.Admin,
             "Only farmer/admin");
 
@@ -180,6 +195,7 @@ contract CropChain {
         require(bytes(_ipfsCID).length > 0, "Invalid CID");
         require(_quantity > 0, "Invalid quantity");
 
+        // Effects
         cropBatches[_batchId] = CropBatch({
             batchId: _batchId,
             ipfsCID: _ipfsCID,
@@ -203,6 +219,7 @@ contract CropChain {
 
         allBatchIds.push(_batchId);
 
+        // Interactions
         emit BatchCreated(_batchId, _ipfsCID, _quantity, msg.sender);
     }
 
@@ -220,8 +237,10 @@ contract CropChain {
     )
         public
         whenNotPaused
+        nonReentrant
         batchExists(_batchId)
     {
+        // Checks
         ActorRole role = roles[msg.sender];
 
         require(role != ActorRole.None, "No role");
@@ -231,6 +250,7 @@ contract CropChain {
         require(bytes(_actorName).length > 0, "Invalid actor");
         require(bytes(_location).length > 0, "Invalid location");
 
+        // Effects
         batchUpdates[_batchId].push(
             SupplyChainUpdate({
                 stage: _stage,
@@ -242,6 +262,7 @@ contract CropChain {
             })
         );
 
+        // Interactions
         emit BatchUpdated(
             _batchId,
             _stage,
@@ -303,27 +324,161 @@ contract CropChain {
     function transferOwnership(address _newOwner)
         public
         onlyOwner
+        nonReentrant
     {
+        // Checks
         require(_newOwner != address(0), "Invalid address");
 
+        // Effects
         address previous = owner;
-
         owner = _newOwner;
-
         roles[_newOwner] = ActorRole.Admin;
 
+        // Interactions
         emit OwnershipTransferred(previous, _newOwner);
     }
 
     /**
-     * @dev Pause/unpause system
+     * @dev Pause/unpause system (backward-compatible wrapper)
      */
     function setPaused(bool _paused)
         public
         onlyOwner
+        nonReentrant
     {
-        paused = _paused;
+        if (_paused && !paused()) {
+            _pause();
+            emit CircuitBreakerToggled(msg.sender, true);
+        }
 
-        emit Paused(msg.sender, _paused);
+        if (!_paused && paused()) {
+            _unpause();
+            emit CircuitBreakerToggled(msg.sender, false);
+        }
+    }
+
+    function pause() public onlyOwner nonReentrant {
+        _pause();
+        emit CircuitBreakerToggled(msg.sender, true);
+    }
+
+    function unpause() public onlyOwner nonReentrant {
+        _unpause();
+        emit CircuitBreakerToggled(msg.sender, false);
+    }
+
+    function depositLiquidity()
+        public
+        payable
+        whenNotPaused
+        nonReentrant
+    {
+        // Checks
+        require(msg.value > 0, "No value sent");
+
+        // Effects
+        mandiLiquidity[msg.sender] += msg.value;
+
+        // Interactions
+        emit LiquidityDeposited(msg.sender, msg.value);
+    }
+
+    function withdrawLiquidity(uint256 _amount)
+        public
+        whenNotPaused
+        nonReentrant
+    {
+        // Checks
+        require(_amount > 0, "Invalid amount");
+        uint256 currentBalance = mandiLiquidity[msg.sender];
+        require(currentBalance >= _amount, "Insufficient liquidity");
+
+        // Effects
+        mandiLiquidity[msg.sender] = currentBalance - _amount;
+
+        // Interactions
+        (bool success, ) = payable(msg.sender).call{value: _amount}("");
+        require(success, "Withdrawal transfer failed");
+
+        emit LiquidityWithdrawn(msg.sender, _amount);
+    }
+
+    function recordCropPrice(bytes32 _cropKey, uint256 _spotPrice)
+        public
+        onlyOwner
+        whenNotPaused
+        nonReentrant
+    {
+        // Checks
+        require(_cropKey != bytes32(0), "Invalid crop key");
+        require(_spotPrice > 0, "Invalid spot price");
+
+        // Effects
+        priceObservations[_cropKey].push(
+            PriceObservation({
+                timestamp: block.timestamp,
+                price: _spotPrice
+            })
+        );
+
+        // Interactions
+        emit CropPriceObserved(_cropKey, _spotPrice, block.timestamp);
+    }
+
+    function setTWAPWindow(uint256 _newWindowSeconds)
+        public
+        onlyOwner
+        nonReentrant
+    {
+        require(_newWindowSeconds >= 5 minutes, "TWAP window too small");
+        require(_newWindowSeconds <= 7 days, "TWAP window too large");
+
+        uint256 previousWindow = twapWindow;
+        twapWindow = _newWindowSeconds;
+
+        emit TWAPWindowUpdated(previousWindow, _newWindowSeconds);
+    }
+
+    function getLatestCropPrice(bytes32 _cropKey) public view returns (uint256) {
+        PriceObservation[] storage observations = priceObservations[_cropKey];
+        require(observations.length > 0, "No price observations");
+        return observations[observations.length - 1].price;
+    }
+
+    function getCropTWAP(bytes32 _cropKey) public view returns (uint256) {
+        PriceObservation[] storage observations = priceObservations[_cropKey];
+        require(observations.length >= 2, "Insufficient TWAP data");
+
+        uint256 startTime = block.timestamp > twapWindow
+            ? block.timestamp - twapWindow
+            : 0;
+
+        uint256 weightedPriceSum = 0;
+        uint256 cumulativeDuration = 0;
+        uint256 cursorTime = block.timestamp;
+
+        for (uint256 i = observations.length; i > 0; i--) {
+            PriceObservation storage obs = observations[i - 1];
+
+            if (obs.timestamp < startTime) {
+                if (cursorTime > startTime) {
+                    uint256 partialDuration = cursorTime - startTime;
+                    weightedPriceSum += obs.price * partialDuration;
+                    cumulativeDuration += partialDuration;
+                }
+                break;
+            }
+
+            if (cursorTime > obs.timestamp) {
+                uint256 duration = cursorTime - obs.timestamp;
+                weightedPriceSum += obs.price * duration;
+                cumulativeDuration += duration;
+            }
+
+            cursorTime = obs.timestamp;
+        }
+
+        require(cumulativeDuration > 0, "No TWAP duration");
+        return weightedPriceSum / cumulativeDuration;
     }
 }
