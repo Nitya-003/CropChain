@@ -20,6 +20,7 @@ const Header: React.FC = () => {
     { path: '/update-batch', label: t('nav.updateLogistics'), icon: RefreshCw, roles: ['transporter'] },
     { path: '/track-batch', label: t('nav.trackBatch'), icon: Search, roles: ['farmer', 'transporter', 'admin'] },
     { path: '/admin', label: t('nav.admin'), icon: Shield, roles: ['admin'] },
+
   ];
 
   const navItems = allNavItems.filter((item) => {
