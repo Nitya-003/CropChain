@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
-import { Search, QrCode, Package, Calendar, MapPin, User, FileText, Copy, Check } from 'lucide-react';
+import { Search, QrCode, Package, Calendar, MapPin, User, FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { cropBatchService } from '../services/cropBatchService';
+import Timeline from '../components/Timeline';
 import { realCropBatchService } from '../services/realCropBatchService';
 import { useToast } from '../context/ToastContext';
 // import Timeline from '../components/Timeline';
 import QRScanner from '../components/QRScanner';
-import {TrackBatchSkeleton} from '../components/skeletons';
+import CopyButton from '../components/CopyButton';
+import { TrackBatchSkeleton } from '../components/skeletons';
 
 const TrackBatch: React.FC = () => {
   const [batchId, setBatchId] = useState('');
   const [batch, setBatch] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
-  const [copied, setCopied] = useState(false);
   
   const { t } = useTranslation();
   const toast = useToast();
@@ -126,17 +128,7 @@ const TrackBatch: React.FC = () => {
               <div>
                 <div className="flex items-center gap-3 mb-2">
                   <h2 className="text-3xl font-bold">Batch #{batch.batchId}</h2>
-                  <button
-                    onClick={() => copyToClipboard(batch.batchId)}
-                    className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                    title={copied ? t('batch.copied') : t('batch.copyBatchId')}
-                  >
-                    {copied ? (
-                      <Check className="h-5 w-5 text-green-300" />
-                    ) : (
-                      <Copy className="h-5 w-5 text-white/80" />
-                    )}
-                  </button>
+                  <CopyButton value={batch.batchId} label="batch id" />
                 </div>
                 <p className="text-green-100 text-lg">Complete supply chain transparency</p>
               </div>
@@ -221,7 +213,7 @@ const TrackBatch: React.FC = () => {
               <FileText className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
               Supply Chain Journey
             </h3>
-            {/* <Timeline events={batch.updates} /> */}
+            <Timeline events={batch.updates} globalCertifications={batch.certifications} />
           </div>
 
           {/* QR Code */}
