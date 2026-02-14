@@ -3,6 +3,7 @@ import { RefreshCw, Search, Package, Clock, User, MapPin } from 'lucide-react';
 import { cropBatchService } from '../services/cropBatchService';
 import Timeline from '../components/Timeline';
 import { realCropBatchService } from '../services/realCropBatchService';
+import { useToast } from '../context/ToastContext';
 // import Timeline from '../components/Timeline';
 import { FormSkeleton, BatchInfoSkeleton } from '../components/skeletons';
 
@@ -10,6 +11,7 @@ const UpdateBatch: React.FC = () => {
   const [batchId, setBatchId] = useState('');
   const [batch, setBatch] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const toast = useToast();
   const [updateData, setUpdateData] = useState({
     actor: '',
     stage: '',
@@ -35,7 +37,10 @@ const UpdateBatch: React.FC = () => {
     try {
       const foundBatch = await realCropBatchService.getBatch(batchId);
       setBatch(foundBatch);
+      toast.success(`Batch ${batchId} found successfully!`);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Batch not found. Please check the ID and try again.';
+      toast.error(errorMessage);
       console.error('Batch not found:', error);
       setBatch(null);
     } finally {
@@ -51,6 +56,7 @@ const UpdateBatch: React.FC = () => {
     try {
       const updatedBatch = await realCropBatchService.updateBatch(batch.batchId, updateData);
       setBatch(updatedBatch);
+      toast.success(`Batch updated successfully! New stage: ${updateData.stage}`);
       setUpdateData({
         actor: '',
         stage: '',
@@ -59,6 +65,8 @@ const UpdateBatch: React.FC = () => {
         timestamp: new Date().toISOString().split('T')[0]
       });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update batch. Please try again.';
+      toast.error(errorMessage);
       console.error('Failed to update batch:', error);
     } finally {
       setIsUpdating(false);

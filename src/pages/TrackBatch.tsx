@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { cropBatchService } from '../services/cropBatchService';
 import Timeline from '../components/Timeline';
 import { realCropBatchService } from '../services/realCropBatchService';
+import { useToast } from '../context/ToastContext';
 // import Timeline from '../components/Timeline';
 import QRScanner from '../components/QRScanner';
 import CopyButton from '../components/CopyButton';
@@ -16,6 +17,19 @@ const TrackBatch: React.FC = () => {
   const [showScanner, setShowScanner] = useState(false);
   
   const { t } = useTranslation();
+  const toast = useToast();
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      toast.success('Batch ID copied to clipboard!');
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      toast.error('Failed to copy to clipboard');
+      console.error('Failed to copy:', err);
+    }
+  };
 
   const handleSearch = async () => {
     if (!batchId.trim()) return;
@@ -25,7 +39,10 @@ const TrackBatch: React.FC = () => {
     try {
       const foundBatch = await realCropBatchService.getBatch(batchId);
       setBatch(foundBatch);
+      toast.success(`Batch ${batchId} loaded successfully!`);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Batch not found. Please check the ID and try again.';
+      toast.error(errorMessage);
       console.error('Batch not found:', error);
       setBatch(null);
     } finally {
@@ -36,6 +53,7 @@ const TrackBatch: React.FC = () => {
   const handleQRScan = (result: string) => {
     setBatchId(result);
     setShowScanner(false);
+    toast.info(`QR code scanned! Searching for batch: ${result}`);
     // Auto-search after QR scan
     setTimeout(() => {
       handleSearch();

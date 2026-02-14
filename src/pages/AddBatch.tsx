@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { Plus, Upload, MapPin, Calendar, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { realCropBatchService } from '../services/realCropBatchService';
+import { useToast } from '../context/ToastContext';
 
 const AddBatch: React.FC = () => {
   const { t } = useTranslation();
+  const toast = useToast();
   
   const [formData, setFormData] = useState({
     farmerName: '',
@@ -37,6 +39,7 @@ const AddBatch: React.FC = () => {
       const batch = await realCropBatchService.createBatch(formData);
       setGeneratedBatch(batch);
       setSuccess(true);
+      toast.success(`Batch created successfully! ID: ${batch.batchId}`);
       setFormData({
         farmerName: '',
         farmerAddress: '',
@@ -48,6 +51,8 @@ const AddBatch: React.FC = () => {
         description: ''
       });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create batch. Please try again.';
+      toast.error(errorMessage);
       console.error('Failed to create batch:', error);
     } finally {
       setIsLoading(false);
