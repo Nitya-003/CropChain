@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { RefreshCw, Search, Package, Clock, User, MapPin } from 'lucide-react';
+import { cropBatchService } from '../services/cropBatchService';
+import Timeline from '../components/Timeline';
 import { realCropBatchService } from '../services/realCropBatchService';
 import { useToast } from '../context/ToastContext';
 // import Timeline from '../components/Timeline';
@@ -187,7 +189,7 @@ const UpdateBatch: React.FC = () => {
               <Clock className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
               Supply Chain Timeline
             </h2>
-            {/* <Timeline events={batch.updates} /> */}
+            <Timeline events={batch.updates} globalCertifications={batch.certifications} />
           </div>
 
           {/* Update Form */}
