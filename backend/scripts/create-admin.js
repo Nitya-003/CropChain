@@ -7,7 +7,7 @@ async function createAdmin() {
     try {
         // If not connected, connect to DB
         if (mongoose.connection.readyState !== 1) {
-            await mongoose.connect(process.env.MONGODB_URI);
+            await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/cropchain');
             console.log("MongoDB Connected for Admin Creation");
         }
 
