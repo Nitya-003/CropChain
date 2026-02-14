@@ -1,5 +1,10 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
+try {
+  require("hardhat-tracer");
+} catch (_) {
+  // Optional plugin for call tracing in security tests.
+}
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
