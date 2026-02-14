@@ -2,8 +2,20 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, LogOut, User, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast'; // <--- Using the new library
+
+import LanguageSwitcher from './LanguageSwitcher';
+import Sidebar from './Sidebar';
+
+const Header: React.FC = () => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
+  const { user, isAuthenticated, logout } = useAuth();
+  const { t } = useTranslation();
+
 
 const Header = () => {
   const { user, logout } = useAuth();
