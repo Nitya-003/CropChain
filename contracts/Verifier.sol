@@ -53,7 +53,7 @@ contract Groth16Verifier {
 
     uint16 constant pLastMem = 896;
 
-    function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[0] calldata _pubSignals) public view returns (bool) {
+    function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[] calldata _pubSignals) public view returns (bool) {
         assembly {
             function checkField(v) {
                 if iszero(lt(v, r)) {
@@ -88,7 +88,7 @@ contract Groth16Verifier {
                 }
             }
 
-            function checkPairing(pA, pB, pC, pubSignals, pMem) -> isOk {
+            function checkPairing(pA, pB, pC, pMem) -> isOk {
                 let _pPairing := add(pMem, pPairing)
                 let _pVk := add(pMem, pVk)
 
@@ -152,7 +152,7 @@ contract Groth16Verifier {
             
 
             // Validate all evaluations
-            let isValid := checkPairing(_pA, _pB, _pC, _pubSignals, pMem)
+            let isValid := checkPairing(_pA, _pB, _pC, pMem)
 
             mstore(0, isValid)
              return(0, 0x20)
