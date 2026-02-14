@@ -8,9 +8,8 @@ import LanguageSwitcher from './LanguageSwitcher';
 import Sidebar from './Sidebar';
 
 const Header: React.FC = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
-  const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const { user, isAuthenticated, logout } = useAuth();
   const { t } = useTranslation();
