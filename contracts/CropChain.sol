@@ -30,13 +30,16 @@ contract CropChain {
     /* ================= STRUCTS ================= */
 
     struct CropBatch {
-        bytes32 batchId; // Gas-optimized batch identifier   
+        string batchId; // Changed to string for flexibility
         string ipfsCID;   // All farmer and crop metadata is stored off-chain on IPFS as JSON.
+        string farmerName; // Key info on-chain
+        string cropType;
+        string origin;
         uint256 quantity;
         uint256 createdAt;
         address creator;
         bool exists;
-        bool isRecalled;   // NEW
+        bool isRecalled;
     }
 
     struct SupplyChainUpdate {
@@ -50,12 +53,12 @@ contract CropChain {
 
     /* ================= STORAGE ================= */
 
-    mapping(bytes32 => CropBatch) public cropBatches;
-    mapping(bytes32 => SupplyChainUpdate[]) public batchUpdates;
+    mapping(string => CropBatch) public cropBatches;
+    mapping(string => SupplyChainUpdate[]) public batchUpdates;
 
     mapping(address => ActorRole) public roles;
 
-    bytes32[] public allBatchIds;
+    string[] public allBatchIds;
 
     address public owner;
     bool public paused = false;
@@ -63,21 +66,23 @@ contract CropChain {
     /* ================= EVENTS ================= */
 
     event BatchCreated(
-        bytes32 indexed batchId,
+        string indexed batchId,
         string ipfsCID,
         uint256 quantity,
         address indexed creator
     );
 
     event BatchUpdated(
-        bytes32 indexed batchId,
+        string indexed batchId,
         Stage stage,
         string actorName,
         string location,
         address indexed updatedBy
     );
     
-    event ActorAuthorized(address indexed actor, bool authorized);
+    event RoleUpdated(address indexed user, ActorRole role);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event Paused(address indexed account, bool isPaused);
     
     event BatchRecalled(string indexed batchId, address indexed triggeredBy);
     
@@ -91,8 +96,13 @@ contract CropChain {
         _;
     }
 
-    modifier batchExists(bytes32 _batchId) {
+    modifier batchExists(string memory _batchId) {
         require(cropBatches[_batchId].exists, "Batch not found");
+        _;
+    }
+
+    modifier onlyAuthorized() {
+        require(roles[msg.sender] != ActorRole.None, "Not authorized");
         _;
     }
 
@@ -129,6 +139,7 @@ contract CropChain {
         pure
         returns (bool)
     {
+        if (_role == ActorRole.Admin) return true; // Admin can do anything
         if (_stage == Stage.Farmer && _role == ActorRole.Farmer) return true;
         if (_stage == Stage.Mandi && _role == ActorRole.Mandi) return true;
         if (_stage == Stage.Transport && _role == ActorRole.Transporter) return true;
@@ -140,7 +151,7 @@ contract CropChain {
     /**
      * @dev Validate stage order
      */
-    function _isNextStage(bytes32 _batchId, Stage _newStage)
+    function _isNextStage(string memory _batchId, Stage _newStage)
         internal
         view
         returns (bool)
@@ -153,6 +164,9 @@ contract CropChain {
 
         Stage last = updates[updates.length - 1].stage;
 
+        // Allow updates within the same stage (e.g. transport updates location)
+        if (last == _newStage) return true;
+
         return uint256(_newStage) == uint256(last) + 1;
     }
 
@@ -163,24 +177,27 @@ contract CropChain {
      */
     function createBatch(
         string memory _batchId,
+        string memory _ipfsCID,
         string memory _farmerName,
-        string memory _farmerAddress,
         string memory _cropType,
-        uint256 _quantity,
-        string memory _harvestDate,
         string memory _origin,
-        string memory _certifications,
-        string memory _description
+        uint256 _quantity
     ) public onlyAuthorized whenNotPaused {
         require(!cropBatches[_batchId].exists, "Batch already exists");
         require(bytes(_batchId).length > 0, "Batch ID cannot be empty");
         require(bytes(_farmerName).length > 0, "Farmer name cannot be empty");
         require(_quantity > 0, "Quantity must be greater than 0");
         
+        // Check if creator is authorized as Farmer or Admin
+        require(roles[msg.sender] == ActorRole.Farmer || roles[msg.sender] == ActorRole.Admin, "Only farmers can create batches");
+
         // Create the crop batch
         cropBatches[_batchId] = CropBatch({
             batchId: _batchId,
             ipfsCID: _ipfsCID,
+            farmerName: _farmerName,
+            cropType: _cropType,
+            origin: _origin,
             quantity: _quantity,
             createdAt: block.timestamp,
             creator: msg.sender,
@@ -192,8 +209,8 @@ contract CropChain {
         batchUpdates[_batchId].push(
             SupplyChainUpdate({
                 stage: Stage.Farmer,
-                actorName: "Farmer",
-                location: "From IPFS",
+                actorName: _farmerName,
+                location: _origin,
                 timestamp: block.timestamp,
                 notes: "Initial harvest",
                 updatedBy: msg.sender
@@ -211,28 +228,33 @@ contract CropChain {
      * @dev Update batch stage
      */
     function updateBatch(
-        bytes32 _batchId,
+        string memory _batchId,
         Stage _stage,
         string memory _actorName,
         string memory _location,
         string memory _notes
     ) public onlyAuthorized batchExists(_batchId) {
         require(!cropBatches[_batchId].isRecalled, "Batch is recalled");
-        require(bytes(_stage).length > 0, "Stage cannot be empty");
-        require(bytes(_actor).length > 0, "Actor cannot be empty");
+        require(bytes(_actorName).length > 0, "Actor name cannot be empty");
         require(bytes(_location).length > 0, "Location cannot be empty");
         
+        // Validate role permission
+        require(_canUpdate(_stage, roles[msg.sender]), "Role not authorized for this stage");
+
+        // Validate stage order
+        require(_isNextStage(_batchId, _stage), "Invalid stage transition");
+
         // Add the update
         batchUpdates[_batchId].push(SupplyChainUpdate({
             stage: _stage,
-            actor: _actor,
+            actorName: _actorName,
             location: _location,
             timestamp: block.timestamp,
             notes: _notes,
             updatedBy: msg.sender
         }));
         
-        emit BatchUpdated(_batchId, _stage, _actor, _location, msg.sender);
+        emit BatchUpdated(_batchId, _stage, _actorName, _location, msg.sender);
     }
     
     /**
@@ -263,7 +285,7 @@ contract CropChain {
         return cropBatches[_batchId];
     }
 
-    function getBatchUpdates(bytes32 _batchId)
+    function getBatchUpdates(string memory _batchId)
         public
         view
         batchExists(_batchId)
@@ -272,7 +294,7 @@ contract CropChain {
         return batchUpdates[_batchId];
     }
 
-    function getLatestUpdate(bytes32 _batchId)
+    function getLatestUpdate(string memory _batchId)
         public
         view
         batchExists(_batchId)
@@ -292,7 +314,7 @@ contract CropChain {
     function getBatchIdByIndex(uint256 _index)
         public
         view
-        returns (bytes32)
+        returns (string memory)
     {
         require(_index < allBatchIds.length, "Out of bounds");
 

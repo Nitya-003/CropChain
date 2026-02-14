@@ -92,3 +92,8 @@ jspm_packages/
 
 # TernJS port file
 .tern-port
+
+# Hardhat
+artifacts/
+cache/
+typechain-types/
