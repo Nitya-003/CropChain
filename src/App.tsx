@@ -1,7 +1,9 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+ import React from 'react';
+ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+ import { AuthProvider } from './context/AuthContext';
+ import { ToastProvider } from './context/ToastContext';
 import Header from './components/Header';
+import ToastContainer from './components/ToastContainer';
 
 
 import Home from './pages/Home';
@@ -21,10 +23,11 @@ import Register from './pages/Register';
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
-          <Header />
-          <main className="container mx-auto px-4 py-8">
+      <ToastProvider>
+        <Router>
+          <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+            <Header />
+            <main className="container mx-auto px-4 py-8">
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
@@ -45,8 +48,12 @@ function App() {
 
           {/* AI Chatbot - Available on all pages */}
           <AIChatbot />
+          
+          {/* Toast Container - Global notifications */}
+          <ToastContainer />
         </div>
-      </Router>
+        </Router>
+      </ToastProvider>
     </AuthProvider>
   );
 }
