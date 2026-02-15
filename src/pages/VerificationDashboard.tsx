@@ -4,9 +4,11 @@ import { Shield, UserCheck, UserX, AlertCircle } from 'lucide-react';
 import { verificationService, UnverifiedUser, VerifiedUser } from '../services/verificationService';
 import VerificationBadge from '../components/VerificationBadge';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 const VerificationDashboard: React.FC = () => {
     const { user } = useAuth();
+    const toast = useToast();
     const [unverifiedUsers, setUnverifiedUsers] = useState<UnverifiedUser[]>([]);
     const [verifiedUsers, setVerifiedUsers] = useState<VerifiedUser[]>([]);
     const [loading, setLoading] = useState(true);
@@ -42,10 +44,10 @@ const VerificationDashboard: React.FC = () => {
             setProcessingUserId(userId);
             await verificationService.issueCredential(userId, walletAddress);
             await fetchUsers();
-            alert('User verified successfully!');
+            toast.success('User verified successfully!');
         } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to verify user';
-            alert(errorMessage);
+            toast.error(errorMessage);
         } finally {
             setProcessingUserId(null);
         }
@@ -59,10 +61,10 @@ const VerificationDashboard: React.FC = () => {
             setProcessingUserId(userId);
             await verificationService.revokeCredential(userId, reason);
             await fetchUsers();
-            alert('Credential revoked successfully!');
+            toast.success('Credential revoked successfully!');
         } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to revoke credential';
-            alert(errorMessage);
+            toast.error(errorMessage);
         } finally {
             setProcessingUserId(null);
         }
