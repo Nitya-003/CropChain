@@ -1,86 +1,75 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authService, LoginCredentials, RegisterCredentials, User } from '../services/auth.service';
+import toast from 'react-hot-toast';
 
 interface AuthContextType {
-    user: User | null;
-    isAuthenticated: boolean;
-    isLoading: boolean;
-    login: (credentials: LoginCredentials) => Promise<void>;
-    register: (credentials: RegisterCredentials) => Promise<void>;
-    logout: () => void;
+  user: any;
+  login: () => Promise<void>;
+  logout: () => void;
+  isLoading?: boolean; // Added ? to prevent strict type errors
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<User | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-    useEffect(() => {
-        // Checking for stored token and user on mount
-        const storedUser = localStorage.getItem('user');
-        const token = localStorage.getItem('token');
+  const checkWalletConnected = async () => {
+    try {
+      const { ethereum } = window as any;
+      if (ethereum && ethereum.selectedAddress) {
+        setUser({ name: 'Farmer', address: ethereum.selectedAddress });
+      }
+    } catch (error) {
+      console.error("Error checking wallet:", error);
+    }
+  };
 
-        if (storedUser && token) {
-            try {
-                setUser(JSON.parse(storedUser));
-            } catch (e) {
-                console.error('Failed to parse stored user', e);
-                localStorage.removeItem('user');
-                localStorage.removeItem('token');
-            }
-        }
-        setIsLoading(false);
-    }, []);
+  useEffect(() => {
+    checkWalletConnected();
+  }, []);
 
-    const login = async (credentials: LoginCredentials) => {
-        setIsLoading(true);
-        try {
-            const response = await authService.login(credentials);
-            setUser(response.user);
-            localStorage.setItem('user', JSON.stringify(response.user));
-            localStorage.setItem('token', response.token);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+  const login = async () => {
+    setIsLoading(true);
+    const { ethereum } = window as any;
 
-    const register = async (credentials: RegisterCredentials) => {
-        setIsLoading(true);
-        try {
-            const response = await authService.register(credentials);
-            setUser(response.user);
-            localStorage.setItem('user', JSON.stringify(response.user));
-            localStorage.setItem('token', response.token);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    if (!ethereum) {
+      toast.error("Metamask not found!");
+      setIsLoading(false);
+      return;
+    }
 
-    const logout = () => {
-        setUser(null);
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
-    };
+    try {
+      const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+      setUser({ name: 'Farmer', address: accounts[0] });
+      toast.success("Connected!");
+    } catch (error: any) {
+      if (error.code === 4001) {
+        toast.error("Connection rejected");
+      } else {
+        toast.error("Connection failed");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    return (
-        <AuthContext.Provider value={{
-            user,
-            isAuthenticated: !!user,
-            isLoading,
-            login,
-            register,
-            logout
-        }}>
-            {children}
-        </AuthContext.Provider>
-    );
+  const logout = () => {
+    setUser(null);
+    toast.success("Logged out");
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return context;
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };
