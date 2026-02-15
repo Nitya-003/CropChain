@@ -66,7 +66,7 @@ contract CropChain is Pausable, ReentrancyGuard {
     mapping(bytes32 => uint256) public latestOraclePrice;
     mapping(address => uint256) public pendingWithdrawals;
 
-    bytes32[] public allBatchIds;
+    string[] public allBatchIds;
 
     address public owner;
     uint256 public nextListingId;
