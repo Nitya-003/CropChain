@@ -35,6 +35,8 @@ const Header = () => {
     i18n.changeLanguage(newLang);
   };
 
+  // Sidebar state for mobile navigation
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   return (
     <header className="bg-white dark:bg-gray-800 shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-4">
