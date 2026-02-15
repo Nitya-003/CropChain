@@ -144,7 +144,13 @@ const batchSchema = new mongoose.Schema({
     enum: ['pending', 'synced', 'error'],
     default: 'pending'
   },
-  updates: [updateSchema]
+  updates: [updateSchema],
+  status: {
+    type: String,
+    enum: ['Active', 'Flagged', 'Inactive'],
+    default: 'Active',
+    required: true
+  }
 }, {
   timestamps: true // Automatically adds createdAt and updatedAt fields
 });
