@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, TrendingUp, Package, Users, Calendar, BarChart3, Copy, Check } from 'lucide-react';
+import { Shield, TrendingUp, Package, Users, Calendar, BarChart3 } from 'lucide-react';
 import { cropBatchService } from '../services/cropBatchService';
 import ToggleSwitch from '../components/ToggleSwitch';
 import { useAuth } from '../context/AuthContext';
 import { StatsCardSkeleton, TableSkeleton, ChartSkeleton } from '../components/skeletons';
+import CopyButton from '../components/CopyButton';
 
 const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState({
@@ -51,9 +52,9 @@ const AdminDashboard: React.FC = () => {
 
   const loadDashboardData = async () => {
     try {
-      const dashboardData = await cropBatchService.getDashboardStats();
-      setStats(dashboardData.stats);
-      setBatches(dashboardData.batches);
+      const { batches, stats } = await realCropBatchService.getAllBatches();
+      setStats(stats);
+      setBatches(batches);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
@@ -218,17 +219,7 @@ const AdminDashboard: React.FC = () => {
                       <span className="font-mono text-sm bg-gray-100 dark:bg-gray-600 dark:text-white px-2 py-1 rounded">
                         {batch.batchId}
                       </span>
-                      <button
-                        onClick={() => copyToClipboard(batch.batchId)}
-                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-500 rounded transition-colors"
-                        title={copiedId === batch.batchId ? 'Copied!' : 'Copy Batch ID'}
-                      >
-                        {copiedId === batch.batchId ? (
-                          <Check className="h-4 w-4 text-green-600" />
-                        ) : (
-                          <Copy className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                        )}
-                      </button>
+                      <CopyButton value={batch.batchId} label="batch id" />
                     </div>
                   </td>
                   <td className="py-4 px-6">

@@ -3,14 +3,19 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
+const jwt = require('jsonwebtoken');
 const { ethers } = require('ethers');
 const QRCode = require('qrcode');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./swagger');
 const connectDB = require('./config/db');
 require('dotenv').config();
 const mainRoutes = require("./routes/index");
 const validateRequest = require('./middleware/validator');
+const errorHandlerMiddleware = require('./middleware/errorHandler');
 const { createBatchSchema, updateBatchSchema } = require("./validations/batchSchema");
 const { chatSchema } = require("./validations/chatSchema");
+const apiResponse = require('./utils/apiResponse');
 
 // Import MongoDB Model
 const Batch = require('./models/Batch');
@@ -21,7 +26,59 @@ connectDB();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Security middleware
+// ==================== MIDDLEWARE FUNCTIONS ====================
+
+// JWT Authentication Middleware
+const auth = (req, res, next) => {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+
+    if (!token) {
+        return res.status(401).json({ error: 'Unauthorized - No token provided' });
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (error) {
+        return res.status(401).json({ error: 'Invalid token' });
+    }
+};
+
+// Admin Role Middleware
+const admin = (req, res, next) => {
+    if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+    }
+    next();
+};
+
+// Security logging middleware
+const securityLogger = (req, res, next) => {
+    const timestamp = new Date().toISOString();
+    const ip = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get('User-Agent') || 'Unknown';
+
+    console.log(`[${timestamp}] ${req.method} ${req.path} - IP: ${ip} - User-Agent: ${userAgent}`);
+
+    const suspiciousPatterns = [
+        /\$where/i, /\$ne/i, /\$gt/i, /\$lt/i, /\$regex/i,
+        /javascript:/i, /<script/i, /union.*select/i
+    ];
+
+    const requestString = JSON.stringify(req.body) + JSON.stringify(req.query) + JSON.stringify(req.params);
+
+    suspiciousPatterns.forEach(pattern => {
+        if (pattern.test(requestString)) {
+            console.warn(`[SECURITY WARNING] Suspicious pattern detected from IP ${ip}: ${pattern}`);
+        }
+    });
+
+    next();
+};
+
+// ==================== SECURITY MIDDLEWARE SETUP ====================
+
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -106,12 +163,21 @@ app.use(express.urlencoded({ extended: true, limit: maxFileSize }));
 
 // NoSQL injection protection
 app.use(mongoSanitize());
+app.use(securityLogger);
 
-// mount health check main router
+// ==================== ROUTES ====================
+
+// Mount health check main router
 app.use("/api", mainRoutes);
 
+// Swagger/OpenAPI Documentation
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'CropChain API Documentation'
+}));
+
 // Blockchain configuration
-const PROVIDER_URL = process.env.INFURA_URL || 'https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID';
+const PROVIDER_URL = process.env.INFURA_URL || 'https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID ';
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '0x...';
 const PRIVATE_KEY = process.env.PRIVATE_KEY || '0x...';
 
@@ -172,32 +238,6 @@ function simulateBlockchainHash() {
     return '0x' + Math.random().toString(16).substr(2, 64);
 }
 
-// Security logging middleware
-const securityLogger = (req, res, next) => {
-    const timestamp = new Date().toISOString();
-    const ip = req.ip || req.connection.remoteAddress;
-    const userAgent = req.get('User-Agent') || 'Unknown';
-
-    console.log(`[${timestamp}] ${req.method} ${req.path} - IP: ${ip} - User-Agent: ${userAgent}`);
-
-    const suspiciousPatterns = [
-        /\$where/i, /\$ne/i, /\$gt/i, /\$lt/i, /\$regex/i,
-        /javascript:/i, /<script/i, /union.*select/i
-    ];
-
-    const requestString = JSON.stringify(req.body) + JSON.stringify(req.query) + JSON.stringify(req.params);
-
-    suspiciousPatterns.forEach(pattern => {
-        if (pattern.test(requestString)) {
-            console.warn(`[SECURITY WARNING] Suspicious pattern detected from IP ${ip}: ${pattern}`);
-        }
-    });
-
-    next();
-};
-
-app.use(securityLogger);
-
 // Import Routes
 const authRoutes = require('./routes/authRoutes');
 const verificationRoutes = require('./routes/verification');
@@ -244,17 +284,20 @@ app.post('/api/batches', batchLimiter, validateRequest(createBatchSchema), async
 
         console.log(`[SUCCESS] Batch created: ${batchId} by ${validatedData.farmerName} from IP: ${req.ip}`);
 
-        res.status(201).json({
-            success: true,
-            batch,
-            message: 'Batch created successfully'
-        });
+        const response = apiResponse.successResponse(
+            { batch },
+            'Batch created successfully',
+            201
+        );
+        res.status(201).json(response);
     } catch (error) {
         console.error('Error creating batch:', error);
-        res.status(500).json({
-            error: 'Failed to create batch',
-            message: 'An internal server error occurred'
-        });
+        const response = apiResponse.errorResponse(
+            'Failed to create batch',
+            'BATCH_CREATION_ERROR',
+            500
+        );
+        res.status(500).json(response);
     }
 });
 
@@ -266,23 +309,24 @@ app.get('/api/batches/:batchId', batchLimiter, async (req, res) => {
 
         if (!batch) {
             console.log(`[NOT FOUND] Batch lookup failed: ${batchId} from IP: ${req.ip}`);
-            return res.status(404).json({
-                error: 'Batch not found',
-                message: 'The requested batch ID does not exist'
-            });
+            const response = apiResponse.notFoundResponse('Batch', `ID: ${batchId}`);
+            return res.status(404).json(response);
         }
 
         if (batch.isRecalled) {
             console.log("🚨 ALERT: Recalled batch viewed:", batchId);
         }
 
-        res.json({ success: true, batch });
+        const response = apiResponse.successResponse({ batch }, 'Batch retrieved successfully');
+        res.json(response);
     } catch (error) {
         console.error('Error fetching batch:', error);
-        res.status(500).json({
-            error: 'Failed to fetch batch',
-            message: 'An internal server error occurred'
-        });
+        const response = apiResponse.errorResponse(
+            'Failed to fetch batch',
+            'BATCH_FETCH_ERROR',
+            500
+        );
+        res.status(500).json(response);
     }
 });
 
@@ -294,12 +338,18 @@ app.put('/api/batches/:batchId', batchLimiter, validateRequest(updateBatchSchema
 
         const existingBatch = await Batch.findOne({ batchId });
         if (!existingBatch) {
-            return res.status(404).json({ error: 'Batch not found' });
+            const response = apiResponse.notFoundResponse('Batch', `ID: ${batchId}`);
+            return res.status(404).json(response);
         }
 
         if (existingBatch.isRecalled) {
             console.log("🚨 ALERT: Attempt to update recalled batch:", batchId);
-            return res.status(400).json({ error: 'Batch is recalled and cannot be updated' });
+            const response = apiResponse.errorResponse(
+                'Batch is recalled and cannot be updated',
+                'BATCH_RECALLED',
+                400
+            );
+            return res.status(400).json(response);
         }
 
         const update = {
@@ -323,48 +373,64 @@ app.put('/api/batches/:batchId', batchLimiter, validateRequest(updateBatchSchema
 
         console.log(`[SUCCESS] Batch updated: ${batchId} to stage ${validatedData.stage} by ${validatedData.actor} from IP: ${req.ip}`);
 
-        res.json({
-            success: true,
-            batch,
-            message: 'Batch updated successfully'
-        });
+        const response = apiResponse.successResponse(
+            { batch },
+            'Batch updated successfully'
+        );
+        res.json(response);
     } catch (error) {
         console.error('Error updating batch:', error);
-        res.status(500).json({
-            error: 'Failed to update batch',
-            message: 'An internal server error occurred'
-        });
-    }
-});
-
-// RECALL batch
-app.post('/api/batches/:batchId/recall', async (req, res) => {
-    try {
-        const { batchId } = req.params;
-        const batch = await Batch.findOneAndUpdate(
-            { batchId },
-            { isRecalled: true },
-            { new: true }
+        const response = apiResponse.errorResponse(
+            'Failed to update batch',
+            'BATCH_UPDATE_ERROR',
+            500
         );
-
-        if (!batch) {
-            return res.status(404).json({ error: 'Batch not found' });
-        }
-
-        console.log("🚨 RECALL ALERT 🚨 Batch recalled:", batchId, "Owner:", batch.farmerName);
-
-        res.json({ success: true, message: 'Batch recalled successfully', batch });
-    } catch (error) {
-        console.error('Error recalling batch:', error);
-        res.status(500).json({
-            error: 'Failed to recall batch',
-            message: 'An internal server error occurred'
-        });
+        res.status(500).json(response);
     }
 });
+
+// ==================== SECURED RECALL ENDPOINT ====================
+
+app.post(
+    '/api/batches/:batchId/recall',
+    batchLimiter,
+    auth,
+    admin,
+    async (req, res) => {
+        try {
+            const { batchId } = req.params;
+
+            const batch = await Batch.findOne({ batchId });
+
+            if (!batch) {
+                return res.status(404).json({ error: 'Batch not found' });
+            }
+
+            if (batch.isRecalled) {
+                return res.status(400).json({ error: 'Batch already recalled' });
+            }
+
+            batch.isRecalled = true;
+            await batch.save();
+
+            console.log(`🚨 RECALL by admin ${req.user?.email || 'unknown'} for batch ${batchId}`);
+
+            res.json({
+                success: true,
+                message: 'Batch recalled successfully',
+                recalledBy: req.user?.email,
+                recalledAt: new Date().toISOString(),
+                batch
+            });
+        } catch (error) {
+            console.error('Error recalling batch:', error);
+            res.status(500).json({ error: 'Failed to recall batch' });
+        }
+    }
+);
 
 // GET all batches
-app.get('/api/batches', async (req, res) => {
+app.get('/api/batches', batchLimiter, async (req, res) => {
     try {
         const allBatches = await Batch.find().sort({ createdAt: -1 });
         
@@ -384,17 +450,19 @@ app.get('/api/batches', async (req, res) => {
 
         console.log(`[SUCCESS] Batches list retrieved from IP: ${req.ip}`);
 
-        res.json({
-            success: true,
-            stats,
-            batches: allBatches
-        });
+        const response = apiResponse.successResponse(
+            { stats, batches: allBatches },
+            'Batches retrieved successfully'
+        );
+        res.json(response);
     } catch (error) {
         console.error('Error fetching batches:', error);
-        res.status(500).json({
-            error: 'Failed to fetch batches',
-            message: 'An internal server error occurred'
-        });
+        const response = apiResponse.errorResponse(
+            'Failed to fetch batches',
+            'BATCHES_FETCH_ERROR',
+            500
+        );
+        res.status(500).json(response);
     }
 });
 
@@ -424,6 +492,9 @@ const batchServiceForAI = {
     }
 };
 
+// AI Service import (ADD THIS if missing)
+const aiService = require('./services/aiService');
+
 app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, res) => {
     try {
         const { message } = req.body;
@@ -434,49 +505,44 @@ app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, 
 
         console.log(`[AI CHAT SUCCESS] Response generated for IP: ${req.ip}`);
 
-        res.json({
-            success: true,
-            response: aiResponse.message,
-            timestamp: new Date().toISOString(),
-            ...(aiResponse.functionCalled && {
-                functionCalled: aiResponse.functionCalled,
-                functionResult: aiResponse.functionResult
-            })
-        });
+        const response = apiResponse.successResponse(
+            {
+                response: aiResponse.message,
+                timestamp: new Date().toISOString(),
+                ...(aiResponse.functionCalled && {
+                    functionCalled: aiResponse.functionCalled,
+                    functionResult: aiResponse.functionResult
+                })
+            },
+            'Chat response generated successfully'
+        );
+        res.json(response);
 
     } catch (error) {
         console.error('AI Chat error:', error);
 
-        res.status(500).json({
-            success: false,
-            response: "I'm sorry, I'm having trouble processing your request right now. Please try asking about batch tracking, QR codes, or supply chain processes.",
-            error: 'AI service temporarily unavailable',
-            timestamp: new Date().toISOString()
-        });
+        const response = apiResponse.errorResponse(
+            "I'm sorry, I'm having trouble processing your request right now. Please try asking about batch tracking, QR codes, or supply chain processes.",
+            'AI_SERVICE_ERROR',
+            500
+        );
+        res.status(500).json(response);
     }
 });
+
+// ==================== ERROR HANDLERS ====================
 
 // 404 handler
 app.use('*', (req, res) => {
     console.log(`[404] Route not found: ${req.method} ${req.originalUrl} from IP: ${req.ip}`);
-    res.status(404).json({
-        error: 'Route not found',
-        message: 'The requested endpoint does not exist'
-    });
+    const response = apiResponse.notFoundResponse('Endpoint', `${req.method} ${req.originalUrl}`);
+    res.status(404).json(response);
 });
 
-// Error handler
-app.use((err, req, res, next) => {
-    console.error(`[ERROR] ${err.stack} - IP: ${req.ip}`);
+// Comprehensive Error Handler - Must be last middleware
+app.use(errorHandlerMiddleware);
 
-    const isDevelopment = process.env.NODE_ENV === 'development';
-
-    res.status(500).json({
-        error: 'Internal server error',
-        message: isDevelopment ? err.message : 'Something went wrong!',
-        ...(isDevelopment && { stack: err.stack })
-    });
-});
+// ==================== SERVER STARTUP ====================
 
 // Import createAdmin script
 const createAdmin = require('./scripts/create-admin');
@@ -503,6 +569,8 @@ app.listen(PORT, async () => {
     console.log(`  ✓ Input validation with Joi`);
     console.log(`  ✓ Security headers with Helmet`);
     console.log(`  ✓ Request logging and monitoring`);
+    console.log(`  ✓ JWT Authentication`);
+    console.log(`  ✓ Admin Role Authorization`);
 
     console.log('\n⚙️  Configuration:');
     console.log(`  • CORS origins: ${allowedOrigins.length > 0 ? allowedOrigins.join(', ') : 'None configured'}`);
