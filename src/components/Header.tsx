@@ -1,132 +1,146 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Wheat, Plus, RefreshCw, Search, Shield, Sun, Moon, LogIn, LogOut, User, Sidebar as SidebarIcon } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { useTheme } from '../context/ThemeContext';
+import { Link, useNavigate } from 'react-router-dom';
+import { Menu, X, LogOut, User, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+
+import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast'; // <--- Using the new library
+
 import LanguageSwitcher from './LanguageSwitcher';
 import Sidebar from './Sidebar';
 
 const Header: React.FC = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
-  const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const { user, isAuthenticated, logout } = useAuth();
   const { t } = useTranslation();
 
-  const allNavItems = [
-    { path: '/', label: t('nav.home'), icon: Wheat, roles: ['*'] },
-    { path: '/add-batch', label: t('nav.addBatch'), icon: Plus, roles: ['farmer'] },
-    { path: '/update-batch', label: t('nav.updateLogistics'), icon: RefreshCw, roles: ['transporter'] },
-    { path: '/track-batch', label: t('nav.trackBatch'), icon: Search, roles: ['farmer', 'transporter', 'admin'] },
-    { path: '/admin', label: t('nav.admin'), icon: Shield, roles: ['admin'] },
 
-  ];
+const Header = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
+  
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const navItems = allNavItems.filter((item) => {
-    if (!isAuthenticated) return item.path === "/"; // Only Home for guests
-    if (item.roles.includes("*")) return true;
-    return user && item.roles.includes(user.role);
-  });
+  const handleLogout = () => {
+    logout();
+    toast.success('Logged out successfully'); // <--- Updated line
+    navigate('/login');
+  };
+
+  const toggleLanguage = () => {
+    const newLang = i18n.language === 'en' ? 'hi' : 'en';
+    i18n.changeLanguage(newLang);
+  };
 
   return (
-    <header className="bg-white dark:bg-gray-800 shadow-lg border-b-4 border-green-500">
+    <header className="bg-white dark:bg-gray-800 shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center space-x-3 text-2xl font-bold text-green-700 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors">
-            <Wheat className="h-8 w-8" />
-            <span>{t('app.title')}</span>
+        <div className="flex justify-between items-center h-16">
+          {/* Logo */}
+          <Link to="/" className="flex items-center space-x-2">
+            <div className="bg-green-600 p-2 rounded-lg">
+              <LayoutDashboard className="h-6 w-6 text-white" />
+            </div>
+            <span className="text-xl font-bold text-gray-800 dark:text-white">CropChain</span>
           </Link>
 
-          <nav className='hidden md:flex items-center space-x-6'>
-            <div className='flex space-x-4'>
-              {navItems.map(({ path, label, icon: Icon }) => (
-                <Link
-                  key={path}
-                  to={path}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 ${location.pathname === path
-                    ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 shadow-md"
-                    : "text-gray-600 dark:text-gray-300 hover:text-green-700 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-gray-700"
-                    }`}
-                >
-                  <Icon className='h-4 w-4' />
-                  <span className='font-medium'>{label}</span>
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center space-x-8">
+            <Link to="/" className="text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+              {t('nav.home')}
+            </Link>
+            
+            {user ? (
+              <>
+                <Link to="/dashboard" className="text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                  {t('nav.dashboard')}
                 </Link>
-              ))}
-            </div>
-
-            <div className='h-6 w-px bg-gray-300 dark:bg-gray-600'></div>
-
-            <div className="flex items-center space-x-3">
-              {/* Language Switcher */}
-              <LanguageSwitcher />
-
-              <button
-                onClick={toggleTheme}
-                className='p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white transition-colors'
-                aria-label='Toggle dark mode'
-              >
-                {theme === "light" ? (
-                  <Moon className='h-5 w-5' />
-                ) : (
-                  <Sun className='h-5 w-5' />
-                )}
-              </button>
-
-              {isAuthenticated && user ? (
-                <div className='flex items-center space-x-3'>
-                  <div className='flex items-center space-x-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-full'>
-                    <User className='h-4 w-4 text-green-600 dark:text-green-400' />
-                    <span className='text-sm font-medium text-gray-700 dark:text-gray-200'>
-                      {user.name}{" "}
-                      <span className='text-xs text-gray-500'>
-                        ({user.role})
-                      </span>
-                    </span>
+                <Link to="/add-batch" className="text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                  {t('nav.addBatch')}
+                </Link>
+                
+                <div className="flex items-center space-x-4 ml-4 pl-4 border-l border-gray-200 dark:border-gray-700">
+                  <button onClick={toggleLanguage} className="px-3 py-1 rounded-md bg-gray-100 dark:bg-gray-700 text-sm font-medium">
+                    {i18n.language.toUpperCase()}
+                  </button>
+                  
+                  <div className="flex items-center space-x-2 text-gray-700 dark:text-gray-200">
+                    <User className="h-5 w-5" />
+                    <span className="font-medium">{user.name}</span>
                   </div>
-                  <button
-                    onClick={logout}
-                    className='flex items-center space-x-1 px-3 py-1.5 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors'
+                  
+                  <button 
+                    onClick={handleLogout}
+                    className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
+                    title={t('auth.logout')}
                   >
-                    <LogOut className="h-4 w-4" />
-                    <span>{t('nav.logout')}</span>
+                    <LogOut className="h-5 w-5" />
                   </button>
                 </div>
-              ) : (
-                <div className='flex items-center space-x-2'>
-                  <Link
-                    to='/login'
-                    className='flex items-center space-x-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-green-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors'
-                  >
-                    <LogIn className="h-4 w-4" />
-                    <span>{t('nav.login')}</span>
-                  </Link>
-                  <Link
-                    to='/register'
-                    className='px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg shadow-sm hover:shadow transition-all'
-                  >
-                    {t('nav.register')}
-                  </Link>
-                </div>
-              )}
-            </div>
-          </nav>
-          <div className='md:hidden'>
-            <button
-              onClick={() => setIsSidebarOpen(true)} // This triggers the sidebar
-              className='text-gray-600 dark:text-gray-300 hover:text-green-700 dark:hover:text-green-400'
-            >
-              <SidebarIcon className='h-6 w-6' />
+              </>
+            ) : (
+              <div className="flex items-center space-x-4">
+                <button onClick={toggleLanguage} className="px-3 py-1 rounded-md bg-gray-100 dark:bg-gray-700 text-sm font-medium">
+                  {i18n.language.toUpperCase()}
+                </button>
+                <Link to="/login" className="text-gray-600 dark:text-gray-300 hover:text-green-600 font-medium">
+                  {t('auth.login')}
+                </Link>
+                <Link to="/register" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg">
+                  {t('auth.register')}
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Mobile Menu Button */}
+          <div className="md:hidden flex items-center space-x-4">
+            <button onClick={toggleLanguage} className="px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-700 text-xs font-medium">
+              {i18n.language.toUpperCase()}
+            </button>
+            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-gray-600 dark:text-gray-300">
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
         </div>
       </div>
-      <Sidebar
-        isOpen={isSidebarOpen}
-        setIsOpen={setIsSidebarOpen}
-        navItems={navItems}
-      />
+
+      {/* Mobile Menu */}
+      {isMenuOpen && (
+        <div className="md:hidden bg-white dark:bg-gray-800 border-t dark:border-gray-700 px-4 py-2 shadow-lg">
+          <div className="flex flex-col space-y-4 py-4">
+            <Link to="/" onClick={() => setIsMenuOpen(false)} className="text-gray-600 dark:text-gray-300">
+              {t('nav.home')}
+            </Link>
+            {user ? (
+              <>
+                <Link to="/dashboard" onClick={() => setIsMenuOpen(false)} className="text-gray-600 dark:text-gray-300">
+                  {t('nav.dashboard')}
+                </Link>
+                <Link to="/add-batch" onClick={() => setIsMenuOpen(false)} className="text-gray-600 dark:text-gray-300">
+                  {t('nav.addBatch')}
+                </Link>
+                <button onClick={handleLogout} className="text-red-500 flex items-center space-x-2">
+                  <LogOut className="h-5 w-5" />
+                  <span>{t('auth.logout')}</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" onClick={() => setIsMenuOpen(false)} className="text-gray-600 dark:text-gray-300">
+                  {t('auth.login')}
+                </Link>
+                <Link to="/register" onClick={() => setIsMenuOpen(false)} className="text-green-600 font-bold">
+                  {t('auth.register')}
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 };
