@@ -2,6 +2,7 @@ const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const bcrypt = require('bcryptjs');
 const { z } = require('zod');
+const apiResponse = require('../utils/apiResponse');
 require('dotenv').config();
 
 // Validation Schemas
@@ -69,11 +70,9 @@ const registerUser = async (req, res) => {
         const userExists = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } });
 
         if (userExists) {
-            return res.status(409).json({
-                success: false,
-                error: 'Registration failed',
-                message: 'User already exists with this email'
-            });
+            return res.status(400).json(
+                apiResponse.conflictResponse('User already exists with this email')
+            );
         }
 
         // Hash password with higher cost factor
@@ -89,6 +88,31 @@ const registerUser = async (req, res) => {
         });
 
         if (user) {
+            const response = apiResponse.successResponse(
+                {
+                    token: generateToken(user._id, user.role, user.name),
+                    user: {
+                        id: user._id,
+                        name: user.name,
+                        email: user.email,
+                        role: user.role
+                    }
+                },
+                'Registration successful',
+                201
+            );
+            res.status(201).json(response);
+
+        } else {
+            res.status(400).json(
+                apiResponse.errorResponse('Invalid user data', 'REGISTRATION_ERROR', 400)
+            );
+        }
+
+    } catch (error) {
+        res.status(500).json(
+            apiResponse.errorResponse('Registration failed', 'REGISTRATION_FAILED', 500)
+        );
             res.status(201).json({
                 success: true,
                 message: 'Registration successful',
@@ -130,6 +154,11 @@ const loginUser = async (req, res) => {
         const validationResult = loginSchema.safeParse(req.body);
 
         if (!validationResult.success) {
+            return res.status(400).json(
+                apiResponse.validationErrorResponse(
+                    validationResult.error.errors.map(err => err.message)
+                )
+            );
             return res.status(400).json({
                 success: false,
                 error: 'Validation failed',
@@ -146,6 +175,24 @@ const loginUser = async (req, res) => {
         // Find user with password
         const user = await User.findOne({ email }).select('+password');
 
+        if (user && (await bcrypt.compare(password, user.password))) {
+            const response = apiResponse.successResponse(
+                {
+                    token: generateToken(user._id, user.role, user.name),
+                    user: {
+                        id: user._id,
+                        name: user.name,
+                        email: user.email,
+                        role: user.role
+                    }
+                },
+                'Login successful'
+            );
+            res.json(response);
+        } else {
+            res.status(401).json(
+                apiResponse.unauthorizedResponse('Invalid email or password')
+            );
         if (!user) {
             return res.status(401).json({
                 success: false,
@@ -178,6 +225,9 @@ const loginUser = async (req, res) => {
         });
 
     } catch (error) {
+        res.status(500).json(
+            apiResponse.errorResponse('Login failed', 'LOGIN_FAILED', 500)
+        );
         res.status(500).json({
             success: false,
             error: 'Login failed',
