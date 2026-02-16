@@ -28,13 +28,14 @@ const createBatchSchema = Joi.object({
 });
 
 const updateBatchSchema = Joi.object({
-  batchId: Joi.string().required(),
+  // batchId is in URL, so not required in body
+  batchId: Joi.string().optional(),
 
   stage: Joi.string()
-    .valid("Mandi", "Transport", "Retailer")
+    .valid("farmer", "mandi", "transport", "retailer", "Farmer", "Mandi", "Transport", "Retailer")
     .required()
     .messages({
-      "any.only": "Stage must be one of: Mandi, Transport, or Retailer",
+      "any.only": "Stage must be one of: farmer, mandi, transport, or retailer",
     }),
 
   actor: Joi.string().min(2).max(100).required(),

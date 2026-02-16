@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, TrendingUp, Package, Users, Calendar, BarChart3 } from 'lucide-react';
+
 import { realCropBatchService } from '../services/realCropBatchService';
 import Skeleton from '../components/Skeleton';
+
+import { cropBatchService } from '../services/cropBatchService';
+import ToggleSwitch from '../components/ToggleSwitch';
+import { useAuth } from '../context/AuthContext';
+import { StatsCardSkeleton, TableSkeleton, ChartSkeleton } from '../components/skeletons';
+
 import CopyButton from '../components/CopyButton';
 
 const AdminDashboard: React.FC = () => {
@@ -13,6 +20,36 @@ const AdminDashboard: React.FC = () => {
   });
   const [batches, setBatches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const { user } = useAuth();
+  // Track status for each batch (default: true/active)
+  const [batchStatus, setBatchStatus] = useState<Record<string, boolean>>({});
+  // Initialize batchStatus when batches load
+  useEffect(() => {
+    if (batches.length > 0) {
+      const statusMap: Record<string, boolean> = {};
+      batches.forEach(batch => {
+        // If batch has a status property, use it; otherwise default to true (active)
+        statusMap[batch.batchId] = batch.status !== undefined ? batch.status : true;
+      });
+      setBatchStatus(statusMap);
+    }
+  }, [batches]);
+
+  const handleStatusToggle = (batchId: string, checked: boolean) => {
+    setBatchStatus(prev => ({ ...prev, [batchId]: checked }));
+    // Optionally: send update to backend here
+  };
+
+  const copyToClipboard = async (batchId: string) => {
+    try {
+      await navigator.clipboard.writeText(batchId);
+      setCopiedId(batchId);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   useEffect(() => {
     loadDashboardData();
@@ -215,6 +252,7 @@ const AdminDashboard: React.FC = () => {
                       <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getStageColor(batch.currentStage)}`}>
                         {batch.currentStage}
                       </span>
+
                     </td>
                     <td className="py-4 px-6">
                       <span className="text-gray-600 dark:text-gray-300">{formatDate(batch.createdAt)}</span>
@@ -231,6 +269,45 @@ const AdminDashboard: React.FC = () => {
                 <tr>
                   <td colSpan={7} className="text-center py-8 text-gray-500">
                     No batches found. Create one to see it here!
+
+                      <CopyButton value={batch.batchId} label="batch id" />
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <div>
+                      <p className="font-medium text-gray-800 dark:text-white">{batch.farmerName}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{batch.origin}</p>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <span className="capitalize font-medium text-gray-800 dark:text-white">{batch.cropType}</span>
+                  </td>
+                  <td className="py-4 px-6">
+                    <span className="font-medium text-gray-800 dark:text-white">{batch.quantity} kg</span>
+                  </td>
+                  <td className="py-4 px-6">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getStageColor(batch.currentStage)}`}>
+                      {batch.currentStage}
+                    </span>
+                  </td>
+                  <td className="py-4 px-6">
+                    <span className="text-gray-600 dark:text-gray-300">{formatDate(batch.createdAt)}</span>
+                  </td>
+                  <td className="py-4 px-6">
+                    {user && user.role === 'admin' ? (
+                      <ToggleSwitch
+                        checked={!!batchStatus[batch.batchId]}
+                        onChange={checked => handleStatusToggle(batch.batchId, checked)}
+                        onLabel="Active"
+                        offLabel="Flagged / Inactive"
+                      />
+                    ) : (
+                      <div className="flex items-center">
+                        <div className={`w-2 h-2 rounded-full mr-2 ${batchStatus[batch.batchId] ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                        <span className={`text-sm font-medium ${batchStatus[batch.batchId] ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{batchStatus[batch.batchId] ? 'Active' : 'Flagged / Inactive'}</span>
+                      </div>
+                    )}
+
                   </td>
                 </tr>
               )}
