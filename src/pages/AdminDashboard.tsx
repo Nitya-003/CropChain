@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, TrendingUp, Package, Users, Calendar, BarChart3 } from 'lucide-react';
-import { cropBatchService } from '../services/cropBatchService';
-import { StatsCardSkeleton, TableSkeleton, ChartSkeleton } from '../components/skeletons';
+import { realCropBatchService } from '../services/realCropBatchService';
+import Skeleton from '../components/Skeleton';
 import CopyButton from '../components/CopyButton';
 
 const AdminDashboard: React.FC = () => {
@@ -9,7 +9,7 @@ const AdminDashboard: React.FC = () => {
     totalBatches: 0,
     totalFarmers: 0,
     totalQuantity: 0,
-    recentBatches: []
+    recentBatches: [] as any[]
   });
   const [batches, setBatches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -19,10 +19,15 @@ const AdminDashboard: React.FC = () => {
   }, []);
 
   const loadDashboardData = async () => {
+    setIsLoading(true);
     try {
-      const { batches, stats } = await realCropBatchService.getAllBatches();
-      setStats(stats);
-      setBatches(batches);
+      // 🟢 REAL CALL: This now works because we fixed the service file
+      const data = await realCropBatchService.getAllBatches();
+      
+      if (data) {
+        setStats(data.stats || { totalBatches: 0, totalFarmers: 0, totalQuantity: 0, recentBatches: [] });
+        setBatches(data.batches || []);
+      }
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
@@ -31,58 +36,63 @@ const AdminDashboard: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+      year: 'numeric', month: 'short', day: 'numeric'
     });
   };
 
   const getStageColor = (stage: string) => {
-    const colors = {
+    const colors: any = {
       farmer: 'bg-green-100 text-green-800',
       mandi: 'bg-blue-100 text-blue-800',
       transport: 'bg-yellow-100 text-yellow-800',
       retailer: 'bg-purple-100 text-purple-800'
     };
-    return colors[stage as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return colors[stage] || 'bg-gray-100 text-gray-800';
   };
 
+  // 🟢 SKELETON LOADER UI (Issue #96)
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto space-y-8">
-        <div className="text-center">
-          <div className="h-12 bg-gray-300 dark:bg-gray-700 rounded w-64 mx-auto mb-4"></div>
-          <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded w-96 mx-auto"></div>
+      <div className="max-w-7xl mx-auto space-y-8 p-6">
+        <div className="text-center space-y-4">
+          <Skeleton className="h-12 w-64 mx-auto" />
+          <Skeleton className="h-6 w-96 mx-auto" />
         </div>
-
         <div className="grid md:grid-cols-4 gap-6">
-          <StatsCardSkeleton />
-          <StatsCardSkeleton />
-          <StatsCardSkeleton />
-          <StatsCardSkeleton />
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-xl h-40 flex flex-col justify-between">
+              <div className="flex justify-between items-start">
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-8 w-16" />
+                </div>
+                <Skeleton className="h-12 w-12 rounded-full" />
+              </div>
+              <Skeleton className="h-4 w-32" />
+            </div>
+          ))}
         </div>
-
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
           <div className="flex items-center mb-6">
-            <div className="h-6 w-6 bg-gray-300 dark:bg-gray-700 rounded mr-3"></div>
-            <div className="h-7 bg-gray-300 dark:bg-gray-700 rounded w-40"></div>
+            <Skeleton className="h-8 w-8 mr-3 rounded" />
+            <Skeleton className="h-8 w-48" />
           </div>
-          <TableSkeleton />
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          <ChartSkeleton />
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 animate-pulse">
-            <div className="h-7 bg-gray-300 dark:bg-gray-700 rounded w-48 mb-4"></div>
-            <div className="flex items-end justify-between h-48 px-4">
-              {[1, 2, 3, 4, 5, 6].map((item) => (
-                <div key={item} className="flex flex-col items-center">
-                  <div className="bg-gray-300 dark:bg-gray-600 rounded-t-lg w-8 transition-all duration-500 h-20"></div>
-                  <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-8 mt-2"></div>
-                </div>
-              ))}
+          <div className="space-y-4">
+            <div className="flex justify-between pb-4 border-b dark:border-gray-700">
+               {[1, 2, 3, 4, 5, 6].map(j => <Skeleton key={j} className="h-4 w-24" />)}
             </div>
+            {[1, 2, 3, 4, 5].map((row) => (
+              <div key={row} className="flex justify-between items-center py-4 border-b dark:border-gray-700 last:border-0">
+                 <Skeleton className="h-5 w-20" />
+                 <Skeleton className="h-5 w-32" />
+                 <Skeleton className="h-5 w-16" />
+                 <Skeleton className="h-5 w-16" />
+                 <Skeleton className="h-6 w-24 rounded-full" />
+                 <Skeleton className="h-5 w-24" />
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -99,7 +109,6 @@ const AdminDashboard: React.FC = () => {
         <p className="text-xl text-gray-600 dark:text-gray-300">Monitor and manage the CropChain supply chain network</p>
       </div>
 
-      {/* Stats Overview */}
       <div className="grid md:grid-cols-4 gap-6">
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-xl">
           <div className="flex items-center justify-between">
@@ -160,7 +169,6 @@ const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Recent Batches Table */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
         <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
           <Package className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
@@ -180,91 +188,54 @@ const AdminDashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {batches.map((batch, index) => (
-                <tr key={batch.batchId} className={`border-b border-gray-100 dark:border-gray-700 ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'} hover:bg-green-50 dark:hover:bg-gray-600 transition-colors`}>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm bg-gray-100 dark:bg-gray-600 dark:text-white px-2 py-1 rounded">
-                        {batch.batchId}
+              {batches.length > 0 ? (
+                batches.map((batch, index) => (
+                  <tr key={batch.batchId || index} className={`border-b border-gray-100 dark:border-gray-700 ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'} hover:bg-green-50 dark:hover:bg-gray-600 transition-colors`}>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm bg-gray-100 dark:bg-gray-600 dark:text-white px-2 py-1 rounded">
+                          {batch.batchId}
+                        </span>
+                        <CopyButton value={batch.batchId} label="batch id" />
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div>
+                        <p className="font-medium text-gray-800 dark:text-white">{batch.farmerName}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{batch.origin}</p>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="capitalize font-medium text-gray-800 dark:text-white">{batch.cropType}</span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="font-medium text-gray-800 dark:text-white">{batch.quantity} kg</span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getStageColor(batch.currentStage)}`}>
+                        {batch.currentStage}
                       </span>
-                      <CopyButton value={batch.batchId} label="batch id" />
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div>
-                      <p className="font-medium text-gray-800 dark:text-white">{batch.farmerName}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{batch.origin}</p>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="capitalize font-medium text-gray-800 dark:text-white">{batch.cropType}</span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="font-medium text-gray-800 dark:text-white">{batch.quantity} kg</span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getStageColor(batch.currentStage)}`}>
-                      {batch.currentStage}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="text-gray-600 dark:text-gray-300">{formatDate(batch.createdAt)}</span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center">
-                      <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
-                      <span className="text-sm text-green-600 dark:text-green-400 font-medium">Active</span>
-                    </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="text-gray-600 dark:text-gray-300">{formatDate(batch.createdAt)}</span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center">
+                        <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+                        <span className="text-sm text-green-600 dark:text-green-400 font-medium">Active</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={7} className="text-center py-8 text-gray-500">
+                    No batches found. Create one to see it here!
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      {/* Charts Section */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
-          <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Crop Types Distribution</h3>
-          <div className="space-y-4">
-            {['Rice', 'Wheat', 'Corn', 'Tomato'].map((crop, index) => {
-              const percentage = Math.random() * 40 + 10;
-              return (
-                <div key={crop} className="flex items-center">
-                  <span className="w-16 text-sm text-gray-600 dark:text-gray-300 capitalize">{crop}</span>
-                  <div className="flex-1 mx-4 bg-gray-200 dark:bg-gray-700 rounded-full h-3">
-                    <div
-                      className={`h-3 rounded-full ${index === 0 ? 'bg-green-500' :
-                        index === 1 ? 'bg-blue-500' :
-                          index === 2 ? 'bg-yellow-500' : 'bg-purple-500'
-                        }`}
-                      style={{ width: `${percentage}%` }}
-                    ></div>
-                  </div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{percentage.toFixed(1)}%</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
-          <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Monthly Activity</h3>
-          <div className="flex items-end justify-between h-48 px-4">
-            {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((month, index) => {
-              const height = Math.random() * 120 + 30;
-              return (
-                <div key={month} className="flex flex-col items-center">
-                  <div
-                    className="bg-gradient-to-t from-green-500 to-green-400 rounded-t-lg w-8 transition-all duration-500 hover:from-green-600 hover:to-green-500"
-                    style={{ height: `${height}px` }}
-                  ></div>
-                  <span className="text-xs text-gray-600 dark:text-gray-300 mt-2">{month}</span>
-                </div>
-              );
-            })}
-          </div>
         </div>
       </div>
     </div>
