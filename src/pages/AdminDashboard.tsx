@@ -14,12 +14,11 @@ const AdminDashboard: React.FC = () => {
     totalBatches: 0,
     totalFarmers: 0,
     totalQuantity: 0,
-    recentBatches: 0
+    recentBatches: [] as any[]
   });
   const [batches, setBatches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
-
 
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -49,10 +48,14 @@ const AdminDashboard: React.FC = () => {
   }, []);
 
   const loadDashboardData = async () => {
+    setIsLoading(true);
     try {
-      const { batches, stats } = await realCropBatchService.getAllBatches();
-      setStats(stats);
-      setBatches(batches);
+      const data = await realCropBatchService.getAllBatches();
+
+      if (data) {
+        setStats(data.stats || { totalBatches: 0, totalFarmers: 0, totalQuantity: 0, recentBatches: [] });
+        setBatches(data.batches || []);
+      }
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
       setIsError(true);
@@ -62,6 +65,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -70,13 +74,13 @@ const AdminDashboard: React.FC = () => {
   };
 
   const getStageColor = (stage: string) => {
-    const colors = {
+    const colors: any = {
       farmer: 'bg-green-100 text-green-800',
       mandi: 'bg-blue-100 text-blue-800',
       transport: 'bg-yellow-100 text-yellow-800',
       retailer: 'bg-purple-100 text-purple-800'
     };
-    return colors[stage as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return colors[stage] || 'bg-gray-100 text-gray-800';
   };
 
   if (isLoading) {
