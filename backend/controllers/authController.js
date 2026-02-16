@@ -51,16 +51,12 @@ const registerUser = async (req, res) => {
         const validationResult = registerSchema.safeParse(req.body);
 
         if (!validationResult.success) {
-            const formattedErrors = validationResult.error.errors.map(err => ({
-                field: err.path.join('.'),
-                message: err.message
-            }));
-
+            console.error('Validation Error Details:', JSON.stringify(validationResult.error, null, 2));
             return res.status(400).json({
                 success: false,
                 error: 'Validation failed',
-                message: validationResult.error.errors[0].message,
-                details: formattedErrors
+                message: 'Invalid input data provided. Please check your fields.',
+                details: validationResult.error
             });
         }
 
@@ -112,7 +108,7 @@ const registerUser = async (req, res) => {
             );
         }
 
-        console.error('Registration Error:', error);
+        // console.error('Registration Error:', error);
         res.status(500).json(
             apiResponse.errorResponse('Registration failed', 'REGISTRATION_FAILED', 500)
         );
@@ -125,11 +121,13 @@ const loginUser = async (req, res) => {
         const validationResult = loginSchema.safeParse(req.body);
 
         if (!validationResult.success) {
-            return res.status(400).json(
-                apiResponse.validationErrorResponse(
-                    validationResult.error.errors.map(err => err.message)
-                )
-            );
+            console.error('Validation Error Details:', JSON.stringify(validationResult.error, null, 2));
+            return res.status(400).json({
+                success: false,
+                error: 'Validation failed',
+                message: 'Invalid email or password format.',
+                details: validationResult.error
+            });
         }
 
         const { email, password } = validationResult.data;
@@ -153,7 +151,7 @@ const loginUser = async (req, res) => {
         }
 
     } catch (error) {
-        console.error('Login Error:', error);
+        // console.error('Login Error:', error);
         res.status(500).json(
             apiResponse.errorResponse('Login failed', 'LOGIN_FAILED', 500)
         );

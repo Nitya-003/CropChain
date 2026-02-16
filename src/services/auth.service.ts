@@ -36,13 +36,13 @@ interface AuthResponse {
 
 export const authService = {
     async login(credentials: LoginCredentials): Promise<AuthResponse> {
-        const response = await axios.post<AuthResponse>(`${API_URL}/auth/login`, credentials);
-        return response.data;
+        const response = await axios.post<{ data: AuthResponse }>(`${API_URL}/auth/login`, credentials);
+        return response.data.data;
     },
 
     async register(credentials: RegisterCredentials): Promise<AuthResponse> {
-        const response = await axios.post<AuthResponse>(`${API_URL}/auth/register`, credentials);
-        return response.data;
+        const response = await axios.post<{ data: AuthResponse }>(`${API_URL}/auth/register`, credentials);
+        return response.data.data;
     },
 
     logout() {
