@@ -1,5 +1,5 @@
 import { StrictMode } from 'react';
-import { AuthProvider } from './context/AuthContext';
+
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';

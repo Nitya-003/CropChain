@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
-import { UserPlus, Mail, Lock, User, Briefcase, Loader } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, Briefcase, Loader, AlertCircle } from 'lucide-react';
 
 const Register: React.FC = () => {
     const [name, setName] = useState('');
@@ -23,8 +23,10 @@ const Register: React.FC = () => {
 
         try {
             await register({ name, email, password, role });
-            navigate('/');
+            // Navigation handled by AuthContext storing user/token, but we can double check
+            navigate('/dashboard');
         } catch (err: any) {
+            // Error display handled by toast in context, but also setting local error state for inline display
             setError(err.response?.data?.message || 'Failed to register. Please check your details.');
         } finally {
             setIsSubmitting(false);
@@ -44,8 +46,9 @@ const Register: React.FC = () => {
 
                 <div className="p-8">
                     {error && (
-                        <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-300 text-sm">
-                            {error}
+                        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center space-x-2 text-red-600 dark:text-red-300 text-sm">
+                            <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                            <span>{error}</span>
                         </div>
                     )}
 

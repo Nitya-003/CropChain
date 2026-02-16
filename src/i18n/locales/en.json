@@ -105,7 +105,10 @@
     "registerButton": "Register",
     "noAccount": "Don't have an account?",
     "haveAccount": "Already have an account?",
-    "forgotPassword": "Forgot Password?"
+    "forgotPassword": "Forgot Password?",
+    "welcomeBack": "Welcome Back!",
+    "loginSubtitle": "Login to access your dashboard",
+    "connectWallet": "Connect Wallet"
   },
   "batch": {
     "addTitle": "Add New Batch",

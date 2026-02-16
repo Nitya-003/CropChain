@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, TrendingUp, Package, Users, Calendar, BarChart3, Copy, Check, Search } from 'lucide-react';
-import { cropBatchService } from '../services/cropBatchService';
+import { useNavigate } from 'react-router-dom';
+import { Shield, TrendingUp, Package, Users, Calendar, BarChart3 } from 'lucide-react';
 import ToggleSwitch from '../components/ToggleSwitch';
 import { useAuth } from '../context/AuthContext';
 import { StatsCardSkeleton, TableSkeleton, ChartSkeleton } from '../components/skeletons';
@@ -14,15 +14,19 @@ const AdminDashboard: React.FC = () => {
     totalBatches: 0,
     totalFarmers: 0,
     totalQuantity: 0,
-    recentBatches: []
+    recentBatches: 0
   });
   const [batches, setBatches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+
   const { user } = useAuth();
+  const navigate = useNavigate();
+
   // Track status for each batch (default: true/active)
   const [batchStatus, setBatchStatus] = useState<Record<string, boolean>>({});
+
   // Initialize batchStatus when batches load
   useEffect(() => {
     if (batches.length > 0) {
@@ -38,16 +42,6 @@ const AdminDashboard: React.FC = () => {
   const handleStatusToggle = (batchId: string, checked: boolean) => {
     setBatchStatus(prev => ({ ...prev, [batchId]: checked }));
     // Optionally: send update to backend here
-  };
-
-  const copyToClipboard = async (batchId: string) => {
-    try {
-      await navigator.clipboard.writeText(batchId);
-      setCopiedId(batchId);
-      setTimeout(() => setCopiedId(null), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
   };
 
   useEffect(() => {
@@ -185,7 +179,7 @@ const AdminDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-yellow-100 text-sm mb-2">This Month</p>
-              <p className="text-3xl font-bold">{stats.recentBatches.length}</p>
+              <p className="text-3xl font-bold">{stats.recentBatches}</p>
               <p className="text-yellow-100 text-xs">new batches</p>
             </div>
             <Calendar className="h-12 w-12 text-yellow-200" />
@@ -203,120 +197,95 @@ const AdminDashboard: React.FC = () => {
           <Package className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
           Recent Batches
         </h2>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-700">
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Batch ID</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Farmer</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Crop Type</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Quantity</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Current Stage</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Date Created</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {batches.map((batch, index) => (
-                <tr key={batch.batchId} className={`border-b border-gray-100 dark:border-gray-700 ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'} hover:bg-green-50 dark:hover:bg-gray-600 transition-colors`}>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm bg-gray-100 dark:bg-gray-600 dark:text-white px-2 py-1 rounded">
-                        {batch.batchId}
-                      </span>
-                      <CopyButton value={batch.batchId} label="batch id" />
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div>
-                      <p className="font-medium text-gray-800 dark:text-white">{batch.farmerName}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{batch.origin}</p>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="capitalize font-medium text-gray-800 dark:text-white">{batch.cropType}</span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="font-medium text-gray-800 dark:text-white">{batch.quantity} kg</span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getStageColor(batch.currentStage)}`}>
-                      {batch.currentStage}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="text-gray-600 dark:text-gray-300">{formatDate(batch.createdAt)}</span>
-                  </td>
-                  <td className="py-4 px-6">
-                    {user && user.role === 'admin' ? (
-                      <ToggleSwitch
-                        checked={!!batchStatus[batch.batchId]}
-                        onChange={checked => handleStatusToggle(batch.batchId, checked)}
-                        onLabel="Active"
-                        offLabel="Flagged / Inactive"
-                      />
-                    ) : (
-                      <div className="flex items-center">
-                        <div className={`w-2 h-2 rounded-full mr-2 ${batchStatus[batch.batchId] ? 'bg-green-400' : 'bg-red-400'}`}></div>
-                        <span className={`text-sm font-medium ${batchStatus[batch.batchId] ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{batchStatus[batch.batchId] ? 'Active' : 'Flagged / Inactive'}</span>
-                      </div>
-                    )}
-                  </td>
+
+        {isError && (
+          <div className="p-8">
+            <ErrorState
+              title="Failed to load batches"
+              message="We couldn't load the batch data. Please try again later."
+              onRetry={loadDashboardData}
+            />
+          </div>
+        )}
+
+        {!isError && !isLoading && batches.length === 0 && (
+          <div className="p-8">
+            <EmptyState
+              title="No batches found"
+              description="There are no active batches in the system yet."
+              icon={Package}
+              actionLabel="Create Batch"
+              onAction={() => navigate('/add-batch')}
+            />
+          </div>
+        )}
+
+        {!isError && !isLoading && batches.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-700">
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Batch ID</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Farmer</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Crop Type</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Quantity</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Current Stage</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Date Created</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Status</th>
                 </tr>
               </thead>
-            <tbody>
-              {batches.map((batch, index) => (
-                <tr key={batch.batchId} className={`border-b border-gray-100 dark:border-gray-700 ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'} hover:bg-green-50 dark:hover:bg-gray-600 transition-colors`}>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm bg-gray-100 dark:bg-gray-600 dark:text-white px-2 py-1 rounded">
-                        {batch.batchId}
+              <tbody>
+                {batches.map((batch, index) => (
+                  <tr key={batch.batchId} className={`border-b border-gray-100 dark:border-gray-700 ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'} hover:bg-green-50 dark:hover:bg-gray-600 transition-colors`}>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm bg-gray-100 dark:bg-gray-600 dark:text-white px-2 py-1 rounded">
+                          {batch.batchId}
+                        </span>
+                        <CopyButton value={batch.batchId} label="batch id" />
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div>
+                        <p className="font-medium text-gray-800 dark:text-white">{batch.farmerName}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{batch.origin}</p>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="capitalize font-medium text-gray-800 dark:text-white">{batch.cropType}</span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="font-medium text-gray-800 dark:text-white">{batch.quantity} kg</span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getStageColor(batch.currentStage)}`}>
+                        {batch.currentStage}
                       </span>
-                      <button
-                        onClick={() => copyToClipboard(batch.batchId)}
-                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-500 rounded transition-colors"
-                        title={copiedId === batch.batchId ? 'Copied!' : 'Copy Batch ID'}
-                      >
-                        {copiedId === batch.batchId ? (
-                          <Check className="h-4 w-4 text-green-600" />
-                        ) : (
-                          <Copy className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                        )}
-                      </button>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div>
-                      <p className="font-medium text-gray-800 dark:text-white">{batch.farmerName}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{batch.origin}</p>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="capitalize font-medium text-gray-800 dark:text-white">{batch.cropType}</span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="font-medium text-gray-800 dark:text-white">{batch.quantity} kg</span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getStageColor(batch.currentStage)}`}>
-                      {batch.currentStage}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="text-gray-600 dark:text-gray-300">{formatDate(batch.createdAt)}</span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center">
-                      <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
-                      <span className="text-sm text-green-600 dark:text-green-400 font-medium">Active</span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          )}
-        </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="text-gray-600 dark:text-gray-300">{formatDate(batch.createdAt)}</span>
+                    </td>
+                    <td className="py-4 px-6">
+                      {user && user.role === 'admin' ? (
+                        <ToggleSwitch
+                          checked={!!batchStatus[batch.batchId]}
+                          onChange={checked => handleStatusToggle(batch.batchId, checked)}
+                          onLabel="Active"
+                          offLabel="Flagged / Inactive"
+                        />
+                      ) : (
+                        <div className="flex items-center">
+                          <div className={`w-2 h-2 rounded-full mr-2 ${batchStatus[batch.batchId] ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                          <span className={`text-sm font-medium ${batchStatus[batch.batchId] ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{batchStatus[batch.batchId] ? 'Active' : 'Flagged / Inactive'}</span>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Charts Section */}

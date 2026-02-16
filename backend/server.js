@@ -16,7 +16,6 @@ const { chatSchema } = require("./validations/chatSchema");
 const aiService = require('./services/aiService');
 const errorHandlerMiddleware = require('./middleware/errorHandler');
 const { createBatchSchema, updateBatchSchema } = require("./validations/batchSchema");
-const { chatSchema } = require("./validations/chatSchema");
 const apiResponse = require('./utils/apiResponse');
 
 // Import MongoDB Model
@@ -174,8 +173,8 @@ app.use("/api", mainRoutes);
 
 // Swagger/OpenAPI Documentation
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'CropChain API Documentation'
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'CropChain API Documentation'
 }));
 
 // Blockchain configuration
@@ -196,14 +195,14 @@ if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY && PRIVATE_KEY !== '0x...') 
     try {
         provider = new ethers.JsonRpcProvider(PROVIDER_URL);
         wallet = new ethers.Wallet(PRIVATE_KEY, provider);
-        
+
         const contractABI = [
             "event BatchCreated(bytes32 indexed batchId, address indexed farmer, uint256 quantity)",
             "event BatchUpdated(bytes32 indexed batchId, string stage, address indexed actor)",
             "function getBatch(bytes32 batchId) view returns (tuple(address farmer, uint256 quantity, string stage, bool exists))",
             "function createBatch(bytes32 batchId, uint256 quantity, string memory metadata) returns (bool)"
         ];
-        
+
         contractInstance = new ethers.Contract(CONTRACT_ADDRESS, contractABI, wallet);
         console.log('✓ Blockchain contract instance initialized');
     } catch (error) {
@@ -435,7 +434,7 @@ app.post(
 app.get('/api/batches', batchLimiter, async (req, res) => {
     try {
         const allBatches = await Batch.find().sort({ createdAt: -1 });
-        
+
         const uniqueFarmers = new Set(allBatches.map(b => b.farmerName)).size;
         const totalQuantity = allBatches.reduce((sum, batch) => sum + batch.quantity, 0);
 
@@ -495,7 +494,7 @@ const batchServiceForAI = {
 };
 
 // AI Service import (ADD THIS if missing)
-const aiService = require('./services/aiService');
+// AI Service import (Already imported at initialization)
 
 app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, res) => {
     try {
@@ -584,34 +583,13 @@ app.listen(PORT, async () => {
         if (!process.env.MONGODB_URI) {
             console.warn('  ⚠️  MONGODB_URI not set - using in-memory storage');
         }
+        if (!process.env.JWT_SECRET) {
+            console.warn('  ⚠️  JWT_SECRET not set - authentication will not work');
+        }
         if (!PROVIDER_URL || !CONTRACT_ADDRESS) {
             console.warn('  ⚠️  Blockchain configuration incomplete - running in demo mode');
         }
-
-        console.log(`Admin user created successfully`);
-        console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
-
-        console.log('\n🔒 Security features enabled:');
-        console.log(`  ✓ Rate limiting (${rateLimitMaxRequests} req/window)`);
-        console.log(`  ✓ NoSQL injection protection`);
-        console.log(`  ✓ Input validation with Joi`);
-        console.log(`  ✓ Security headers with Helmet`);
-        console.log(`  ✓ Request logging and monitoring`);
-
-        console.log('\n⚙️  Configuration:');
-        console.log(`  • CORS origins: ${allowedOrigins.length > 0 ? allowedOrigins.join(', ') : 'None configured'}`);
-        console.log(`  • Max file size: ${Math.round(maxFileSize / 1024 / 1024)}MB`);
-        console.log(`  • Rate limit window: ${Math.ceil(rateLimitWindowMs / 60000)} minutes`);
-
-        if (process.env.NODE_ENV === 'production') {
-            console.log('\n🏭 Production mode warnings:');
-            if (!process.env.MONGODB_URI) {
-                console.warn('  ⚠️  MONGODB_URI not set - using in-memory storage');
-            }
-            if (!process.env.JWT_SECRET) {
-                console.warn('  ⚠️  JWT_SECRET not set - authentication will not work');
-            }
-        }
+    }
 
     console.log('\n✅ Server startup complete\n');
 
