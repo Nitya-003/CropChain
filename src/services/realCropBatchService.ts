@@ -23,11 +23,7 @@ export const realCropBatchService = {
       return await response.json();
     } catch (error) {
       console.error("API Error:", error);
-      // Fallback empty structure so the app doesn't crash if backend is offline
-      return {
-        batches: [],
-        stats: { totalBatches: 0, totalFarmers: 0, totalQuantity: 0, recentBatches: [] }
-      };
+      throw error;
     }
   },
 
