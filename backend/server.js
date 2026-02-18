@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -16,11 +17,12 @@ const { chatSchema } = require("./validations/chatSchema");
 const aiService = require('./services/aiService');
 const errorHandlerMiddleware = require('./middleware/errorHandler');
 const { createBatchSchema, updateBatchSchema } = require("./validations/batchSchema");
-const { chatSchema } = require("./validations/chatSchema");
 const apiResponse = require('./utils/apiResponse');
+const crypto = require('crypto');
 
 // Import MongoDB Model
 const Batch = require('./models/Batch');
+const Counter = require('./models/Counter');
 
 // Connect to Database
 connectDB();
@@ -216,8 +218,12 @@ if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY && PRIVATE_KEY !== '0x...') 
 
 // Helper functions
 async function generateBatchId() {
-    const count = await Batch.countDocuments();
-    return `CROP-2024-${String(count + 1).padStart(3, '0')}`;
+    const counter = await Counter.findOneAndUpdate(
+        { name: 'batchId' },
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+    );
+    return `CROP-2024-${String(counter.seq).padStart(3, '0')}`;
 }
 
 async function generateQRCode(batchId) {
@@ -236,8 +242,11 @@ async function generateQRCode(batchId) {
     }
 }
 
-function simulateBlockchainHash() {
-    return '0x' + Math.random().toString(16).substr(2, 64);
+function simulateBlockchainHash(data) {
+    return '0x' + crypto
+        .createHash('sha256')
+        .update(JSON.stringify(data) + Date.now().toString())
+        .digest('hex');
 }
 
 // Import Routes
@@ -273,7 +282,7 @@ app.post('/api/batches', batchLimiter, validateRequest(createBatchSchema), async
             currentStage: "farmer",
             isRecalled: false,
             qrCode,
-            blockchainHash: simulateBlockchainHash(),
+            blockchainHash: simulateBlockchainHash(validatedData),
             syncStatus: 'pending',
             updates: [{
                 stage: "farmer",
@@ -367,7 +376,7 @@ app.put('/api/batches/:batchId', batchLimiter, validateRequest(updateBatchSchema
             {
                 $push: { updates: update },
                 currentStage: validatedData.stage,
-                blockchainHash: simulateBlockchainHash(),
+                blockchainHash: simulateBlockchainHash(update),
                 syncStatus: 'pending'
             },
             { new: true }
@@ -494,9 +503,6 @@ const batchServiceForAI = {
     }
 };
 
-// AI Service import (ADD THIS if missing)
-const aiService = require('./services/aiService');
-
 app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, res) => {
     try {
         const { message } = req.body;
@@ -532,6 +538,15 @@ app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, 
     }
 });
 
+// Serve Frontend in Production
+if (process.env.NODE_ENV === "production") {
+   app.use(express.static(path.join(__dirname, "../frontend/build")));
+
+   app.get("*", (req, res) => {
+      res.sendFile(path.join(__dirname, "../frontend/build/index.html"));
+   });
+}
+
 // ==================== ERROR HANDLERS ====================
 
 // 404 handler
@@ -553,40 +568,13 @@ const createAdmin = require('./scripts/create-admin');
 const startListener = require('./services/blockchainListener');
 
 // Start server
-app.listen(PORT, async () => {
-    console.log(`🚀 CropChain API server running on port ${PORT}`);
-    console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+if (process.env.NODE_ENV !== 'test') {
+    app.listen(PORT, async () => {
+        console.log(`🚀 CropChain API server running on port ${PORT}`);
+        console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
 
-    // Create admin user on startup
-    if (process.env.NODE_ENV !== 'test') {
+        // Create admin user on startup
         await createAdmin();
-    }
-
-    console.log(`Admin user created successfully`);
-    console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
-
-    console.log('\n🔒 Security features enabled:');
-    console.log(`  ✓ Rate limiting (${rateLimitMaxRequests} req/window)`);
-    console.log(`  ✓ NoSQL injection protection`);
-    console.log(`  ✓ Input validation with Joi`);
-    console.log(`  ✓ Security headers with Helmet`);
-    console.log(`  ✓ Request logging and monitoring`);
-    console.log(`  ✓ JWT Authentication`);
-    console.log(`  ✓ Admin Role Authorization`);
-
-    console.log('\n⚙️  Configuration:');
-    console.log(`  • CORS origins: ${allowedOrigins.length > 0 ? allowedOrigins.join(', ') : 'None configured'}`);
-    console.log(`  • Max file size: ${Math.round(maxFileSize / 1024 / 1024)}MB`);
-    console.log(`  • Rate limit window: ${Math.ceil(rateLimitWindowMs / 60000)} minutes`);
-
-    if (process.env.NODE_ENV === 'production') {
-        console.log('\n🏭 Production mode warnings:');
-        if (!process.env.MONGODB_URI) {
-            console.warn('  ⚠️  MONGODB_URI not set - using in-memory storage');
-        }
-        if (!PROVIDER_URL || !CONTRACT_ADDRESS) {
-            console.warn('  ⚠️  Blockchain configuration incomplete - running in demo mode');
-        }
 
         console.log(`Admin user created successfully`);
         console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
@@ -597,6 +585,8 @@ app.listen(PORT, async () => {
         console.log(`  ✓ Input validation with Joi`);
         console.log(`  ✓ Security headers with Helmet`);
         console.log(`  ✓ Request logging and monitoring`);
+        console.log(`  ✓ JWT Authentication`);
+        console.log(`  ✓ Admin Role Authorization`);
 
         console.log('\n⚙️  Configuration:');
         console.log(`  • CORS origins: ${allowedOrigins.length > 0 ? allowedOrigins.join(', ') : 'None configured'}`);
@@ -611,21 +601,25 @@ app.listen(PORT, async () => {
             if (!process.env.JWT_SECRET) {
                 console.warn('  ⚠️  JWT_SECRET not set - authentication will not work');
             }
+            if (!PROVIDER_URL || !CONTRACT_ADDRESS) {
+                console.warn('  ⚠️  Blockchain configuration incomplete - running in demo mode');
+            }
         }
 
-    console.log('\n✅ Server startup complete\n');
+        console.log('\n✅ Server startup complete\n');
 
-    // Start blockchain event listener
-    if (contractInstance) {
-        try {
-            startListener(contractInstance);
-            console.log('🔗 Blockchain event listener started');
-        } catch (error) {
-            console.error('❌ Failed to start blockchain listener:', error.message);
+        // Start blockchain event listener
+        if (contractInstance) {
+            try {
+                startListener(contractInstance);
+                console.log('🔗 Blockchain event listener started');
+            } catch (error) {
+                console.error('❌ Failed to start blockchain listener:', error.message);
+            }
+        } else {
+            console.log('ℹ️  Skipping blockchain listener (no contract instance available)');
         }
-    } else {
-        console.log('ℹ️  Skipping blockchain listener (no contract instance available)');
-    }
-});
+    });
+}
 
 module.exports = app;
