@@ -70,7 +70,7 @@ const registerUser = async (req, res) => {
         const userExists = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } });
 
         if (userExists) {
-            return res.status(400).json(
+            return res.status(409).json(
                 apiResponse.conflictResponse('User already exists with this email')
             );
         }
@@ -101,50 +101,25 @@ const registerUser = async (req, res) => {
                 'Registration successful',
                 201
             );
-            res.status(201).json(response);
+            return res.status(201).json(response);
 
         } else {
-            res.status(400).json(
+            return res.status(400).json(
                 apiResponse.errorResponse('Invalid user data', 'REGISTRATION_ERROR', 400)
             );
         }
 
     } catch (error) {
-        res.status(500).json(
-            apiResponse.errorResponse('Registration failed', 'REGISTRATION_FAILED', 500)
-        );
-            res.status(201).json({
-                success: true,
-                message: 'Registration successful',
-                token: generateToken(user._id, user.role, user.name),
-                user: sanitizeUser(user)
-            });
-
-        } else {
-            res.status(400).json({
-                success: false,
-                error: 'Registration failed',
-                message: 'Invalid user data'
-            });
-        }
-
-    } catch (error) {
         // Handle MongoDB duplicate key error
         if (error.code === 11000) {
-            return res.status(409).json({
-                success: false,
-                error: 'Registration failed',
-                message: 'User already exists with this email'
-            });
+            return res.status(409).json(
+                apiResponse.conflictResponse('User already exists with this email')
+            );
         }
 
-        res.status(500).json({
-            success: false,
-            error: 'Registration failed',
-            message: process.env.NODE_ENV === 'production' 
-                ? 'An internal server error occurred' 
-                : error.message
-        });
+        return res.status(500).json(
+            apiResponse.errorResponse('Registration failed', 'REGISTRATION_FAILED', 500)
+        );
     }
 };
 
@@ -159,15 +134,6 @@ const loginUser = async (req, res) => {
                     validationResult.error.errors.map(err => err.message)
                 )
             );
-            return res.status(400).json({
-                success: false,
-                error: 'Validation failed',
-                message: validationResult.error.errors[0].message,
-                details: validationResult.error.errors.map(err => ({
-                    field: err.path.join('.'),
-                    message: err.message
-                }))
-            });
         }
 
         const { email, password } = validationResult.data;
@@ -188,53 +154,17 @@ const loginUser = async (req, res) => {
                 },
                 'Login successful'
             );
-            res.json(response);
+            return res.json(response);
         } else {
-            res.status(401).json(
+            return res.status(401).json(
                 apiResponse.unauthorizedResponse('Invalid email or password')
             );
-        if (!user) {
-            return res.status(401).json({
-                success: false,
-                error: 'Authentication failed',
-                message: 'Invalid email or password'
-            });
         }
-
-        // Verify password
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-
-        if (!isPasswordValid) {
-            return res.status(401).json({
-                success: false,
-                error: 'Authentication failed',
-                message: 'Invalid email or password'
-            });
-        }
-
-        // Update last login timestamp (if your schema supports it)
-        if (user.updateLastLogin) {
-            await user.updateLastLogin();
-        }
-
-        res.json({
-            success: true,
-            message: 'Login successful',
-            token: generateToken(user._id, user.role, user.name),
-            user: sanitizeUser(user)
-        });
 
     } catch (error) {
-        res.status(500).json(
+        return res.status(500).json(
             apiResponse.errorResponse('Login failed', 'LOGIN_FAILED', 500)
         );
-        res.status(500).json({
-            success: false,
-            error: 'Login failed',
-            message: process.env.NODE_ENV === 'production' 
-                ? 'An internal server error occurred' 
-                : error.message
-        });
     }
 };
 
