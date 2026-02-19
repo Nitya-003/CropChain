@@ -3,18 +3,17 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, LogOut, User, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
-import toast from 'react-hot-toast'; // <--- Using the new library
+import toast from 'react-hot-toast';
 
-const Header = () => {
+const Header: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
-  
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
-    toast.success('Logged out successfully'); // <--- Updated line
+    toast.success('Logged out successfully');
     navigate('/login');
   };
 

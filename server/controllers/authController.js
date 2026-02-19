@@ -94,6 +94,10 @@ const registerUser = async (req, res) => {
                 201
             );
             return res.status(201).json(response);
+<<<<<<< HEAD:server/controllers/authController.js
+=======
+
+>>>>>>> upstream/main:backend/controllers/authController.js
         } else {
             return res.status(400).json(
                 apiResponse.errorResponse('Invalid user data', 'REGISTRATION_ERROR', 400)
@@ -108,7 +112,10 @@ const registerUser = async (req, res) => {
             );
         }
 
+<<<<<<< HEAD:server/controllers/authController.js
         console.error('Registration Error:', error);
+=======
+>>>>>>> upstream/main:backend/controllers/authController.js
         return res.status(500).json(
             apiResponse.errorResponse('Registration failed', 'REGISTRATION_FAILED', 500)
         );
@@ -133,12 +140,31 @@ const loginUser = async (req, res) => {
         // Find user with password
         const user = await User.findOne({ email }).select('+password');
 
+<<<<<<< HEAD:server/controllers/authController.js
         if (!user) {
+=======
+        if (user && (await bcrypt.compare(password, user.password))) {
+            const response = apiResponse.successResponse(
+                {
+                    token: generateToken(user._id, user.role, user.name),
+                    user: {
+                        id: user._id,
+                        name: user.name,
+                        email: user.email,
+                        role: user.role
+                    }
+                },
+                'Login successful'
+            );
+            return res.json(response);
+        } else {
+>>>>>>> upstream/main:backend/controllers/authController.js
             return res.status(401).json(
                 apiResponse.unauthorizedResponse('Invalid email or password')
             );
         }
 
+<<<<<<< HEAD:server/controllers/authController.js
         // Verify password
         const isPasswordValid = await bcrypt.compare(password, user.password);
 
@@ -164,6 +190,9 @@ const loginUser = async (req, res) => {
 
     } catch (error) {
         console.error('Login Error:', error);
+=======
+    } catch (error) {
+>>>>>>> upstream/main:backend/controllers/authController.js
         return res.status(500).json(
             apiResponse.errorResponse('Login failed', 'LOGIN_FAILED', 500)
         );
