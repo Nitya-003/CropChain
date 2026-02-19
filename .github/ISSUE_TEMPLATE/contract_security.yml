@@ -1,0 +1,16 @@
+name: "🔒 Smart Contract / Security"
+description: "Report a logic flaw, gas optimization, or security vulnerability."
+labels: ["security", "smart-contract"]
+body:
+  - type: textarea
+    id: security-issue
+    attributes:
+      label: "Logic Flaw / Vulnerability"
+      placeholder: "Describe the potential risk (e.g., Re-entrancy, unauthorized access to batch updates)."
+    validations:
+      required: true
+  - type: textarea
+    id: contract-function
+    attributes:
+      label: "Affected Function(s)"
+      placeholder: "Which function in the Solidity contract is involved?"

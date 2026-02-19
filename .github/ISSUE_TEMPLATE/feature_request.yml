@@ -1,0 +1,27 @@
+name: "🚀 Feature Request"
+description: "Suggest a new idea for CropChain (IoT, AI, etc.)"
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: feature-why
+    attributes:
+      label: "The 'Why'"
+      placeholder: "How does this improve the farm-to-fork experience?"
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: "Feature Category"
+      options:
+        - Blockchain/Smart Contracts
+        - UI/UX Design
+        - IoT/Hardware Integration
+        - Backend/Analytics
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-logic
+    attributes:
+      label: "Proposed Logic/UI"
+      placeholder: "Describe how you envision this working."

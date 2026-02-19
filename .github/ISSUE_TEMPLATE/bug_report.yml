@@ -1,0 +1,27 @@
+name: "🐛 Bug Report"
+description: "Report a glitch in the CropChain supply chain flow."
+labels: ["bug", "triage"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: "Bug Description"
+      placeholder: "What exactly is happening? (e.g., Transaction failing on Mumbai testnet)"
+    validations:
+      required: true
+  - type: input
+    id: wallet-info
+    attributes:
+      label: "Environment / Wallet"
+      placeholder: "e.g., MetaMask v10.x, Polygon Mumbai, Node v18"
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps to Reproduce"
+      placeholder: "1. Connect Wallet... 2. Click Add Batch... 3. Error appears"
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Relevant Logs/Error Messages"
+      description: "Paste console logs or Hardhat error traces here."
+      render: shell
