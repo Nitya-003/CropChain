@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+dist
+build
+coverage
+.DS_Store
+
+# Hardhat/Blockchain specific (exclude to keep image small)
+artifacts
+cache
+typechain-types
+hardhat.config.js
