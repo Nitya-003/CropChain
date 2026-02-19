@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # 1. Database
+  db:
+    image: mongo:latest
+    container_name: cropchain_db
+    restart: always
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  # 2. Backend API (UPDATED TO PORT 5000)
+  backend:
+    image: node:18-alpine
+    container_name: cropchain_backend
+    working_dir: /app
+    ports:
+      - "5000:5000"  # <--- Changed from 3001:3001 to 5000:5000
+    environment:
+      - PORT=5000    # <--- Changed from 3001 to 5000
+      - MONGO_URI=mongodb://db:27017/cropchain
+      - NODE_ENV=development
+    volumes:
+      - ./server:/app
+    # Install dependencies and start server
+    command: sh -c "npm install && npm run dev"
+    depends_on:
+      - db
+
+  # 3. Frontend (React/Vite)
+  frontend:
+    image: node:18-alpine
+    container_name: cropchain_frontend
+    working_dir: /app
+    ports:
+      - "3000:5173"
+    environment:
+      - VITE_API_URL=http://localhost:5000 # Already correct
+    volumes:
+      - ./client:/app
+    # Install dependencies and start vite (exposed to host)
+    command: sh -c "npm install && npm run dev -- --host"
+
+volumes:
+  mongo_data:

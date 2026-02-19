@@ -56,12 +56,9 @@ const registerUser = async (req, res) => {
                 message: err.message
             }));
 
-            return res.status(400).json({
-                success: false,
-                error: 'Validation failed',
-                message: validationResult.error.errors[0].message,
-                details: formattedErrors
-            });
+            return res.status(400).json(
+                apiResponse.errorResponse('Validation failed', 'VALIDATION_ERROR', 400, formattedErrors)
+            );
         }
 
         const { name, email, password, role } = validationResult.data;
@@ -91,18 +88,16 @@ const registerUser = async (req, res) => {
             const response = apiResponse.successResponse(
                 {
                     token: generateToken(user._id, user.role, user.name),
-                    user: {
-                        id: user._id,
-                        name: user.name,
-                        email: user.email,
-                        role: user.role
-                    }
+                    user: sanitizeUser(user)
                 },
                 'Registration successful',
                 201
             );
             return res.status(201).json(response);
+<<<<<<< HEAD:server/controllers/authController.js
+=======
 
+>>>>>>> upstream/main:backend/controllers/authController.js
         } else {
             return res.status(400).json(
                 apiResponse.errorResponse('Invalid user data', 'REGISTRATION_ERROR', 400)
@@ -117,6 +112,10 @@ const registerUser = async (req, res) => {
             );
         }
 
+<<<<<<< HEAD:server/controllers/authController.js
+        console.error('Registration Error:', error);
+=======
+>>>>>>> upstream/main:backend/controllers/authController.js
         return res.status(500).json(
             apiResponse.errorResponse('Registration failed', 'REGISTRATION_FAILED', 500)
         );
@@ -141,6 +140,9 @@ const loginUser = async (req, res) => {
         // Find user with password
         const user = await User.findOne({ email }).select('+password');
 
+<<<<<<< HEAD:server/controllers/authController.js
+        if (!user) {
+=======
         if (user && (await bcrypt.compare(password, user.password))) {
             const response = apiResponse.successResponse(
                 {
@@ -156,12 +158,41 @@ const loginUser = async (req, res) => {
             );
             return res.json(response);
         } else {
+>>>>>>> upstream/main:backend/controllers/authController.js
             return res.status(401).json(
                 apiResponse.unauthorizedResponse('Invalid email or password')
             );
         }
 
+<<<<<<< HEAD:server/controllers/authController.js
+        // Verify password
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+
+        if (!isPasswordValid) {
+            return res.status(401).json(
+                apiResponse.unauthorizedResponse('Invalid email or password')
+            );
+        }
+
+        // Update last login timestamp (if your schema supports it)
+        if (user.updateLastLogin) {
+            await user.updateLastLogin();
+        }
+
+        const response = apiResponse.successResponse(
+            {
+                token: generateToken(user._id, user.role, user.name),
+                user: sanitizeUser(user)
+            },
+            'Login successful'
+        );
+        return res.json(response);
+
     } catch (error) {
+        console.error('Login Error:', error);
+=======
+    } catch (error) {
+>>>>>>> upstream/main:backend/controllers/authController.js
         return res.status(500).json(
             apiResponse.errorResponse('Login failed', 'LOGIN_FAILED', 500)
         );
