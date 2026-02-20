@@ -66,7 +66,7 @@ const registerUser = async (req, res) => {
         const userExists = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } });
 
         if (userExists) {
-            return res.status(400).json(
+            return res.status(409).json(
                 apiResponse.conflictResponse('User already exists with this email')
             );
         }
@@ -92,10 +92,10 @@ const registerUser = async (req, res) => {
                 'Registration successful',
                 201
             );
-            res.status(201).json(response);
+            return res.status(201).json(response);
 
         } else {
-            res.status(400).json(
+            return res.status(400).json(
                 apiResponse.errorResponse('Invalid user data', 'REGISTRATION_ERROR', 400)
             );
         }
@@ -108,8 +108,7 @@ const registerUser = async (req, res) => {
             );
         }
 
-        // console.error('Registration Error:', error);
-        res.status(500).json(
+        return res.status(500).json(
             apiResponse.errorResponse('Registration failed', 'REGISTRATION_FAILED', 500)
         );
     }
@@ -143,16 +142,15 @@ const loginUser = async (req, res) => {
                 },
                 'Login successful'
             );
-            res.json(response);
+            return res.json(response);
         } else {
-            res.status(401).json(
+            return res.status(401).json(
                 apiResponse.unauthorizedResponse('Invalid email or password')
             );
         }
 
     } catch (error) {
-        // console.error('Login Error:', error);
-        res.status(500).json(
+        return res.status(500).json(
             apiResponse.errorResponse('Login failed', 'LOGIN_FAILED', 500)
         );
     }

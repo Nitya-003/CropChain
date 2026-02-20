@@ -12,10 +12,11 @@ const Header: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { t } = useTranslation();
   const { theme, toggleTheme } = useTheme();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { t, i18n } = useTranslation();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleLogout = () => {
     logout();

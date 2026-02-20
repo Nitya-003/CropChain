@@ -6,8 +6,9 @@ import { useAuth } from '../context/AuthContext';
 import { StatsCardSkeleton, TableSkeleton, ChartSkeleton } from '../components/skeletons';
 import { EmptyState } from '../components/common/EmptyState';
 import { ErrorState } from '../components/common/ErrorState';
-import CopyButton from '../components/CopyButton';
 import { realCropBatchService } from '../services/realCropBatchService';
+import Skeleton from '../components/Skeleton';
+import CopyButton from '../components/CopyButton';
 
 const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState({
@@ -335,8 +336,8 @@ const AdminDashboard: React.FC = () => {
             })}
           </div>
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };
 
