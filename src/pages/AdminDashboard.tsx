@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Shield, TrendingUp, Package, Users, Calendar, BarChart3 } from 'lucide-react';
-
-import { realCropBatchService } from '../services/realCropBatchService';
-import Skeleton from '../components/Skeleton';
-
 import ToggleSwitch from '../components/ToggleSwitch';
 import { useAuth } from '../context/AuthContext';
-
+import { StatsCardSkeleton, TableSkeleton, ChartSkeleton } from '../components/skeletons';
+import { EmptyState } from '../components/common/EmptyState';
+import { ErrorState } from '../components/common/ErrorState';
+import { realCropBatchService } from '../services/realCropBatchService';
+import Skeleton from '../components/Skeleton';
 import CopyButton from '../components/CopyButton';
 
 const AdminDashboard: React.FC = () => {
@@ -18,10 +19,14 @@ const AdminDashboard: React.FC = () => {
   });
   const [batches, setBatches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
 
   const { user } = useAuth();
+  const navigate = useNavigate();
+
   // Track status for each batch (default: true/active)
   const [batchStatus, setBatchStatus] = useState<Record<string, boolean>>({});
+
   // Initialize batchStatus when batches load
   useEffect(() => {
     if (batches.length > 0) {
@@ -46,15 +51,15 @@ const AdminDashboard: React.FC = () => {
   const loadDashboardData = async () => {
     setIsLoading(true);
     try {
-      // 🟢 REAL CALL: This now works because we fixed the service file
       const data = await realCropBatchService.getAllBatches();
-      
+
       if (data) {
         setStats(data.stats || { totalBatches: 0, totalFarmers: 0, totalQuantity: 0, recentBatches: [] });
         setBatches(data.batches || []);
       }
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
+      setIsError(true);
     } finally {
       setIsLoading(false);
     }
@@ -63,7 +68,9 @@ const AdminDashboard: React.FC = () => {
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric', month: 'short', day: 'numeric'
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
   };
 
@@ -77,47 +84,41 @@ const AdminDashboard: React.FC = () => {
     return colors[stage] || 'bg-gray-100 text-gray-800';
   };
 
-  // 🟢 SKELETON LOADER UI (Issue #96)
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto space-y-8 p-6">
-        <div className="text-center space-y-4">
-          <Skeleton className="h-12 w-64 mx-auto" />
-          <Skeleton className="h-6 w-96 mx-auto" />
+      <div className="max-w-7xl mx-auto space-y-8">
+        <div className="text-center">
+          <div className="h-12 bg-gray-300 dark:bg-gray-700 rounded w-64 mx-auto mb-4"></div>
+          <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded w-96 mx-auto"></div>
         </div>
+
         <div className="grid md:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-xl h-40 flex flex-col justify-between">
-              <div className="flex justify-between items-start">
-                <div className="space-y-3">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-8 w-16" />
-                </div>
-                <Skeleton className="h-12 w-12 rounded-full" />
-              </div>
-              <Skeleton className="h-4 w-32" />
-            </div>
-          ))}
+          <StatsCardSkeleton />
+          <StatsCardSkeleton />
+          <StatsCardSkeleton />
+          <StatsCardSkeleton />
         </div>
+
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
           <div className="flex items-center mb-6">
-            <Skeleton className="h-8 w-8 mr-3 rounded" />
-            <Skeleton className="h-8 w-48" />
+            <div className="h-6 w-6 bg-gray-300 dark:bg-gray-700 rounded mr-3"></div>
+            <div className="h-7 bg-gray-300 dark:bg-gray-700 rounded w-40"></div>
           </div>
-          <div className="space-y-4">
-            <div className="flex justify-between pb-4 border-b dark:border-gray-700">
-               {[1, 2, 3, 4, 5, 6].map(j => <Skeleton key={j} className="h-4 w-24" />)}
+          <TableSkeleton />
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          <ChartSkeleton />
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 animate-pulse">
+            <div className="h-7 bg-gray-300 dark:bg-gray-700 rounded w-48 mb-4"></div>
+            <div className="flex items-end justify-between h-48 px-4">
+              {[1, 2, 3, 4, 5, 6].map((item) => (
+                <div key={item} className="flex flex-col items-center">
+                  <div className="bg-gray-300 dark:bg-gray-600 rounded-t-lg w-8 transition-all duration-500 h-20"></div>
+                  <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-8 mt-2"></div>
+                </div>
+              ))}
             </div>
-            {[1, 2, 3, 4, 5].map((row) => (
-              <div key={row} className="flex justify-between items-center py-4 border-b dark:border-gray-700 last:border-0">
-                 <Skeleton className="h-5 w-20" />
-                 <Skeleton className="h-5 w-32" />
-                 <Skeleton className="h-5 w-16" />
-                 <Skeleton className="h-5 w-16" />
-                 <Skeleton className="h-6 w-24 rounded-full" />
-                 <Skeleton className="h-5 w-24" />
-              </div>
-            ))}
           </div>
         </div>
       </div>
@@ -134,6 +135,7 @@ const AdminDashboard: React.FC = () => {
         <p className="text-xl text-gray-600 dark:text-gray-300">Monitor and manage the CropChain supply chain network</p>
       </div>
 
+      {/* Stats Overview */}
       <div className="grid md:grid-cols-4 gap-6">
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-xl">
           <div className="flex items-center justify-between">
@@ -182,7 +184,7 @@ const AdminDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-yellow-100 text-sm mb-2">This Month</p>
-              <p className="text-3xl font-bold">{stats.recentBatches.length}</p>
+              <p className="text-3xl font-bold">{stats.recentBatches}</p>
               <p className="text-yellow-100 text-xs">new batches</p>
             </div>
             <Calendar className="h-12 w-12 text-yellow-200" />
@@ -194,28 +196,52 @@ const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Recent Batches Table */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
         <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
           <Package className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
           Recent Batches
         </h2>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-700">
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Batch ID</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Farmer</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Crop Type</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Quantity</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Current Stage</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Date Created</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {batches.length > 0 ? (
-                batches.map((batch, index) => (
-                  <tr key={batch.batchId || index} className={`border-b border-gray-100 dark:border-gray-700 ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'} hover:bg-green-50 dark:hover:bg-gray-600 transition-colors`}>
+
+        {isError && (
+          <div className="p-8">
+            <ErrorState
+              title="Failed to load batches"
+              message="We couldn't load the batch data. Please try again later."
+              onRetry={loadDashboardData}
+            />
+          </div>
+        )}
+
+        {!isError && !isLoading && batches.length === 0 && (
+          <div className="p-8">
+            <EmptyState
+              title="No batches found"
+              description="There are no active batches in the system yet."
+              icon={Package}
+              actionLabel="Create Batch"
+              onAction={() => navigate('/add-batch')}
+            />
+          </div>
+        )}
+
+        {!isError && !isLoading && batches.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-700">
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Batch ID</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Farmer</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Crop Type</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Quantity</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Current Stage</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Date Created</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {batches.map((batch, index) => (
+                  <tr key={batch.batchId} className={`border-b border-gray-100 dark:border-gray-700 ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'} hover:bg-green-50 dark:hover:bg-gray-600 transition-colors`}>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-sm bg-gray-100 dark:bg-gray-600 dark:text-white px-2 py-1 rounded">
@@ -260,19 +286,58 @@ const AdminDashboard: React.FC = () => {
                       )}
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={7} className="text-center py-8 text-gray-500">
-                    No batches found. Create one to see it here!
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-    </div>
+
+      {/* Charts Section */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+          <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Crop Types Distribution</h3>
+          <div className="space-y-4">
+            {['Rice', 'Wheat', 'Corn', 'Tomato'].map((crop, index) => {
+              const percentage = Math.random() * 40 + 10;
+              return (
+                <div key={crop} className="flex items-center">
+                  <span className="w-16 text-sm text-gray-600 dark:text-gray-300 capitalize">{crop}</span>
+                  <div className="flex-1 mx-4 bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                    <div
+                      className={`h-3 rounded-full ${index === 0 ? 'bg-green-500' :
+                        index === 1 ? 'bg-blue-500' :
+                          index === 2 ? 'bg-yellow-500' : 'bg-purple-500'
+                        }`}
+                      style={{ width: `${percentage}%` }}
+                    ></div>
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{percentage.toFixed(1)}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+          <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Monthly Activity</h3>
+          <div className="flex items-end justify-between h-48 px-4">
+            {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((month) => {
+              const height = Math.random() * 120 + 30;
+              return (
+                <div key={month} className="flex flex-col items-center">
+                  <div
+                    className="bg-gradient-to-t from-green-500 to-green-400 rounded-t-lg w-8 transition-all duration-500 hover:from-green-600 hover:to-green-500"
+                    style={{ height: `${height}px` }}
+                  ></div>
+                  <span className="text-xs text-gray-600 dark:text-gray-300 mt-2">{month}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div >
+    </div >
   );
 };
 

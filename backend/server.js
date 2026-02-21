@@ -176,8 +176,8 @@ app.use("/api", mainRoutes);
 
 // Swagger/OpenAPI Documentation
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'CropChain API Documentation'
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'CropChain API Documentation'
 }));
 
 // Blockchain configuration
@@ -198,14 +198,14 @@ if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY && PRIVATE_KEY !== '0x...') 
     try {
         provider = new ethers.JsonRpcProvider(PROVIDER_URL);
         wallet = new ethers.Wallet(PRIVATE_KEY, provider);
-        
+
         const contractABI = [
             "event BatchCreated(bytes32 indexed batchId, address indexed farmer, uint256 quantity)",
             "event BatchUpdated(bytes32 indexed batchId, string stage, address indexed actor)",
             "function getBatch(bytes32 batchId) view returns (tuple(address farmer, uint256 quantity, string stage, bool exists))",
             "function createBatch(bytes32 batchId, uint256 quantity, string memory metadata) returns (bool)"
         ];
-        
+
         contractInstance = new ethers.Contract(CONTRACT_ADDRESS, contractABI, wallet);
         console.log('✓ Blockchain contract instance initialized');
     } catch (error) {
@@ -444,7 +444,7 @@ app.post(
 app.get('/api/batches', batchLimiter, async (req, res) => {
     try {
         const allBatches = await Batch.find().sort({ createdAt: -1 });
-        
+
         const uniqueFarmers = new Set(allBatches.map(b => b.farmerName)).size;
         const totalQuantity = allBatches.reduce((sum, batch) => sum + batch.quantity, 0);
 
@@ -503,6 +503,9 @@ const batchServiceForAI = {
     }
 };
 
+// AI Service import (ADD THIS if missing)
+// AI Service import (Already imported at initialization)
+
 app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, res) => {
     try {
         const { message } = req.body;
@@ -540,11 +543,11 @@ app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, 
 
 // Serve Frontend in Production
 if (process.env.NODE_ENV === "production") {
-   app.use(express.static(path.join(__dirname, "../frontend/build")));
+    app.use(express.static(path.join(__dirname, "../frontend/build")));
 
-   app.get("*", (req, res) => {
-      res.sendFile(path.join(__dirname, "../frontend/build/index.html"));
-   });
+    app.get("*", (req, res) => {
+        res.sendFile(path.join(__dirname, "../frontend/build/index.html"));
+    });
 }
 
 // ==================== ERROR HANDLERS ====================
