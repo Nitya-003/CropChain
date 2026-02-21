@@ -83,10 +83,15 @@ class DIDService {
 
             // Verify signature
             const message = `Verify user ${user.name} (${user.email}) with wallet ${linkedWalletAddress}`;
+
+            if (!verifier.walletAddress) {
+                throw new Error('Verifier wallet address not found');
+            }
+
             const isValidSignature = this.verifySignature(
                 message,
                 signature,
-                verifier.walletAddress || linkedWalletAddress
+                verifier.walletAddress
             );
 
             if (!isValidSignature) {

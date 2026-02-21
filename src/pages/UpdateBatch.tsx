@@ -4,7 +4,6 @@ import { cropBatchService } from '../services/cropBatchService';
 import Timeline from '../components/Timeline';
 import { realCropBatchService } from '../services/realCropBatchService';
 import { useToast } from '../context/ToastContext';
-// import Timeline from '../components/Timeline';
 import { FormSkeleton, BatchInfoSkeleton } from '../components/skeletons';
 
 const UpdateBatch: React.FC = () => {
