@@ -29,7 +29,9 @@ class CropBatchService {
 
   constructor() {
     // Initialize with some sample data
-    this.initializeSampleData();
+    if (import.meta.env.DEV) {
+      this.initializeSampleData();
+    }
   }
 
   private async initializeSampleData() {
