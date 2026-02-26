@@ -1,52 +1,45 @@
 const { ethers } = require("hardhat");
 
 async function main() {
-  console.log("Deploying CropChain contract...");
+  console.log("Deploying contracts...");
 
-  // Get the ContractFactory and Signers
   const [deployer] = await ethers.getSigners();
-  
-  console.log("Deploying contracts with the account:", deployer.address);
-  console.log("Account balance:", (await deployer.getBalance()).toString());
 
-  // Deploy the contract
+  console.log("Deployer:", deployer.address);
+  console.log("Balance:", (await deployer.getBalance()).toString());
+
+  // Deploy EventRegistry
+  const EventRegistry = await ethers.getContractFactory("EventRegistry");
+  const eventRegistry = await EventRegistry.deploy();
+  await eventRegistry.deployed();
+
+  console.log("EventRegistry deployed to:", eventRegistry.address);
+
+  // Deploy CropChain with registry address
   const CropChain = await ethers.getContractFactory("CropChain");
-  const cropChain = await CropChain.deploy();
-
+  const cropChain = await CropChain.deploy(eventRegistry.address);
   await cropChain.deployed();
 
-  console.log("CropChain contract deployed to:", cropChain.address);
-  console.log("Transaction hash:", cropChain.deployTransaction.hash);
+  console.log("CropChain deployed to:", cropChain.address);
 
-  // Verify deployment
-  console.log("Verifying deployment...");
+  // Basic verification
   const owner = await cropChain.owner();
-  console.log("Contract owner:", owner);
-  
-  const totalBatches = await cropChain.getTotalBatches();
-  console.log("Total batches:", totalBatches.toString());
+  console.log("CropChain owner:", owner);
 
-  // Save deployment info
-  const deploymentInfo = {
-    contractAddress: cropChain.address,
-    transactionHash: cropChain.deployTransaction.hash,
-    deployer: deployer.address,
-    network: (await ethers.provider.getNetwork()).name,
-    blockNumber: cropChain.deployTransaction.blockNumber,
-    gasUsed: cropChain.deployTransaction.gasLimit?.toString(),
-    timestamp: new Date().toISOString()
-  };
+  const totalBatches = await cropChain.getTotalBatches();
+  console.log("Initial batches:", totalBatches.toString());
 
   console.log("\n=== Deployment Summary ===");
-  console.log(JSON.stringify(deploymentInfo, null, 2));
+  console.log({
+    eventRegistry: eventRegistry.address,
+    cropChain: cropChain.address,
+    network: (await ethers.provider.getNetwork()).name,
+  });
 
-  // Instructions for next steps
-  console.log("\n=== Next Steps ===");
-  console.log("1. Update your .env file with the contract address:");
-  console.log(`   CONTRACT_ADDRESS=${cropChain.address}`);
-  console.log("\n2. Verify the contract on block explorer (if on testnet/mainnet):");
-  console.log(`   npx hardhat verify --network <network> ${cropChain.address}`);
-  console.log("\n3. Update your frontend/backend to use this contract address");
+  console.log("\nNext step:");
+  console.log(`Update your .env with:
+EVENT_REGISTRY=${eventRegistry.address}
+CONTRACT_ADDRESS=${cropChain.address}`);
 }
 
 main()
