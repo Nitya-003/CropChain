@@ -286,7 +286,7 @@ async function generateBatchId(session = null) {
     if (session) {
         options.session = session;
     }
-    
+
     const counter = await Counter.findOneAndUpdate(
         { name: 'batchId' },
         { $inc: { seq: 1 } },
@@ -335,13 +335,15 @@ app.use('/api/verification', generalLimiter, verificationRoutes);
 // CREATE batch - requires authentication
 // Uses MongoDB transaction to prevent race conditions in batch ID generation (CVSS 7.5 fix)
 app.post('/api/batches', batchLimiter, protect, validateRequest(createBatchSchema), async (req, res) => {
-    let session;
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
         session = await mongoose.startSession();
         session.startTransaction();
         
         const validatedData = req.body;
-        
+
         // Generate batch ID within transaction for atomicity
         const batchId = await generateBatchId(session);
         const qrCode = await generateQRCode(batchId);
@@ -371,24 +373,10 @@ app.post('/api/batches', batchLimiter, protect, validateRequest(createBatchSchem
             }]
         }], { session });
 
-        // Commit the transaction with try/catch
-        try {
-            if (session) {
-                await session.commitTransaction();
-            }
-        } catch (commitError) {
-            console.error('Error committing transaction:', commitError);
-        }
-        
-        // End session with try/catch
-        try {
-            if (session) {
-                session.endSession();
-            }
-        } catch (endSessionError) {
-            console.error('Error ending session:', endSessionError);
-        }
-        
+        // Commit the transaction
+        await session.commitTransaction();
+        session.endSession();
+
         console.log(`[SUCCESS] Batch created: ${batchId} by user ${req.user.id} (${req.user.email}) from IP: ${req.ip}`);
 
         const response = apiResponse.successResponse(
@@ -398,24 +386,10 @@ app.post('/api/batches', batchLimiter, protect, validateRequest(createBatchSchem
         );
         res.status(201).json(response);
     } catch (error) {
-        // Abort transaction on error with try/catch
-        try {
-            if (session) {
-                await session.abortTransaction();
-            }
-        } catch (abortError) {
-            console.error('Error aborting transaction:', abortError);
-        }
-        
-        // End session with try/catch
-        try {
-            if (session) {
-                session.endSession();
-            }
-        } catch (endSessionError) {
-            console.error('Error ending session:', endSessionError);
-        }
-        
+        // Abort transaction on error
+        await session.abortTransaction();
+        session.endSession();
+
         console.error('Error creating batch:', error);
         const response = apiResponse.errorResponse(
             'Failed to create batch',
@@ -696,7 +670,7 @@ if (process.env.NODE_ENV !== 'test') {
         console.log(`  ✓ Admin Role Authorization`);
 
         console.log('\n⚙️  Configuration:');
-        console.log(`  • CORS origins: ${allowedOrigins.length > 0 ? allowedOrigins.join(', ') : 'None configured'}`);
+        console.log(`  • CORS origins: ${uniqueAllowedOrigins.length > 0 ? uniqueAllowedOrigins.join(', ') : 'None configured'}`);
         console.log(`  • Max file size: ${Math.round(maxFileSize / 1024 / 1024)}MB`);
         console.log(`  • Rate limit window: ${Math.ceil(rateLimitWindowMs / 60000)} minutes`);
 
@@ -706,7 +680,9 @@ if (process.env.NODE_ENV !== 'test') {
                 console.warn('  ⚠️  MONGODB_URI not set - using in-memory storage');
             }
             if (!process.env.JWT_SECRET) {
-                console.warn('  ⚠️  JWT_SECRET not set - authentication will not work');
+                console.warn('  ⚠️  JWT_SECRET not set - a390
+ 
+uthentication will not work');
             }
             if (!PROVIDER_URL || !CONTRACT_ADDRESS) {
                 console.warn('  ⚠️  Blockchain configuration incomplete - running in demo mode');
