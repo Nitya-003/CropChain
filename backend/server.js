@@ -5,7 +5,6 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose'); // Required for transactions
 const { ethers } = require('ethers');
 const QRCode = require('qrcode');
 const swaggerUi = require('swagger-ui-express');
@@ -640,6 +639,60 @@ app.use('*', (req, res) => {
 // Comprehensive Error Handler - Must be last middleware
 app.use(errorHandlerMiddleware);
 
+// ==================== GRACEFUL SHUTDOWN HANDLING ====================
+
+// Store server instance for graceful shutdown
+let server;
+
+// Graceful shutdown function
+const gracefulShutdown = (signal) => {
+    console.log(`\n[${signal}] Received shutdown signal. Starting graceful shutdown...`);
+    
+    if (server) {
+        server.close(async () => {
+            console.log('✓ HTTP server closed - no longer accepting new connections');
+            
+            // Close MongoDB connection
+            if (mongoose.connection.readyState === 1) {
+                try {
+                    await mongoose.connection.close();
+                    console.log('✓ MongoDB connection closed');
+                } catch (err) {
+                    console.error('✗ Error closing MongoDB connection:', err.message);
+                }
+            }
+            
+            console.log('✓ Graceful shutdown complete');
+            process.exit(0);
+        });
+        
+        // Force exit after 10 seconds if graceful shutdown fails
+        setTimeout(() => {
+            console.error('✗ Graceful shutdown timed out, forcing exit');
+            process.exit(1);
+        }, 10000);
+    } else {
+        process.exit(0);
+    }
+};
+
+// Global error handlers for uncaught exceptions and unhandled rejections
+process.on('uncaughtException', (err) => {
+    console.error('✗ Uncaught Exception:', err.message);
+    console.error('Stack:', err.stack);
+    gracefulShutdown('uncaughtException');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('✗ Unhandled Rejection at:', promise);
+    console.error('Reason:', reason);
+    gracefulShutdown('unhandledRejection');
+});
+
+// Handle termination signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 // ==================== SERVER STARTUP ====================
 
 // Import createAdmin script
@@ -650,7 +703,7 @@ const startListener = require('./services/blockchainListener');
 
 // Start server
 if (process.env.NODE_ENV !== 'test') {
-    app.listen(PORT, async () => {
+    server = app.listen(PORT, async () => {
         console.log(`🚀 CropChain API server running on port ${PORT}`);
         console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
 

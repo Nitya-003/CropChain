@@ -178,8 +178,29 @@ const walletLoginSchema = z.object({
     nonce: z.string().optional()
 });
 
-// In-memory nonce store (for production, use Redis or database)
+// In-memory nonce store with automatic cleanup to prevent memory leak
 const nonceStore = new Map();
+const NONCE_EXPIRY_TIME = 5 * 60 * 1000; // 5 minutes
+
+// Automatic cleanup job - runs every minute to remove expired nonces
+// This prevents unbounded memory growth when users never complete auth
+if (process.env.NODE_ENV !== 'test') {
+    setInterval(() => {
+        const now = Date.now();
+        let cleanedCount = 0;
+        
+        for (const [key, value] of nonceStore.entries()) {
+            if (now - value.expiresAt > 0) {
+                nonceStore.delete(key);
+                cleanedCount++;
+            }
+        }
+        
+        if (cleanedCount > 0) {
+            console.log(`[NonceStore] Cleaned up ${cleanedCount} expired nonces. Current size: ${nonceStore.size}`);
+        }
+    }, 60 * 1000); // Run every 1 minute
+}
 
 /**
  * Generate a nonce for wallet authentication
@@ -200,7 +221,7 @@ const getNonce = async (req, res) => {
         // Store nonce with expiration (5 minutes)
         nonceStore.set(address.toLowerCase(), {
             nonce,
-            expiresAt: Date.now() + 5 * 60 * 1000
+            expiresAt: Date.now() + NONCE_EXPIRY_TIME
         });
 
         return res.json(apiResponse.successResponse({ nonce }, 'Nonce generated'));
