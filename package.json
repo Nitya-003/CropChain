@@ -72,6 +72,7 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.90.20",
     "@types/qrcode": "^1.5.5",
     "@types/react-router-dom": "^5.3.3",
     "dotenv": "^16.3.1",
