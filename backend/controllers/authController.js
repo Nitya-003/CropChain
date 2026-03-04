@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { z } = require('zod');
 const apiResponse = require('../utils/apiResponse');
 const { verifyMessage } = require('ethers');
@@ -369,12 +370,14 @@ const walletRegister = async (req, res) => {
         }
 
         // Create user (no password for wallet users)
+        // Generate cryptographically secure random password
+        const randomPassword = crypto.randomBytes(32).toString('hex');
         const user = await User.create({
             name,
             email,
             walletAddress: normalizedAddress,
             role,
-            password: await bcrypt.hash(Math.random().toString(36), 12) // Random password for wallet users
+            password: await bcrypt.hash(randomPassword, 12) // Secure random password for wallet users
         });
 
         // Delete used nonce
