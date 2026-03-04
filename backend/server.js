@@ -12,6 +12,7 @@ const swaggerSpec = require('./swagger');
 const connectDB = require('./config/db');
 require('dotenv').config();
 const mainRoutes = require("./routes/index");
+const oracleRoutes = require("./routes/oracle");
 const validateRequest = require('./middleware/validator');
 const { chatSchema } = require("./validations/chatSchema");
 const aiService = require('./services/aiService');
@@ -20,6 +21,7 @@ const { createBatchSchema, updateBatchSchema } = require("./validations/batchSch
 const { protect, adminOnly, authorizeBatchOwner, authorizeRoles, authorizeStageTransition, authorizeBlockchainTransaction } = require('./middleware/auth');
 const apiResponse = require('./utils/apiResponse');
 const crypto = require('crypto');
+const oracleService = require('./services/oracleService');
 
 // Import MongoDB Model
 const Batch = require('./models/Batch');
@@ -217,6 +219,9 @@ app.use(securityLogger);
 
 // Mount health check main router
 app.use("/api", mainRoutes);
+
+// Mount Oracle routes
+app.use('/api/oracle', oracleRoutes);
 
 // Swagger/OpenAPI Documentation
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
@@ -752,6 +757,15 @@ if (process.env.NODE_ENV !== 'test') {
             }
         } else {
             console.log('ℹ️  Skipping blockchain listener (no contract instance available)');
+        }
+
+        // Start Oracle service for IoT data verification
+        try {
+            await oracleService.initialize();
+            console.log('🔮 Oracle service started successfully');
+        } catch (error) {
+            console.error('❌ Failed to start Oracle service:', error.message);
+            console.log('⚠️  Continuing without Oracle service...');
         }
     });
 }
