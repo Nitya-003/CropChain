@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { RefreshCw, Search, Package, Clock, User, MapPin, Shield, AlertTriangle, Lock } from 'lucide-react';
+import { RefreshCw, Search, Package, Clock, User, MapPin, Shield, AlertTriangle, Lock, Thermometer, Activity } from 'lucide-react';
 import { cropBatchService } from '../services/cropBatchService';
 import Timeline from '../components/Timeline';
 import { realCropBatchService } from '../services/realCropBatchService';
 import { useToast } from '../context/ToastContext';
 import { FormSkeleton, BatchInfoSkeleton } from '../components/skeletons';
 import { useRbac } from '../hooks/useRbac';
+import { ethers } from 'ethers';
 
 const UpdateBatch: React.FC = () => {
   const [batchId, setBatchId] = useState('');
@@ -21,6 +22,7 @@ const UpdateBatch: React.FC = () => {
     timestamp: new Date().toISOString().split('T')[0]
   });
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isRequestingIoT, setIsRequestingIoT] = useState(false);
 
   const stages = [
     { value: 'farmer', label: 'Farmer' },
@@ -91,6 +93,68 @@ const UpdateBatch: React.FC = () => {
       ...updateData,
       [e.target.name]: e.target.value
     });
+  };
+
+  const handleRequestIoTVerification = async () => {
+    if (!batch || !batch.batchId) {
+      toast.error('Please search for a batch first');
+      return;
+    }
+
+    // Check if user has permission to request IoT verification
+    const userRole = getRoleDisplayName();
+    const canRequestIoT = userRole === 'Transporter' || userRole === 'Market';
+    
+    if (!canRequestIoT) {
+      toast.error('Only Transporters and Mandi operators can request IoT verification');
+      return;
+    }
+
+    setIsRequestingIoT(true);
+    
+    try {
+      // Call smart contract to request IoT verification
+      const contractAddress = process.env.REACT_APP_CONTRACT_ADDRESS;
+      const contractABI = [
+        "function requestIoTVerification(bytes32 batchId) external"
+      ];
+      
+      if (window.ethereum) {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const contract = new ethers.Contract(contractAddress, contractABI, signer);
+        
+        // Convert batch ID to bytes32
+        const batchIdBytes32 = ethers.encodeBytes32String(batch.batchId);
+        
+        const tx = await contract.requestIoTVerification(batchIdBytes32);
+        
+        toast.loading('Requesting IoT verification...');
+        
+        // Wait for transaction confirmation
+        const receipt = await tx.wait();
+        
+        toast.success(`IoT verification requested! Transaction: ${receipt.transactionHash}`);
+        
+        // Refresh batch data to show updated status
+        setTimeout(async () => {
+          try {
+            const updatedBatch = await realCropBatchService.getBatch(batch.batchId);
+            setBatch(updatedBatch);
+          } catch (error) {
+            console.error('Error refreshing batch data:', error);
+          }
+        }, 2000);
+        
+      } else {
+        toast.error('Please install MetaMask to use this feature');
+      }
+    } catch (error) {
+      console.error('Error requesting IoT verification:', error);
+      toast.error('Failed to request IoT verification. Please try again.');
+    } finally {
+      setIsRequestingIoT(false);
+    }
   };
 
   return (
@@ -349,6 +413,38 @@ const UpdateBatch: React.FC = () => {
                   )}
                 </button>
               </div>
+
+              {/* IoT Verification Button */}
+              {batch && (getRoleDisplayName() === 'Transporter' || getRoleDisplayName() === 'Market') && (
+                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-600">
+                  <div className="flex justify-center">
+                    <button
+                      onClick={handleRequestIoTVerification}
+                      disabled={isRequestingIoT || !batch.batchId}
+                      className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 ${
+                        isRequestingIoT || !batch.batchId
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-blue-600 hover:bg-blue-700 transform hover:scale-105 shadow-lg'
+                        } text-white`}
+                    >
+                      {isRequestingIoT ? (
+                        <>
+                          <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                          <span>Requesting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Thermometer className="h-4 w-4" />
+                          <span>Request IoT Verification</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
+                    Trigger IoT sensors to verify temperature and humidity conditions during transit
+                  </p>
+                </div>
+              )}
             </form>
           </div>
         </>
