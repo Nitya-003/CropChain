@@ -54,3 +54,56 @@ jobs:
           target: 'contracts/'
           ignore-failures: false
           slither-args: '--filter-paths "contracts/lib/openzeppelin/**" --exclude naming-convention,external-function,low-level-calls,assembly,constable-states'
+
+  # Job 3: Backend Tests
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # Step 2: Setup Node.js 18
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      
+      # Step 3: Install backend dependencies
+      - name: Install backend dependencies
+        working-directory: backend/
+        run: npm ci
+      
+      # Step 4: Run backend tests
+      - name: Run Backend Tests
+        working-directory: backend/
+        run: npm test
+
+  # Job 4: Frontend Build Check
+  frontend-build-check:
+    name: Frontend Build Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # Step 2: Setup Node.js 18
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      # Step 3: Install frontend dependencies
+      - name: Install frontend dependencies
+        run: npm ci
+      
+      # Step 4: Build frontend (TypeScript compilation check)
+      - name: Build Frontend
+        run: npm run build
