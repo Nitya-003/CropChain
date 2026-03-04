@@ -139,6 +139,7 @@ const authorizeRoles = (...roles) => {
         }
 
         if (!roles.includes(req.user.role)) {
+            console.log(`[RBAC VIOLATION] User ${req.user.email} (${req.user.role}) attempted to access endpoint requiring roles: ${roles.join(', ')}`);
             return res.status(403).json({
                 error: 'Access denied',
                 message: `Role '${req.user.role}' is not authorized. Required roles: ${roles.join(', ')}`,
@@ -149,4 +150,79 @@ const authorizeRoles = (...roles) => {
     };
 };
 
-module.exports = { protect, adminOnly, verifiedOnly, authorizeBatchOwner, authorizeRoles };
+/**
+ * Supply chain stage transition authorization
+ * Ensures only authorized roles can update specific stages
+ */
+const authorizeStageTransition = (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({
+            error: 'Not authorized',
+            message: 'Authentication required',
+        });
+    }
+
+    const { stage } = req.body;
+    const userRole = req.user.role;
+
+    // Admin can update any stage
+    if (userRole === 'admin') {
+        return next();
+    }
+
+    // Define allowed stage transitions per role
+    const stagePermissions = {
+        'farmer': ['farmer'], // Can only create/update farmer stage
+        'mandi': ['mandi'], // Can only update mandi stage
+        'transporter': ['transport'], // Can only update transport stage
+        'retailer': ['retailer'] // Can only update retailer stage
+    };
+
+    const allowedStages = stagePermissions[userRole];
+    
+    if (!allowedStages || !allowedStages.includes(stage)) {
+        console.log(`[STAGE VIOLATION] User ${req.user.email} (${userRole}) attempted to update stage '${stage}'`);
+        return res.status(403).json({
+            error: 'Access denied',
+            message: `Role '${userRole}' is not authorized to update stage '${stage}'. Allowed stages for ${userRole}: ${allowedStages ? allowedStages.join(', ') : 'none'}`,
+        });
+    }
+
+    next();
+};
+
+/**
+ * Blockchain transaction authorization
+ * Verifies user role before allowing blockchain interactions
+ */
+const authorizeBlockchainTransaction = (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({
+            error: 'Not authorized',
+            message: 'Authentication required',
+        });
+    }
+
+    // Define which roles can initiate blockchain transactions
+    const blockchainAllowedRoles = ['farmer', 'mandi', 'transporter', 'retailer', 'admin'];
+    
+    if (!blockchainAllowedRoles.includes(req.user.role)) {
+        console.log(`[BLOCKCHAIN VIOLATION] User ${req.user.email} (${req.user.role}) attempted blockchain transaction`);
+        return res.status(403).json({
+            error: 'Access denied',
+            message: `Role '${req.user.role}' is not authorized to perform blockchain transactions`,
+        });
+    }
+
+    next();
+};
+
+module.exports = { 
+    protect, 
+    adminOnly, 
+    verifiedOnly, 
+    authorizeBatchOwner, 
+    authorizeRoles,
+    authorizeStageTransition,
+    authorizeBlockchainTransaction
+};
