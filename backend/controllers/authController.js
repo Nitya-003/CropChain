@@ -29,6 +29,29 @@ const registerSchema = z.object({
     })
 });
 
+const updateProfileSchema = z.object({
+    name: z.string()
+        .min(2, 'Name must be at least 2 characters')
+        .max(50, 'Name must be less than 50 characters')
+        .trim()
+        .optional(),
+    email: z.string()
+        .email('Please provide a valid email')
+        .toLowerCase()
+        .trim()
+        .optional(),
+    password: z.string()
+        .min(8, 'Password must be at least 8 characters')
+        .max(128, 'Password too long')
+        .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+        .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+        .regex(/[0-9]/, 'Password must contain at least one number')
+        .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character')
+        .optional()
+}).refine(data => Object.keys(data).length > 0, {
+    message: "At least one field (name, email, or password) must be provided to update",
+});
+
 const loginSchema = z.object({
     email: z.string()
         .email('Please provide a valid email')
@@ -154,6 +177,69 @@ const loginUser = async (req, res) => {
     } catch (error) {
         return res.status(500).json(
             apiResponse.errorResponse('Login failed', 'LOGIN_FAILED', 500)
+        );
+    }
+};
+
+const updateProfile = async (req, res) => {
+    try {
+        const validationResult = updateProfileSchema.safeParse(req.body);
+
+        if (!validationResult.success) {
+            return res.status(400).json({
+                success: false,
+                error: 'Validation failed',
+                message: 'Invalid input data provided. Please check your fields.',
+                details: validationResult.error
+            });
+        }
+
+        const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return res.status(404).json(
+                apiResponse.errorResponse('User not found', 'USER_NOT_FOUND', 404)
+            );
+        }
+
+        const { name, email, password } = validationResult.data;
+
+        if (email && email !== user.email) {
+            const emailExists = await User.findOne({ 
+                email: { $regex: new RegExp(`^${email}$`, 'i') },
+                _id: { $ne: user._id }
+            });
+
+            if (emailExists) {
+                return res.status(409).json(
+                    apiResponse.conflictResponse('Email is already in use by another account')
+                );
+            }
+            user.email = email;
+        }
+
+        if (name) {
+            user.name = name;
+        }
+
+        if (password) {
+            const salt = await bcrypt.genSalt(12);
+            user.password = await bcrypt.hash(password, salt);
+        }
+
+        const updatedUser = await user.save();
+
+        return res.status(200).json(
+            apiResponse.successResponse(
+                { user: sanitizeUser(updatedUser) },
+                'Profile updated successfully'
+            )
+        );
+
+    } catch (error) {
+        console.error('Profile update error:', error);
+        return res.status(500).json(
+            apiResponse.errorResponse('Profile update failed', 'UPDATE_FAILED', 500)
         );
     }
 };
@@ -432,5 +518,6 @@ module.exports = {
     loginUser,
     walletLogin,
     walletRegister,
-    getNonce
+    getNonce,
+    updateProfile
 };
