@@ -8,17 +8,19 @@ describe("CropChain", function () {
   let mandi;
   let transporter;
   let retailer;
+  let oracle;
   let other;
 
   // Role constants
-  const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000";
+  const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000000000";
   let FARMER_ROLE;
   let MANDI_ROLE;
   let TRANSPORTER_ROLE;
   let RETAILER_ROLE;
+  let ORACLE_ROLE;
 
   beforeEach(async function () {
-    [owner, farmer, mandi, transporter, retailer, other] = await ethers.getSigners();
+    [owner, farmer, mandi, transporter, retailer, oracle, other] = await ethers.getSigners();
 
     const CropChain = await ethers.getContractFactory("CropChain");
     cropChain = await CropChain.deploy();
@@ -29,6 +31,7 @@ describe("CropChain", function () {
     MANDI_ROLE = await cropChain.MANDI_ROLE();
     TRANSPORTER_ROLE = await cropChain.TRANSPORTER_ROLE();
     RETAILER_ROLE = await cropChain.RETAILER_ROLE();
+    ORACLE_ROLE = await cropChain.ORACLE_ROLE();
   });
 
   it("Should set the right owner and grant DEFAULT_ADMIN_ROLE", async function () {
@@ -48,6 +51,9 @@ describe("CropChain", function () {
 
     await cropChain.grantStakeholderRole(RETAILER_ROLE, retailer.address);
     expect(await cropChain.hasRole(RETAILER_ROLE, retailer.address)).to.be.true;
+
+    await cropChain.grantStakeholderRole(ORACLE_ROLE, oracle.address);
+    expect(await cropChain.hasRole(ORACLE_ROLE, oracle.address)).to.be.true;
   });
 
   it("Should prevent non-admin from granting roles", async function () {
@@ -197,5 +203,217 @@ describe("CropChain", function () {
     await expect(cropChain.connect(owner).transferOwnership(other.address))
       .to.emit(cropChain, "OwnershipTransferred")
       .withArgs(owner.address, other.address);
+  });
+
+  describe("Oracle Integration Tests", function () {
+    let testBatchId;
+    
+    beforeEach(async function () {
+      // Setup roles for oracle tests
+      await cropChain.grantStakeholderRole(FARMER_ROLE, farmer.address);
+      await cropChain.grantStakeholderRole(MANDI_ROLE, mandi.address);
+      await cropChain.grantStakeholderRole(TRANSPORTER_ROLE, transporter.address);
+      await cropChain.grantStakeholderRole(ORACLE_ROLE, oracle.address);
+      
+      // Create a test batch
+      testBatchId = ethers.utils.formatBytes32String("IOT-TEST-BATCH");
+      const cropTypeHash = ethers.utils.formatBytes32String("WHEAT");
+      await cropChain.connect(farmer).createBatch(
+        testBatchId,
+        cropTypeHash,
+        "QmTestHash",
+        1000,
+        "Test Farmer",
+        "Test Location",
+        "Initial harvest"
+      );
+    });
+
+    it("Should allow Transporter to request IoT verification", async function () {
+      const tx = await cropChain.connect(transporter).requestIoTVerification(testBatchId);
+      
+      expect(tx)
+        .to.emit(cropChain, "IoTDataRequested")
+        .withArgs(testBatchId, transporter.address);
+      
+      const receipt = await tx.wait();
+      expect(receipt.gasUsed.toNumber()).to.be.greaterThan(0);
+    });
+
+    it("Should allow Mandi to request IoT verification", async function () {
+      const tx = await cropChain.connect(mandi).requestIoTVerification(testBatchId);
+      
+      expect(tx)
+        .to.emit(cropChain, "IoTDataRequested")
+        .withArgs(testBatchId, mandi.address);
+    });
+
+    it("Should prevent Farmer from requesting IoT verification", async function () {
+      await expect(
+        cropChain.connect(farmer).requestIoTVerification(testBatchId)
+      ).to.be.revertedWith("AccessControl: account" + " " + farmer.address.toLowerCase() + " " + "is missing role" + " " + ORACLE_ROLE);
+    });
+
+    it("Should prevent Retailer from requesting IoT verification", async function () {
+      await expect(
+        cropChain.connect(retailer).requestIoTVerification(testBatchId)
+      ).to.be.revertedWith("AccessControl: account" + " " + retailer.address.toLowerCase() + " " + "is missing role" + " " + ORACLE_ROLE);
+    });
+
+    it("Should prevent unauthorized accounts from requesting IoT verification", async function () {
+      await expect(
+        cropChain.connect(other).requestIoTVerification(testBatchId)
+      ).to.be.revertedWith("AccessControl: account" + " " + other.address.toLowerCase() + " " + "is missing role" + " " + ORACLE_ROLE);
+    });
+
+    it("Should allow Oracle to fulfill IoT data with optimal conditions", async function () {
+      // First request IoT verification
+      await cropChain.connect(transporter).requestIoTVerification(testBatchId);
+      
+      // Oracle fulfills with optimal temperature (65°F) and humidity (45%)
+      const temperature = 650; // 65.0°F in hundredths
+      const humidity = 45;
+      
+      const tx = await cropChain.connect(oracle).fulfillIoTData(
+        testBatchId,
+        temperature,
+        humidity
+      );
+      
+      expect(tx)
+        .to.emit(cropChain, "IoTDataFulfilled")
+        .withArgs(testBatchId, temperature, humidity, false);
+      
+      // Verify batch data
+      const batch = await cropChain.getBatch(testBatchId);
+      expect(batch.currentTemperature).to.equal(temperature);
+      expect(batch.currentHumidity).to.equal(humidity);
+      expect(batch.isSpoiled).to.be.false;
+    });
+
+    it("Should allow Oracle to fulfill IoT data with high temperature (spoiled)", async function () {
+      // First request IoT verification
+      await cropChain.connect(transporter).requestIoTVerification(testBatchId);
+      
+      // Oracle fulfills with high temperature (85°F) - should mark as spoiled
+      const temperature = 850; // 85.0°F in hundredths (> 800 = spoiled)
+      const humidity = 60;
+      
+      const tx = await cropChain.connect(oracle).fulfillIoTData(
+        testBatchId,
+        temperature,
+        humidity
+      );
+      
+      expect(tx)
+        .to.emit(cropChain, "IoTDataFulfilled")
+        .withArgs(testBatchId, temperature, humidity, true);
+      
+      // Verify batch data
+      const batch = await cropChain.getBatch(testBatchId);
+      expect(batch.currentTemperature).to.equal(temperature);
+      expect(batch.currentHumidity).to.equal(humidity);
+      expect(batch.isSpoiled).to.be.true;
+    });
+
+    it("Should allow Oracle to fulfill IoT data with low temperature (spoiled)", async function () {
+      // First request IoT verification
+      await cropChain.connect(mandi).requestIoTVerification(testBatchId);
+      
+      // Oracle fulfills with low temperature (30°F) - should mark as spoiled
+      const temperature = 300; // 30.0°F in hundredths (< 320 = spoiled)
+      const humidity = 40;
+      
+      const tx = await cropChain.connect(oracle).fulfillIoTData(
+        testBatchId,
+        temperature,
+        humidity
+      );
+      
+      expect(tx)
+        .to.emit(cropChain, "IoTDataFulfilled")
+        .withArgs(testBatchId, temperature, humidity, true);
+      
+      // Verify batch data
+      const batch = await cropChain.getBatch(testBatchId);
+      expect(batch.currentTemperature).to.equal(temperature);
+      expect(batch.currentHumidity).to.equal(humidity);
+      expect(batch.isSpoiled).to.be.true;
+    });
+
+    it("Should prevent non-Oracle from fulfilling IoT data", async function () {
+      await expect(
+        cropChain.connect(transporter).fulfillIoTData(
+          testBatchId,
+          650, // 65°F
+          45  // 45% humidity
+        )
+      ).to.be.revertedWith("AccessControl: account" + " " + transporter.address.toLowerCase() + " " + "is missing role" + " " + ORACLE_ROLE);
+    });
+
+    it("Should prevent IoT fulfillment for non-existent batch", async function () {
+      const nonExistentBatchId = ethers.utils.formatBytes32String("NON-EXISTENT");
+      
+      await expect(
+        cropChain.connect(oracle).fulfillIoTData(
+          nonExistentBatchId,
+          650,
+          45
+        )
+      ).to.be.revertedWith("Batch does not exist");
+    });
+
+    it("Should allow reading IoT data for any batch", async function () {
+      // First fulfill some IoT data
+      await cropChain.connect(transporter).requestIoTVerification(testBatchId);
+      await cropChain.connect(oracle).fulfillIoTData(
+        testBatchId,
+        720, // 72°F
+        55  // 55% humidity
+      );
+      
+      // Anyone should be able to read IoT data
+      const iotData = await cropChain.getBatchIoTData(testBatchId);
+      
+      expect(iotData.temperature).to.equal(720);
+      expect(iotData.humidity).to.equal(55);
+      expect(iotData.isSpoiled).to.be.false;
+    });
+
+    it("Should handle multiple IoT requests and fulfillments", async function () {
+      const batchId2 = ethers.utils.formatBytes32String("IOT-TEST-BATCH-2");
+      const cropTypeHash2 = ethers.utils.formatBytes32String("CORN");
+      
+      // Create second batch
+      await cropChain.connect(farmer).createBatch(
+        batchId2,
+        cropTypeHash2,
+        "QmTestHash2",
+        500,
+        "Test Farmer 2",
+        "Test Location 2",
+        "Second harvest"
+      );
+      
+      // Request IoT verification for both batches
+      await cropChain.connect(transporter).requestIoTVerification(testBatchId);
+      await cropChain.connect(mandi).requestIoTVerification(batchId2);
+      
+      // Fulfill IoT data for both batches
+      await cropChain.connect(oracle).fulfillIoTData(testBatchId, 680, 50); // 68°F, 50%
+      await cropChain.connect(oracle).fulfillIoTData(batchId2, 900, 70); // 90°F, 70% (spoiled)
+      
+      // Verify both batches
+      const batch1 = await cropChain.getBatchIoTData(testBatchId);
+      const batch2 = await cropChain.getBatchIoTData(batchId2);
+      
+      expect(batch1.temperature).to.equal(680);
+      expect(batch1.humidity).to.equal(50);
+      expect(batch1.isSpoiled).to.be.false;
+      
+      expect(batch2.temperature).to.equal(900);
+      expect(batch2.humidity).to.equal(70);
+      expect(batch2.isSpoiled).to.be.true;
+    });
   });
 });

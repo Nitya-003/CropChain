@@ -34,24 +34,28 @@ async function main() {
   const MANDI_ROLE = await cropChain.MANDI_ROLE();
   const TRANSPORTER_ROLE = await cropChain.TRANSPORTER_ROLE();
   const RETAILER_ROLE = await cropChain.RETAILER_ROLE();
+  const ORACLE_ROLE = await cropChain.ORACLE_ROLE();
   
   console.log("\n=== Role Constants ===");
   console.log("FARMER_ROLE:", FARMER_ROLE);
   console.log("MANDI_ROLE:", MANDI_ROLE);
   console.log("TRANSPORTER_ROLE:", TRANSPORTER_ROLE);
   console.log("RETAILER_ROLE:", RETAILER_ROLE);
+  console.log("ORACLE_ROLE:", ORACLE_ROLE);
   
   // Verify role hierarchy
   const farmerAdmin = await cropChain.getRoleAdmin(FARMER_ROLE);
   const mandiAdmin = await cropChain.getRoleAdmin(MANDI_ROLE);
   const transporterAdmin = await cropChain.getRoleAdmin(TRANSPORTER_ROLE);
   const retailerAdmin = await cropChain.getRoleAdmin(RETAILER_ROLE);
+  const oracleAdmin = await cropChain.getRoleAdmin(ORACLE_ROLE);
   
   console.log("\n=== Role Hierarchy ===");
   console.log("FARMER_ROLE admin:", farmerAdmin);
   console.log("MANDI_ROLE admin:", mandiAdmin);
   console.log("TRANSPORTER_ROLE admin:", transporterAdmin);
   console.log("RETAILER_ROLE admin:", retailerAdmin);
+  console.log("ORACLE_ROLE admin:", oracleAdmin);
   
   // Test basic functionality
   const totalBatches = await cropChain.getTotalBatches();
@@ -59,11 +63,29 @@ async function main() {
   console.log("Total batches:", totalBatches.toString());
   console.log("Contract paused:", await cropChain.paused());
 
+  // Grant ORACLE_ROLE to a test oracle address
+  console.log("\n=== Setting up Oracle Role ===");
+  const [, , oracle] = await ethers.getSigners(); // Use third account as oracle
+  
+  try {
+    const grantOracleTx = await cropChain.grantStakeholderRole(ORACLE_ROLE, oracle.address);
+    await grantOracleTx.wait();
+    console.log("ORACLE_ROLE granted to:", oracle.address);
+    console.log("Transaction hash:", grantOracleTx.hash);
+  } catch (error) {
+    console.error("Failed to grant ORACLE_ROLE:", error.message);
+  }
+  
+  // Verify oracle role
+  const hasOracleRole = await cropChain.hasRole(ORACLE_ROLE, oracle.address);
+  console.log("Oracle has ORACLE_ROLE:", hasOracleRole);
+
   // Save deployment info
   const deploymentInfo = {
     contractAddress: cropChain.address,
     transactionHash: cropChain.deployTransaction.hash,
     deployer: deployer.address,
+    oracle: oracle?.address || null,
     network: (await ethers.provider.getNetwork()).name,
     blockNumber: cropChain.deployTransaction.blockNumber,
     gasUsed: cropChain.deployTransaction.gasLimit?.toString(),
@@ -74,7 +96,8 @@ async function main() {
       FARMER_ROLE,
       MANDI_ROLE,
       TRANSPORTER_ROLE,
-      RETAILER_ROLE
+      RETAILER_ROLE,
+      ORACLE_ROLE
     }
   };
 
@@ -87,6 +110,7 @@ async function main() {
   console.log(`   CONTRACT_ADDRESS=${cropChain.address}`);
   console.log("\n2. Grant roles to stakeholders:");
   console.log("   Example: cropChain.grantStakeholderRole(FARMER_ROLE, farmerAddress)");
+  console.log("   Example: cropChain.grantStakeholderRole(ORACLE_ROLE, oracleAddress)");
   console.log("\n3. Verify the contract on block explorer (if on testnet/mainnet):");
   console.log(`   npx hardhat verify --network <network> ${cropChain.address}`);
   console.log("\n4. Update your frontend/backend to use this contract address");
