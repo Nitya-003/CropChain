@@ -3,8 +3,14 @@ pragma solidity ^0.8.19;
 
 import "./lib/openzeppelin/security/Pausable.sol";
 import "./lib/openzeppelin/security/ReentrancyGuard.sol";
+import "./lib/openzeppelin/access/AccessControl.sol";
 
-contract CropChain is Pausable, ReentrancyGuard {
+contract CropChain is Pausable, ReentrancyGuard, AccessControl {
+    bytes32 public constant FARMER_ROLE = keccak256("FARMER_ROLE");
+    bytes32 public constant MANDI_ROLE = keccak256("MANDI_ROLE");
+    bytes32 public constant TRANSPORTER_ROLE = keccak256("TRANSPORTER_ROLE");
+    bytes32 public constant RETAILER_ROLE = keccak256("RETAILER_ROLE");
+
     enum Stage {
         Farmer,
         Mandi,
@@ -112,6 +118,15 @@ contract CropChain is Pausable, ReentrancyGuard {
         nextListingId = 1;
         twapWindow = 1 hours;
         maxPriceDeviationBps = 1500;
+        
+        // Grant DEFAULT_ADMIN_ROLE to deployer
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        
+        // Set up role hierarchy
+        _setRoleAdmin(FARMER_ROLE, DEFAULT_ADMIN_ROLE);
+        _setRoleAdmin(MANDI_ROLE, DEFAULT_ADMIN_ROLE);
+        _setRoleAdmin(TRANSPORTER_ROLE, DEFAULT_ADMIN_ROLE);
+        _setRoleAdmin(RETAILER_ROLE, DEFAULT_ADMIN_ROLE);
     }
 
     function setRole(address user, ActorRole role) external onlyOwner nonReentrant {
@@ -120,7 +135,7 @@ contract CropChain is Pausable, ReentrancyGuard {
         emit RoleUpdated(user, role);
     }
 
-    function transferOwnership(address newOwner) external onlyOwner nonReentrant {
+    function transferOwnership(address newOwner) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         require(newOwner != address(0), "Invalid address");
 
         address previousOwner = owner;
@@ -164,7 +179,7 @@ contract CropChain is Pausable, ReentrancyGuard {
         string calldata actorName,
         string calldata location,
         string calldata notes
-    ) external onlyAuthorized whenNotPaused nonReentrant {
+    ) external onlyRole(FARMER_ROLE) whenNotPaused nonReentrant {
         require(!cropBatches[batchId].exists, "Batch already exists");
         require(batchId != bytes32(0), "Invalid batch ID");
         require(cropTypeHash != bytes32(0), "Invalid crop type");
@@ -203,17 +218,14 @@ contract CropChain is Pausable, ReentrancyGuard {
         string calldata actorName,
         string calldata location,
         string calldata notes
-    ) external onlyAuthorized whenNotPaused nonReentrant batchExists(batchId) {
+    ) external whenNotPaused nonReentrant batchExists(batchId) {
         require(!cropBatches[batchId].isRecalled, "Batch is recalled");
         require(bytes(actorName).length > 0, "Actor required");
         require(bytes(location).length > 0, "Location required");
         require(_isNextStage(batchId, stage), "Invalid stage transition");
 
-        ActorRole senderRole = roles[msg.sender];
-        require(
-            senderRole == ActorRole.Admin || _canUpdate(stage, senderRole),
-            "Role not allowed for stage"
-        );
+        // Dynamic role checks based on stage transition
+        require(_canUpdateStage(batchId, stage), "Role not allowed for this stage transition");
 
         _batchUpdates[batchId].push(
             SupplyChainUpdate({
@@ -435,11 +447,50 @@ contract CropChain is Pausable, ReentrancyGuard {
         return weightedSum / totalWeight;
     }
 
+    function grantStakeholderRole(bytes32 role, address account) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
+        require(account != address(0), "Invalid address");
+        require(
+            role == FARMER_ROLE || role == MANDI_ROLE || role == TRANSPORTER_ROLE || role == RETAILER_ROLE,
+            "Invalid stakeholder role"
+        );
+        _grantRole(role, account);
+    }
+
     function _canUpdate(Stage stage, ActorRole role) internal pure returns (bool) {
         if (stage == Stage.Farmer && role == ActorRole.Farmer) return true;
         if (stage == Stage.Mandi && role == ActorRole.Mandi) return true;
         if (stage == Stage.Transport && role == ActorRole.Transporter) return true;
         if (stage == Stage.Retailer && role == ActorRole.Retailer) return true;
+        return false;
+    }
+
+    function _canUpdateStage(bytes32 batchId, Stage newStage) internal view returns (bool) {
+        SupplyChainUpdate[] storage updates = _batchUpdates[batchId];
+        
+        // Admin can always update
+        if (hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) {
+            return true;
+        }
+        
+        // Get current stage
+        Stage currentStage;
+        if (updates.length == 0) {
+            currentStage = Stage.Farmer;
+        } else {
+            currentStage = updates[updates.length - 1].stage;
+        }
+        
+        // Check role-based stage transitions
+        if (currentStage == Stage.Farmer && newStage == Stage.Mandi) {
+            return hasRole(MANDI_ROLE, msg.sender);
+        }
+        if (currentStage == Stage.Mandi && newStage == Stage.Transport) {
+            return hasRole(TRANSPORTER_ROLE, msg.sender);
+        }
+        if (currentStage == Stage.Transport && newStage == Stage.Retailer) {
+            return hasRole(RETAILER_ROLE, msg.sender);
+        }
+        
         return false;
     }
 
