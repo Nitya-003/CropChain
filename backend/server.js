@@ -5,7 +5,6 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose'); // Required for transactions
 const { ethers } = require('ethers');
 const QRCode = require('qrcode');
 const swaggerUi = require('swagger-ui-express');
@@ -21,11 +20,35 @@ const { createBatchSchema, updateBatchSchema } = require("./validations/batchSch
 const { protect, adminOnly, authorizeBatchOwner, authorizeRoles } = require('./middleware/auth');
 const apiResponse = require('./utils/apiResponse');
 const crypto = require('crypto');
-const mongoose = require('mongoose');
 
 // Import MongoDB Model
 const Batch = require('./models/Batch');
 const Counter = require('./models/Counter');
+
+// ==================== GLOBAL EXCEPTION HANDLERS ====================
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('🔥 UNHANDLED REJECTION:', reason);
+    console.error('Promise:', promise);
+    // Log to external service in production
+    if (process.env.NODE_ENV === 'production') {
+        // In production, you might want to send to a logging service
+        // sendToLoggingService({ type: 'unhandledRejection', reason, promise });
+    }
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+    console.error('🔥 UNCAUGHT EXCEPTION:', error);
+    // Log to external service in production
+    if (process.env.NODE_ENV === 'production') {
+        // In production, you might want to send to a logging service
+        // sendToLoggingService({ type: 'uncaughtException', error });
+    }
+    // Exit with non-zero code to indicate failure
+    process.exit(1);
+});
 
 // Connect to Database
 connectDB();
@@ -252,29 +275,6 @@ if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY) {
 }
 
 // Helper functions
-async function generateBatchId() {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-        const counter = await Counter.findOneAndUpdate(
-            { name: 'batchId' },
-            { $inc: { seq: 1 } },
-            { new: true, upsert: true, session }
-        );
-
-        const currentYear = new Date().getFullYear();
-        const batchId = `CROP-${currentYear}-${String(counter.seq).padStart(3, '0')}`;
-
-        await session.commitTransaction();
-        session.endSession();
-
-        return batchId;
-
-    } catch (error) {
-        await session.abortTransaction();
-        session.endSession();
-        throw error;
 /**
  * Generate batch ID with optional session support for transaction safety
  * @param {mongoose.ClientSession} session - MongoDB session for transaction
@@ -285,13 +285,15 @@ async function generateBatchId(session = null) {
     if (session) {
         options.session = session;
     }
-    
+
     const counter = await Counter.findOneAndUpdate(
         { name: 'batchId' },
         { $inc: { seq: 1 } },
         options
     );
-    return `CROP-2024-${String(counter.seq).padStart(3, '0')}`;
+    
+    const currentYear = new Date().getFullYear();
+    return `CROP-${currentYear}-${String(counter.seq).padStart(3, '0')}`;
 }
 
 async function generateQRCode(batchId) {
@@ -334,10 +336,13 @@ app.use('/api/verification', generalLimiter, verificationRoutes);
 app.post('/api/batches', batchLimiter, protect, validateRequest(createBatchSchema), async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
-    
+
     try {
-        const validatedData = req.body;
+        session = await mongoose.startSession();
+        session.startTransaction();
         
+        const validatedData = req.body;
+
         // Generate batch ID within transaction for atomicity
         const batchId = await generateBatchId(session);
         const qrCode = await generateQRCode(batchId);
@@ -370,7 +375,7 @@ app.post('/api/batches', batchLimiter, protect, validateRequest(createBatchSchem
         // Commit the transaction
         await session.commitTransaction();
         session.endSession();
-        
+
         console.log(`[SUCCESS] Batch created: ${batchId} by user ${req.user.id} (${req.user.email}) from IP: ${req.ip}`);
 
         const response = apiResponse.successResponse(
@@ -383,7 +388,7 @@ app.post('/api/batches', batchLimiter, protect, validateRequest(createBatchSchem
         // Abort transaction on error
         await session.abortTransaction();
         session.endSession();
-        
+
         console.error('Error creating batch:', error);
         const response = apiResponse.errorResponse(
             'Failed to create batch',
@@ -634,6 +639,60 @@ app.use('*', (req, res) => {
 // Comprehensive Error Handler - Must be last middleware
 app.use(errorHandlerMiddleware);
 
+// ==================== GRACEFUL SHUTDOWN HANDLING ====================
+
+// Store server instance for graceful shutdown
+let server;
+
+// Graceful shutdown function
+const gracefulShutdown = (signal) => {
+    console.log(`\n[${signal}] Received shutdown signal. Starting graceful shutdown...`);
+    
+    if (server) {
+        server.close(async () => {
+            console.log('✓ HTTP server closed - no longer accepting new connections');
+            
+            // Close MongoDB connection
+            if (mongoose.connection.readyState === 1) {
+                try {
+                    await mongoose.connection.close();
+                    console.log('✓ MongoDB connection closed');
+                } catch (err) {
+                    console.error('✗ Error closing MongoDB connection:', err.message);
+                }
+            }
+            
+            console.log('✓ Graceful shutdown complete');
+            process.exit(0);
+        });
+        
+        // Force exit after 10 seconds if graceful shutdown fails
+        setTimeout(() => {
+            console.error('✗ Graceful shutdown timed out, forcing exit');
+            process.exit(1);
+        }, 10000);
+    } else {
+        process.exit(0);
+    }
+};
+
+// Global error handlers for uncaught exceptions and unhandled rejections
+process.on('uncaughtException', (err) => {
+    console.error('✗ Uncaught Exception:', err.message);
+    console.error('Stack:', err.stack);
+    gracefulShutdown('uncaughtException');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('✗ Unhandled Rejection at:', promise);
+    console.error('Reason:', reason);
+    gracefulShutdown('unhandledRejection');
+});
+
+// Handle termination signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 // ==================== SERVER STARTUP ====================
 
 // Import createAdmin script
@@ -644,7 +703,7 @@ const startListener = require('./services/blockchainListener');
 
 // Start server
 if (process.env.NODE_ENV !== 'test') {
-    app.listen(PORT, async () => {
+    server = app.listen(PORT, async () => {
         console.log(`🚀 CropChain API server running on port ${PORT}`);
         console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
 
@@ -664,7 +723,7 @@ if (process.env.NODE_ENV !== 'test') {
         console.log(`  ✓ Admin Role Authorization`);
 
         console.log('\n⚙️  Configuration:');
-        console.log(`  • CORS origins: ${allowedOrigins.length > 0 ? allowedOrigins.join(', ') : 'None configured'}`);
+        console.log(`  • CORS origins: ${uniqueAllowedOrigins.length > 0 ? uniqueAllowedOrigins.join(', ') : 'None configured'}`);
         console.log(`  • Max file size: ${Math.round(maxFileSize / 1024 / 1024)}MB`);
         console.log(`  • Rate limit window: ${Math.ceil(rateLimitWindowMs / 60000)} minutes`);
 
@@ -674,7 +733,9 @@ if (process.env.NODE_ENV !== 'test') {
                 console.warn('  ⚠️  MONGODB_URI not set - using in-memory storage');
             }
             if (!process.env.JWT_SECRET) {
-                console.warn('  ⚠️  JWT_SECRET not set - authentication will not work');
+                console.warn('  ⚠️  JWT_SECRET not set - a390
+ 
+uthentication will not work');
             }
             if (!PROVIDER_URL || !CONTRACT_ADDRESS) {
                 console.warn('  ⚠️  Blockchain configuration incomplete - running in demo mode');

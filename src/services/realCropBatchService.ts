@@ -1,7 +1,7 @@
 // src/services/realCropBatchService.ts
 
-// Adjust this URL to match your running backend (e.g., http://localhost:5000)
-const API_URL = 'http://localhost:5000/api';
+// Uses VITE_API_URL env var (set in .env), falls back to the backend default port 3001
+const API_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api`;
 
 export const realCropBatchService = {
   // Existing method you likely already had
