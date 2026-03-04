@@ -9,6 +9,7 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "compile": "hardhat compile",
     "test": "hardhat test",
+    "test:ci": "npx hardhat test --reporter spec --reporter json",
     "test:unit": "jest",
     "deploy:localhost": "hardhat run scripts/deploy.js --network localhost",
     "deploy:mumbai": "hardhat run scripts/deploy.js --network mumbai",

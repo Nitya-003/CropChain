@@ -7,6 +7,11 @@ on:
   pull_request:
     branches: [ main ]
 
+# Global environment variables
+env:
+  NODE_ENV: test
+  CI: true
+
 jobs:
   # Job 1: Smart Contract Tests
   smart-contract-tests:
@@ -31,7 +36,7 @@ jobs:
       
       # Step 4: Run Hardhat tests
       - name: Run Smart Contract Tests
-        run: npx hardhat test
+        run: npm run test:ci
       
       # Step 5: Compile contracts (additional verification)
       - name: Compile Smart Contracts
@@ -81,7 +86,7 @@ jobs:
       # Step 4: Run backend tests
       - name: Run Backend Tests
         working-directory: backend/
-        run: npm test
+        run: npm run test:ci
 
   # Job 4: Frontend Build Check
   frontend-build-check:
