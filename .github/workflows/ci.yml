@@ -36,3 +36,21 @@ jobs:
       # Step 5: Compile contracts (additional verification)
       - name: Compile Smart Contracts
         run: npx hardhat compile
+
+  # Job 2: Smart Contract Security Audit
+  smart-contract-security-audit:
+    name: Smart Contract Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # Step 2: Run Slither Security Analysis
+      - name: Run Slither Security Analysis
+        uses: crytic/slither-action@v0.4.0
+        with:
+          target: 'contracts/'
+          ignore-failures: false
+          slither-args: '--filter-paths "contracts/lib/openzeppelin/**" --exclude naming-convention,external-function,low-level-calls,assembly,constable-states'
