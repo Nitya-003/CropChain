@@ -6,39 +6,43 @@ const Batch = require('../models/Batch');
  * Protect routes - verify JWT token
  */
 const protect = async (req, res, next) => {
-    let token;
-
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-        try {
-            // Get token from header
-            token = req.headers.authorization.split(' ')[1];
-
-            // Verify token
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-            // Get user from token
-            req.user = await User.findById(decoded.id).select('-password');
-
-            if (!req.user) {
-                return res.status(401).json({
-                    error: 'Not authorized',
-                    message: 'User not found',
-                });
-            }
-
-            return next();
-        } catch (error) {
+    try {
+        // Check if authorization header exists and starts with Bearer
+        if (!req.headers.authorization || !req.headers.authorization.startsWith('Bearer')) {
             return res.status(401).json({
                 error: 'Not authorized',
-                message: 'Invalid token',
+                message: 'No token provided',
             });
         }
-    }
 
-    if (!token) {
+        // Get token from header
+        const token = req.headers.authorization.split(' ')[1];
+
+        if (!token) {
+            return res.status(401).json({
+                error: 'Not authorized',
+                message: 'Token is empty',
+            });
+        }
+
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        // Get user from token
+        req.user = await User.findById(decoded.id).select('-password');
+
+        if (!req.user) {
+            return res.status(401).json({
+                error: 'Not authorized',
+                message: 'User not found',
+            });
+        }
+
+        next();
+    } catch (error) {
         return res.status(401).json({
             error: 'Not authorized',
-            message: 'No token provided',
+            message: 'Invalid token',
         });
     }
 };
@@ -105,7 +109,12 @@ const authorizeBatchOwner = async (req, res, next) => {
             return next();
         }
 
-        if (batch.farmerId !== userFarmerId && batch.farmerId !== userId.toString()) {
+        // Normalize IDs to strings for comparison (handles ObjectId vs string mismatch)
+        const batchFarmerIdStr = batch.farmerId ? batch.farmerId.toString() : '';
+        const userFarmerIdStr = userFarmerId ? userFarmerId.toString() : '';
+        const userIdStr = userId ? userId.toString() : '';
+
+        if (batchFarmerIdStr !== userFarmerIdStr && batchFarmerIdStr !== userIdStr) {
             console.log(`[AUTH FAIL] User ${userId} attempted to update batch ${batchId} owned by ${batch.farmerId}`);
             return res.status(403).json({
                 error: 'Access denied',
