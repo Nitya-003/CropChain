@@ -10,6 +10,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     bytes32 public constant MANDI_ROLE = keccak256("MANDI_ROLE");
     bytes32 public constant TRANSPORTER_ROLE = keccak256("TRANSPORTER_ROLE");
     bytes32 public constant RETAILER_ROLE = keccak256("RETAILER_ROLE");
+    bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
 
     enum Stage {
         Farmer,
@@ -37,6 +38,9 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         address creator;
         bool exists;
         bool isRecalled;
+        int256 currentTemperature;
+        int256 currentHumidity;
+        bool isSpoiled;
     }
 
     struct SupplyChainUpdate {
@@ -90,6 +94,8 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     event ProceedsWithdrawn(address indexed account, uint256 amountWei);
     event SpotPriceRecorded(bytes32 indexed cropTypeHash, uint256 priceWei, uint256 timestamp);
     event TwapConfigUpdated(uint256 twapWindowSeconds, uint256 maxPriceDeviationBps);
+    event IoTDataRequested(bytes32 indexed batchId, address requester);
+    event IoTDataFulfilled(bytes32 indexed batchId, int256 temperature, int256 humidity, bool isSpoiled);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
@@ -127,6 +133,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         _setRoleAdmin(MANDI_ROLE, DEFAULT_ADMIN_ROLE);
         _setRoleAdmin(TRANSPORTER_ROLE, DEFAULT_ADMIN_ROLE);
         _setRoleAdmin(RETAILER_ROLE, DEFAULT_ADMIN_ROLE);
+        _setRoleAdmin(ORACLE_ROLE, DEFAULT_ADMIN_ROLE);
     }
 
     function setRole(address user, ActorRole role) external onlyOwner nonReentrant {
@@ -513,5 +520,75 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         uint256 lower = (referencePrice * (10_000 - bps)) / 10_000;
         uint256 upper = (referencePrice * (10_000 + bps)) / 10_000;
         return observed >= lower && observed <= upper;
+    }
+
+    /**
+     * @dev Request IoT verification for a batch
+     * Can be called by TRANSPORTER_ROLE or MANDI_ROLE
+     */
+    function requestIoTVerification(bytes32 batchId) 
+        external 
+        whenNotPaused 
+        nonReentrant 
+        batchExists(batchId)
+    {
+        require(
+            hasRole(TRANSPORTER_ROLE, msg.sender) || hasRole(MANDI_ROLE, msg.sender),
+            "Unauthorized: Only Transporter or Mandi can request IoT verification"
+        );
+        
+        require(!cropBatches[batchId].isRecalled, "Batch is recalled");
+        
+        emit IoTDataRequested(batchId, msg.sender);
+    }
+
+    /**
+     * @dev Fulfill IoT data for a batch
+     * Can only be called by ORACLE_ROLE
+     */
+    function fulfillIoTData(
+        bytes32 batchId, 
+        int256 temperature, 
+        int256 humidity
+    ) 
+        external 
+        onlyRole(ORACLE_ROLE) 
+        whenNotPaused 
+        nonReentrant 
+        batchExists(batchId)
+    {
+        require(!cropBatches[batchId].isRecalled, "Batch is recalled");
+        
+        // Update batch IoT data
+        cropBatches[batchId].currentTemperature = temperature;
+        cropBatches[batchId].currentHumidity = humidity;
+        
+        // Check if batch is spoiled based on temperature thresholds
+        // Temperature is in hundredths of degree: 800 = 80.0°F, 320 = 32.0°F
+        bool isSpoiled = (temperature > 800 || temperature < 320);
+        cropBatches[batchId].isSpoiled = isSpoiled;
+        
+        emit IoTDataFulfilled(batchId, temperature, humidity, isSpoiled);
+    }
+
+    /**
+     * @dev Get IoT data for a batch
+     */
+    function getBatchIoTData(bytes32 batchId) 
+        external 
+        view 
+        batchExists(batchId) 
+        returns (
+            int256 temperature,
+            int256 humidity,
+            bool isSpoiled
+        )
+    {
+        CropBatch storage batch = cropBatches[batchId];
+        return (
+            batch.currentTemperature,
+            batch.currentHumidity,
+            batch.isSpoiled
+        );
     }
 }
