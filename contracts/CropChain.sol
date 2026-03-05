@@ -3,8 +3,15 @@ pragma solidity ^0.8.19;
 
 import "./lib/openzeppelin/security/Pausable.sol";
 import "./lib/openzeppelin/security/ReentrancyGuard.sol";
+import "./lib/openzeppelin/access/AccessControl.sol";
 
-contract CropChain is Pausable, ReentrancyGuard {
+contract CropChain is Pausable, ReentrancyGuard, AccessControl {
+    bytes32 public constant FARMER_ROLE = keccak256("FARMER_ROLE");
+    bytes32 public constant MANDI_ROLE = keccak256("MANDI_ROLE");
+    bytes32 public constant TRANSPORTER_ROLE = keccak256("TRANSPORTER_ROLE");
+    bytes32 public constant RETAILER_ROLE = keccak256("RETAILER_ROLE");
+    bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
+
     enum Stage {
         Farmer,
         Mandi,
@@ -31,6 +38,9 @@ contract CropChain is Pausable, ReentrancyGuard {
         address creator;
         bool exists;
         bool isRecalled;
+        int256 currentTemperature;
+        int256 currentHumidity;
+        bool isSpoiled;
     }
 
     struct SupplyChainUpdate {
@@ -84,6 +94,8 @@ contract CropChain is Pausable, ReentrancyGuard {
     event ProceedsWithdrawn(address indexed account, uint256 amountWei);
     event SpotPriceRecorded(bytes32 indexed cropTypeHash, uint256 priceWei, uint256 timestamp);
     event TwapConfigUpdated(uint256 twapWindowSeconds, uint256 maxPriceDeviationBps);
+    event IoTDataRequested(bytes32 indexed batchId, address requester);
+    event IoTDataFulfilled(bytes32 indexed batchId, int256 temperature, int256 humidity, bool isSpoiled);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
@@ -112,6 +124,16 @@ contract CropChain is Pausable, ReentrancyGuard {
         nextListingId = 1;
         twapWindow = 1 hours;
         maxPriceDeviationBps = 1500;
+        
+        // Grant DEFAULT_ADMIN_ROLE to deployer
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        
+        // Set up role hierarchy
+        _setRoleAdmin(FARMER_ROLE, DEFAULT_ADMIN_ROLE);
+        _setRoleAdmin(MANDI_ROLE, DEFAULT_ADMIN_ROLE);
+        _setRoleAdmin(TRANSPORTER_ROLE, DEFAULT_ADMIN_ROLE);
+        _setRoleAdmin(RETAILER_ROLE, DEFAULT_ADMIN_ROLE);
+        _setRoleAdmin(ORACLE_ROLE, DEFAULT_ADMIN_ROLE);
     }
 
     function setRole(address user, ActorRole role) external onlyOwner nonReentrant {
@@ -120,7 +142,7 @@ contract CropChain is Pausable, ReentrancyGuard {
         emit RoleUpdated(user, role);
     }
 
-    function transferOwnership(address newOwner) external onlyOwner nonReentrant {
+    function transferOwnership(address newOwner) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         require(newOwner != address(0), "Invalid address");
 
         address previousOwner = owner;
@@ -164,7 +186,7 @@ contract CropChain is Pausable, ReentrancyGuard {
         string calldata actorName,
         string calldata location,
         string calldata notes
-    ) external onlyAuthorized whenNotPaused nonReentrant {
+    ) external onlyRole(FARMER_ROLE) whenNotPaused nonReentrant {
         require(!cropBatches[batchId].exists, "Batch already exists");
         require(batchId != bytes32(0), "Invalid batch ID");
         require(cropTypeHash != bytes32(0), "Invalid crop type");
@@ -203,17 +225,14 @@ contract CropChain is Pausable, ReentrancyGuard {
         string calldata actorName,
         string calldata location,
         string calldata notes
-    ) external onlyAuthorized whenNotPaused nonReentrant batchExists(batchId) {
+    ) external whenNotPaused nonReentrant batchExists(batchId) {
         require(!cropBatches[batchId].isRecalled, "Batch is recalled");
         require(bytes(actorName).length > 0, "Actor required");
         require(bytes(location).length > 0, "Location required");
         require(_isNextStage(batchId, stage), "Invalid stage transition");
 
-        ActorRole senderRole = roles[msg.sender];
-        require(
-            senderRole == ActorRole.Admin || _canUpdate(stage, senderRole),
-            "Role not allowed for stage"
-        );
+        // Dynamic role checks based on stage transition
+        require(_canUpdateStage(batchId, stage), "Role not allowed for this stage transition");
 
         _batchUpdates[batchId].push(
             SupplyChainUpdate({
@@ -435,11 +454,50 @@ contract CropChain is Pausable, ReentrancyGuard {
         return weightedSum / totalWeight;
     }
 
+    function grantStakeholderRole(bytes32 role, address account) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
+        require(account != address(0), "Invalid address");
+        require(
+            role == FARMER_ROLE || role == MANDI_ROLE || role == TRANSPORTER_ROLE || role == RETAILER_ROLE,
+            "Invalid stakeholder role"
+        );
+        _grantRole(role, account);
+    }
+
     function _canUpdate(Stage stage, ActorRole role) internal pure returns (bool) {
         if (stage == Stage.Farmer && role == ActorRole.Farmer) return true;
         if (stage == Stage.Mandi && role == ActorRole.Mandi) return true;
         if (stage == Stage.Transport && role == ActorRole.Transporter) return true;
         if (stage == Stage.Retailer && role == ActorRole.Retailer) return true;
+        return false;
+    }
+
+    function _canUpdateStage(bytes32 batchId, Stage newStage) internal view returns (bool) {
+        SupplyChainUpdate[] storage updates = _batchUpdates[batchId];
+        
+        // Admin can always update
+        if (hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) {
+            return true;
+        }
+        
+        // Get current stage
+        Stage currentStage;
+        if (updates.length == 0) {
+            currentStage = Stage.Farmer;
+        } else {
+            currentStage = updates[updates.length - 1].stage;
+        }
+        
+        // Check role-based stage transitions
+        if (currentStage == Stage.Farmer && newStage == Stage.Mandi) {
+            return hasRole(MANDI_ROLE, msg.sender);
+        }
+        if (currentStage == Stage.Mandi && newStage == Stage.Transport) {
+            return hasRole(TRANSPORTER_ROLE, msg.sender);
+        }
+        if (currentStage == Stage.Transport && newStage == Stage.Retailer) {
+            return hasRole(RETAILER_ROLE, msg.sender);
+        }
+        
         return false;
     }
 
@@ -462,5 +520,75 @@ contract CropChain is Pausable, ReentrancyGuard {
         uint256 lower = (referencePrice * (10_000 - bps)) / 10_000;
         uint256 upper = (referencePrice * (10_000 + bps)) / 10_000;
         return observed >= lower && observed <= upper;
+    }
+
+    /**
+     * @dev Request IoT verification for a batch
+     * Can be called by TRANSPORTER_ROLE or MANDI_ROLE
+     */
+    function requestIoTVerification(bytes32 batchId) 
+        external 
+        whenNotPaused 
+        nonReentrant 
+        batchExists(batchId)
+    {
+        require(
+            hasRole(TRANSPORTER_ROLE, msg.sender) || hasRole(MANDI_ROLE, msg.sender),
+            "Unauthorized: Only Transporter or Mandi can request IoT verification"
+        );
+        
+        require(!cropBatches[batchId].isRecalled, "Batch is recalled");
+        
+        emit IoTDataRequested(batchId, msg.sender);
+    }
+
+    /**
+     * @dev Fulfill IoT data for a batch
+     * Can only be called by ORACLE_ROLE
+     */
+    function fulfillIoTData(
+        bytes32 batchId, 
+        int256 temperature, 
+        int256 humidity
+    ) 
+        external 
+        onlyRole(ORACLE_ROLE) 
+        whenNotPaused 
+        nonReentrant 
+        batchExists(batchId)
+    {
+        require(!cropBatches[batchId].isRecalled, "Batch is recalled");
+        
+        // Update batch IoT data
+        cropBatches[batchId].currentTemperature = temperature;
+        cropBatches[batchId].currentHumidity = humidity;
+        
+        // Check if batch is spoiled based on temperature thresholds
+        // Temperature is in hundredths of degree: 800 = 80.0°F, 320 = 32.0°F
+        bool isSpoiled = (temperature > 800 || temperature < 320);
+        cropBatches[batchId].isSpoiled = isSpoiled;
+        
+        emit IoTDataFulfilled(batchId, temperature, humidity, isSpoiled);
+    }
+
+    /**
+     * @dev Get IoT data for a batch
+     */
+    function getBatchIoTData(bytes32 batchId) 
+        external 
+        view 
+        batchExists(batchId) 
+        returns (
+            int256 temperature,
+            int256 humidity,
+            bool isSpoiled
+        )
+    {
+        CropBatch storage batch = cropBatches[batchId];
+        return (
+            batch.currentTemperature,
+            batch.currentHumidity,
+            batch.isSpoiled
+        );
     }
 }

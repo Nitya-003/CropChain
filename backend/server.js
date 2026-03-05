@@ -12,14 +12,16 @@ const swaggerSpec = require('./swagger');
 const connectDB = require('./config/db');
 require('dotenv').config();
 const mainRoutes = require("./routes/index");
+const oracleRoutes = require("./routes/oracle");
 const validateRequest = require('./middleware/validator');
 const { chatSchema } = require("./validations/chatSchema");
 const aiService = require('./services/aiService');
 const errorHandlerMiddleware = require('./middleware/errorHandler');
 const { createBatchSchema, updateBatchSchema } = require("./validations/batchSchema");
-const { protect, adminOnly, authorizeBatchOwner, authorizeRoles } = require('./middleware/auth');
+const { protect, adminOnly, authorizeBatchOwner, authorizeRoles, authorizeStageTransition, authorizeBlockchainTransaction } = require('./middleware/auth');
 const apiResponse = require('./utils/apiResponse');
 const crypto = require('crypto');
+const oracleService = require('./services/oracleService');
 
 // Import MongoDB Model
 const Batch = require('./models/Batch');
@@ -218,6 +220,9 @@ app.use(securityLogger);
 // Mount health check main router
 app.use("/api", mainRoutes);
 
+// Mount Oracle routes
+app.use('/api/oracle', oracleRoutes);
+
 // Swagger/OpenAPI Documentation
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     customCss: '.swagger-ui .topbar { display: none }',
@@ -331,9 +336,9 @@ app.use('/api/verification', generalLimiter, verificationRoutes);
 
 // Batch routes - ALL USING MONGODB ONLY
 
-// CREATE batch - requires authentication
+// CREATE batch - requires farmer role and blockchain authorization
 // Uses MongoDB transaction to prevent race conditions in batch ID generation (CVSS 7.5 fix)
-app.post('/api/batches', batchLimiter, protect, validateRequest(createBatchSchema), async (req, res) => {
+app.post('/api/batches', batchLimiter, protect, authorizeRoles('farmer'), authorizeBlockchainTransaction, validateRequest(createBatchSchema), async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -428,8 +433,8 @@ app.get('/api/batches/:batchId', batchLimiter, async (req, res) => {
     }
 });
 
-// UPDATE batch - requires authentication and ownership
-app.put('/api/batches/:batchId', batchLimiter, protect, authorizeBatchOwner, validateRequest(updateBatchSchema), async (req, res) => {
+// UPDATE batch - requires authentication, ownership, and stage transition authorization
+app.put('/api/batches/:batchId', batchLimiter, protect, authorizeBatchOwner, authorizeStageTransition, authorizeBlockchainTransaction, validateRequest(updateBatchSchema), async (req, res) => {
     try {
         const { batchId } = req.params;
         const validatedData = req.body;
@@ -733,9 +738,7 @@ if (process.env.NODE_ENV !== 'test') {
                 console.warn('  ⚠️  MONGODB_URI not set - using in-memory storage');
             }
             if (!process.env.JWT_SECRET) {
-                console.warn('  ⚠️  JWT_SECRET not set - a390
- 
-uthentication will not work');
+                console.warn('  ⚠️  JWT_SECRET not set - authentication will not work');
             }
             if (!PROVIDER_URL || !CONTRACT_ADDRESS) {
                 console.warn('  ⚠️  Blockchain configuration incomplete - running in demo mode');
@@ -754,6 +757,15 @@ uthentication will not work');
             }
         } else {
             console.log('ℹ️  Skipping blockchain listener (no contract instance available)');
+        }
+
+        // Start Oracle service for IoT data verification
+        try {
+            await oracleService.initialize();
+            console.log('🔮 Oracle service started successfully');
+        } catch (error) {
+            console.error('❌ Failed to start Oracle service:', error.message);
+            console.log('⚠️  Continuing without Oracle service...');
         }
     });
 }

@@ -24,8 +24,8 @@ const registerSchema = z.object({
         .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
         .regex(/[0-9]/, 'Password must contain at least one number')
         .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
-    role: z.enum(['farmer', 'transporter'], {
-        errorMap: () => ({ message: 'Invalid role. Only farmer and transporter are allowed.' })
+    role: z.enum(['farmer', 'mandi', 'transporter', 'retailer'], {
+        errorMap: () => ({ message: 'Invalid role. Only farmer, mandi, transporter, and retailer are allowed.' })
     })
 });
 
@@ -421,8 +421,8 @@ const walletRegisterSchema = z.object({
     signature: z.string()
         .min(1, 'Signature is required'),
     nonce: z.string().optional(),
-    role: z.enum(['farmer', 'transporter'], {
-        errorMap: () => ({ message: 'Invalid role. Only farmer and transporter are allowed.' })
+    role: z.enum(['farmer', 'mandi', 'transporter', 'retailer'], {
+        errorMap: () => ({ message: 'Invalid role. Only farmer, mandi, transporter, and retailer are allowed.' })
     })
 });
 
