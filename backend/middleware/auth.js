@@ -110,9 +110,10 @@ const authorizeBatchOwner = async (req, res, next) => {
         }
 
         // Normalize IDs to strings for comparison (handles ObjectId vs string mismatch)
-        const batchFarmerIdStr = batch.farmerId ? batch.farmerId.toString() : '';
-        const userFarmerIdStr = userFarmerId ? userFarmerId.toString() : '';
-        const userIdStr = userId ? userId.toString() : '';
+        // Using optional chaining for safety in case toString is not available
+        const batchFarmerIdStr = batch.farmerId?.toString?.() || String(batch.farmerId || '');
+        const userFarmerIdStr = userFarmerId?.toString?.() || String(userFarmerId || '');
+        const userIdStr = userId?.toString?.() || String(userId || '');
 
         if (batchFarmerIdStr !== userFarmerIdStr && batchFarmerIdStr !== userIdStr) {
             console.log(`[AUTH FAIL] User ${userId} attempted to update batch ${batchId} owned by ${batch.farmerId}`);
