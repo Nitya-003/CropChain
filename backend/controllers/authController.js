@@ -476,14 +476,15 @@ const walletRegister = async (req, res) => {
             );
         }
 
-        // Create user (no password for wallet users - use crypto.randomBytes for security)
+        // Create user (no password for wallet users)
+        // Generate cryptographically secure random password
         const randomPassword = crypto.randomBytes(32).toString('hex');
         const user = await User.create({
             name,
             email,
             walletAddress: normalizedAddress,
             role,
-            password: await bcrypt.hash(randomPassword, 12)
+            password: await bcrypt.hash(randomPassword, 12) // Secure random password for wallet users
         });
 
         // Delete used nonce
