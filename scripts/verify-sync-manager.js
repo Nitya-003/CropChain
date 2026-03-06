@@ -41,7 +41,7 @@ const checks = [
       },
       { 
         name: '✅ Internal isOnline state', 
-        test: content.includes('private isOnline'),
+        test: content.includes('private _isOnline'),
         required: true 
       },
       { 
@@ -91,17 +91,17 @@ const checks = [
     tests: [
       { 
         name: '✅ Toast import', 
-        test: content.includes("import toast from 'react-hot-toast'"),
+        test: content.includes("import toast, { success as toastSuccess, error as toastError } from 'react-hot-toast'"),
         required: true 
       },
       { 
         name: '✅ Success notifications', 
-        test: content.includes('toast.success'),
+        test: content.includes('toastSuccess'),
         required: true 
       },
       { 
         name: '✅ Error notifications', 
-        test: content.includes('toast.error'),
+        test: content.includes('toastError'),
         required: true 
       },
       { 
