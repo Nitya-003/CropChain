@@ -273,7 +273,7 @@ async function generateBatchId() {
         );
 
         const currentYear = new Date().getFullYear();
-        const batchId = `CROP-${currentYear}-${String(counter.seq).padStart(3, '0')}`;
+        const batchId = `CROP-${currentYear}-${String(counter.seq).padStart(4, '0')}`;
 
         await session.commitTransaction();
         session.endSession();
