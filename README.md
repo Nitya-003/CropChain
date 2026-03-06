@@ -58,7 +58,68 @@ CropChain is a comprehensive full-stack web application that enables transparent
 
 ---
 
-## 🚀 Quick Start
+## � Docker Quickstart (Recommended)
+
+### Prerequisites
+- [Docker](https://www.docker.com/get-started/) installed on your system
+- [Docker Compose](https://docs.docker.com/compose/install/) installed on your system
+
+### Quick Start Instructions
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/vallabhatech/CropChain.git
+   cd CropChain
+   ```
+
+2. **Start the entire stack**
+   ```bash
+   docker-compose up --build
+   ```
+   
+   This will build and start all services:
+   - Frontend (React/Vite)
+   - Backend (Node.js/Express)
+   - MongoDB (Database)
+   - Hardhat (Blockchain)
+
+3. **Access the applications**
+   
+   Once all containers are running, you can access:
+   
+   - **🌐 Frontend**: http://localhost:5173
+   - **🔧 Backend API**: http://localhost:3001
+   - **⛏️ Hardhat Node**: http://localhost:8545
+   - **🗄️ MongoDB**: mongodb://localhost:27017
+
+4. **Deploy Smart Contracts**
+   
+   To deploy smart contracts to the running Hardhat container:
+   ```bash
+   docker-compose exec hardhat npx hardhat run scripts/deploy.js --network localhost
+   ```
+
+### Development Workflow
+
+With Docker Compose, you get:
+- **🔄 Hot Reloading**: All services automatically restart on code changes
+- **🔗 Service Discovery**: Containers communicate via internal network
+- **💾 Data Persistence**: MongoDB data persists across container restarts
+- **🛡️ Isolated Environment**: Clean, reproducible development setup
+
+### Stopping the Services
+
+```bash
+# Stop all services
+docker-compose down
+
+# Stop and remove volumes (for fresh start)
+docker-compose down -v
+```
+
+---
+
+## �🚀 Quick Start
 
 ### Prerequisites
 - Node.js (v14+)
