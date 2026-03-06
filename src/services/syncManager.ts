@@ -1,5 +1,5 @@
 import { offlineStorage, PendingBatch, PendingUpdate } from './offlineStorage';
-import toast from 'react-hot-toast';
+import toast, { success as toastSuccess, error as toastError } from 'react-hot-toast';
 
 export type SyncStatus = 'idle' | 'syncing' | 'error';
 
@@ -15,7 +15,7 @@ class SyncManager {
   private syncListeners: Array<(event: SyncEvent) => void> = [];
   private statusListeners: Array<(status: SyncStatus) => void> = [];
   private currentStatus: SyncStatus = 'idle';
-  private isOnline = navigator.onLine;
+  private _isOnline = navigator.onLine;
   private readonly MAX_RETRIES = 5;
   private readonly INITIAL_RETRY_DELAY_MS = 2000;
   private readonly MAX_RETRY_DELAY_MS = 60000;
@@ -28,10 +28,10 @@ class SyncManager {
     window.addEventListener('offline', () => this.handleOffline());
 
     // Initialize online state
-    this.isOnline = navigator.onLine;
+    this._isOnline = navigator.onLine;
     
     // Check for pending items immediately if online with proper error handling
-    if (this.isOnline) {
+    if (this._isOnline) {
       void this.checkAndSync().catch(error => {
         console.error('[SyncManager] Initial sync check failed:', error);
       });
@@ -40,7 +40,7 @@ class SyncManager {
 
   private handleOnline(): void {
     console.log('[SyncManager] Connection restored, updating online state and starting sync...');
-    this.isOnline = true;
+    this._isOnline = true;
     
     // Show notification that connection is restored
     toast('Connection restored. Syncing your data...', {
@@ -51,7 +51,7 @@ class SyncManager {
     // Trigger sync with proper error handling
     void this.triggerSync().catch(error => {
       console.error('[SyncManager] Failed to trigger sync on connection restore:', error);
-      toast.error('Failed to start sync after connection restore.', {
+      toastError('Failed to start sync after connection restore.', {
         duration: 3000,
         position: 'top-right',
       });
@@ -60,7 +60,7 @@ class SyncManager {
 
   private handleOffline(): void {
     console.log('[SyncManager] Connection lost, updating online state');
-    this.isOnline = false;
+    this._isOnline = false;
     this.updateStatus('idle');
     // Clear any pending retry timeout when going offline
     if (this.retryTimeoutId) {
@@ -84,7 +84,7 @@ class SyncManager {
       return;
     }
 
-    if (!this.isOnline) {
+    if (!this._isOnline) {
       console.log('[SyncManager] Cannot sync while offline');
       return;
     }
@@ -107,7 +107,7 @@ class SyncManager {
       // Show success notification for background sync completion
       const counts = await offlineStorage.getPendingCount();
       if (counts.batches === 0 && counts.updates === 0) {
-        toast.success('All data synced successfully!', {
+        toastSuccess('All data synced successfully!', {
           duration: 3000,
           position: 'top-right',
         });
@@ -129,7 +129,7 @@ class SyncManager {
       this.updateStatus('idle');
       
       // Show permanent failure notification to user
-      toast.error('Sync failed after multiple attempts. Please check your connection and try again.', {
+      toastError('Sync failed after multiple attempts. Please check your connection and try again.', {
         duration: 5000,
         position: 'top-right',
       });
@@ -329,7 +329,7 @@ class SyncManager {
   }
 
   isOnline(): boolean {
-    return this.isOnline;
+    return this._isOnline;
   }
 
   getStatus(): SyncStatus {
@@ -368,7 +368,7 @@ class SyncManager {
       await this.triggerSync();
     } catch (error) {
       console.error('[SyncManager] Failed to retry failed items:', error);
-      toast.error('Failed to retry sync operations. Please try again manually.', {
+      toastError('Failed to retry sync operations. Please try again manually.', {
         duration: 4000,
         position: 'top-right',
       });

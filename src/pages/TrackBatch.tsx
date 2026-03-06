@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Package, ArrowRight, Thermometer, Droplets, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Search, Package, ArrowRight, Thermometer, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { realCropBatchService } from '../services/realCropBatchService';
 import Timeline from '../components/Timeline';
@@ -15,7 +15,7 @@ const TrackBatch: React.FC = () => {
 
   const { t } = useTranslation();
 
-  const handleSearch = async (e?: React.FormEvent) => {
+  const handleSearch = async (e?: React.FormEvent<HTMLFormElement>) => {
     if (e) e.preventDefault();
     if (!batchId.trim()) return;
 
@@ -85,7 +85,7 @@ const TrackBatch: React.FC = () => {
         </form>
       </div>
 
-      {/* 🟢 SKELETON LOADING STATE */}
+      {/* SKELETON LOADING STATE */}
       {isSearching && (
         <div className="grid md:grid-cols-3 gap-8 animate-pulse">
           {/* Left Column Skeleton */}
@@ -229,7 +229,8 @@ const TrackBatch: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                  )}
+                  </div>
+                )}
                 
                 <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>

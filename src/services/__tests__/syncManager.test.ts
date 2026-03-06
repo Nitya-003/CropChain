@@ -1,6 +1,6 @@
 import { syncManager } from '../syncManager';
 import { offlineStorage } from '../offlineStorage';
-import toast from 'react-hot-toast';
+import toast, { success as toastSuccess, error as toastError } from 'react-hot-toast';
 
 // Mock the offlineStorage
 jest.mock('../offlineStorage', () => ({
