@@ -14,6 +14,7 @@ class SyncManager {
   private syncListeners: Array<(event: SyncEvent) => void> = [];
   private statusListeners: Array<(status: SyncStatus) => void> = [];
   private currentStatus: SyncStatus = 'idle';
+  private isOnline = navigator.onLine;
   private readonly MAX_RETRIES = 3;
 
   constructor() {
@@ -21,19 +22,24 @@ class SyncManager {
     window.addEventListener('online', () => this.handleOnline());
     window.addEventListener('offline', () => this.handleOffline());
 
-    // Check if we're online on initialization
-    if (navigator.onLine) {
-      this.scheduleSyncCheck();
+    // Initialize online state
+    this.isOnline = navigator.onLine;
+    
+    // Check for pending items immediately if online
+    if (this.isOnline) {
+      void this.checkAndSync();
     }
   }
 
   private handleOnline(): void {
-    console.log('[SyncManager] Connection restored, starting sync...');
+    console.log('[SyncManager] Connection restored, updating online state and starting sync...');
+    this.isOnline = true;
     this.triggerSync();
   }
 
   private handleOffline(): void {
-    console.log('[SyncManager] Connection lost');
+    console.log('[SyncManager] Connection lost, updating online state');
+    this.isOnline = false;
     this.updateStatus('idle');
   }
 
@@ -62,7 +68,7 @@ class SyncManager {
       return;
     }
 
-    if (!navigator.onLine) {
+    if (!this.isOnline) {
       console.log('[SyncManager] Cannot sync while offline');
       return;
     }
@@ -260,7 +266,7 @@ class SyncManager {
   }
 
   isOnline(): boolean {
-    return navigator.onLine;
+    return this.isOnline;
   }
 
   getStatus(): SyncStatus {
