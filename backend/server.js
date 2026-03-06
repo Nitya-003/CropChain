@@ -7,7 +7,6 @@ const mongoSanitize = require('express-mongo-sanitize');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose'); // Required for transactions
 const { ethers } = require('ethers');
-const QRCode = require('qrcode');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
 const connectDB = require('./config/db');
@@ -20,14 +19,14 @@ const errorHandlerMiddleware = require('./middleware/errorHandler');
 const { createBatchSchema, updateBatchSchema } = require("./validations/batchSchema");
 const { protect, adminOnly, authorizeBatchOwner, authorizeRoles } = require('./middleware/auth');
 const apiResponse = require('./utils/apiResponse');
-const crypto = require('crypto');
+
+// Import Services
+const blockchainService = require('./services/blockchainService');
+const batchService = require('./services/batchService');
+const notificationService = require('./services/notificationService');
 
 // Import MongoDB Model
 const Batch = require('./models/Batch');
-const Counter = require('./models/Counter');
-
-// Connect to Database
-connectDB();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -58,6 +57,11 @@ const securityLogger = (req, res, next) => {
     suspiciousPatterns.forEach(pattern => {
         if (pattern.test(requestString)) {
             console.warn(`[SECURITY WARNING] Suspicious pattern detected from IP ${ip}: ${pattern}`);
+            notificationService.notifySecurityEvent('suspicious_pattern', { 
+                ip, 
+                pattern: pattern.toString(),
+                path: req.path 
+            });
         }
     });
 
@@ -170,6 +174,17 @@ app.use(express.urlencoded({ extended: true, limit: maxFileSize }));
 app.use(mongoSanitize());
 app.use(securityLogger);
 
+// ==================== BLOCKCHAIN SERVICE INITIALIZATION ====================
+
+// Validate blockchain environment
+if (process.env.NODE_ENV !== 'test') {
+    try {
+        blockchainService.validateEnvironment();
+    } catch (error) {
+        console.error('Blockchain configuration error:', error.message);
+    }
+}
+
 // ==================== ROUTES ====================
 
 // Mount health check main router
@@ -181,128 +196,6 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     customSiteTitle: 'CropChain API Documentation'
 }));
 
-// Blockchain configuration
-const REQUIRED_ENV_VARS = [
-    'INFURA_URL',
-    'CONTRACT_ADDRESS',
-    'PRIVATE_KEY'
-];
-
-if (process.env.NODE_ENV !== 'test') {
-    REQUIRED_ENV_VARS.forEach((key) => {
-        if (!process.env[key]) {
-            throw new Error(`Missing required environment variable: ${key}`);
-        }
-    });
-
-    if (!/^0x[a-fA-F0-9]{64}$/.test(process.env.PRIVATE_KEY)) {
-        throw new Error('Invalid PRIVATE_KEY format');
-    }
-}
-
-const PROVIDER_URL = process.env.INFURA_URL;
-const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
-const PRIVATE_KEY = process.env.PRIVATE_KEY;
-
-// Initialize blockchain provider and contract (reused for listener)
-let provider;
-let contractInstance;
-let wallet;
-
-if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY) {
-    try {
-        provider = new ethers.JsonRpcProvider(PROVIDER_URL);
-        wallet = new ethers.Wallet(PRIVATE_KEY, provider);
-
-        const contractABI = [
-            "event BatchCreated(bytes32 indexed batchId, string ipfsCID, uint256 quantity, address indexed creator)",
-            "event BatchUpdated(bytes32 indexed batchId, uint8 stage, string actorName, string location, address indexed updatedBy)",
-            "function getBatch(bytes32 batchId) view returns (tuple(bytes32 batchId, bytes32 cropTypeHash, string ipfsCID, uint256 quantity, uint256 createdAt, address creator, bool exists, bool isRecalled))",
-            "function createBatch(bytes32 batchId, bytes32 cropTypeHash, string calldata ipfsCID, uint256 quantity, string calldata actorName, string calldata location, string calldata notes) returns (bool)",
-            "function updateBatch(bytes32 batchId, uint8 stage, string calldata actorName, string calldata location, string calldata notes) returns (bool)"
-        ];
-
-        contractInstance = new ethers.Contract(CONTRACT_ADDRESS, contractABI, wallet);
-        console.log('✓ Blockchain contract instance initialized');
-    } catch (error) {
-        console.error('Failed to initialize blockchain connection:', error.message);
-        contractInstance = null;
-    }
-} else {
-    console.log('ℹ️  Blockchain not configured - running without contract instance');
-}
-
-// Helper functions
-async function generateBatchId() {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-        const counter = await Counter.findOneAndUpdate(
-            { name: 'batchId' },
-            { $inc: { seq: 1 } },
-            { new: true, upsert: true, session }
-        );
-
-        const currentYear = new Date().getFullYear();
-        const batchId = `CROP-${currentYear}-${String(counter.seq).padStart(3, '0')}`;
-
-        await session.commitTransaction();
-        session.endSession();
-
-        return batchId;
-
-    } catch (error) {
-        await session.abortTransaction();
-        session.endSession();
-        throw error;
-    }
-}
-
-/**
- * Generate batch ID with optional session support for transaction safety
- * @param {mongoose.ClientSession} session - MongoDB session for transaction
- * @returns {string} - Generated batch ID
- */
-async function generateBatchId(session = null) {
-    const currentYear = new Date().getFullYear();
-    const options = { new: true, upsert: true };
-    if (session) {
-        options.session = session;
-    }
-    
-    const counter = await Counter.findOneAndUpdate(
-        { name: 'batchId' },
-        { $inc: { seq: 1 } },
-        options
-    );
-    return `CROP-${currentYear}-${String(counter.seq).padStart(4, '0')}`;
-}
-
-
-async function generateQRCode(batchId) {
-    try {
-        return await QRCode.toDataURL(batchId, {
-            width: 200,
-            margin: 2,
-            color: {
-                dark: '#22c55e',
-                light: '#ffffff'
-            }
-        });
-    } catch (error) {
-        console.error('Failed to generate QR code:', error);
-        return '';
-    }
-}
-
-function simulateBlockchainHash(data) {
-    return '0x' + crypto
-        .createHash('sha256')
-        .update(JSON.stringify(data) + Date.now().toString())
-        .digest('hex');
-}
-
 // Import Routes
 const authRoutes = require('./routes/authRoutes');
 const verificationRoutes = require('./routes/verification');
@@ -313,62 +206,39 @@ app.use('/api/auth', authLimiter, authRoutes);
 // Mount Verification Routes
 app.use('/api/verification', generalLimiter, verificationRoutes);
 
-// Batch routes - ALL USING MONGODB ONLY
+// ==================== BATCH ROUTES (USING BATCH SERVICE) ====================
 
 // CREATE batch - requires authentication
 // Uses MongoDB transaction to prevent race conditions in batch ID generation (CVSS 7.5 fix)
 app.post('/api/batches', batchLimiter, protect, validateRequest(createBatchSchema), async (req, res) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-    
     try {
         const validatedData = req.body;
         
-        // Generate batch ID within transaction for atomicity
-        const batchId = await generateBatchId(session);
-        const qrCode = await generateQRCode(batchId);
+        const result = await batchService.createBatch(validatedData, req.user);
 
-        const batch = await Batch.create([{
-            batchId,
-            farmerId: req.user.farmerId || req.user.id, // Use authenticated user's ID
-            farmerName: validatedData.farmerName || req.user.name,
-            farmerAddress: validatedData.farmerAddress || req.user.address || '',
-            cropType: validatedData.cropType,
-            quantity: validatedData.quantity,
-            harvestDate: validatedData.harvestDate,
-            origin: validatedData.origin,
-            certifications: validatedData.certifications,
-            description: validatedData.description,
-            currentStage: "farmer",
-            isRecalled: false,
-            qrCode,
-            blockchainHash: simulateBlockchainHash(validatedData),
-            syncStatus: 'pending',
-            updates: [{
-                stage: "farmer",
-                actor: validatedData.farmerName || req.user.name,
-                location: validatedData.origin,
-                timestamp: validatedData.harvestDate,
-                notes: validatedData.description || "Initial harvest recorded"
-            }]
-        }], { session });
+        console.log(`[SUCCESS] Batch created: ${result.batch.batchId} by user ${req.user.id} (${req.user.email}) from IP: ${req.ip}`);
 
-        // Commit the transaction
-        await session.commitTransaction();
-        session.endSession();
-        
-        console.log(`[SUCCESS] Batch created: ${batchId} by user ${req.user.id} (${req.user.email}) from IP: ${req.ip}`);
+        // Notify about batch creation
+        notificationService.notifyBatchCreated(result.batch.batchId, req.user);
 
         const response = apiResponse.successResponse(
-            { batch: batch[0] },
+            { batch: result.batch },
             'Batch created successfully',
             201
         );
         res.status(201).json(response);
     } catch (error) {
-        // Abort transaction on error
-        await session.abortTransaction();
-        session.endSession();
+        // Handle duplicate key error specifically
+        if (error.code === 11000) {
+            const response = apiResponse.errorResponse(
+                'Batch with this ID already exists',
+                'DUPLICATE_BATCH_ERROR',
+                409
+            );
+            return res.status(409).json(response);
+        }
+
+        notificationService.notifyError('batch creation', error);
         
         console.error('Error creating batch:', error);
         const response = apiResponse.errorResponse(
@@ -384,21 +254,19 @@ app.post('/api/batches', batchLimiter, protect, validateRequest(createBatchSchem
 app.get('/api/batches/:batchId', batchLimiter, async (req, res) => {
     try {
         const { batchId } = req.params;
-        const batch = await Batch.findOne({ batchId });
+        
+        const result = await batchService.getBatch(batchId);
 
-        if (!batch) {
+        if (!result.success) {
             console.log(`[NOT FOUND] Batch lookup failed: ${batchId} from IP: ${req.ip}`);
             const response = apiResponse.notFoundResponse('Batch', `ID: ${batchId}`);
-            return res.status(404).json(response);
+            return res.status(result.statusCode).json(response);
         }
 
-        if (batch.isRecalled) {
-            console.log("🚨 ALERT: Recalled batch viewed:", batchId);
-        }
-
-        const response = apiResponse.successResponse({ batch }, 'Batch retrieved successfully');
+        const response = apiResponse.successResponse({ batch: result.batch }, 'Batch retrieved successfully');
         res.json(response);
     } catch (error) {
+        notificationService.notifyError('batch fetch', error);
         console.error('Error fetching batch:', error);
         const response = apiResponse.errorResponse(
             'Failed to fetch batch',
@@ -415,39 +283,25 @@ app.put('/api/batches/:batchId', batchLimiter, protect, authorizeBatchOwner, val
         const { batchId } = req.params;
         const validatedData = req.body;
 
-        // Normalize stage to lowercase for consistency
-        const normalizedStage = validatedData.stage.toLowerCase();
+        const result = await batchService.updateBatch(batchId, validatedData, req.user);
 
-        // Note: authorizeBatchOwner middleware already checks if batch exists
-        // and verifies ownership, so we can proceed directly to update
+        if (!result.success) {
+            const response = apiResponse.notFoundResponse('Batch', `ID: ${batchId}`);
+            return res.status(result.statusCode || 404).json(response);
+        }
 
-        const update = {
-            stage: normalizedStage,
-            actor: validatedData.actor,
-            location: validatedData.location,
-            timestamp: validatedData.timestamp,
-            notes: validatedData.notes
-        };
+        console.log(`[SUCCESS] Batch updated: ${batchId} to stage ${validatedData.stage} by ${validatedData.actor} from IP: ${req.ip}`);
 
-        const batch = await Batch.findOneAndUpdate(
-            { batchId },
-            {
-                $push: { updates: update },
-                currentStage: normalizedStage,
-                blockchainHash: simulateBlockchainHash(update),
-                syncStatus: 'pending'
-            },
-            { new: true }
-        );
-
-        console.log(`[SUCCESS] Batch updated: ${batchId} to stage ${normalizedStage} by ${validatedData.actor} from IP: ${req.ip}`);
+        // Notify about batch update
+        notificationService.notifyBatchUpdated(batchId, validatedData.stage, req.user);
 
         const response = apiResponse.successResponse(
-            { batch },
+            { batch: result.batch },
             'Batch updated successfully'
         );
         res.json(response);
     } catch (error) {
+        notificationService.notifyError('batch update', error);
         console.error('Error updating batch:', error);
         const response = apiResponse.errorResponse(
             'Failed to update batch',
@@ -469,29 +323,21 @@ app.post(
         try {
             const { batchId } = req.params;
 
-            const batch = await Batch.findOne({ batchId });
+            const result = await batchService.recallBatch(batchId, req.user);
 
-            if (!batch) {
-                return res.status(404).json({ error: 'Batch not found' });
+            if (!result.success) {
+                return res.status(result.statusCode).json({ error: result.error });
             }
-
-            if (batch.isRecalled) {
-                return res.status(400).json({ error: 'Batch already recalled' });
-            }
-
-            batch.isRecalled = true;
-            await batch.save();
-
-            console.log(`🚨 RECALL by admin ${req.user?.email || 'unknown'} for batch ${batchId}`);
 
             res.json({
                 success: true,
-                message: 'Batch recalled successfully',
-                recalledBy: req.user?.email,
-                recalledAt: new Date().toISOString(),
-                batch
+                message: result.message,
+                recalledBy: result.recalledBy,
+                recalledAt: result.recalledAt,
+                batch: result.batch
             });
         } catch (error) {
+            notificationService.notifyError('batch recall', error);
             console.error('Error recalling batch:', error);
             res.status(500).json({ error: 'Failed to recall batch' });
         }
@@ -501,30 +347,17 @@ app.post(
 // GET all batches
 app.get('/api/batches', batchLimiter, async (req, res) => {
     try {
-        const allBatches = await Batch.find().sort({ createdAt: -1 });
-
-        const uniqueFarmers = new Set(allBatches.map(b => b.farmerName)).size;
-        const totalQuantity = allBatches.reduce((sum, batch) => sum + batch.quantity, 0);
-
-        const stats = {
-            totalBatches: allBatches.length,
-            totalFarmers: uniqueFarmers,
-            totalQuantity,
-            recentBatches: allBatches.filter(batch => {
-                const monthAgo = new Date();
-                monthAgo.setDate(monthAgo.getDate() - 30);
-                return new Date(batch.createdAt) > monthAgo;
-            }).length
-        };
+        const result = await batchService.getAllBatches();
 
         console.log(`[SUCCESS] Batches list retrieved from IP: ${req.ip}`);
 
         const response = apiResponse.successResponse(
-            { stats, batches: allBatches },
+            { stats: result.stats, batches: result.batches },
             'Batches retrieved successfully'
         );
         res.json(response);
     } catch (error) {
+        notificationService.notifyError('batches fetch', error);
         console.error('Error fetching batches:', error);
         const response = apiResponse.errorResponse(
             'Failed to fetch batches',
@@ -535,35 +368,21 @@ app.get('/api/batches', batchLimiter, async (req, res) => {
     }
 });
 
-// AI Service - MongoDB only
+// ==================== AI SERVICE ====================
+
+// Create batch service interface for AI service
 const batchServiceForAI = {
     async getBatch(batchId) {
-        return await Batch.findOne({ batchId });
+        const result = await batchService.getBatch(batchId);
+        return result.success ? result.batch : null;
     },
 
     async getDashboardStats() {
-        const allBatches = await Batch.find();
-        const uniqueFarmers = new Set(allBatches.map(b => b.farmerName)).size;
-        const totalQuantity = allBatches.reduce((sum, batch) => sum + batch.quantity, 0);
-
-        return {
-            stats: {
-                totalBatches: allBatches.length,
-                totalFarmers: uniqueFarmers,
-                totalQuantity,
-                recentBatches: allBatches.filter(batch => {
-                    const monthAgo = new Date();
-                    monthAgo.setDate(monthAgo.getDate() - 30);
-                    return new Date(batch.createdAt) > monthAgo;
-                }).length
-            }
-        };
+        return await batchService.getDashboardStats();
     }
 };
 
-// AI Service import (ADD THIS if missing)
-// AI Service import (Already imported at initialization)
-
+// AI Chat endpoint
 app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, res) => {
     try {
         const { message } = req.body;
@@ -588,6 +407,7 @@ app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, 
         res.json(response);
 
     } catch (error) {
+        notificationService.notifyError('AI chat', error);
         console.error('AI Chat error:', error);
 
         const response = apiResponse.errorResponse(
@@ -599,14 +419,18 @@ app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, 
     }
 });
 
-// Serve Frontend in Production
-if (process.env.NODE_ENV === "production") {
-    app.use(express.static(path.join(__dirname, "../frontend/build")));
+// ==================== HEALTH CHECK ====================
 
-    app.get("*", (req, res) => {
-        res.sendFile(path.join(__dirname, "../frontend/build/index.html"));
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        services: {
+            blockchain: blockchainService.isAvailable() ? 'connected' : 'demo mode',
+            database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+        }
     });
-}
+});
 
 // ==================== ERROR HANDLERS ====================
 
@@ -621,6 +445,9 @@ app.use('*', (req, res) => {
 app.use(errorHandlerMiddleware);
 
 // ==================== SERVER STARTUP ====================
+
+// Connect to Database
+connectDB();
 
 // Import createAdmin script
 const createAdmin = require('./scripts/create-admin');
@@ -662,7 +489,7 @@ if (process.env.NODE_ENV !== 'test') {
             if (!process.env.JWT_SECRET) {
                 console.warn('  ⚠️  JWT_SECRET not set - authentication will not work');
             }
-            if (!PROVIDER_URL || !CONTRACT_ADDRESS) {
+            if (!blockchainService.isAvailable()) {
                 console.warn('  ⚠️  Blockchain configuration incomplete - running in demo mode');
             }
         }
@@ -670,9 +497,10 @@ if (process.env.NODE_ENV !== 'test') {
         console.log('\n✅ Server startup complete\n');
 
         // Start blockchain event listener
-        if (contractInstance) {
+        const contract = blockchainService.getContract();
+        if (contract) {
             try {
-                startListener(contractInstance);
+                startListener(contract);
                 console.log('🔗 Blockchain event listener started');
             } catch (error) {
                 console.error('❌ Failed to start blockchain listener:', error.message);
