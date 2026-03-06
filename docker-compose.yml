@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  # MongoDB Service
+  mongodb:
+    image: mongo:latest
+    container_name: cropchain-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - cropchain-network
+
+  # Hardhat Service
+  hardhat:
+    image: node:18-alpine
+    container_name: cropchain-hardhat
+    working_dir: /usr/src/app
+    volumes:
+      - .:/usr/src/app
+    command: npx hardhat node --hostname 0.0.0.0
+    ports:
+      - "8545:8545"
+    networks:
+      - cropchain-network
+    depends_on:
+      - mongodb
+
+  # Backend Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: cropchain-backend
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend:/usr/src/app
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/cropchain
+      - PROVIDER_URL=http://hardhat:8545
+      - NODE_ENV=development
+    networks:
+      - cropchain-network
+    depends_on:
+      - mongodb
+      - hardhat
+
+  # Frontend Service
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: cropchain-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/usr/src/app
+    environment:
+      - VITE_API_URL=http://localhost:3001
+    networks:
+      - cropchain-network
+    depends_on:
+      - backend
+
+# Named Volumes
+volumes:
+  mongodb_data:
+    driver: local
+
+# Networks
+networks:
+  cropchain-network:
+    driver: bridge
