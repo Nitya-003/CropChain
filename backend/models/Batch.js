@@ -37,7 +37,7 @@ const updateSchema = new mongoose.Schema({
 
 /**
  * @typedef {Object} Batch
- * @property {string} batchId - Unique batch identifier (CROP-YYYY-XXX)
+ * @property {string} batchId - Unique batch identifier (CROP-YYYY-XXXX)
  * @property {string} farmerId - Farmer identifier
  * @property {string} farmerName - Farmer's full name
  * @property {string} farmerAddress - Farmer's address
