@@ -4,9 +4,8 @@ import { Menu, LogOut, User, LayoutDashboard, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
-import toast from 'react-hot-toast';
-import Sidebar from './Sidebar';
-import LanguageSwitcher from './LanguageSwitcher';
+import { CurrencyToggle } from "../components/CurrencyToggle";
+
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
@@ -48,76 +47,34 @@ const Header: React.FC = () => {
               <Link to="/" className={`text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors ${location.pathname === '/' ? 'text-green-600 dark:text-green-400 font-medium' : ''}`}>
                 {t('nav.home')}
               </Link>
+            ))}
+          </nav>
 
-              {user ? (
-                <>
-                  <Link to="/dashboard" className={`text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors ${location.pathname === '/dashboard' ? 'text-green-600 dark:text-green-400 font-medium' : ''}`}>
-                    {t('nav.dashboard')}
-                  </Link>
-                  <Link to="/add-batch" className={`text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors ${location.pathname === '/add-batch' ? 'text-green-600 dark:text-green-400 font-medium' : ''}`}>
-                    {t('nav.addBatch')}
-                  </Link>
+         <div className="flex items-center space-x-3">
+          {/* Currency Toggle */}
+           <CurrencyToggle />
 
-                  <div className="flex items-center space-x-4 ml-4 pl-4 border-l border-gray-200 dark:border-gray-700">
-                    <button
-                      onClick={toggleTheme}
-                      className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-                      aria-label="Toggle theme"
-                    >
-                      {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-                    </button>
+          {/* Dark Mode Toggle */}
+        <button
+          onClick={toggleTheme}
+          className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white transition-colors"
+          aria-label="Toggle dark mode"
+    >
+          {theme === "light" ? (
+           <Moon className="h-5 w-5" />
+          ) : (
+           <Sun className="h-5 w-5" />
+     )}
+  </button>
+</div>
 
-                    <LanguageSwitcher />
 
-                    <div className="flex items-center space-x-2 text-gray-700 dark:text-gray-200">
-                      <User className="h-5 w-5" />
-                      <span className="font-medium">{user.name}</span>
-                    </div>
-
-                    <button
-                      onClick={handleLogout}
-                      className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
-                      title={t('auth.logout')}
-                    >
-                      <LogOut className="h-5 w-5" />
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="flex items-center space-x-4">
-                  <button
-                    onClick={toggleTheme}
-                    className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-                    aria-label="Toggle theme"
-                  >
-                    {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-                  </button>
-
-                  <LanguageSwitcher />
-
-                  <Link to="/login" className="text-gray-600 dark:text-gray-300 hover:text-green-600 font-medium">
-                    {t('nav.login')}
-                  </Link>
-                  <Link to="/register" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg">
-                    {t('nav.register')}
-                  </Link>
-                </div>
-              )}
-            </div>
-
-            {/* Mobile Menu Button */}
-            <div className="md:hidden flex items-center space-x-4">
-              <button
-                onClick={toggleTheme}
-                className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-              >
-                {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-              </button>
-              <LanguageSwitcher />
-              <button onClick={() => setIsSidebarOpen(true)} className="text-gray-600 dark:text-gray-300">
-                <Menu className="h-6 w-6" />
-              </button>
-            </div>
+          <div className="md:hidden">
+            <button className="text-gray-600 dark:text-gray-300 hover:text-green-700 dark:hover:text-green-400">
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
           </div>
         </div>
       </header>
