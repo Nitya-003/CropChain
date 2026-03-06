@@ -21,7 +21,6 @@ const { createBatchSchema, updateBatchSchema } = require("./validations/batchSch
 const { protect, adminOnly, authorizeBatchOwner, authorizeRoles } = require('./middleware/auth');
 const apiResponse = require('./utils/apiResponse');
 const crypto = require('crypto');
-const mongoose = require('mongoose');
 
 // Import MongoDB Model
 const Batch = require('./models/Batch');
@@ -235,10 +234,11 @@ if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY) {
         wallet = new ethers.Wallet(PRIVATE_KEY, provider);
 
         const contractABI = [
-            "event BatchCreated(bytes32 indexed batchId, address indexed farmer, uint256 quantity)",
-            "event BatchUpdated(bytes32 indexed batchId, string stage, address indexed actor)",
-            "function getBatch(bytes32 batchId) view returns (tuple(address farmer, uint256 quantity, string stage, bool exists))",
-            "function createBatch(bytes32 batchId, uint256 quantity, string memory metadata) returns (bool)"
+            "event BatchCreated(bytes32 indexed batchId, string ipfsCID, uint256 quantity, address indexed creator)",
+            "event BatchUpdated(bytes32 indexed batchId, uint8 stage, string actorName, string location, address indexed updatedBy)",
+            "function getBatch(bytes32 batchId) view returns (tuple(bytes32 batchId, bytes32 cropTypeHash, string ipfsCID, uint256 quantity, uint256 createdAt, address creator, bool exists, bool isRecalled))",
+            "function createBatch(bytes32 batchId, bytes32 cropTypeHash, string calldata ipfsCID, uint256 quantity, string calldata actorName, string calldata location, string calldata notes) returns (bool)",
+            "function updateBatch(bytes32 batchId, uint8 stage, string calldata actorName, string calldata location, string calldata notes) returns (bool)"
         ];
 
         contractInstance = new ethers.Contract(CONTRACT_ADDRESS, contractABI, wallet);
@@ -264,7 +264,7 @@ async function generateBatchId() {
         );
 
         const currentYear = new Date().getFullYear();
-        const batchId = `CROP-${currentYear}-${String(counter.seq).padStart(3, '0')}`;
+        const batchId = `CROP-${currentYear}-${String(counter.seq).padStart(4, '0')}`;
 
         await session.commitTransaction();
         session.endSession();
@@ -275,12 +275,16 @@ async function generateBatchId() {
         await session.abortTransaction();
         session.endSession();
         throw error;
+    }
+}
+
 /**
  * Generate batch ID with optional session support for transaction safety
  * @param {mongoose.ClientSession} session - MongoDB session for transaction
  * @returns {string} - Generated batch ID
  */
 async function generateBatchId(session = null) {
+    const currentYear = new Date().getFullYear();
     const options = { new: true, upsert: true };
     if (session) {
         options.session = session;
@@ -291,7 +295,7 @@ async function generateBatchId(session = null) {
         { $inc: { seq: 1 } },
         options
     );
-    return `CROP-2024-${String(counter.seq).padStart(3, '0')}`;
+    return `CROP-${currentYear}-${String(counter.seq).padStart(4, '0')}`;
 }
 
 async function generateQRCode(batchId) {
