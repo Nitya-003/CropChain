@@ -59,30 +59,11 @@ const PORT = process.env.PORT || 3001;
 
 // ==================== MIDDLEWARE FUNCTIONS ====================
 
-// JWT Authentication Middleware
-const auth = (req, res, next) => {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-
-    if (!token) {
-        return res.status(401).json({ error: 'Unauthorized - No token provided' });
-    }
-
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded;
-        next();
-    } catch (error) {
-        return res.status(401).json({ error: 'Invalid token' });
-    }
-};
-
-// Admin Role Middleware
-const admin = (req, res, next) => {
-    if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin access required' });
-    }
-    next();
-};
+// Authentication is handled by middleware imported from './middleware/auth'
+// - protect: Verifies JWT and fetches full user from - adminOnly: MongoDB
+// Checks if user has admin role
+// - authorizeBatchOwner: Verifies user owns the batch
+// - authorizeRoles: Role-based authorization
 
 // Security logging middleware
 const securityLogger = (req, res, next) => {
