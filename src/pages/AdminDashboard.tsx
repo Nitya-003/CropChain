@@ -1,14 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Shield, TrendingUp, Package, Users, Calendar, BarChart3 } from 'lucide-react';
-import ToggleSwitch from '../components/ToggleSwitch';
-import { useAuth } from '../context/AuthContext';
-import { StatsCardSkeleton, TableSkeleton, ChartSkeleton } from '../components/skeletons';
-import { EmptyState } from '../components/common/EmptyState';
-import { ErrorState } from '../components/common/ErrorState';
-import { realCropBatchService } from '../services/realCropBatchService';
-import Skeleton from '../components/Skeleton';
-import CopyButton from '../components/CopyButton';
+import { Shield, TrendingUp, Package, Copy, Check, Activity, Coins } from 'lucide-react';
+import { cropBatchService } from '../services/cropBatchService';
+import { usePriceConverter } from '../hooks/usePriceConverter';
 
 const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState({
@@ -19,7 +12,8 @@ const AdminDashboard: React.FC = () => {
   });
   const [batches, setBatches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isError, setIsError] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const { convert, isLoading: isPricesLoading } = usePriceConverter();
 
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -63,15 +57,6 @@ const AdminDashboard: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
   };
 
   const getStageColor = (stage: string) => {
@@ -136,7 +121,7 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid md:grid-cols-4 gap-6">
+      <div className="grid md:grid-cols-3 gap-6">
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-xl">
           <div className="flex items-center justify-between">
             <div>
@@ -151,47 +136,39 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-xl">
+        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-6 text-white shadow-xl">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-blue-100 text-sm mb-2">Active Farmers</p>
-              <p className="text-3xl font-bold">{stats.totalFarmers}</p>
+              <p className="text-indigo-100 text-sm mb-2">Total Batch Value</p>
+              {isPricesLoading ? (
+                <div className="h-9 w-24 bg-white/20 animate-pulse rounded mt-1"></div>
+              ) : (
+                <p className="text-3xl font-bold">{convert(stats.totalQuantity * 0.05, 'MATIC')}</p>
+              )}
             </div>
-            <Users className="h-12 w-12 text-blue-200" />
+            <Coins className="h-12 w-12 text-indigo-200" />
           </div>
           <div className="mt-4 flex items-center">
             <TrendingUp className="h-4 w-4 mr-2" />
-            <span className="text-sm">+8% from last month</span>
+            <span className="text-sm">Based on {stats.totalQuantity} kg</span>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-xl">
+        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-6 text-white shadow-xl">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-purple-100 text-sm mb-2">Total Quantity</p>
-              <p className="text-3xl font-bold">{stats.totalQuantity.toLocaleString()}</p>
-              <p className="text-purple-100 text-xs">kg tracked</p>
+              <p className="text-red-100 text-sm mb-2">Estimated Gas Fees</p>
+              {isPricesLoading ? (
+                <div className="h-9 w-24 bg-white/20 animate-pulse rounded mt-1"></div>
+              ) : (
+                <p className="text-3xl font-bold">{convert(stats.totalBatches * 0.002, 'ETH')}</p>
+              )}
             </div>
-            <BarChart3 className="h-12 w-12 text-purple-200" />
+            <Activity className="h-12 w-12 text-red-200" />
           </div>
           <div className="mt-4 flex items-center">
             <TrendingUp className="h-4 w-4 mr-2" />
-            <span className="text-sm">+15% from last month</span>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl p-6 text-white shadow-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-yellow-100 text-sm mb-2">This Month</p>
-              <p className="text-3xl font-bold">{stats.recentBatches}</p>
-              <p className="text-yellow-100 text-xs">new batches</p>
-            </div>
-            <Calendar className="h-12 w-12 text-yellow-200" />
-          </div>
-          <div className="mt-4 flex items-center">
-            <TrendingUp className="h-4 w-4 mr-2" />
-            <span className="text-sm">Peak season activity</span>
+            <span className="text-sm">Network Avg</span>
           </div>
         </div>
       </div>
@@ -202,41 +179,72 @@ const AdminDashboard: React.FC = () => {
           <Package className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
           Recent Batches
         </h2>
-
-        {isError && (
-          <div className="p-8">
-            <ErrorState
-              title="Failed to load batches"
-              message="We couldn't load the batch data. Please try again later."
-              onRetry={loadDashboardData}
-            />
-          </div>
-        )}
-
-        {!isError && !isLoading && batches.length === 0 && (
-          <div className="p-8">
-            <EmptyState
-              title="No batches found"
-              description="There are no active batches in the system yet."
-              icon={Package}
-              actionLabel="Create Batch"
-              onAction={() => navigate('/add-batch')}
-            />
-          </div>
-        )}
-
-        {!isError && !isLoading && batches.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Batch ID</th>
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Farmer</th>
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Crop Type</th>
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Quantity</th>
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Current Stage</th>
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Date Created</th>
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Status</th>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-200 dark:border-gray-700">
+                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Batch ID</th>
+                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Farmer</th>
+                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Crop Type</th>
+                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Quantity</th>
+                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Current Stage</th>
+                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Tx Value</th>
+                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {batches.map((batch, index) => (
+                <tr key={batch.batchId} className={`border-b border-gray-100 dark:border-gray-700 ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'} hover:bg-green-50 dark:hover:bg-gray-600 transition-colors`}>
+                  <td className="py-4 px-6">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm bg-gray-100 dark:bg-gray-600 dark:text-white px-2 py-1 rounded">
+                        {batch.batchId}
+                      </span>
+                      <button
+                        onClick={() => copyToClipboard(batch.batchId)}
+                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-500 rounded transition-colors"
+                        title={copiedId === batch.batchId ? 'Copied!' : 'Copy Batch ID'}
+                      >
+                        {copiedId === batch.batchId ? (
+                          <Check className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <Copy className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <div>
+                      <p className="font-medium text-gray-800 dark:text-white">{batch.farmerName}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{batch.origin}</p>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <span className="capitalize font-medium text-gray-800 dark:text-white">{batch.cropType}</span>
+                  </td>
+                  <td className="py-4 px-6">
+                    <span className="font-medium text-gray-800 dark:text-white">{batch.quantity} kg</span>
+                  </td>
+                  <td className="py-4 px-6">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getStageColor(batch.currentStage)}`}>
+                      {batch.currentStage}
+                    </span>
+                  </td>
+                  <td className="py-4 px-6">
+                    <div className="text-gray-800 dark:text-white font-medium">
+                      {isPricesLoading ? (
+                        <div className="h-4 w-16 bg-gray-200 dark:bg-gray-600 animate-pulse rounded"></div>
+                      ) : (
+                        convert(batch.quantity * 0.05, 'MATIC')
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+                      <span className="text-sm text-green-600 dark:text-green-400 font-medium">Active</span>
+                    </div>
+                  </td>
                 </tr>
               </thead>
               <tbody>
