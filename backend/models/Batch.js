@@ -83,6 +83,12 @@ const batchSchema = new mongoose.Schema({
     maxlength: 500,
     trim: true
   },
+  farmerWalletAddress: {
+    type: String,
+    default: '',
+    lowercase: true,
+    trim: true
+  },
   cropType: {
     type: String,
     required: true,
@@ -147,6 +153,33 @@ const batchSchema = new mongoose.Schema({
     enum: ['pending', 'synced', 'error'],
     default: 'pending'
   },
+    crossChain: {
+      status: {
+        type: String,
+        enum: ['not_required', 'pending', 'sent', 'failed'],
+        default: 'not_required'
+      },
+      destinationChain: {
+        type: String,
+        default: ''
+      },
+      messageId: {
+        type: String,
+        default: ''
+      },
+      txHash: {
+        type: String,
+        default: ''
+      },
+      error: {
+        type: String,
+        default: ''
+      },
+      lastAttemptAt: {
+        type: Date,
+        default: null
+      }
+    },
   updates: [updateSchema],
   status: {
     type: String,

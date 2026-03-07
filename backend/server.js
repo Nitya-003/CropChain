@@ -20,6 +20,7 @@ const errorHandlerMiddleware = require('./middleware/errorHandler');
 const { createBatchSchema, updateBatchSchema } = require("./validations/batchSchema");
 const { protect, adminOnly, authorizeBatchOwner, authorizeRoles, authorizeStageTransition, authorizeBlockchainTransaction } = require('./middleware/auth');
 const apiResponse = require('./utils/apiResponse');
+const ccipService = require('./services/ccipService');
 const crypto = require('crypto');
 
 // Import MongoDB Model
@@ -362,6 +363,7 @@ app.post('/api/batches', batchLimiter, protect, authorizeRoles('farmer'), author
             batchId,
             farmerId: req.user.farmerId || req.user.id, // Use authenticated user's ID
             farmerName: validatedData.farmerName || req.user.name,
+            farmerWalletAddress: (req.user.walletAddress || '').toLowerCase(),
             farmerAddress: validatedData.farmerAddress || req.user.address || '',
             cropType: validatedData.cropType,
             quantity: validatedData.quantity,
@@ -374,6 +376,9 @@ app.post('/api/batches', batchLimiter, protect, authorizeRoles('farmer'), author
             qrCode,
             blockchainHash: simulateBlockchainHash(validatedData),
             syncStatus: 'pending',
+            crossChain: {
+                status: 'not_required'
+            },
             updates: [{
                 stage: "farmer",
                 actor: validatedData.farmerName || req.user.name,
@@ -459,16 +464,83 @@ app.put('/api/batches/:batchId', batchLimiter, protect, authorizeBatchOwner, aut
             notes: validatedData.notes
         };
 
+        const shouldDispatchCrossChain = normalizedStage === 'retailer' && ccipService.isEnabled();
+
+        const crossChainState = shouldDispatchCrossChain
+            ? {
+                status: 'pending',
+                destinationChain: process.env.CCIP_DESTINATION_LABEL || 'ethereum',
+                error: '',
+                lastAttemptAt: new Date()
+            }
+            : {
+                status: 'not_required',
+                destinationChain: '',
+                messageId: '',
+                txHash: '',
+                error: '',
+                lastAttemptAt: null
+            };
+
         const batch = await Batch.findOneAndUpdate(
             { batchId },
             {
                 $push: { updates: update },
                 currentStage: normalizedStage,
                 blockchainHash: simulateBlockchainHash(update),
-                syncStatus: 'pending'
+                syncStatus: 'pending',
+                crossChain: crossChainState
             },
             { new: true }
         );
+
+        if (shouldDispatchCrossChain) {
+            try {
+                const syncResult = await ccipService.dispatchRetailerProof(batch, update);
+                await Batch.updateOne(
+                    { batchId },
+                    {
+                        $set: {
+                            'crossChain.status': 'sent',
+                            'crossChain.destinationChain': syncResult.destinationChain,
+                            'crossChain.messageId': syncResult.messageId,
+                            'crossChain.txHash': syncResult.txHash,
+                            'crossChain.error': '',
+                            'crossChain.lastAttemptAt': new Date()
+                        }
+                    }
+                );
+
+                batch.crossChain = {
+                    ...batch.crossChain,
+                    status: 'sent',
+                    destinationChain: syncResult.destinationChain,
+                    messageId: syncResult.messageId,
+                    txHash: syncResult.txHash,
+                    error: '',
+                    lastAttemptAt: new Date()
+                };
+            } catch (ccipError) {
+                console.error(`[CCIP ERROR] Failed to dispatch retailer proof for ${batchId}:`, ccipError.message);
+                await Batch.updateOne(
+                    { batchId },
+                    {
+                        $set: {
+                            'crossChain.status': 'failed',
+                            'crossChain.error': ccipError.message,
+                            'crossChain.lastAttemptAt': new Date()
+                        }
+                    }
+                );
+
+                batch.crossChain = {
+                    ...batch.crossChain,
+                    status: 'failed',
+                    error: ccipError.message,
+                    lastAttemptAt: new Date()
+                };
+            }
+        }
 
         console.log(`[SUCCESS] Batch updated: ${batchId} to stage ${normalizedStage} by ${validatedData.actor} from IP: ${req.ip}`);
 
@@ -763,6 +835,13 @@ if (process.env.NODE_ENV !== 'test') {
             }
         } else {
             console.log('ℹ️  Skipping blockchain listener (no contract instance available)');
+        }
+
+        // Initialize CCIP dispatch service.
+        if (ccipService.initialize()) {
+            console.log('🌉 CCIP service initialized');
+        } else {
+            console.log('ℹ️  CCIP service not configured - cross-chain dispatch disabled');
         }
 
         // Start Oracle service for IoT data verification
