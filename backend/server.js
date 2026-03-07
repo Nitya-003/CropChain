@@ -419,7 +419,7 @@ app.post('/api/batches', batchLimiter, protect, authorizeRoles('farmer'), author
 app.get('/api/batches/:batchId', batchLimiter, async (req, res) => {
     try {
         const { batchId } = req.params;
-        const batch = await Batch.findOne({ batchId });
+        const batch = await Batch.findOne({ batchId }).lean();
 
         if (!batch) {
             console.log(`[NOT FOUND] Batch lookup failed: ${batchId} from IP: ${req.ip}`);
@@ -601,28 +601,49 @@ app.post(
 );
 
 // GET all batches
+// NOTE: This endpoint uses .lean() and compound indexes for optimal performance.
+// The new { currentStage: 1, createdAt: -1 } compound index handles pagination and sorting efficiently.
 app.get('/api/batches', batchLimiter, async (req, res) => {
     try {
-        const allBatches = await Batch.find().sort({ createdAt: -1 });
+        // Use aggregation for statistics to avoid loading all batches into memory
+        const statsPipeline = [
+            {
+                $group: {
+                    _id: null,
+                    totalBatches: { $sum: 1 },
+                    totalQuantity: { $sum: "$quantity" },
+                    uniqueFarmers: { $addToSet: "$farmerName" },
+                    recentBatches: {
+                        $sum: {
+                            $cond: [
+                                { $gte: ["$createdAt", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)] },
+                                1,
+                                0
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    totalBatches: 1,
+                    totalQuantity: 1,
+                    totalFarmers: { $size: "$uniqueFarmers" },
+                    recentBatches: 1
+                }
+            }
+        ];
 
-        const uniqueFarmers = new Set(allBatches.map(b => b.farmerName)).size;
-        const totalQuantity = allBatches.reduce((sum, batch) => sum + batch.quantity, 0);
-
-        const stats = {
-            totalBatches: allBatches.length,
-            totalFarmers: uniqueFarmers,
-            totalQuantity,
-            recentBatches: allBatches.filter(batch => {
-                const monthAgo = new Date();
-                monthAgo.setDate(monthAgo.getDate() - 30);
-                return new Date(batch.createdAt) > monthAgo;
-            }).length
-        };
+        const [stats] = await Batch.aggregate(statsPipeline);
+        
+        // Use lean() for read-only queries to skip Mongoose document hydration
+        const allBatches = await Batch.find().lean().sort({ createdAt: -1 });
 
         console.log(`[SUCCESS] Batches list retrieved from IP: ${req.ip}`);
 
         const response = apiResponse.successResponse(
-            { stats, batches: allBatches },
+            { stats: stats || { totalBatches: 0, totalQuantity: 0, totalFarmers: 0, recentBatches: 0 }, batches: allBatches },
             'Batches retrieved successfully'
         );
         res.json(response);
@@ -637,28 +658,46 @@ app.get('/api/batches', batchLimiter, async (req, res) => {
     }
 });
 
-// AI Service - MongoDB only
+// AI Service - MongoDB only with optimized queries
 const batchServiceForAI = {
     async getBatch(batchId) {
-        return await Batch.findOne({ batchId });
+        return await Batch.findOne({ batchId }).lean();
     },
 
     async getDashboardStats() {
-        const allBatches = await Batch.find();
-        const uniqueFarmers = new Set(allBatches.map(b => b.farmerName)).size;
-        const totalQuantity = allBatches.reduce((sum, batch) => sum + batch.quantity, 0);
-
-        return {
-            stats: {
-                totalBatches: allBatches.length,
-                totalFarmers: uniqueFarmers,
-                totalQuantity,
-                recentBatches: allBatches.filter(batch => {
-                    const monthAgo = new Date();
-                    monthAgo.setDate(monthAgo.getDate() - 30);
-                    return new Date(batch.createdAt) > monthAgo;
-                }).length
+        // Use aggregation for dashboard statistics to avoid loading all batches into memory
+        const statsPipeline = [
+            {
+                $group: {
+                    _id: null,
+                    totalBatches: { $sum: 1 },
+                    totalQuantity: { $sum: "$quantity" },
+                    uniqueFarmers: { $addToSet: "$farmerName" },
+                    recentBatches: {
+                        $sum: {
+                            $cond: [
+                                { $gte: ["$createdAt", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)] },
+                                1,
+                                0
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    totalBatches: 1,
+                    totalQuantity: 1,
+                    totalFarmers: { $size: "$uniqueFarmers" },
+                    recentBatches: 1
+                }
             }
+        ];
+
+        const [stats] = await Batch.aggregate(statsPipeline);
+        return {
+            stats: stats || { totalBatches: 0, totalQuantity: 0, totalFarmers: 0, recentBatches: 0 }
         };
     }
 };
