@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, TrendingUp, Package, Copy, Check, Activity, Coins } from 'lucide-react';
-import { cropBatchService } from '../services/cropBatchService';
+import { Shield, Package, Coins, Activity, TrendingUp, Check, Copy } from 'lucide-react';
+import { realCropBatchService } from '../services/realCropBatchService';
 import { usePriceConverter } from '../hooks/usePriceConverter';
 
 const AdminDashboard: React.FC = () => {
@@ -8,35 +8,12 @@ const AdminDashboard: React.FC = () => {
     totalBatches: 0,
     totalFarmers: 0,
     totalQuantity: 0,
-    recentBatches: [] as any[]
+    recentBatches: []
   });
   const [batches, setBatches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const { convert, isLoading: isPricesLoading } = usePriceConverter();
-
-  const { user } = useAuth();
-  const navigate = useNavigate();
-
-  // Track status for each batch (default: true/active)
-  const [batchStatus, setBatchStatus] = useState<Record<string, boolean>>({});
-
-  // Initialize batchStatus when batches load
-  useEffect(() => {
-    if (batches.length > 0) {
-      const statusMap: Record<string, boolean> = {};
-      batches.forEach(batch => {
-        // If batch has a status property, use it; otherwise default to true (active)
-        statusMap[batch.batchId] = batch.status !== undefined ? batch.status : true;
-      });
-      setBatchStatus(statusMap);
-    }
-  }, [batches]);
-
-  const handleStatusToggle = (batchId: string, checked: boolean) => {
-    setBatchStatus(prev => ({ ...prev, [batchId]: checked }));
-    // Optionally: send update to backend here
-  };
 
   useEffect(() => {
     loadDashboardData();
@@ -46,14 +23,12 @@ const AdminDashboard: React.FC = () => {
     setIsLoading(true);
     try {
       const data = await realCropBatchService.getAllBatches();
-
       if (data) {
         setStats(data.stats || { totalBatches: 0, totalFarmers: 0, totalQuantity: 0, recentBatches: [] });
         setBatches(data.batches || []);
       }
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
-      setIsError(true);
     } finally {
       setIsLoading(false);
     }
@@ -69,42 +44,26 @@ const AdminDashboard: React.FC = () => {
     return colors[stage] || 'bg-gray-100 text-gray-800';
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(text);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="text-center">
-          <div className="h-12 bg-gray-300 dark:bg-gray-700 rounded w-64 mx-auto mb-4"></div>
-          <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded w-96 mx-auto"></div>
+          <div className="h-12 bg-gray-300 dark:bg-gray-700 rounded w-64 mx-auto mb-4 animate-pulse"></div>
+          <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded w-96 mx-auto animate-pulse"></div>
         </div>
-
-        <div className="grid md:grid-cols-4 gap-6">
-          <StatsCardSkeleton />
-          <StatsCardSkeleton />
-          <StatsCardSkeleton />
-          <StatsCardSkeleton />
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
-          <div className="flex items-center mb-6">
-            <div className="h-6 w-6 bg-gray-300 dark:bg-gray-700 rounded mr-3"></div>
-            <div className="h-7 bg-gray-300 dark:bg-gray-700 rounded w-40"></div>
-          </div>
-          <TableSkeleton />
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          <ChartSkeleton />
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 animate-pulse">
-            <div className="h-7 bg-gray-300 dark:bg-gray-700 rounded w-48 mb-4"></div>
-            <div className="flex items-end justify-between h-48 px-4">
-              {[1, 2, 3, 4, 5, 6].map((item) => (
-                <div key={item} className="flex flex-col items-center">
-                  <div className="bg-gray-300 dark:bg-gray-600 rounded-t-lg w-8 transition-all duration-500 h-20"></div>
-                  <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-8 mt-2"></div>
-                </div>
-              ))}
+        <div className="grid md:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl p-6 animate-pulse">
+              <div className="h-20 bg-gray-300 dark:bg-gray-700 rounded mb-4"></div>
+              <div className="h-8 bg-gray-300 dark:bg-gray-700 rounded"></div>
             </div>
-          </div>
+          ))}
         </div>
       </div>
     );
@@ -246,59 +205,10 @@ const AdminDashboard: React.FC = () => {
                     </div>
                   </td>
                 </tr>
-              </thead>
-              <tbody>
-                {batches.map((batch, index) => (
-                  <tr key={batch.batchId} className={`border-b border-gray-100 dark:border-gray-700 ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'} hover:bg-green-50 dark:hover:bg-gray-600 transition-colors`}>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm bg-gray-100 dark:bg-gray-600 dark:text-white px-2 py-1 rounded">
-                          {batch.batchId}
-                        </span>
-                        <CopyButton value={batch.batchId} label="batch id" />
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div>
-                        <p className="font-medium text-gray-800 dark:text-white">{batch.farmerName}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{batch.origin}</p>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <span className="capitalize font-medium text-gray-800 dark:text-white">{batch.cropType}</span>
-                    </td>
-                    <td className="py-4 px-6">
-                      <span className="font-medium text-gray-800 dark:text-white">{batch.quantity} kg</span>
-                    </td>
-                    <td className="py-4 px-6">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getStageColor(batch.currentStage)}`}>
-                        {batch.currentStage}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6">
-                      <span className="text-gray-600 dark:text-gray-300">{formatDate(batch.createdAt)}</span>
-                    </td>
-                    <td className="py-4 px-6">
-                      {user && user.role === 'admin' ? (
-                        <ToggleSwitch
-                          checked={!!batchStatus[batch.batchId]}
-                          onChange={checked => handleStatusToggle(batch.batchId, checked)}
-                          onLabel="Active"
-                          offLabel="Flagged / Inactive"
-                        />
-                      ) : (
-                        <div className="flex items-center">
-                          <div className={`w-2 h-2 rounded-full mr-2 ${batchStatus[batch.batchId] ? 'bg-green-400' : 'bg-red-400'}`}></div>
-                          <span className={`text-sm font-medium ${batchStatus[batch.batchId] ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{batchStatus[batch.batchId] ? 'Active' : 'Flagged / Inactive'}</span>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Charts Section */}
@@ -344,8 +254,8 @@ const AdminDashboard: React.FC = () => {
             })}
           </div>
         </div>
-      </div >
-    </div >
+      </div>
+    </div>
   );
 };
 

@@ -1,4 +1,5 @@
 import { offlineStorage, PendingBatch, PendingUpdate } from './offlineStorage';
+import toast, { success as toastSuccess, error as toastError } from 'react-hot-toast';
 
 export type SyncStatus = 'idle' | 'syncing' | 'error';
 
@@ -14,38 +15,59 @@ class SyncManager {
   private syncListeners: Array<(event: SyncEvent) => void> = [];
   private statusListeners: Array<(status: SyncStatus) => void> = [];
   private currentStatus: SyncStatus = 'idle';
-  private readonly MAX_RETRIES = 3;
+  private _isOnline = navigator.onLine;
+  private readonly MAX_RETRIES = 5;
+  private readonly INITIAL_RETRY_DELAY_MS = 2000;
+  private readonly MAX_RETRY_DELAY_MS = 60000;
+  private retryTimeoutId: number | null = null;
+  private currentRetryAttempt = 0;
 
   constructor() {
     // Listen for online/offline events
     window.addEventListener('online', () => this.handleOnline());
     window.addEventListener('offline', () => this.handleOffline());
 
-    // Check if we're online on initialization
-    if (navigator.onLine) {
-      this.scheduleSyncCheck();
+    // Initialize online state
+    this._isOnline = navigator.onLine;
+    
+    // Check for pending items immediately if online with proper error handling
+    if (this._isOnline) {
+      void this.checkAndSync().catch(error => {
+        console.error('[SyncManager] Initial sync check failed:', error);
+      });
     }
   }
 
   private handleOnline(): void {
-    console.log('[SyncManager] Connection restored, starting sync...');
-    this.triggerSync();
+    console.log('[SyncManager] Connection restored, updating online state and starting sync...');
+    this._isOnline = true;
+    
+    // Show notification that connection is restored
+    toast('Connection restored. Syncing your data...', {
+      duration: 2000,
+      position: 'top-right',
+    });
+    
+    // Trigger sync with proper error handling
+    void this.triggerSync().catch(error => {
+      console.error('[SyncManager] Failed to trigger sync on connection restore:', error);
+      toastError('Failed to start sync after connection restore.', {
+        duration: 3000,
+        position: 'top-right',
+      });
+    });
   }
 
   private handleOffline(): void {
-    console.log('[SyncManager] Connection lost');
+    console.log('[SyncManager] Connection lost, updating online state');
+    this._isOnline = false;
     this.updateStatus('idle');
-  }
-
-  private scheduleSyncCheck(): void {
-    // Check for pending items every 30 seconds when online
-    setInterval(() => {
-      if (navigator.onLine && !this.syncInProgress) {
-        void this.checkAndSync().catch(error => {
-          console.error('[SyncManager] Periodic sync check failed:', error);
-        });
-      }
-    }, 30000);
+    // Clear any pending retry timeout when going offline
+    if (this.retryTimeoutId) {
+      clearTimeout(this.retryTimeoutId);
+      this.retryTimeoutId = null;
+    }
+    this.currentRetryAttempt = 0;
   }
 
   private async checkAndSync(): Promise<void> {
@@ -62,9 +84,15 @@ class SyncManager {
       return;
     }
 
-    if (!navigator.onLine) {
+    if (!this._isOnline) {
       console.log('[SyncManager] Cannot sync while offline');
       return;
+    }
+
+    // Clear any existing retry timeout
+    if (this.retryTimeoutId) {
+      clearTimeout(this.retryTimeoutId);
+      this.retryTimeoutId = null;
     }
 
     this.syncInProgress = true;
@@ -73,12 +101,53 @@ class SyncManager {
     try {
       await this.syncPendingItems();
       this.updateStatus('idle');
+      // Reset retry attempt on successful sync
+      this.currentRetryAttempt = 0;
+      
+      // Show success notification for background sync completion
+      const counts = await offlineStorage.getPendingCount();
+      if (counts.batches === 0 && counts.updates === 0) {
+        toastSuccess('All data synced successfully!', {
+          duration: 3000,
+          position: 'top-right',
+        });
+      }
     } catch (error) {
       console.error('[SyncManager] Sync failed:', error);
       this.updateStatus('error');
+      
+      // Implement exponential backoff retry logic
+      this.scheduleRetryWithBackoff();
     } finally {
       this.syncInProgress = false;
     }
+  }
+
+  private scheduleRetryWithBackoff(): void {
+    if (this.currentRetryAttempt >= this.MAX_RETRIES) {
+      console.log('[SyncManager] Max retries reached, giving up');
+      this.updateStatus('idle');
+      
+      // Show permanent failure notification to user
+      toastError('Sync failed after multiple attempts. Please check your connection and try again.', {
+        duration: 5000,
+        position: 'top-right',
+      });
+      return;
+    }
+
+    const delay = Math.min(
+      this.INITIAL_RETRY_DELAY_MS * Math.pow(2, this.currentRetryAttempt),
+      this.MAX_RETRY_DELAY_MS
+    );
+
+    this.currentRetryAttempt++;
+    console.log(`[SyncManager] Scheduling retry attempt ${this.currentRetryAttempt} in ${delay}ms`);
+
+    this.retryTimeoutId = setTimeout(() => {
+      this.retryTimeoutId = null;
+      void this.triggerSync();
+    }, delay);
   }
 
   private async syncPendingItems(): Promise<void> {
@@ -260,7 +329,7 @@ class SyncManager {
   }
 
   isOnline(): boolean {
-    return navigator.onLine;
+    return this._isOnline;
   }
 
   getStatus(): SyncStatus {
@@ -268,25 +337,42 @@ class SyncManager {
   }
 
   async retryFailed(): Promise<void> {
-    // Reset failed items to pending
-    const batches = await offlineStorage.getAllPendingBatches();
-    for (const batch of batches) {
-      if (batch.status === 'failed') {
-        await offlineStorage.updateBatchStatus(batch.id, 'pending');
-        await offlineStorage.addToSyncQueue('batch', batch.id, 1);
+    try {
+      // Reset failed items to pending and reset retry counter
+      const batches = await offlineStorage.getAllPendingBatches();
+      for (const batch of batches) {
+        if (batch.status === 'failed') {
+          await offlineStorage.updateBatchStatus(batch.id, 'pending');
+          await offlineStorage.addToSyncQueue('batch', batch.id, 1);
+        }
       }
-    }
 
-    const updates = await offlineStorage.getAllPendingUpdates();
-    for (const update of updates) {
-      if (update.status === 'failed') {
-        await offlineStorage.updateUpdateStatus(update.id, 'pending');
-        await offlineStorage.addToSyncQueue('update', update.id, 2);
+      const updates = await offlineStorage.getAllPendingUpdates();
+      for (const update of updates) {
+        if (update.status === 'failed') {
+          await offlineStorage.updateUpdateStatus(update.id, 'pending');
+          await offlineStorage.addToSyncQueue('update', update.id, 2);
+        }
       }
-    }
 
-    // Trigger sync
-    await this.triggerSync();
+      // Reset retry attempt counter for fresh start
+      this.currentRetryAttempt = 0;
+
+      // Show notification that retry is starting
+      toast('Retrying failed sync operations...', {
+        duration: 2000,
+        position: 'top-right',
+      });
+
+      // Trigger sync
+      await this.triggerSync();
+    } catch (error) {
+      console.error('[SyncManager] Failed to retry failed items:', error);
+      toastError('Failed to retry sync operations. Please try again manually.', {
+        duration: 4000,
+        position: 'top-right',
+      });
+    }
   }
 }
 
