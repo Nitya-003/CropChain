@@ -76,7 +76,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     mapping(bytes32 => uint256) public latestOraclePrice;
     mapping(address => uint256) public pendingWithdrawals;
 
-    string[] public allBatchIds;
+    bytes32[] public allBatchIds;
 
     address public owner;
     uint256 public nextListingId;
@@ -206,7 +206,10 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
             createdAt: block.timestamp,
             creator: msg.sender,
             exists: true,
-            isRecalled: false
+            isRecalled: false,
+            currentTemperature: 0,
+            currentHumidity: 0,
+            isSpoiled: false
         });
 
         _batchUpdates[batchId].push(
