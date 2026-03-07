@@ -8,7 +8,8 @@
     "dev": "nodemon server.js",
     "test": "jest --watchAll",
     "test:ci": "NODE_ENV=test jest --ci --coverage --watchAll=false",
-    "test:ai": "node test-ai-chat.js"
+    "test:ai": "node test-ai-chat.js",
+    "test:perf": "node scripts/verify-indexes.js"
   },
   "keywords": [
     "blockchain",
