@@ -21,7 +21,6 @@ const { createBatchSchema, updateBatchSchema } = require("./validations/batchSch
 const { protect, adminOnly, authorizeBatchOwner, authorizeRoles, authorizeStageTransition, authorizeBlockchainTransaction } = require('./middleware/auth');
 const apiResponse = require('./utils/apiResponse');
 const crypto = require('crypto');
-const oracleService = require('./services/oracleService');
 
 // Import MongoDB Model
 const Batch = require('./models/Batch');
@@ -60,30 +59,11 @@ const PORT = process.env.PORT || 3001;
 
 // ==================== MIDDLEWARE FUNCTIONS ====================
 
-// JWT Authentication Middleware
-const auth = (req, res, next) => {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-
-    if (!token) {
-        return res.status(401).json({ error: 'Unauthorized - No token provided' });
-    }
-
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded;
-        next();
-    } catch (error) {
-        return res.status(401).json({ error: 'Invalid token' });
-    }
-};
-
-// Admin Role Middleware
-const admin = (req, res, next) => {
-    if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin access required' });
-    }
-    next();
-};
+// Authentication is handled by middleware imported from './middleware/auth'
+// - protect: Verifies JWT and fetches full user from - adminOnly: MongoDB
+// Checks if user has admin role
+// - authorizeBatchOwner: Verifies user owns the batch
+// - authorizeRoles: Role-based authorization
 
 // Security logging middleware
 const securityLogger = (req, res, next) => {
@@ -263,10 +243,11 @@ if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY) {
         wallet = new ethers.Wallet(PRIVATE_KEY, provider);
 
         const contractABI = [
-            "event BatchCreated(bytes32 indexed batchId, address indexed farmer, uint256 quantity)",
-            "event BatchUpdated(bytes32 indexed batchId, string stage, address indexed actor)",
-            "function getBatch(bytes32 batchId) view returns (tuple(address farmer, uint256 quantity, string stage, bool exists))",
-            "function createBatch(bytes32 batchId, uint256 quantity, string memory metadata) returns (bool)"
+            "event BatchCreated(bytes32 indexed batchId, string ipfsCID, uint256 quantity, address indexed creator)",
+            "event BatchUpdated(bytes32 indexed batchId, uint8 stage, string actorName, string location, address indexed updatedBy)",
+            "function getBatch(bytes32 batchId) view returns (tuple(bytes32 batchId, bytes32 cropTypeHash, string ipfsCID, uint256 quantity, uint256 createdAt, address creator, bool exists, bool isRecalled))",
+            "function createBatch(bytes32 batchId, bytes32 cropTypeHash, string calldata ipfsCID, uint256 quantity, string calldata actorName, string calldata location, string calldata notes) returns (bool)",
+            "function updateBatch(bytes32 batchId, uint8 stage, string calldata actorName, string calldata location, string calldata notes) returns (bool)"
         ];
 
         contractInstance = new ethers.Contract(CONTRACT_ADDRESS, contractABI, wallet);
@@ -280,12 +261,39 @@ if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY) {
 }
 
 // Helper functions
+async function generateBatchId() {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const counter = await Counter.findOneAndUpdate(
+            { name: 'batchId' },
+            { $inc: { seq: 1 } },
+            { new: true, upsert: true, session }
+        );
+
+        const currentYear = new Date().getFullYear();
+        const batchId = `CROP-${currentYear}-${String(counter.seq).padStart(4, '0')}`;
+
+        await session.commitTransaction();
+        session.endSession();
+
+        return batchId;
+
+    } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+        throw error;
+    }
+}
+
 /**
  * Generate batch ID with optional session support for transaction safety
  * @param {mongoose.ClientSession} session - MongoDB session for transaction
  * @returns {string} - Generated batch ID
  */
 async function generateBatchId(session = null) {
+    const currentYear = new Date().getFullYear();
     const options = { new: true, upsert: true };
     if (session) {
         options.session = session;
@@ -296,9 +304,7 @@ async function generateBatchId(session = null) {
         { $inc: { seq: 1 } },
         options
     );
-    
-    const currentYear = new Date().getFullYear();
-    return `CROP-${currentYear}-${String(counter.seq).padStart(3, '0')}`;
+    return `CROP-${currentYear}-${String(counter.seq).padStart(4, '0')}`;
 }
 
 async function generateQRCode(batchId) {
