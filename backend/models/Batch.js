@@ -182,6 +182,49 @@ const batchSchema = new mongoose.Schema({
         default: null
       }
     },
+  /**
+   * Blockchain Job Tracking
+   * Tracks the status of blockchain transaction jobs in the BullMQ queue
+   */
+  blockchainJob: {
+    jobId: {
+      type: String,
+      default: ''
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'processing', 'retrying', 'completed', 'failed', 'simulated'],
+      default: 'pending'
+    },
+    txHash: {
+      type: String,
+      default: ''
+    },
+    blockNumber: {
+      type: Number,
+      default: null
+    },
+    attempts: {
+      type: Number,
+      default: 0
+    },
+    error: {
+      type: String,
+      default: ''
+    },
+    submittedAt: {
+      type: Date,
+      default: null
+    },
+    completedAt: {
+      type: Date,
+      default: null
+    },
+    lastAttemptAt: {
+      type: Date,
+      default: null
+    }
+  },
   updates: [updateSchema],
   status: {
     type: String,
