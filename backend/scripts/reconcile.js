@@ -3,19 +3,60 @@ const { ethers } = require('ethers');
 const Batch = require('../models/Batch');
 const { getContract } = require('../config/blockchain');
 
-// Stage enum mapping from CropChain.sol
-const STAGE_NAMES = ['Farmer', 'Mandi', 'Transport', 'Retailer'];
-
 /**
- * Convert uint8 stage to human-readable string
- * @param {number} stage - Stage enum value (uint8)
- * @returns {string} Stage name
+ * Reconciles blockchain data with the database.
+ * Uses getTotalBatches(), getBatchIdByIndex(), and getBatch() 
+ * to iterate through batches stored in the contract's mapping and allBatchIds array.
  */
-function getStageName(stage) {
-    if (stage >= 0 && stage < STAGE_NAMES.length) {
-        return STAGE_NAMES[stage];
+async function reconcile() {
+  const contract = await getContract();
+
+  // Get total number of batches from the allBatchIds array
+  const total = await contract.getTotalBatches();
+  console.log(`Found ${total} batches on blockchain`);
+
+  for (let i = 0; i < total; i++) {
+    // Get batch ID by index from the allBatchIds array
+    const batchIdBytes = await contract.getBatchIdByIndex(i);
+    
+    // Convert bytes32 to string (hex) for use as batchId
+    const batchId = batchIdBytes.toString();
+    
+    // Get the full batch data from the cropBatches mapping
+    const onChain = await contract.getBatch(batchIdBytes);
+    
+    // Get the latest update to find the current stage
+    let currentStage = 0;
+    try {
+      const latestUpdate = await contract.getLatestUpdate(batchIdBytes);
+      currentStage = latestUpdate.stage.toNumber();
+    } catch (err) {
+      // If no updates exist yet, default to stage 0 (Farmer)
+      console.log(`No updates found for batch ${batchId}, defaulting to stage 0`);
     }
-    return 'Unknown';
+
+    // Map contract stage number to stage name
+    const stageNames = ['Farmer', 'Mandi', 'Transport', 'Retailer'];
+    const stageName = stageNames[currentStage] || 'Farmer';
+
+    await Batch.updateOne(
+      { batchId: batchId },
+      {
+        stage: stageName,
+        syncStatus: 'synced',
+        // Also sync other blockchain data
+        quantity: onChain.quantity.toNumber(),
+        ipfsCID: onChain.ipfsCID,
+        isRecalled: onChain.isRecalled,
+        blockchainCreator: onChain.creator
+      },
+      { upsert: true }
+    );
+
+    console.log(`Synced batch ${batchId} (stage: ${stageName})`);
+  }
+
+  console.log('✅ Reconciliation complete');
 }
 
 /**
