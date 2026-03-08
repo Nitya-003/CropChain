@@ -24,9 +24,12 @@ const { protect, adminOnly, authorizeBatchOwner, authorizeRoles, authorizeStageT
 const apiResponse = require('./utils/apiResponse');
 const ccipService = require('./services/ccipService');
 const crypto = require('crypto');
+<<<<<<< HEAD
+=======
 const blockchainQueue = require('./services/blockchainQueue');
 const blockchainWorker = require('./services/blockchainWorker');
 const { checkRedisHealth } = require('./config/redis');
+>>>>>>> upstream/main
 
 // Import MongoDB Model
 const Batch = require('./models/Batch');
@@ -65,6 +68,15 @@ const PORT = process.env.PORT || 3001;
 
 // ==================== MIDDLEWARE FUNCTIONS ====================
 
+<<<<<<< HEAD
+// Authentication is handled by middleware imported from './middleware/auth':
+// - protect: Verifies JWT and fetches full user from MongoDB
+// - adminOnly: Checks if user has admin role
+// - authorizeBatchOwner: Verifies user owns the batch
+// - authorizeRoles: Role-based authorization
+
+=======
+>>>>>>> upstream/main
 // Security logging middleware
 const securityLogger = (req, res, next) => {
     const timestamp = new Date().toISOString();
@@ -341,6 +353,7 @@ async function generateBatchId(session = null) {
     );
     return `CROP-${currentYear}-${String(counter.seq).padStart(4, '0')}`;
 }
+
 
 async function generateQRCode(batchId) {
     try {
