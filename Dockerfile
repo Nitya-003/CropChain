@@ -1,4 +1,3 @@
-
 # Stage 1: Shared base image
 FRFROM node:20-alpine AS base
 WORKDIR /app

@@ -100,7 +100,7 @@ docker compose up --build
 ```
 
 This starts:
-- `db` (`mongo:latest`)
+- `db` (`mongo:7.0`)
 - `backend` (Node/Express on port `3001`)
 - `frontend` (React build served on port `3000`)
 

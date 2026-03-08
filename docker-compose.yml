@@ -24,12 +24,7 @@ services:
     restart: unless-stopped
     env_file:
       - ./.env
-    environment:
-      MONGODB_URI: ${MONGODB_URI:-mongodb://db:27017/cropchain}
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: ${PORT:-3001}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
+    
     ports:
       - "3001:3001"
     depends_on:
