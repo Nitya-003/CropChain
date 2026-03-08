@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { Search, Package, ArrowRight, Thermometer, AlertTriangle, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Package, ArrowRight, Thermometer, AlertTriangle, CheckCircle, Wifi, WifiOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { realCropBatchService } from '../services/realCropBatchService';
 import Timeline from '../components/Timeline';
 import { EmptyState } from '../components/common/EmptyState';
 import { ErrorState } from '../components/common/ErrorState';
 import Skeleton from '../components/Skeleton';
+import { useBatchSocket } from '../hooks/useBatchSocket';
 
 const TrackBatch: React.FC = () => {
   const [batchId, setBatchId] = useState('');
@@ -14,6 +15,18 @@ const TrackBatch: React.FC = () => {
   const [errorType, setErrorType] = useState<'not-found' | 'error' | null>(null);
 
   const { t } = useTranslation();
+
+  // WebSocket connection for real-time updates
+  const { isConnected: socketConnected, lastUpdate } = useBatchSocket({
+    batchId: batch?.batchId || batch?.id,
+    enabled: !!batch,
+    onBatchUpdate: (data) => {
+      console.log('[TrackBatch] Real-time batch update received:', data);
+      if (data.batch) {
+        setBatch(data.batch);
+      }
+    }
+  });
 
   const handleSearch = async (e?: React.FormEvent<HTMLFormElement>) => {
     if (e) e.preventDefault();
@@ -170,14 +183,26 @@ const TrackBatch: React.FC = () => {
           {/* Right Column: The Visual Timeline */}
           <div className="md:col-span-2">
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
-              <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-6 border-b pb-4">
-                Supply Chain Journey
+              <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-6 border-b pb-4 flex items-center justify-between">
+                <span>Supply Chain Journey</span>
+                {socketConnected && (
+                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400 animate-pulse">
+                    <Wifi className="h-5 w-5" />
+                    <span className="text-xs font-semibold">LIVE</span>
+                  </div>
+                )}
               </h2>
 
               <Timeline
                 events={getTimelineEvents(batch)}
                 currentStep={batch.currentStage || 0}
               />
+              
+              {lastUpdate && (
+                <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 text-right">
+                  Last updated: {lastUpdate.toLocaleTimeString()}
+                </div>
+              )}
             </div>
           </div>
 

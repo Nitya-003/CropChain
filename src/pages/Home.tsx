@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Shield, Truck, Store, Users, TrendingUp, Globe } from 'lucide-react';
+import { Shield, Truck, Store, Users, TrendingUp, Globe, Wifi } from 'lucide-react';
+import { useSocketStatus } from '../hooks/useBatchSocket';
 
 const Home: React.FC = () => {
   const { t } = useTranslation();
+  const { isConnected } = useSocketStatus();
 
   const benefits = [
     {
@@ -39,7 +41,17 @@ const Home: React.FC = () => {
   return (
     <div className="space-y-16">
       {/* Hero Section */}
-      <section className="text-center py-16">
+      <section className="text-center py-16 relative">
+        {/* Live Connection Badge */}
+        <div className="absolute top-4 right-4">
+          {isConnected && (
+            <div className="flex items-center gap-2 bg-green-100 dark:bg-green-900/30 px-3 py-1.5 rounded-full border border-green-300 dark:border-green-700 animate-pulse">
+              <Wifi className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <span className="text-xs font-semibold text-green-700 dark:text-green-300">LIVE UPDATES</span>
+            </div>
+          )}
+        </div>
+
         <div className="max-w-4xl mx-auto">
           <h1 className="text-5xl md:text-6xl font-bold text-gray-800 dark:text-white mb-6">
             {t('home.welcome')}
