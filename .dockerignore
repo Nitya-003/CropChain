@@ -1,5 +1,6 @@
 # Dependencies
 node_modules
+**/node_modules
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -14,6 +15,8 @@ yarn-error.log*
 # Build outputs
 dist
 build
+**/dist
+**/build
 
 # Hardhat artifacts
 artifacts
@@ -22,6 +25,9 @@ cache
 # IDE
 .vscode
 .idea
+
+# Git metadata
+.git
 
 # OS
 .DS_Store
@@ -38,6 +44,9 @@ temp
 # Coverage
 coverage
 .nyc_output
+
+# Local-only Docker files
+docker-compose.override.yml
 
 # Cypress
 cypress/videos

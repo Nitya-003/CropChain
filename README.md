@@ -58,64 +58,74 @@ CropChain is a comprehensive full-stack web application that enables transparent
 
 ---
 
-## � Docker Quickstart (Recommended)
+## Docker Setup
 
 ### Prerequisites
-- [Docker](https://www.docker.com/get-started/) installed on your system
-- [Docker Compose](https://docs.docker.com/compose/install/) installed on your system
+- [Docker](https://www.docker.com/get-started/) 24+
+- Docker Compose plugin (`docker compose`)
 
-### Quick Start Instructions
+### 1. Configure Environment
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/vallabhatech/CropChain.git
-   cd CropChain
-   ```
-
-2. **Start the entire stack**
-   ```bash
-   docker-compose up --build
-   ```
-   
-   This will build and start all services:
-   - Frontend (React/Vite)
-   - Backend (Node.js/Express)
-   - MongoDB (Database)
-   - Hardhat (Blockchain)
-
-3. **Access the applications**
-   
-   Once all containers are running, you can access:
-   
-   - **🌐 Frontend**: http://localhost:5173
-   - **🔧 Backend API**: http://localhost:3001
-   - **⛏️ Hardhat Node**: http://localhost:8545
-   - **🗄️ MongoDB**: mongodb://localhost:27017
-
-4. **Deploy Smart Contracts**
-   
-   To deploy smart contracts to the running Hardhat container:
-   ```bash
-   docker-compose exec hardhat npx hardhat run scripts/deploy.js --network localhost
-   ```
-
-### Development Workflow
-
-With Docker Compose, you get:
-- **🔄 Hot Reloading**: All services automatically restart on code changes
-- **🔗 Service Discovery**: Containers communicate via internal network
-- **💾 Data Persistence**: MongoDB data persists across container restarts
-- **🛡️ Isolated Environment**: Clean, reproducible development setup
-
-### Stopping the Services
+Create a root `.env` file (Compose reads this automatically):
 
 ```bash
-# Stop all services
-docker-compose down
-
-# Stop and remove volumes (for fresh start)
-docker-compose down -v
+cp .env.example .env
 ```
+
+Add required backend secrets and network values in `.env`:
+
+```env
+# Frontend build-time API endpoint
+VITE_API_URL=http://localhost:3001
+
+# Backend runtime
+NODE_ENV=production
+PORT=3001
+MONGODB_URI=mongodb://db:27017/cropchain
+FRONTEND_URL=http://localhost:3000
+ALLOWED_ORIGINS=http://localhost:3000
+
+# Blockchain (required by backend)
+INFURA_URL=https://polygon-mainnet.infura.io/v3/YOUR_PROJECT_ID
+CONTRACT_ADDRESS=0xYOUR_CONTRACT_ADDRESS
+PRIVATE_KEY=0xYOUR_PRIVATE_KEY
+```
+> Note: `VITE_*` variables (like `VITE_API_URL`) are evaluated at **build time**.  
+> If you change them in `.env`, rebuild the frontend image with  
+> `docker compose build frontend` or `docker compose up --build`.
+### 2. Build and Start All Services
+
+```bash
+docker compose up --build
+```
+
+This starts:
+- `db` (`mongo:7.0`)
+- `backend` (Node/Express on port `3001`)
+- `frontend` (React build served on port `3000`)
+
+### 3. Access the Stack
+
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:3001`
+- MongoDB: `mongodb://localhost:27017`
+
+### 4. Stop the Stack
+
+```bash
+docker compose down
+```
+
+To remove MongoDB volume too:
+
+```bash
+docker compose down -v
+```
+
+### Notes
+- The root `Dockerfile` is multi-stage and includes separate production targets for frontend and backend.
+- `.dockerignore` excludes heavy folders (`node_modules`, `dist`, `build`, `.git`) to keep build context small.
+- To validate image size, run `docker images` and confirm service images remain under your target limit.
 
 ---
 

@@ -99,10 +99,45 @@ app.use(helmet({
             styleSrc: ["'self'", "'unsafe-inline'"],
             scriptSrc: ["'self'"],
             imgSrc: ["'self'", "data:", "https:"],
+            fontSrc: ["'self'"],
+            connectSrc: ["'self'"],
+            frameSrc: ["'none'"],
+            objectSrc: ["'none'"],
+            baseUri: ["'self'"],
+            formAction: ["'self'"],
+            frameAncestors: ["'none'"],
+            upgradeInsecureRequests: [],
         },
     },
-    crossOriginEmbedderPolicy: false
+    crossOriginEmbedderPolicy: false,
+    // HSTS: force HTTPS for 1 year, including subdomains
+    hsts: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true,
+    },
+    // Prevent MIME-type sniffing
+    noSniff: true,
+    // Clickjacking protection via X-Frame-Options
+    frameguard: {
+        action: 'deny',
+    },
+    // Hide X-Powered-By header
+    hidePoweredBy: true,
+    // Referrer leakage control
+    referrerPolicy: {
+        policy: 'strict-origin-when-cross-origin',
+    },
 }));
+
+// Permissions-Policy header (not natively supported by Helmet 7)
+app.use((_req, res, next) => {
+    res.setHeader(
+        'Permissions-Policy',
+        'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()'
+    );
+    next();
+});
 
 // Rate limiting configurations
 const rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;

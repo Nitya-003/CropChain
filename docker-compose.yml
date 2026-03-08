@@ -1,10 +1,13 @@
-version: '3.8'
-
 services:
-  # MongoDB Service
-  mongodb:
-    image: mongo:latest
-    container_name: cropchain-mongodb
+  db:
+    image: mongo:7.0
+    container_name: cropchain-db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
       - "27017:27017"
     volumes:
@@ -12,64 +15,44 @@ services:
     networks:
       - cropchain-network
 
-  # Hardhat Service
-  hardhat:
-    image: node:18-alpine
-    container_name: cropchain-hardhat
-    working_dir: /usr/src/app
-    volumes:
-      - .:/usr/src/app
-    command: npx hardhat node --hostname 0.0.0.0
-    ports:
-      - "8545:8545"
-    networks:
-      - cropchain-network
-    depends_on:
-      - mongodb
-
-  # Backend Service
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: Dockerfile
+      target: backend-runner
     container_name: cropchain-backend
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    
     ports:
       - "3001:3001"
-    volumes:
-      - ./backend:/usr/src/app
-    environment:
-      - MONGODB_URI=mongodb://mongodb:27017/cropchain
-      - PROVIDER_URL=http://hardhat:8545
-      - NODE_ENV=development
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - cropchain-network
-    depends_on:
-      - mongodb
-      - hardhat
 
-  # Frontend Service
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
+      target: frontend-runner
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
     container_name: cropchain-frontend
+    restart: unless-stopped
+    
     ports:
-      - "5173:5173"
-    volumes:
-      - .:/usr/src/app
-    environment:
-      - VITE_API_URL=http://localhost:3001
-    networks:
-      - cropchain-network
+      - "3000:3000"
     depends_on:
       - backend
+    networks:
+      - cropchain-network
 
-# Named Volumes
 volumes:
   mongodb_data:
-    driver: local
 
-# Networks
 networks:
   cropchain-network:
     driver: bridge
