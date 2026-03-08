@@ -60,9 +60,9 @@ const PORT = process.env.PORT || 3001;
 
 // ==================== MIDDLEWARE FUNCTIONS ====================
 
-// Authentication is handled by middleware imported from './middleware/auth'
-// - protect: Verifies JWT and fetches full user from - adminOnly: MongoDB
-// Checks if user has admin role
+// Authentication is handled by middleware imported from './middleware/auth':
+// - protect: Verifies JWT and fetches full user from MongoDB
+// - adminOnly: Checks if user has admin role
 // - authorizeBatchOwner: Verifies user owns the batch
 // - authorizeRoles: Role-based authorization
 
@@ -274,7 +274,7 @@ async function generateBatchId() {
         );
 
         const currentYear = new Date().getFullYear();
-        const batchId = `CROP-${currentYear}-${String(counter.seq).padStart(4, '0')}`;
+        const batchId = `CROP-${currentYear}-${String(counter.seq).padStart(3, '0')}`;
 
         await session.commitTransaction();
         session.endSession();
@@ -307,6 +307,7 @@ async function generateBatchId(session = null) {
     );
     return `CROP-${currentYear}-${String(counter.seq).padStart(4, '0')}`;
 }
+
 
 async function generateQRCode(batchId) {
     try {
