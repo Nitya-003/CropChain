@@ -37,7 +37,7 @@ const updateSchema = new mongoose.Schema({
 
 /**
  * @typedef {Object} Batch
- * @property {string} batchId - Unique batch identifier (CROP-YYYY-XXX)
+ * @property {string} batchId - Unique batch identifier (CROP-YYYY-XXXX)
  * @property {string} farmerId - Farmer identifier
  * @property {string} farmerName - Farmer's full name
  * @property {string} farmerAddress - Farmer's address
@@ -62,6 +62,7 @@ const batchSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
+    index: true,
     trim: true
   },
   farmerId: {
@@ -81,6 +82,12 @@ const batchSchema = new mongoose.Schema({
     required: true,
     minlength: 10,
     maxlength: 500,
+    trim: true
+  },
+  farmerWalletAddress: {
+    type: String,
+    default: '',
+    lowercase: true,
     trim: true
   },
   cropType: {
@@ -123,6 +130,7 @@ const batchSchema = new mongoose.Schema({
   currentStage: {
     type: String,
     required: true,
+    index: true,
     enum: {
       values: STAGES,
       message: `Invalid stage. Must be one of: ${STAGES.join(', ')}`
@@ -147,6 +155,33 @@ const batchSchema = new mongoose.Schema({
     enum: ['pending', 'synced', 'error'],
     default: 'pending'
   },
+    crossChain: {
+      status: {
+        type: String,
+        enum: ['not_required', 'pending', 'sent', 'failed'],
+        default: 'not_required'
+      },
+      destinationChain: {
+        type: String,
+        default: ''
+      },
+      messageId: {
+        type: String,
+        default: ''
+      },
+      txHash: {
+        type: String,
+        default: ''
+      },
+      error: {
+        type: String,
+        default: ''
+      },
+      lastAttemptAt: {
+        type: Date,
+        default: null
+      }
+    },
   updates: [updateSchema],
   status: {
     type: String,
@@ -165,6 +200,9 @@ batchSchema.index({ createdAt: -1 });
 batchSchema.index({ currentStage: 1 });
 batchSchema.index({ syncStatus: 1 });
 batchSchema.index({ isRecalled: 1 });
+
+// Compound index for pagination and sorting optimization
+batchSchema.index({ currentStage: 1, createdAt: -1 });
 
 // Pre-save validation
 batchSchema.pre('save', function(next) {

@@ -9,6 +9,7 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "compile": "hardhat compile",
     "test": "hardhat test",
+    "test:ci": "npx hardhat test --reporter spec --reporter json",
     "test:unit": "jest",
     "deploy:localhost": "hardhat run scripts/deploy.js --network localhost",
     "deploy:mumbai": "hardhat run scripts/deploy.js --network mumbai",
@@ -72,6 +73,7 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.90.20",
     "@types/qrcode": "^1.5.5",
     "@types/react-router-dom": "^5.3.3",
     "dotenv": "^16.3.1",

@@ -47,6 +47,12 @@ async function reconcile() {
                 // Get batch ID at index
                 const batchIdBytes32 = await contract.getBatchIdByIndex(i);
                 
+<<<<<<< HEAD
+=======
+                // Convert bytes32 to string (remove padding)
+                const batchId = ethers.zeroPadValue(batchIdBytes32, 32).toString();
+                
+>>>>>>> upstream/main
                 // Get full batch data
                 const onChainBatch = await contract.getBatch(batchIdBytes32);
                 
@@ -56,13 +62,21 @@ async function reconcile() {
                     const readableBatchId = ethers.toUtf8String(batchIdBytes32);
                     
                     // Map blockchain stage (uint8) to string
+<<<<<<< HEAD
                     const stageName = getStageName(0);
+=======
+                    const stageName = getStageName(Number(onChainBatch.quantity) > 0 ? 0 : 0); // Stage is in updates, not CropBatch struct
+>>>>>>> upstream/main
                     
                     // Update or insert batch in MongoDB
                     await Batch.updateOne(
                         { batchId: readableBatchId },
                         {
                             $set: {
+<<<<<<< HEAD
+=======
+                                // Keep local data but update sync status
+>>>>>>> upstream/main
                                 syncStatus: 'synced',
                                 lastSyncedAt: new Date(),
                                 onChainData: {

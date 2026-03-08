@@ -1,0 +1,58 @@
+services:
+  db:
+    image: mongo:7.0
+    container_name: cropchain-db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - cropchain-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-runner
+    container_name: cropchain-backend
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    
+    ports:
+      - "3001:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - cropchain-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend-runner
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+    container_name: cropchain-frontend
+    restart: unless-stopped
+    
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - cropchain-network
+
+volumes:
+  mongodb_data:
+
+networks:
+  cropchain-network:
+    driver: bridge
