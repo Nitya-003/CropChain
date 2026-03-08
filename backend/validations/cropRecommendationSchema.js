@@ -14,7 +14,7 @@ const cropRecommendationSchema = Joi.object({
     .messages({ 'number.base': 'N (Nitrogen) must be a number', 'any.required': 'N (Nitrogen) is required' }),
 
   P: Joi.number().min(5).max(145).required()
-    .messages({ 'number.base': 'P (Phosphorous) must be a number', 'any.required': 'P (Phosphorous) is required' }),
+    .messages({ 'number.base': 'P (Phosphorus) must be a number', 'any.required': 'P (Phosphorus) is required' }),
 
   K: Joi.number().min(5).max(205).required()
     .messages({ 'number.base': 'K (Potassium) must be a number', 'any.required': 'K (Potassium) is required' }),
