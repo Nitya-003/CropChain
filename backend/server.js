@@ -27,6 +27,15 @@ const crypto = require('crypto');
 const Batch = require('./models/Batch');
 const Counter = require('./models/Counter');
 
+// Validate stage mapping on startup to prevent blockchain sync failures
+const { validateStageMapping } = require('./constants/stages');
+try {
+    validateStageMapping();
+} catch (error) {
+    console.error('❌ CRITICAL ERROR:', error.message);
+    process.exit(1); // Exit immediately if stages are misconfigured
+}
+
 // ==================== GLOBAL EXCEPTION HANDLERS ====================
 
 // Handle unhandled promise rejections

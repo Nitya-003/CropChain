@@ -17,6 +17,7 @@ const { ethers } = require('ethers');
 const { createQueueConnection } = require('../config/redis');
 const { QUEUE_NAMES, JOB_TYPES } = require('./blockchainQueue');
 const Batch = require('../models/Batch');
+const { getStageNumber } = require('../constants/stages');
 
 // Gas configuration
 const GAS_CONFIG = {
@@ -438,17 +439,12 @@ async function processUpdateBatch(job) {
 
 /**
  * Map stage string to contract enum value
+ * Uses centralized stage mapping from constants/stages.js
  * @param {string} stage - Stage name
  * @returns {number} Stage enum value
  */
 function mapStageToNumber(stage) {
-    const stageMap = {
-        'farmer': 0,
-        'mandi': 1,
-        'transport': 2,
-        'retailer': 3
-    };
-    return stageMap[stage?.toLowerCase()] ?? 0;
+    return getStageNumber(stage);
 }
 
 /**
