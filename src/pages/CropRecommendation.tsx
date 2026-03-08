@@ -32,7 +32,7 @@ const CROP_META: Record<string, { emoji: string; color: string; bgColor: string 
   coconut:     { emoji: '🥥', color: 'text-amber-800',  bgColor: 'bg-amber-50 dark:bg-amber-900/20' },
   cotton:      { emoji: '🌸', color: 'text-pink-600',   bgColor: 'bg-pink-50 dark:bg-pink-900/20' },
   jute:        { emoji: '🌿', color: 'text-teal-700',   bgColor: 'bg-teal-50 dark:bg-teal-900/20' },
-  coffee:      { emoji: '☕', color: 'text-brown-700',  bgColor: 'bg-stone-50 dark:bg-stone-900/20' },
+  coffee:      { emoji: '☕', color: 'text-stone-700',  bgColor: 'bg-stone-50 dark:bg-stone-900/20' },
 };
 
 function getCropMeta(crop: string) {
