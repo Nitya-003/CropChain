@@ -36,7 +36,9 @@ exports.getBatches = async (req, res) => {
         const sort = {};
         sort[sortBy] = sortOrder.toLowerCase() === 'asc' ? 1 : -1;
 
+        // Use lean() for read-only queries to skip Mongoose document hydration
         const batches = await Batch.find(query)
+            .lean()
             .sort(sort)
             .skip(skip)
             .limit(limitNumber);

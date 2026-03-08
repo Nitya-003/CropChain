@@ -12,7 +12,7 @@ describe("CropChain", function () {
   let other;
 
   // Role constants
-  const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000000000";
+  const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000";
   let FARMER_ROLE;
   let MANDI_ROLE;
   let TRANSPORTER_ROLE;
@@ -24,7 +24,7 @@ describe("CropChain", function () {
 
     const CropChain = await ethers.getContractFactory("CropChain");
     cropChain = await CropChain.deploy();
-    await cropChain.deployed();
+    await cropChain.waitForDeployment();
 
     // Get role constants
     FARMER_ROLE = await cropChain.FARMER_ROLE();
@@ -33,6 +33,11 @@ describe("CropChain", function () {
     RETAILER_ROLE = await cropChain.RETAILER_ROLE();
     ORACLE_ROLE = await cropChain.ORACLE_ROLE();
   });
+
+  // Helper function to create bytes32 string
+  function toBytes32String(text) {
+    return ethers.encodeBytes32String(text);
+  }
 
   it("Should set the right owner and grant DEFAULT_ADMIN_ROLE", async function () {
     expect(await cropChain.owner()).to.equal(owner.address);
@@ -65,8 +70,8 @@ describe("CropChain", function () {
   it("Should allow farmer with FARMER_ROLE to create a batch", async function () {
     await cropChain.grantStakeholderRole(FARMER_ROLE, farmer.address);
 
-    const batchId = ethers.utils.formatBytes32String("BATCH-001");
-    const cropTypeHash = ethers.utils.formatBytes32String("WHEAT");
+    const batchId = toBytes32String("BATCH-001");
+    const cropTypeHash = toBytes32String("WHEAT");
     const ipfsCID = "QmHash";
     const quantity = 100;
 
@@ -83,8 +88,8 @@ describe("CropChain", function () {
   it("Should revert when non-farmer tries to create a batch", async function () {
     await cropChain.grantStakeholderRole(MANDI_ROLE, mandi.address);
 
-    const batchId = ethers.utils.formatBytes32String("BATCH-002");
-    const cropTypeHash = ethers.utils.formatBytes32String("WHEAT");
+    const batchId = toBytes32String("BATCH-002");
+    const cropTypeHash = toBytes32String("WHEAT");
     
     await expect(cropChain.connect(mandi).createBatch(
       batchId, cropTypeHash, "QmHash", 100, "Mandi Guy", "Kansas", "Received"
@@ -99,8 +104,8 @@ describe("CropChain", function () {
     await cropChain.grantStakeholderRole(RETAILER_ROLE, retailer.address);
 
     // Create batch
-    const batchId = ethers.utils.formatBytes32String("BATCH-003");
-    const cropTypeHash = ethers.utils.formatBytes32String("CORN");
+    const batchId = toBytes32String("BATCH-003");
+    const cropTypeHash = toBytes32String("CORN");
     await cropChain.connect(farmer).createBatch(
       batchId, cropTypeHash, "QmHash", 500, "Farmer Joe", "Iowa", "Harvested"
     );
@@ -147,8 +152,8 @@ describe("CropChain", function () {
     await cropChain.grantStakeholderRole(RETAILER_ROLE, retailer.address);
 
     // Create batch
-    const batchId = ethers.utils.formatBytes32String("BATCH-004");
-    const cropTypeHash = ethers.utils.formatBytes32String("CORN");
+    const batchId = toBytes32String("BATCH-004");
+    const cropTypeHash = toBytes32String("CORN");
     await cropChain.connect(farmer).createBatch(
       batchId, cropTypeHash, "QmHash", 500, "Farmer Joe", "Iowa", "Harvested"
     );
@@ -177,8 +182,8 @@ describe("CropChain", function () {
     await cropChain.grantStakeholderRole(FARMER_ROLE, farmer.address);
 
     // Create batch
-    const batchId = ethers.utils.formatBytes32String("BATCH-005");
-    const cropTypeHash = ethers.utils.formatBytes32String("WHEAT");
+    const batchId = toBytes32String("BATCH-005");
+    const cropTypeHash = toBytes32String("WHEAT");
     await cropChain.connect(farmer).createBatch(
       batchId, cropTypeHash, "QmHash", 200, "Farmer Joe", "Kansas", "Harvested"
     );
@@ -205,6 +210,163 @@ describe("CropChain", function () {
       .withArgs(owner.address, other.address);
   });
 
+  describe("Input Validation", function () {
+    beforeEach(async function () {
+      // Grant FARMER_ROLE to farmer for testing createBatch without access control errors
+      await cropChain.grantStakeholderRole(FARMER_ROLE, farmer.address);
+    });
+
+    it("Should revert when IPFS CID is invalid length", async function () {
+      const batchId = toBytes32String("BATCH-VAL-001");
+      const cropTypeHash = toBytes32String("WHEAT");
+      const quantity = 100;
+
+      // Test with IPFS CID too short (less than 46 characters)
+      await expect(cropChain.connect(farmer).createBatch(
+        batchId, cropTypeHash, "QmShort", quantity, "Farmer Joe", "Kansas", "Harvested"
+      )).to.be.revertedWith("Invalid IPFS CID length");
+
+      // Test with IPFS CID too long (more than 64 characters)
+      const longIpfsCID = "Qm" + "a".repeat(65); // 66 characters total
+      await expect(cropChain.connect(farmer).createBatch(
+        batchId, cropTypeHash, longIpfsCID, quantity, "Farmer Joe", "Kansas", "Harvested"
+      )).to.be.revertedWith("Invalid IPFS CID length");
+
+      // Test with valid IPFS CID length (should work)
+      const validIpfsCID = "Qm" + "a".repeat(44); // 46 characters total
+      await expect(cropChain.connect(farmer).createBatch(
+        batchId, cropTypeHash, validIpfsCID, quantity, "Farmer Joe", "Kansas", "Harvested"
+      )).to.emit(cropChain, "BatchCreated");
+    });
+
+    it("Should revert when actor name is too short or too long", async function () {
+      const batchId = toBytes32String("BATCH-VAL-002");
+      const cropTypeHash = toBytes32String("WHEAT");
+      const quantity = 100;
+      const validIpfsCID = "Qm" + "a".repeat(44); // 46 characters
+
+      // Test with empty actor name (too short)
+      await expect(cropChain.connect(farmer).createBatch(
+        batchId, cropTypeHash, validIpfsCID, quantity, "", "Kansas", "Harvested"
+      )).to.be.revertedWith("Actor name length invalid");
+
+      // Test with single character actor name (too short)
+      await expect(cropChain.connect(farmer).createBatch(
+        batchId, cropTypeHash, validIpfsCID, quantity, "A", "Kansas", "Harvested"
+      )).to.be.revertedWith("Actor name length invalid");
+
+      // Test with actor name too long (more than 50 characters)
+      const longActorName = "A" + "a".repeat(50); // 51 characters total
+      await expect(cropChain.connect(farmer).createBatch(
+        batchId, cropTypeHash, validIpfsCID, quantity, longActorName, "Kansas", "Harvested"
+      )).to.be.revertedWith("Actor name length invalid");
+
+      // Test with valid actor name length (should work)
+      await expect(cropChain.connect(farmer).createBatch(
+        batchId, cropTypeHash, validIpfsCID, quantity, "Farmer Joe", "Kansas", "Harvested"
+      )).to.emit(cropChain, "BatchCreated");
+    });
+
+    it("Should revert when location is too short or too long", async function () {
+      const batchId = toBytes32String("BATCH-VAL-003");
+      const cropTypeHash = toBytes32String("WHEAT");
+      const quantity = 100;
+      const validIpfsCID = "Qm" + "a".repeat(44); // 46 characters
+
+      // Test with empty location (too short)
+      await expect(cropChain.connect(farmer).createBatch(
+        batchId, cropTypeHash, validIpfsCID, quantity, "Farmer Joe", "", "Harvested"
+      )).to.be.revertedWith("Location length invalid");
+
+      // Test with single character location (too short)
+      await expect(cropChain.connect(farmer).createBatch(
+        batchId, cropTypeHash, validIpfsCID, quantity, "Farmer Joe", "K", "Harvested"
+      )).to.be.revertedWith("Location length invalid");
+
+      // Test with location too long (more than 100 characters)
+      const longLocation = "A" + "a".repeat(100); // 101 characters total
+      await expect(cropChain.connect(farmer).createBatch(
+        batchId, cropTypeHash, validIpfsCID, quantity, "Farmer Joe", longLocation, "Harvested"
+      )).to.be.revertedWith("Location length invalid");
+
+      // Test with valid location length (should work)
+      await expect(cropChain.connect(farmer).createBatch(
+        batchId, cropTypeHash, validIpfsCID, quantity, "Farmer Joe", "Kansas", "Harvested"
+      )).to.emit(cropChain, "BatchCreated");
+    });
+
+    it("Should revert when notes exceed maximum length", async function () {
+      const batchId = toBytes32String("BATCH-VAL-004-NOTES");
+      const cropTypeHash = toBytes32String("WHEAT-NOTES");
+      const quantity = 100;
+      const validIpfsCID = "Qm" + "a".repeat(44); // 46 characters
+
+      // Test with notes too long (more than 500 characters)
+      const longNotes = "A" + "a".repeat(500); // 501 characters total
+      await expect(cropChain.connect(farmer).createBatch(
+        batchId, cropTypeHash, validIpfsCID, quantity, "Farmer Joe", "Kansas", longNotes
+      )).to.be.revertedWith("Notes too long");
+
+      // Test with empty notes (should work - 0 characters is allowed)
+      await expect(cropChain.connect(farmer).createBatch(
+        toBytes32String("BATCH-VAL-004-EMPTY"), cropTypeHash, validIpfsCID, quantity, "Farmer Joe", "Kansas", ""
+      )).to.emit(cropChain, "BatchCreated");
+
+      // Test with maximum valid notes length (should work - exactly 500 characters)
+      const maxNotes = "A" + "a".repeat(499); // 500 characters total
+      await expect(cropChain.connect(farmer).createBatch(
+        toBytes32String("BATCH-VAL-004-MAX"), cropTypeHash, validIpfsCID, quantity, "Farmer Joe", "Kansas", maxNotes
+      )).to.emit(cropChain, "BatchCreated");
+    });
+
+    it("Should enforce validation on batch updates", async function () {
+      // First create a valid batch
+      const batchId = toBytes32String("BATCH-VAL-005");
+      const cropTypeHash = toBytes32String("WHEAT");
+      const validIpfsCID = "Qm" + "a".repeat(44); // 46 characters
+      
+      await cropChain.connect(farmer).createBatch(
+        batchId, cropTypeHash, validIpfsCID, 100, "Farmer Joe", "Kansas", "Harvested"
+      );
+
+      // Grant MANDI_ROLE for testing updates
+      await cropChain.grantStakeholderRole(MANDI_ROLE, mandi.address);
+
+      // Test updateBatch with empty actor name (too short)
+      await expect(cropChain.connect(mandi).updateBatch(
+        batchId, 1, "", "Iowa Market", "Received goods"
+      )).to.be.revertedWith("Actor name length invalid");
+
+      // Test updateBatch with actor name too long
+      const longActorName = "A" + "a".repeat(50); // 51 characters total
+      await expect(cropChain.connect(mandi).updateBatch(
+        batchId, 1, longActorName, "Iowa Market", "Received goods"
+      )).to.be.revertedWith("Actor name length invalid");
+
+      // Test updateBatch with empty location (too short)
+      await expect(cropChain.connect(mandi).updateBatch(
+        batchId, 1, "Mandi Market", "", "Received goods"
+      )).to.be.revertedWith("Location length invalid");
+
+      // Test updateBatch with location too long
+      const longLocation = "A" + "a".repeat(100); // 101 characters total
+      await expect(cropChain.connect(mandi).updateBatch(
+        batchId, 1, "Mandi Market", longLocation, "Received goods"
+      )).to.be.revertedWith("Location length invalid");
+
+      // Test updateBatch with notes too long
+      const longNotes = "A" + "a".repeat(500); // 501 characters total
+      await expect(cropChain.connect(mandi).updateBatch(
+        batchId, 1, "Mandi Market", "Iowa Market", longNotes
+      )).to.be.revertedWith("Notes too long");
+
+      // Test with valid update (should work)
+      await expect(cropChain.connect(mandi).updateBatch(
+        batchId, 1, "Mandi Market", "Iowa Market", "Received goods"
+      )).to.emit(cropChain, "BatchUpdated");
+    });
+  });
+
   describe("Oracle Integration Tests", function () {
     let testBatchId;
     
@@ -216,8 +378,8 @@ describe("CropChain", function () {
       await cropChain.grantStakeholderRole(ORACLE_ROLE, oracle.address);
       
       // Create a test batch
-      testBatchId = ethers.utils.formatBytes32String("IOT-TEST-BATCH");
-      const cropTypeHash = ethers.utils.formatBytes32String("WHEAT");
+      testBatchId = toBytes32String("IOT-TEST-BATCH");
+      const cropTypeHash = toBytes32String("WHEAT");
       await cropChain.connect(farmer).createBatch(
         testBatchId,
         cropTypeHash,
@@ -352,7 +514,7 @@ describe("CropChain", function () {
     });
 
     it("Should prevent IoT fulfillment for non-existent batch", async function () {
-      const nonExistentBatchId = ethers.utils.formatBytes32String("NON-EXISTENT");
+      const nonExistentBatchId = toBytes32String("NON-EXISTENT");
       
       await expect(
         cropChain.connect(oracle).fulfillIoTData(
@@ -381,8 +543,8 @@ describe("CropChain", function () {
     });
 
     it("Should handle multiple IoT requests and fulfillments", async function () {
-      const batchId2 = ethers.utils.formatBytes32String("IOT-TEST-BATCH-2");
-      const cropTypeHash2 = ethers.utils.formatBytes32String("CORN");
+      const batchId2 = toBytes32String("IOT-TEST-BATCH-2");
+      const cropTypeHash2 = toBytes32String("CORN");
       
       // Create second batch
       await cropChain.connect(farmer).createBatch(

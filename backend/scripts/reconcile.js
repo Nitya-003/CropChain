@@ -3,6 +3,7 @@ const { ethers } = require('ethers');
 const Batch = require('../models/Batch');
 const { getContract } = require('../config/blockchain');
 
+<<<<<<< HEAD
 // Stage enum mapping from CropChain.sol
 const STAGE_NAMES = ['Farmer', 'Mandi', 'Transport', 'Retailer'];
 
@@ -16,6 +17,62 @@ function getStageName(stage) {
         return STAGE_NAMES[stage];
     }
     return 'Unknown';
+=======
+/**
+ * Reconciles blockchain data with the database.
+ * Uses getTotalBatches(), getBatchIdByIndex(), and getBatch() 
+ * to iterate through batches stored in the contract's mapping and allBatchIds array.
+ */
+async function reconcile() {
+  const contract = await getContract();
+
+  // Get total number of batches from the allBatchIds array
+  const total = await contract.getTotalBatches();
+  console.log(`Found ${total} batches on blockchain`);
+
+  for (let i = 0; i < total; i++) {
+    // Get batch ID by index from the allBatchIds array
+    const batchIdBytes = await contract.getBatchIdByIndex(i);
+    
+    // Convert bytes32 to string (hex) for use as batchId
+    const batchId = batchIdBytes.toString();
+    
+    // Get the full batch data from the cropBatches mapping
+    const onChain = await contract.getBatch(batchIdBytes);
+    
+    // Get the latest update to find the current stage
+    let currentStage = 0;
+    try {
+      const latestUpdate = await contract.getLatestUpdate(batchIdBytes);
+      currentStage = latestUpdate.stage.toNumber();
+    } catch (err) {
+      // If no updates exist yet, default to stage 0 (Farmer)
+      console.log(`No updates found for batch ${batchId}, defaulting to stage 0`);
+    }
+
+    // Map contract stage number to stage name
+    const stageNames = ['Farmer', 'Mandi', 'Transport', 'Retailer'];
+    const stageName = stageNames[currentStage] || 'Farmer';
+
+    await Batch.updateOne(
+      { batchId: batchId },
+      {
+        stage: stageName,
+        syncStatus: 'synced',
+        // Also sync other blockchain data
+        quantity: onChain.quantity.toNumber(),
+        ipfsCID: onChain.ipfsCID,
+        isRecalled: onChain.isRecalled,
+        blockchainCreator: onChain.creator
+      },
+      { upsert: true }
+    );
+
+    console.log(`Synced batch ${batchId} (stage: ${stageName})`);
+  }
+
+  console.log('✅ Reconciliation complete');
+>>>>>>> upstream/main
 }
 
 /**
@@ -47,6 +104,12 @@ async function reconcile() {
                 // Get batch ID at index
                 const batchIdBytes32 = await contract.getBatchIdByIndex(i);
                 
+<<<<<<< HEAD
+=======
+                // Convert bytes32 to string (remove padding)
+                const batchId = ethers.zeroPadValue(batchIdBytes32, 32).toString();
+                
+>>>>>>> upstream/main
                 // Get full batch data
                 const onChainBatch = await contract.getBatch(batchIdBytes32);
                 
@@ -56,13 +119,21 @@ async function reconcile() {
                     const readableBatchId = ethers.toUtf8String(batchIdBytes32);
                     
                     // Map blockchain stage (uint8) to string
+<<<<<<< HEAD
                     const stageName = getStageName(0);
+=======
+                    const stageName = getStageName(Number(onChainBatch.quantity) > 0 ? 0 : 0); // Stage is in updates, not CropBatch struct
+>>>>>>> upstream/main
                     
                     // Update or insert batch in MongoDB
                     await Batch.updateOne(
                         { batchId: readableBatchId },
                         {
                             $set: {
+<<<<<<< HEAD
+=======
+                                // Keep local data but update sync status
+>>>>>>> upstream/main
                                 syncStatus: 'synced',
                                 lastSyncedAt: new Date(),
                                 onChainData: {

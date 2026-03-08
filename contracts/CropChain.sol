@@ -76,7 +76,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     mapping(bytes32 => uint256) public latestOraclePrice;
     mapping(address => uint256) public pendingWithdrawals;
 
-    string[] public allBatchIds;
+    bytes32[] public allBatchIds;
 
     address public owner;
     uint256 public nextListingId;
@@ -187,6 +187,12 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         string calldata location,
         string calldata notes
     ) external onlyRole(FARMER_ROLE) whenNotPaused nonReentrant {
+        // Input validations to prevent malformed data and gas exhaustion attacks
+        _validateStringLength(ipfsCID, 46, 64, "Invalid IPFS CID length");
+        _validateStringLength(actorName, 2, 50, "Actor name length invalid");
+        _validateStringLength(location, 2, 100, "Location length invalid");
+        _validateStringLength(notes, 0, 500, "Notes too long");
+        
         require(!cropBatches[batchId].exists, "Batch already exists");
         require(batchId != bytes32(0), "Invalid batch ID");
         require(cropTypeHash != bytes32(0), "Invalid crop type");
@@ -200,7 +206,10 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
             createdAt: block.timestamp,
             creator: msg.sender,
             exists: true,
-            isRecalled: false
+            isRecalled: false,
+            currentTemperature: 0,
+            currentHumidity: 0,
+            isSpoiled: false
         });
 
         _batchUpdates[batchId].push(
@@ -226,6 +235,11 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         string calldata location,
         string calldata notes
     ) external whenNotPaused nonReentrant batchExists(batchId) {
+        // Input validations to prevent malformed data and gas exhaustion attacks
+        _validateStringLength(actorName, 2, 50, "Actor name length invalid");
+        _validateStringLength(location, 2, 100, "Location length invalid");
+        _validateStringLength(notes, 0, 500, "Notes too long");
+        
         require(!cropBatches[batchId].isRecalled, "Batch is recalled");
         require(bytes(actorName).length > 0, "Actor required");
         require(bytes(location).length > 0, "Location required");
@@ -520,6 +534,18 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         uint256 lower = (referencePrice * (10_000 - bps)) / 10_000;
         uint256 upper = (referencePrice * (10_000 + bps)) / 10_000;
         return observed >= lower && observed <= upper;
+    }
+
+    /**
+     * @dev Validates string length within specified bounds
+     * @param str The string to validate
+     * @param minLen Minimum allowed length
+     * @param maxLen Maximum allowed length
+     * @param errorMessage Error message to revert with if validation fails
+     */
+    function _validateStringLength(string memory str, uint256 minLen, uint256 maxLen, string memory errorMessage) internal pure {
+        uint256 length = bytes(str).length;
+        require(length >= minLen && length <= maxLen, errorMessage);
     }
 
     /**
