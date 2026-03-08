@@ -166,6 +166,7 @@ const CropRecommendation: React.FC = () => {
 
   const handleCreateBatch = () => {
     if (!result) return;
+    navigate('/add-batch');
     navigate(`/add-batch?cropType=${encodeURIComponent(result.crop)}`, {
       state: { cropType: result.crop },
     });
