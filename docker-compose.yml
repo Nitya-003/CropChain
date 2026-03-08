@@ -24,12 +24,32 @@ services:
     restart: unless-stopped
     env_file:
       - ./.env
-    
+    environment:
+      ML_SERVICE_URL: http://ml-service:5001
     ports:
       - "3001:3001"
     depends_on:
       db:
         condition: service_healthy
+      ml-service:
+        condition: service_healthy
+    networks:
+      - cropchain-network
+
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: cropchain-ml
+    restart: unless-stopped
+    expose:
+      - "5001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     networks:
       - cropchain-network
 

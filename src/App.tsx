@@ -14,6 +14,7 @@ import TrackBatch from './pages/TrackBatch';
 import AdminDashboard from './pages/AdminDashboard';
 import VerificationDashboard from './pages/VerificationDashboard';
 import NotFound from './pages/NotFound';
+import CropRecommendation from './pages/CropRecommendation';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // Components
@@ -35,6 +36,7 @@ function App() {
               <Route path="/update-batch" element={<UpdateBatch />} />
               <Route path="/track-batch" element={<TrackBatch />} />
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/crop-recommendation" element={<CropRecommendation />} />
             </Routes>
           </main>
 

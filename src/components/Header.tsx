@@ -47,6 +47,9 @@ const Header: React.FC = () => {
               <Link to="/" className={`text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors ${location.pathname === '/' ? 'text-green-600 dark:text-green-400 font-medium' : ''}`}>
                 {t('nav.home')}
               </Link>
+              <Link to="/crop-recommendation" className={`flex items-center gap-1.5 text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors ${location.pathname === '/crop-recommendation' ? 'text-green-600 dark:text-green-400 font-medium' : ''}`}>
+                🌱 Smart Planting
+              </Link>
             </nav>
 
             <div className="flex items-center space-x-3">
