@@ -23,5 +23,5 @@ RUN python train.py
 
 EXPOSE 5001
 
-# Use gunicorn for production; fall back to Flask dev server in compose-dev
+# Use gunicorn as the application server
 CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "2", "--timeout", "60", "app:app"]

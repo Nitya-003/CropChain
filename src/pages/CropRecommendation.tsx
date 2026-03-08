@@ -32,7 +32,7 @@ const CROP_META: Record<string, { emoji: string; color: string; bgColor: string 
   coconut:     { emoji: '🥥', color: 'text-amber-800',  bgColor: 'bg-amber-50 dark:bg-amber-900/20' },
   cotton:      { emoji: '🌸', color: 'text-pink-600',   bgColor: 'bg-pink-50 dark:bg-pink-900/20' },
   jute:        { emoji: '🌿', color: 'text-teal-700',   bgColor: 'bg-teal-50 dark:bg-teal-900/20' },
-  coffee:      { emoji: '☕', color: 'text-brown-700',  bgColor: 'bg-stone-50 dark:bg-stone-900/20' },
+  coffee:      { emoji: '☕', color: 'text-stone-700',  bgColor: 'bg-stone-50 dark:bg-stone-900/20' },
 };
 
 function getCropMeta(crop: string) {
@@ -206,7 +206,7 @@ const CropRecommendation: React.FC = () => {
                 onChange={handleChange}
               />
               <SliderField
-                label="Phosphorous (P)" unit="kg/ha" icon={<Leaf className="w-3.5 h-3.5" />}
+                label="Phosphorus (P)" unit="kg/ha" icon={<Leaf className="w-3.5 h-3.5" />}
                 name="P" value={inputs.P} min={5} max={145} step={1}
                 description="Supports root development and flowering"
                 onChange={handleChange}
@@ -300,7 +300,7 @@ const CropRecommendation: React.FC = () => {
 
       {/* ── Result card ── */}
       {result && meta && (
-        <div id="result-card" className="animate-fadeIn">
+        <div id="result-card">
           <div className={`rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden ${meta.bgColor}`}>
 
             {/* Top banner */}
