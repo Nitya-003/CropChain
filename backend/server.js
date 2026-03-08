@@ -27,6 +27,15 @@ const crypto = require('crypto');
 const Batch = require('./models/Batch');
 const Counter = require('./models/Counter');
 
+// Validate stage mapping on startup to prevent blockchain sync failures
+const { validateStageMapping } = require('./constants/stages');
+try {
+    validateStageMapping();
+} catch (error) {
+    console.error('❌ CRITICAL ERROR:', error.message);
+    process.exit(1); // Exit immediately if stages are misconfigured
+}
+
 // ==================== GLOBAL EXCEPTION HANDLERS ====================
 
 // Handle unhandled promise rejections
@@ -298,33 +307,6 @@ if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY) {
     }
 } else {
     console.log('ℹ️  Blockchain not configured - running without contract instance');
-}
-
-// Helper functions
-async function generateBatchId() {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-        const counter = await Counter.findOneAndUpdate(
-            { name: 'batchId' },
-            { $inc: { seq: 1 } },
-            { new: true, upsert: true, session }
-        );
-
-        const currentYear = new Date().getFullYear();
-        const batchId = `CROP-${currentYear}-${String(counter.seq).padStart(4, '0')}`;
-
-        await session.commitTransaction();
-        session.endSession();
-
-        return batchId;
-
-    } catch (error) {
-        await session.abortTransaction();
-        session.endSession();
-        throw error;
-    }
 }
 
 /**

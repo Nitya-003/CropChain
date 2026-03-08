@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { z } = require('zod');
 const apiResponse = require('../utils/apiResponse');
 const { verifyMessage } = require('ethers');
+const { VALID_ROLES, ROLES } = require('../constants/permissions');
 require('dotenv').config();
 
 // Validation Schemas
@@ -24,9 +25,11 @@ const registerSchema = z.object({
         .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
         .regex(/[0-9]/, 'Password must contain at least one number')
         .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
-    role: z.enum(['farmer', 'mandi', 'transporter', 'retailer'], {
-        errorMap: () => ({ message: 'Invalid role. Only farmer, mandi, transporter, and retailer are allowed.' })
-    })
+    role: z.enum(VALID_ROLES, {
+        errorMap: () => ({ 
+            message: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}` 
+        })
+    }).default(ROLES.FARMER)
 });
 
 const updateProfileSchema = z.object({
@@ -428,9 +431,11 @@ const walletRegisterSchema = z.object({
     signature: z.string()
         .min(1, 'Signature is required'),
     nonce: z.string().optional(),
-    role: z.enum(['farmer', 'mandi', 'transporter', 'retailer'], {
-        errorMap: () => ({ message: 'Invalid role. Only farmer, mandi, transporter, and retailer are allowed.' })
-    })
+    role: z.enum(VALID_ROLES, {
+        errorMap: () => ({ 
+            message: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}` 
+        })
+    }).default(ROLES.FARMER)
 });
 
 const walletRegister = async (req, res) => {
