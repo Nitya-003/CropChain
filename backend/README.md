@@ -78,6 +78,23 @@ CONTRACT_ADDRESS=0x...                                      # Smart contract add
 PRIVATE_KEY=0x...                                          # Wallet private key
 ```
 
+### CCIP Cross-Chain Configuration (Optional)
+
+When configured, `PUT /api/batches/:batchId` automatically dispatches a CCIP message
+once the batch stage is updated to `retailer`.
+
+```env
+CCIP_SOURCE_RPC_URL=https://polygon-rpc.example             # Source chain RPC (fallback: INFURA_URL)
+CCIP_SENDER_CONTRACT_ADDRESS=0x...                          # Deployed CropChainCCIPSender address
+CCIP_SENDER_PRIVATE_KEY=0x...                               # Signer with CCIP_SENDER_ROLE
+CCIP_DESTINATION_LABEL=ethereum-mainnet                     # Stored label in batch.crossChain.destinationChain
+CCIP_DEFAULT_FARMER_WALLET=0x...                            # Fallback farmer wallet if batch has none
+```
+
+Notes:
+- Paymaster fees are debited from sender contract credits (`paymasterCredits[farmer]`).
+- If CCIP is not configured, the API continues to work and skips cross-chain dispatch.
+
 ### Database Configuration (Optional - Uses in-memory storage if not provided)
 
 ```env

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Upload, MapPin, Calendar, User, Shield, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import toast from 'react-hot-toast';
+import toast, { success as toastSuccess, error as toastError } from 'react-hot-toast';
 import { realCropBatchService } from '../services/realCropBatchService';
 import { useRbac } from '../hooks/useRbac';
 import { useNavigate } from 'react-router-dom';
@@ -25,6 +25,9 @@ const AddBatch: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [generatedBatch, setGeneratedBatch] = useState<any>(null);
+
+  // Get today's date for max date constraint
+  const today = new Date().toISOString().split('T')[0];
 
   // RBAC Protection - Only farmers can create batches
   if (!permissions.canCreateBatch) {
