@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { z } = require('zod');
 const apiResponse = require('../utils/apiResponse');
 const { verifyMessage } = require('ethers');
+const { VALID_ROLES, ROLES } = require('../constants/permissions');
 require('dotenv').config();
 
 // Validation Schemas
@@ -24,9 +25,11 @@ const registerSchema = z.object({
         .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
         .regex(/[0-9]/, 'Password must contain at least one number')
         .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
-    role: z.enum(['farmer', 'mandi', 'transporter', 'retailer'], {
-        errorMap: () => ({ message: 'Invalid role. Only farmer, mandi, transporter, and retailer are allowed.' })
-    })
+    role: z.enum(VALID_ROLES, {
+        errorMap: () => ({ 
+            message: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}` 
+        })
+    }).default(ROLES.FARMER)
 });
 
 const updateProfileSchema = z.object({
@@ -341,8 +344,15 @@ const walletLogin = async (req, res) => {
         // Get stored nonce
         const storedNonce = nonceStore.get(normalizedAddress);
         
-        // Use provided nonce or stored nonce
-        const nonce = providedNonce || storedNonce?.nonce || 'Login to CropChain';
+        // ALWAYS require stored nonce - never fall back to constant string
+        if (!storedNonce) {
+            return res.status(401).json(
+                apiResponse.unauthorizedResponse('No authentication nonce found. Please request a new one.')
+            );
+        }
+        
+        // Use stored nonce (provided nonce is for backwards compatibility only)
+        const nonce = providedNonce || storedNonce.nonce;
 
         // Clean up expired nonces
         if (storedNonce && storedNonce.expiresAt < Date.now()) {
@@ -421,9 +431,11 @@ const walletRegisterSchema = z.object({
     signature: z.string()
         .min(1, 'Signature is required'),
     nonce: z.string().optional(),
-    role: z.enum(['farmer', 'mandi', 'transporter', 'retailer'], {
-        errorMap: () => ({ message: 'Invalid role. Only farmer, mandi, transporter, and retailer are allowed.' })
-    })
+    role: z.enum(VALID_ROLES, {
+        errorMap: () => ({ 
+            message: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}` 
+        })
+    }).default(ROLES.FARMER)
 });
 
 const walletRegister = async (req, res) => {
@@ -444,7 +456,16 @@ const walletRegister = async (req, res) => {
 
         // Get stored nonce
         const storedNonce = nonceStore.get(normalizedAddress);
-        const nonce = providedNonce || storedNonce?.nonce || 'Login to CropChain';
+        
+        // ALWAYS require stored nonce - never fall back to constant string
+        if (!storedNonce) {
+            return res.status(401).json(
+                apiResponse.unauthorizedResponse('No authentication nonce found. Please request a new one.')
+            );
+        }
+        
+        // Use stored nonce (provided nonce is for backwards compatibility only)
+        const nonce = providedNonce || storedNonce.nonce;
 
         // Verify signature
         let recoveredAddress;

@@ -1,0 +1,149 @@
+<<<<<<< HEAD
+version: '3.8'
+
+services:
+  # MongoDB Service
+  mongodb:
+    image: mongo:latest
+    container_name: cropchain-mongodb
+=======
+services:
+  db:
+    image: mongo:7.0
+    container_name: cropchain-db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+>>>>>>> upstream/main
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - cropchain-network
+
+<<<<<<< HEAD
+  # Hardhat Service
+  hardhat:
+    image: node:18-alpine
+    container_name: cropchain-hardhat
+    working_dir: /usr/src/app
+    volumes:
+      - .:/usr/src/app
+    command: npx hardhat node --hostname 0.0.0.0
+    ports:
+      - "8545:8545"
+    networks:
+      - cropchain-network
+    depends_on:
+      - mongodb
+
+  # Backend Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: cropchain-backend
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend:/usr/src/app
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/cropchain
+      - PROVIDER_URL=http://hardhat:8545
+      - NODE_ENV=development
+    networks:
+      - cropchain-network
+    depends_on:
+      - mongodb
+      - hardhat
+
+  # Frontend Service
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: cropchain-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/usr/src/app
+    environment:
+      - VITE_API_URL=http://localhost:3001
+    networks:
+      - cropchain-network
+    depends_on:
+      - backend
+
+# Named Volumes
+volumes:
+  mongodb_data:
+    driver: local
+
+# Networks
+=======
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-runner
+    container_name: cropchain-backend
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      ML_SERVICE_URL: http://ml-service:5001
+    ports:
+      - "3001:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+      ml-service:
+        condition: service_healthy
+    networks:
+      - cropchain-network
+
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: cropchain-ml
+    restart: unless-stopped
+    expose:
+      - "5001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - cropchain-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend-runner
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+    container_name: cropchain-frontend
+    restart: unless-stopped
+    
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - cropchain-network
+
+volumes:
+  mongodb_data:
+
+>>>>>>> upstream/main
+networks:
+  cropchain-network:
+    driver: bridge

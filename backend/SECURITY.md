@@ -86,7 +86,7 @@ const suspiciousPatterns = [
 ```
 
 #### Batch ID Validation:
-- Format: `CROP-YYYY-XXX` (e.g., `CROP-2024-001`)
+- Format: `CROP-YYYY-XXXX` (e.g., `CROP-2024-0001`)
 - Regex validation for consistent format
 - Prevents injection through URL parameters
 

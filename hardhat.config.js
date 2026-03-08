@@ -2,6 +2,10 @@ require("@nomicfoundation/hardhat-ethers");
 require("@nomicfoundation/hardhat-chai-matchers");
 require("dotenv").config();
 
+// Only use a random wallet if explicitly needed for CI on external networks, otherwise leave empty
+const { ethers } = require("ethers");
+const fallbackKey = process.env.PRIVATE_KEY || ethers.Wallet.createRandom().privateKey;
+
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: {
@@ -17,15 +21,13 @@ module.exports = {
     // Local development network
     localhost: {
       url: "http://127.0.0.1:8545"
+      // Hardhat automatically uses its default 20 test accounts for localhost
     },
     
     // Polygon Mumbai Testnet
     mumbai: {
       url: process.env.INFURA_URL || "https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [
-        // Fallback dummy private key for CI/CD testing
-        "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-      ],
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       gasPrice: 20000000000, // 20 gwei
       gas: 6000000
     },
@@ -33,10 +35,7 @@ module.exports = {
     // Polygon Mainnet
     polygon: {
       url: process.env.POLYGON_URL || "https://polygon-mainnet.infura.io/v3/YOUR_PROJECT_ID",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [
-        // Fallback dummy private key for CI/CD testing
-        "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-      ],
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       gasPrice: 30000000000, // 30 gwei
       gas: 6000000
     },
@@ -44,20 +43,14 @@ module.exports = {
     // Ethereum Sepolia Testnet
     sepolia: {
       url: process.env.SEPOLIA_URL || "https://sepolia.infura.io/v3/YOUR_PROJECT_ID",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [
-        // Fallback dummy private key for CI/CD testing
-        "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-      ],
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       gasPrice: 20000000000 // 20 gwei
     },
     
     // Ethereum Mainnet
     mainnet: {
       url: process.env.MAINNET_URL || "https://mainnet.infura.io/v3/YOUR_PROJECT_ID",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [
-        // Fallback dummy private key for CI/CD testing
-        "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-      ],
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       gasPrice: 20000000000 // 20 gwei
     }
   },

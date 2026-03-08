@@ -76,7 +76,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     mapping(bytes32 => uint256) public latestOraclePrice;
     mapping(address => uint256) public pendingWithdrawals;
 
-    string[] public allBatchIds;
+    bytes32[] public allBatchIds;
 
     address public owner;
     uint256 public nextListingId;
@@ -138,16 +138,45 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
 
     function setRole(address user, ActorRole role) external onlyOwner nonReentrant {
         require(user != address(0), "Invalid address");
+        require(user != owner, "Cannot change owner role via setRole");
+        // Admin role must be managed exclusively through transferOwnership
+        require(role != ActorRole.Admin, "Use transferOwnership to assign Admin");
+
+        // Revoke the previous OZ AccessControl role for this user if one was set
+        ActorRole previousRole = roles[user];
+        if (previousRole == ActorRole.Farmer) _revokeRole(FARMER_ROLE, user);
+        else if (previousRole == ActorRole.Mandi) _revokeRole(MANDI_ROLE, user);
+        else if (previousRole == ActorRole.Transporter) _revokeRole(TRANSPORTER_ROLE, user);
+        else if (previousRole == ActorRole.Retailer) _revokeRole(RETAILER_ROLE, user);
+        else if (previousRole == ActorRole.Oracle) _revokeRole(ORACLE_ROLE, user);
+
         roles[user] = role;
+
+        // Keep OZ AccessControl in sync so onlyRole() guards match the legacy mapping
+        if (role == ActorRole.Farmer) _grantRole(FARMER_ROLE, user);
+        else if (role == ActorRole.Mandi) _grantRole(MANDI_ROLE, user);
+        else if (role == ActorRole.Transporter) _grantRole(TRANSPORTER_ROLE, user);
+        else if (role == ActorRole.Retailer) _grantRole(RETAILER_ROLE, user);
+        else if (role == ActorRole.Oracle) _grantRole(ORACLE_ROLE, user);
+
         emit RoleUpdated(user, role);
     }
 
     function transferOwnership(address newOwner) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         require(newOwner != address(0), "Invalid address");
+        require(newOwner != owner, "Already owner");
 
         address previousOwner = owner;
         owner = newOwner;
+
+        // Transfer legacy admin role: clear old owner, elevate new owner
+        roles[previousOwner] = ActorRole.None;
         roles[newOwner] = ActorRole.Admin;
+
+        // Sync OZ AccessControl: revoke DEFAULT_ADMIN_ROLE from old owner,
+        // grant it to new owner so privileged functions remain consistent
+        _revokeRole(DEFAULT_ADMIN_ROLE, previousOwner);
+        _grantRole(DEFAULT_ADMIN_ROLE, newOwner);
 
         emit OwnershipTransferred(previousOwner, newOwner);
     }
@@ -187,6 +216,12 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         string calldata location,
         string calldata notes
     ) external onlyRole(FARMER_ROLE) whenNotPaused nonReentrant {
+        // Input validations to prevent malformed data and gas exhaustion attacks
+        _validateStringLength(ipfsCID, 46, 64, "Invalid IPFS CID length");
+        _validateStringLength(actorName, 2, 50, "Actor name length invalid");
+        _validateStringLength(location, 2, 100, "Location length invalid");
+        _validateStringLength(notes, 0, 500, "Notes too long");
+        
         require(!cropBatches[batchId].exists, "Batch already exists");
         require(batchId != bytes32(0), "Invalid batch ID");
         require(cropTypeHash != bytes32(0), "Invalid crop type");
@@ -200,7 +235,10 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
             createdAt: block.timestamp,
             creator: msg.sender,
             exists: true,
-            isRecalled: false
+            isRecalled: false,
+            currentTemperature: 0,
+            currentHumidity: 0,
+            isSpoiled: false
         });
 
         _batchUpdates[batchId].push(
@@ -226,6 +264,11 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         string calldata location,
         string calldata notes
     ) external whenNotPaused nonReentrant batchExists(batchId) {
+        // Input validations to prevent malformed data and gas exhaustion attacks
+        _validateStringLength(actorName, 2, 50, "Actor name length invalid");
+        _validateStringLength(location, 2, 100, "Location length invalid");
+        _validateStringLength(notes, 0, 500, "Notes too long");
+        
         require(!cropBatches[batchId].isRecalled, "Batch is recalled");
         require(bytes(actorName).length > 0, "Actor required");
         require(bytes(location).length > 0, "Location required");
@@ -331,7 +374,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     function cancelListing(uint256 listingId) external whenNotPaused nonReentrant {
         MarketListing storage listing = listings[listingId];
         require(listing.active, "Listing inactive");
-        require(msg.sender == listing.seller || msg.sender == owner, "Not allowed");
+        require(msg.sender == listing.seller || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Not allowed");
 
         listing.active = false;
         listing.quantityAvailable = 0;
@@ -460,7 +503,15 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
             role == FARMER_ROLE || role == MANDI_ROLE || role == TRANSPORTER_ROLE || role == RETAILER_ROLE,
             "Invalid stakeholder role"
         );
+
+        // Sync the legacy roles mapping so onlyAuthorized and createListing checks work
+        if (role == FARMER_ROLE) roles[account] = ActorRole.Farmer;
+        else if (role == MANDI_ROLE) roles[account] = ActorRole.Mandi;
+        else if (role == TRANSPORTER_ROLE) roles[account] = ActorRole.Transporter;
+        else if (role == RETAILER_ROLE) roles[account] = ActorRole.Retailer;
+
         _grantRole(role, account);
+        emit RoleUpdated(account, roles[account]);
     }
 
     function _canUpdate(Stage stage, ActorRole role) internal pure returns (bool) {
@@ -520,6 +571,18 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         uint256 lower = (referencePrice * (10_000 - bps)) / 10_000;
         uint256 upper = (referencePrice * (10_000 + bps)) / 10_000;
         return observed >= lower && observed <= upper;
+    }
+
+    /**
+     * @dev Validates string length within specified bounds
+     * @param str The string to validate
+     * @param minLen Minimum allowed length
+     * @param maxLen Maximum allowed length
+     * @param errorMessage Error message to revert with if validation fails
+     */
+    function _validateStringLength(string memory str, uint256 minLen, uint256 maxLen, string memory errorMessage) internal pure {
+        uint256 length = bytes(str).length;
+        require(length >= minLen && length <= maxLen, errorMessage);
     }
 
     /**
