@@ -1,6 +1,6 @@
 services:
   db:
-    image: mongo:latest
+    image: mongo:7.0
     container_name: cropchain-db
     restart: unless-stopped
     healthcheck:
@@ -27,7 +27,7 @@ services:
     environment:
       MONGODB_URI: ${MONGODB_URI:-mongodb://db:27017/cropchain}
       NODE_ENV: ${NODE_ENV:-production}
-      PORT: 3001
+      PORT: ${PORT:-3001}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
     ports:
@@ -47,8 +47,7 @@ services:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
     container_name: cropchain-frontend
     restart: unless-stopped
-    env_file:
-      - ./.env
+    
     ports:
       - "3000:3000"
     depends_on:

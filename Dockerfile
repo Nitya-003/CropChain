@@ -1,7 +1,6 @@
-# syntax=docker/dockerfile:1.7
 
 # Stage 1: Shared base image
-FROM node:18-alpine AS base
+FRFROM node:20-alpine AS base
 WORKDIR /app
 
 # Stage 2: Frontend builder
@@ -42,5 +41,7 @@ ENV NODE_ENV=production
 WORKDIR /app/backend
 COPY --from=backend-builder /app/backend/node_modules ./node_modules
 COPY --from=backend-builder /app/backend .
+RUN chown -R node:node /app/backend
+USER node
 EXPOSE 3001
 CMD ["node", "server.js"]

@@ -90,7 +90,9 @@ INFURA_URL=https://polygon-mainnet.infura.io/v3/YOUR_PROJECT_ID
 CONTRACT_ADDRESS=0xYOUR_CONTRACT_ADDRESS
 PRIVATE_KEY=0xYOUR_PRIVATE_KEY
 ```
-
+> Note: `VITE_*` variables (like `VITE_API_URL`) are evaluated at **build time**.  
+> If you change them in `.env`, rebuild the frontend image with  
+> `docker compose build frontend` or `docker compose up --build`.
 ### 2. Build and Start All Services
 
 ```bash
