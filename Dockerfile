@@ -1,5 +1,5 @@
 # Stage 1: Shared base image
-FRFROM node:20-alpine AS base
+FROM node:20-alpine AS base
 WORKDIR /app
 
 # Stage 2: Frontend builder
