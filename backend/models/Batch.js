@@ -62,6 +62,7 @@ const batchSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
+    index: true,
     trim: true
   },
   farmerId: {
@@ -129,6 +130,7 @@ const batchSchema = new mongoose.Schema({
   currentStage: {
     type: String,
     required: true,
+    index: true,
     enum: {
       values: STAGES,
       message: `Invalid stage. Must be one of: ${STAGES.join(', ')}`
@@ -198,6 +200,9 @@ batchSchema.index({ createdAt: -1 });
 batchSchema.index({ currentStage: 1 });
 batchSchema.index({ syncStatus: 1 });
 batchSchema.index({ isRecalled: 1 });
+
+// Compound index for pagination and sorting optimization
+batchSchema.index({ currentStage: 1, createdAt: -1 });
 
 // Pre-save validation
 batchSchema.pre('save', function(next) {
