@@ -1,3 +1,5 @@
+require('dotenv').config();
+const { ethers } = require('ethers');
 const Batch = require('../models/Batch');
 const { getContract } = require('../config/blockchain');
 
@@ -54,7 +56,14 @@ async function reconcile() {
     console.log(`Synced batch ${batchId} (stage: ${stageName})`);
   }
 
-  console.log('✅ Reconciliation complete');
+// Run if called directly
+if (require.main === module) {
+    reconcile()
+        .then(() => process.exit(0))
+        .catch((error) => {
+            console.error('Fatal error:', error);
+            process.exit(1);
+        });
 }
 
-reconcile();
+module.exports = { reconcile };

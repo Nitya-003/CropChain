@@ -19,7 +19,7 @@ class AIService {
 CROPCHAIN OVERVIEW:
 - Farm-to-fork supply chain tracking using blockchain technology
 - Tracks crops from farmer → mandi → transport → retailer
-- Each batch has a unique ID (format: CROP-YYYY-XXX) and QR code
+- Each batch has a unique ID (format: CROP-YYYY-XXXX) and QR code
 - Immutable records ensure transparency and trust
 
 SUPPLY CHAIN STAGES:
@@ -65,7 +65,7 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
                         properties: {
                             batchId: {
                                 type: 'string',
-                                description: 'The batch ID to search for (format: CROP-YYYY-XXX)'
+                                description: 'The batch ID to search for (format: CROP-YYYY-XXXX)'
                             }
                         },
                         required: ['batchId']
@@ -127,7 +127,7 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
                     } else {
                         return {
                             success: false,
-                            message: `Batch ${parameters.batchId} not found. Please check the batch ID format (CROP-YYYY-XXX).`
+                            message: `Batch ${parameters.batchId} not found. Please check the batch ID format (CROP-YYYY-XXXX).`
                         };
                     }
 
@@ -286,7 +286,7 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
         if (lowerMessage.includes('batch') && (lowerMessage.includes('track') || lowerMessage.includes('find'))) {
             return {
                 success: true,
-                message: "To track a batch, you can either scan the QR code or search by batch ID (format: CROP-YYYY-XXX) on the Track Batch page. This will show you the complete supply chain journey."
+                message: "To track a batch, you can either scan the QR code or search by batch ID (format: CROP-YYYY-XXXX) on the Track Batch page. This will show you the complete supply chain journey."
             };
         }
         

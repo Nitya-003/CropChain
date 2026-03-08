@@ -1,0 +1,28 @@
+# Use Node.js 18 Alpine Linux image
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /usr/src/app
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including dev dependencies for nodemon)
+RUN npm ci
+
+# Copy the rest of the backend code
+COPY . .
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nodejs -u 1001
+
+# Change ownership of the app directory
+RUN chown -R nodejs:nodejs /usr/src/app
+USER nodejs
+
+# Expose port 3001
+EXPOSE 3001
+
+# Default command for development (assuming nodemon/watch mode)
+CMD ["npm", "run", "dev"]
