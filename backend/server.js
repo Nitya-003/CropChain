@@ -16,6 +16,8 @@ const oracleRoutes = require("./routes/oracle");
 const validateRequest = require('./middleware/validator');
 const { chatSchema } = require("./validations/chatSchema");
 const aiService = require('./services/aiService');
+const { cropRecommendationSchema } = require('./validations/cropRecommendationSchema');
+const { getCropRecommendation } = require('./services/cropRecommendationService');
 const errorHandlerMiddleware = require('./middleware/errorHandler');
 const { createBatchSchema, updateBatchSchema } = require("./validations/batchSchema");
 const { protect, adminOnly, authorizeBatchOwner, authorizeRoles, authorizeStageTransition, authorizeBlockchainTransaction } = require('./middleware/auth');
@@ -772,6 +774,45 @@ app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, 
             500
         );
         res.status(500).json(response);
+    }
+});
+
+// ==================== CROP RECOMMENDATION (ML) ====================
+
+app.post('/api/recommend', batchLimiter, validateRequest(cropRecommendationSchema), async (req, res) => {
+    try {
+        const { N, P, K, pH, temperature, humidity, rainfall } = req.body;
+
+        console.log(`[RECOMMEND] Request from IP: ${req.ip} — N:${N} P:${P} K:${K} pH:${pH} temp:${temperature}`);
+
+        const prediction = await getCropRecommendation({ N, P, K, pH, temperature, humidity, rainfall });
+
+        console.log(`[RECOMMEND SUCCESS] Predicted: ${prediction.crop} (${prediction.confidence}%) for IP: ${req.ip}`);
+
+        const response = apiResponse.successResponse(
+            {
+                crop: prediction.crop,
+                confidence: prediction.confidence,
+                alternatives: prediction.alternatives,
+                timestamp: new Date().toISOString(),
+            },
+            'Crop recommendation generated successfully'
+        );
+        res.json(response);
+
+    } catch (error) {
+        console.error('[RECOMMEND ERROR]', error.message);
+
+        // Surface a user-friendly message when the ML service is unreachable
+        const isServiceDown = error.code === 'ECONNREFUSED' || error.code === 'ECONNABORTED';
+        const response = apiResponse.errorResponse(
+            isServiceDown
+                ? 'Recommendation service is temporarily unavailable. Please try again shortly.'
+                : 'Failed to generate crop recommendation.',
+            'RECOMMENDATION_ERROR',
+            isServiceDown ? 503 : 500
+        );
+        res.status(isServiceDown ? 503 : 500).json(response);
     }
 });
 
