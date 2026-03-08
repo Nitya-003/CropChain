@@ -24,6 +24,9 @@ const { protect, adminOnly, authorizeBatchOwner, authorizeRoles, authorizeStageT
 const apiResponse = require('./utils/apiResponse');
 const ccipService = require('./services/ccipService');
 const crypto = require('crypto');
+const blockchainQueue = require('./services/blockchainQueue');
+const blockchainWorker = require('./services/blockchainWorker');
+const { checkRedisHealth } = require('./config/redis');
 
 // Import MongoDB Model
 const Batch = require('./models/Batch');
@@ -61,12 +64,6 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ==================== MIDDLEWARE FUNCTIONS ====================
-
-// Authentication is handled by middleware imported from './middleware/auth'
-// - protect: Verifies JWT and fetches full user from - adminOnly: MongoDB
-// Checks if user has admin role
-// - authorizeBatchOwner: Verifies user owns the batch
-// - authorizeRoles: Role-based authorization
 
 // Security logging middleware
 const securityLogger = (req, res, next) => {
@@ -382,19 +379,20 @@ app.use('/api/verification', generalLimiter, verificationRoutes);
 
 // CREATE batch - requires farmer role and blockchain authorization
 // Uses MongoDB transaction to prevent race conditions in batch ID generation (CVSS 7.5 fix)
+// Now uses BullMQ queue for async blockchain transaction processing
 app.post('/api/batches', batchLimiter, protect, authorizeRoles('farmer'), authorizeBlockchainTransaction, validateRequest(createBatchSchema), async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
-        session = await mongoose.startSession();
-        session.startTransaction();
-        
         const validatedData = req.body;
 
         // Generate batch ID within transaction for atomicity
         const batchId = await generateBatchId(session);
         const qrCode = await generateQRCode(batchId);
+
+        // Create a temporary hash for immediate response
+        const tempHash = simulateBlockchainHash(validatedData);
 
         const batch = await Batch.create([{
             batchId,
@@ -411,10 +409,14 @@ app.post('/api/batches', batchLimiter, protect, authorizeRoles('farmer'), author
             currentStage: "farmer",
             isRecalled: false,
             qrCode,
-            blockchainHash: simulateBlockchainHash(validatedData),
+            blockchainHash: tempHash,
             syncStatus: 'pending',
             crossChain: {
                 status: 'not_required'
+            },
+            blockchainJob: {
+                status: 'pending',
+                attempts: 0
             },
             updates: [{
                 stage: "farmer",
@@ -431,8 +433,35 @@ app.post('/api/batches', batchLimiter, protect, authorizeRoles('farmer'), author
 
         console.log(`[SUCCESS] Batch created: ${batchId} by user ${req.user.id} (${req.user.email}) from IP: ${req.ip}`);
 
+        // Add blockchain transaction job to queue (async processing)
+        try {
+            const job = await blockchainQueue.addCreateBatchJob({
+                batchId,
+                cropType: validatedData.cropType,
+                quantity: validatedData.quantity,
+                farmerName: validatedData.farmerName || req.user.name,
+                origin: validatedData.origin,
+                description: validatedData.description,
+                ipfsCID: tempHash // Using temp hash as IPFS CID placeholder
+            });
+
+            // Update batch with job ID
+            await Batch.updateOne(
+                { batchId },
+                { $set: { 'blockchainJob.jobId': job.id } }
+            );
+
+            console.log(`[Queue] Blockchain job ${job.id} queued for batch ${batchId}`);
+        } catch (queueError) {
+            console.error(`[Queue] Failed to queue blockchain job for ${batchId}:`, queueError.message);
+            // Don't fail the request - batch is created, blockchain sync will be retried
+        }
+
         const response = apiResponse.successResponse(
-            { batch: batch[0] },
+            { 
+                batch: batch[0],
+                message: 'Batch created successfully. Blockchain synchronization in progress.'
+            },
             'Batch created successfully',
             201
         );
@@ -482,6 +511,7 @@ app.get('/api/batches/:batchId', batchLimiter, async (req, res) => {
 });
 
 // UPDATE batch - requires authentication, ownership, and stage transition authorization
+// Now uses BullMQ queue for async blockchain transaction processing
 app.put('/api/batches/:batchId', batchLimiter, protect, authorizeBatchOwner, authorizeStageTransition, authorizeBlockchainTransaction, validateRequest(updateBatchSchema), async (req, res) => {
     try {
         const { batchId } = req.params;
@@ -519,17 +549,43 @@ app.put('/api/batches/:batchId', batchLimiter, protect, authorizeBatchOwner, aut
                 lastAttemptAt: null
             };
 
+        // Create temp hash for immediate response
+        const tempHash = simulateBlockchainHash(update);
+
         const batch = await Batch.findOneAndUpdate(
             { batchId },
             {
                 $push: { updates: update },
                 currentStage: normalizedStage,
-                blockchainHash: simulateBlockchainHash(update),
+                blockchainHash: tempHash,
                 syncStatus: 'pending',
-                crossChain: crossChainState
+                crossChain: crossChainState,
+                'blockchainJob.status': 'pending',
+                'blockchainJob.attempts': 0
             },
             { new: true }
         );
+
+        // Add blockchain transaction job to queue (async processing)
+        try {
+            const job = await blockchainQueue.addUpdateBatchJob(batchId, {
+                stage: normalizedStage,
+                actor: validatedData.actor,
+                location: validatedData.location,
+                notes: validatedData.notes
+            });
+
+            // Update batch with job ID
+            await Batch.updateOne(
+                { batchId },
+                { $set: { 'blockchainJob.jobId': job.id } }
+            );
+
+            console.log(`[Queue] Update job ${job.id} queued for batch ${batchId}`);
+        } catch (queueError) {
+            console.error(`[Queue] Failed to queue update job for ${batchId}:`, queueError.message);
+            // Don't fail the request - update is saved, blockchain sync will be retried
+        }
 
         if (shouldDispatchCrossChain) {
             try {
@@ -827,6 +883,116 @@ if (process.env.NODE_ENV === "production") {
 
 // ==================== ERROR HANDLERS ====================
 
+// ==================== BLOCKCHAIN JOB STATUS ENDPOINTS ====================
+
+/**
+ * Get job status by job ID
+ * Allows clients to poll for blockchain transaction status
+ */
+app.get('/api/jobs/:jobId', generalLimiter, async (req, res) => {
+    try {
+        const { jobId } = req.params;
+        const jobStatus = await blockchainQueue.getJobStatus(jobId);
+
+        if (!jobStatus) {
+            const response = apiResponse.notFoundResponse('Job', `ID: ${jobId}`);
+            return res.status(404).json(response);
+        }
+
+        const response = apiResponse.successResponse(
+            { job: jobStatus },
+            'Job status retrieved successfully'
+        );
+        res.json(response);
+    } catch (error) {
+        console.error('Error fetching job status:', error);
+        const response = apiResponse.errorResponse(
+            'Failed to fetch job status',
+            'JOB_STATUS_ERROR',
+            500
+        );
+        res.status(500).json(response);
+    }
+});
+
+/**
+ * Get all jobs for a specific batch
+ */
+app.get('/api/batches/:batchId/jobs', batchLimiter, async (req, res) => {
+    try {
+        const { batchId } = req.params;
+        const jobs = await blockchainQueue.getJobsByBatchId(batchId);
+
+        const response = apiResponse.successResponse(
+            { jobs, count: jobs.length },
+            'Batch jobs retrieved successfully'
+        );
+        res.json(response);
+    } catch (error) {
+        console.error('Error fetching batch jobs:', error);
+        const response = apiResponse.errorResponse(
+            'Failed to fetch batch jobs',
+            'BATCH_JOBS_ERROR',
+            500
+        );
+        res.status(500).json(response);
+    }
+});
+
+/**
+ * Get queue statistics
+ * Useful for monitoring and debugging
+ */
+app.get('/api/queue/stats', generalLimiter, protect, adminOnly, async (req, res) => {
+    try {
+        const stats = await blockchainQueue.getQueueStats();
+        const workerStats = blockchainWorker.getWorkerStats();
+        const redisHealthy = await checkRedisHealth();
+
+        const response = apiResponse.successResponse(
+            {
+                queue: stats,
+                worker: workerStats,
+                redis: { healthy: redisHealthy }
+            },
+            'Queue statistics retrieved successfully'
+        );
+        res.json(response);
+    } catch (error) {
+        console.error('Error fetching queue stats:', error);
+        const response = apiResponse.errorResponse(
+            'Failed to fetch queue statistics',
+            'QUEUE_STATS_ERROR',
+            500
+        );
+        res.status(500).json(response);
+    }
+});
+
+/**
+ * Retry a failed job
+ */
+app.post('/api/jobs/:jobId/retry', generalLimiter, protect, adminOnly, async (req, res) => {
+    try {
+        const { jobId } = req.params;
+        await blockchainQueue.retryJob(jobId);
+
+        const response = apiResponse.successResponse(
+            { jobId },
+            'Job retry initiated successfully'
+        );
+        res.json(response);
+    } catch (error) {
+        console.error('Error retrying job:', error);
+        const response = apiResponse.errorResponse(
+            error.message || 'Failed to retry job',
+            'JOB_RETRY_ERROR',
+            500
+        );
+        res.status(500).json(response);
+    }
+});
+
 // 404 handler
 app.use('*', (req, res) => {
     console.log(`[404] Route not found: ${req.method} ${req.originalUrl} from IP: ${req.ip}`);
@@ -843,8 +1009,17 @@ app.use(errorHandlerMiddleware);
 let server;
 
 // Graceful shutdown function
-const gracefulShutdown = (signal) => {
+const gracefulShutdown = async (signal) => {
     console.log(`\n[${signal}] Received shutdown signal. Starting graceful shutdown...`);
+    
+    // Close blockchain queue and worker first
+    try {
+        await blockchainWorker.stopWorker();
+        await blockchainQueue.closeQueue();
+        console.log('✓ Blockchain queue and worker closed');
+    } catch (err) {
+        console.error('✗ Error closing blockchain queue/worker:', err.message);
+    }
     
     if (server) {
         server.close(async () => {
@@ -939,6 +1114,24 @@ if (process.env.NODE_ENV !== 'test') {
         }
 
         console.log('\n✅ Server startup complete\n');
+
+        // Initialize BullMQ blockchain queue
+        try {
+            blockchainQueue.initializeQueue();
+            console.log('📬 Blockchain transaction queue initialized');
+        } catch (error) {
+            console.error('❌ Failed to initialize blockchain queue:', error.message);
+            console.log('⚠️  Continuing without blockchain queue - transactions will be synchronous');
+        }
+
+        // Initialize blockchain worker
+        try {
+            blockchainWorker.initializeWorker();
+            console.log('⚙️  Blockchain transaction worker started');
+        } catch (error) {
+            console.error('❌ Failed to start blockchain worker:', error.message);
+            console.log('⚠️  Continuing without blockchain worker - jobs will queue');
+        }
 
         // Start blockchain event listener
         if (contractInstance) {
