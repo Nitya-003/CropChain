@@ -341,8 +341,15 @@ const walletLogin = async (req, res) => {
         // Get stored nonce
         const storedNonce = nonceStore.get(normalizedAddress);
         
-        // Use provided nonce or stored nonce
-        const nonce = providedNonce || storedNonce?.nonce || 'Login to CropChain';
+        // ALWAYS require stored nonce - never fall back to constant string
+        if (!storedNonce) {
+            return res.status(401).json(
+                apiResponse.unauthorizedResponse('No authentication nonce found. Please request a new one.')
+            );
+        }
+        
+        // Use stored nonce (provided nonce is for backwards compatibility only)
+        const nonce = providedNonce || storedNonce.nonce;
 
         // Clean up expired nonces
         if (storedNonce && storedNonce.expiresAt < Date.now()) {
@@ -444,7 +451,16 @@ const walletRegister = async (req, res) => {
 
         // Get stored nonce
         const storedNonce = nonceStore.get(normalizedAddress);
-        const nonce = providedNonce || storedNonce?.nonce || 'Login to CropChain';
+        
+        // ALWAYS require stored nonce - never fall back to constant string
+        if (!storedNonce) {
+            return res.status(401).json(
+                apiResponse.unauthorizedResponse('No authentication nonce found. Please request a new one.')
+            );
+        }
+        
+        // Use stored nonce (provided nonce is for backwards compatibility only)
+        const nonce = providedNonce || storedNonce.nonce;
 
         // Verify signature
         let recoveredAddress;
