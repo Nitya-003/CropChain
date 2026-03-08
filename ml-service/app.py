@@ -47,7 +47,7 @@ def health():
 @app.route("/predict", methods=["POST"])
 def predict():
     body = request.get_json(silent=True)
-    if not body:
+    if body is None:
         return jsonify({"error": "Request body must be JSON"}), 400
 
     # --- parse & validate ---
