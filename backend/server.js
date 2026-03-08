@@ -60,12 +60,6 @@ const PORT = process.env.PORT || 3001;
 
 // ==================== MIDDLEWARE FUNCTIONS ====================
 
-// Authentication is handled by middleware imported from './middleware/auth'
-// - protect: Verifies JWT and fetches full user from - adminOnly: MongoDB
-// Checks if user has admin role
-// - authorizeBatchOwner: Verifies user owns the batch
-// - authorizeRoles: Role-based authorization
-
 // Security logging middleware
 const securityLogger = (req, res, next) => {
     const timestamp = new Date().toISOString();
