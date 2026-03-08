@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
-import { RefreshCw, Search, Package, Clock, User, MapPin } from 'lucide-react';
+import { RefreshCw, Search, Package, Clock, User, MapPin, Shield, AlertTriangle, Lock, Thermometer, Activity } from 'lucide-react';
 import { cropBatchService } from '../services/cropBatchService';
 import Timeline from '../components/Timeline';
 import { realCropBatchService } from '../services/realCropBatchService';
 import { useToast } from '../context/ToastContext';
 import { FormSkeleton, BatchInfoSkeleton } from '../components/skeletons';
+import { useRbac } from '../hooks/useRbac';
+import { ethers } from 'ethers';
 
 const UpdateBatch: React.FC = () => {
   const [batchId, setBatchId] = useState('');
   const [batch, setBatch] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
   const toast = useToast();
+  const { canUpdateToStage, getNextAllowedStage, getRoleDisplayName } = useRbac();
   const [updateData, setUpdateData] = useState({
     actor: '',
     stage: '',
@@ -19,6 +22,7 @@ const UpdateBatch: React.FC = () => {
     timestamp: new Date().toISOString().split('T')[0]
   });
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isRequestingIoT, setIsRequestingIoT] = useState(false);
 
   const stages = [
     { value: 'farmer', label: 'Farmer' },
@@ -26,6 +30,12 @@ const UpdateBatch: React.FC = () => {
     { value: 'transport', label: 'Transport' },
     { value: 'retailer', label: 'Retailer' }
   ];
+
+  // Filter stages based on user permissions
+  const allowedStages = stages.filter(stage => canUpdateToStage(stage.value));
+  
+  // Get next allowed stage for current batch
+  const nextAllowedStage = batch ? getNextAllowedStage(batch.currentStage) : null;
 
   const handleSearch = async () => {
     if (!batchId.trim()) return;
@@ -50,6 +60,12 @@ const UpdateBatch: React.FC = () => {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!batch) return;
+    
+    // RBAC Check: Verify user can update to this stage
+    if (!canUpdateToStage(updateData.stage)) {
+      toast.error(`You are not authorized to update to stage: ${updateData.stage}`);
+      return;
+    }
 
     setIsUpdating(true);
     try {
@@ -77,6 +93,68 @@ const UpdateBatch: React.FC = () => {
       ...updateData,
       [e.target.name]: e.target.value
     });
+  };
+
+  const handleRequestIoTVerification = async () => {
+    if (!batch || !batch.batchId) {
+      toast.error('Please search for a batch first');
+      return;
+    }
+
+    // Check if user has permission to request IoT verification
+    const userRole = getRoleDisplayName();
+    const canRequestIoT = userRole === 'Transporter' || userRole === 'Market';
+    
+    if (!canRequestIoT) {
+      toast.error('Only Transporters and Mandi operators can request IoT verification');
+      return;
+    }
+
+    setIsRequestingIoT(true);
+    
+    try {
+      // Call smart contract to request IoT verification
+      const contractAddress = process.env.REACT_APP_CONTRACT_ADDRESS;
+      const contractABI = [
+        "function requestIoTVerification(bytes32 batchId) external"
+      ];
+      
+      if (window.ethereum) {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const contract = new ethers.Contract(contractAddress, contractABI, signer);
+        
+        // Convert batch ID to bytes32
+        const batchIdBytes32 = ethers.encodeBytes32String(batch.batchId);
+        
+        const tx = await contract.requestIoTVerification(batchIdBytes32);
+        
+        toast.loading('Requesting IoT verification...');
+        
+        // Wait for transaction confirmation
+        const receipt = await tx.wait();
+        
+        toast.success(`IoT verification requested! Transaction: ${receipt.transactionHash}`);
+        
+        // Refresh batch data to show updated status
+        setTimeout(async () => {
+          try {
+            const updatedBatch = await realCropBatchService.getBatch(batch.batchId);
+            setBatch(updatedBatch);
+          } catch (error) {
+            console.error('Error refreshing batch data:', error);
+          }
+        }, 2000);
+        
+      } else {
+        toast.error('Please install MetaMask to use this feature');
+      }
+    } catch (error) {
+      console.error('Error requesting IoT verification:', error);
+      toast.error('Failed to request IoT verification. Please try again.');
+    } finally {
+      setIsRequestingIoT(false);
+    }
   };
 
   return (
@@ -197,6 +275,37 @@ const UpdateBatch: React.FC = () => {
               <RefreshCw className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
               Add New Update
             </h2>
+            
+            {/* RBAC Permission Notice */}
+            {nextAllowedStage ? (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <Lock className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+                  <div className="text-left">
+                    <p className="text-sm text-blue-800 dark:text-blue-200 font-semibold">
+                      Next Allowed Stage
+                    </p>
+                    <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                      Based on your role and the current batch stage, you can update to: <strong className="capitalize">{nextAllowedStage}</strong>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <Shield className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" />
+                  <div className="text-left">
+                    <p className="text-sm text-red-800 dark:text-red-200 font-semibold">
+                      Access Restricted
+                    </p>
+                    <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                      Your role (<strong>{getRoleDisplayName()}</strong>) is not authorized to update this batch from its current stage.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             <form onSubmit={handleUpdate} className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
@@ -227,7 +336,7 @@ const UpdateBatch: React.FC = () => {
                     required
                   >
                     <option value="">Select stage</option>
-                    {stages.map(stage => (
+                    {allowedStages.map(stage => (
                       <option key={stage.value} value={stage.value}>{stage.label}</option>
                     ))}
                   </select>
@@ -284,10 +393,11 @@ const UpdateBatch: React.FC = () => {
               <div className="flex justify-center">
                 <button
                   type="submit"
-                  disabled={isUpdating}
-                  className={`px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 flex items-center space-x-2 ${isUpdating
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-green-600 hover:bg-green-700 transform hover:scale-105 shadow-lg'
+                  disabled={isUpdating || !nextAllowedStage}
+                  className={`px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 flex items-center space-x-2 ${
+                    isUpdating || !nextAllowedStage
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-green-600 hover:bg-green-700 transform hover:scale-105 shadow-lg'
                     } text-white`}
                 >
                   {isUpdating ? (
@@ -303,6 +413,38 @@ const UpdateBatch: React.FC = () => {
                   )}
                 </button>
               </div>
+
+              {/* IoT Verification Button */}
+              {batch && (getRoleDisplayName() === 'Transporter' || getRoleDisplayName() === 'Market') && (
+                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-600">
+                  <div className="flex justify-center">
+                    <button
+                      onClick={handleRequestIoTVerification}
+                      disabled={isRequestingIoT || !batch.batchId}
+                      className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 ${
+                        isRequestingIoT || !batch.batchId
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-blue-600 hover:bg-blue-700 transform hover:scale-105 shadow-lg'
+                        } text-white`}
+                    >
+                      {isRequestingIoT ? (
+                        <>
+                          <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                          <span>Requesting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Thermometer className="h-4 w-4" />
+                          <span>Request IoT Verification</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
+                    Trigger IoT sensors to verify temperature and humidity conditions during transit
+                  </p>
+                </div>
+              )}
             </form>
           </div>
         </>

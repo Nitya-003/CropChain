@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
-import { Plus, Upload, MapPin, Calendar, User } from 'lucide-react';
+import { Plus, Upload, MapPin, Calendar, User, Shield, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import toast from 'react-hot-toast';
+import toast, { success as toastSuccess, error as toastError } from 'react-hot-toast';
 import { realCropBatchService } from '../services/realCropBatchService';
+import { useRbac } from '../hooks/useRbac';
+import { useNavigate } from 'react-router-dom';
 
 const AddBatch: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { permissions, getRoleDisplayName } = useRbac();
 
   const [formData, setFormData] = useState({
     farmerName: '',
@@ -22,7 +26,46 @@ const AddBatch: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [generatedBatch, setGeneratedBatch] = useState<any>(null);
 
+  // Get today's date for max date constraint
   const today = new Date().toISOString().split('T')[0];
+
+  // RBAC Protection - Only farmers can create batches
+  if (!permissions.canCreateBatch) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8">
+          <div className="text-center">
+            <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
+              Access Denied
+            </h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Only farmers can create batches. Your current role is: <strong>{getRoleDisplayName()}</strong>
+            </p>
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+                <div className="text-left">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200 font-semibold">
+                    Role-based Access Control
+                  </p>
+                  <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                    This action requires the <strong>Farmer</strong> role. Please contact an administrator if you believe this is an error.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <button 
+              onClick={() => navigate('/')}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
+            >
+              Return to Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

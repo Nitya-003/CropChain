@@ -6,12 +6,18 @@ import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import './i18n/config'; // Initialize i18n
 
-createRoot(document.getElementById("root")!).render(
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
+
+const root = createRoot(document.getElementById("root")!);
+
+root.render(
   <StrictMode>
-    <AuthProvider>
+    <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <App />
       </ThemeProvider>
-    </AuthProvider>
-  </StrictMode>,
+    </QueryClientProvider>
+  </StrictMode>
 );
