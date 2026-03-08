@@ -42,8 +42,8 @@ services:
       dockerfile: Dockerfile
     container_name: cropchain-ml
     restart: unless-stopped
-    ports:
-      - "5001:5001"
+    expose:
+      - "5001"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
       interval: 30s

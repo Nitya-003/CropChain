@@ -62,6 +62,7 @@ const batchSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
+    index: true,
     trim: true
   },
   farmerId: {
@@ -129,6 +130,7 @@ const batchSchema = new mongoose.Schema({
   currentStage: {
     type: String,
     required: true,
+    index: true,
     enum: {
       values: STAGES,
       message: `Invalid stage. Must be one of: ${STAGES.join(', ')}`
@@ -180,6 +182,49 @@ const batchSchema = new mongoose.Schema({
         default: null
       }
     },
+  /**
+   * Blockchain Job Tracking
+   * Tracks the status of blockchain transaction jobs in the BullMQ queue
+   */
+  blockchainJob: {
+    jobId: {
+      type: String,
+      default: ''
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'processing', 'retrying', 'completed', 'failed', 'simulated'],
+      default: 'pending'
+    },
+    txHash: {
+      type: String,
+      default: ''
+    },
+    blockNumber: {
+      type: Number,
+      default: null
+    },
+    attempts: {
+      type: Number,
+      default: 0
+    },
+    error: {
+      type: String,
+      default: ''
+    },
+    submittedAt: {
+      type: Date,
+      default: null
+    },
+    completedAt: {
+      type: Date,
+      default: null
+    },
+    lastAttemptAt: {
+      type: Date,
+      default: null
+    }
+  },
   updates: [updateSchema],
   status: {
     type: String,
@@ -198,6 +243,9 @@ batchSchema.index({ createdAt: -1 });
 batchSchema.index({ currentStage: 1 });
 batchSchema.index({ syncStatus: 1 });
 batchSchema.index({ isRecalled: 1 });
+
+// Compound index for pagination and sorting optimization
+batchSchema.index({ currentStage: 1, createdAt: -1 });
 
 // Pre-save validation
 batchSchema.pre('save', function(next) {

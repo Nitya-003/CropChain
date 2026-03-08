@@ -167,6 +167,9 @@ const CropRecommendation: React.FC = () => {
   const handleCreateBatch = () => {
     if (!result) return;
     navigate('/add-batch');
+    navigate(`/add-batch?cropType=${encodeURIComponent(result.crop)}`, {
+      state: { cropType: result.crop },
+    });
   };
 
   const meta = result ? getCropMeta(result.crop) : null;
@@ -206,7 +209,7 @@ const CropRecommendation: React.FC = () => {
                 onChange={handleChange}
               />
               <SliderField
-                label="Phosphorous (P)" unit="kg/ha" icon={<Leaf className="w-3.5 h-3.5" />}
+                label="Phosphorus (P)" unit="kg/ha" icon={<Leaf className="w-3.5 h-3.5" />}
                 name="P" value={inputs.P} min={5} max={145} step={1}
                 description="Supports root development and flowering"
                 onChange={handleChange}
@@ -300,7 +303,7 @@ const CropRecommendation: React.FC = () => {
 
       {/* ── Result card ── */}
       {result && meta && (
-        <div id="result-card" className="animate-fadeIn">
+        <div id="result-card">
           <div className={`rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden ${meta.bgColor}`}>
 
             {/* Top banner */}
