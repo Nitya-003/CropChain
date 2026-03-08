@@ -2,8 +2,9 @@
 pragma solidity ^0.8.19;
 
 import "./lib/openzeppelin/access/AccessControl.sol";
+import "./lib/openzeppelin/security/ReentrancyGuard.sol";
 
-contract ProofOfDeliveryNFT is AccessControl {
+contract ProofOfDeliveryNFT is AccessControl, ReentrancyGuard {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
     string public name;
@@ -30,6 +31,7 @@ contract ProofOfDeliveryNFT is AccessControl {
     function mintProof(address recipient, bytes32 batchId, string calldata metadataURI)
         external
         onlyRole(MINTER_ROLE)
+        nonReentrant
         returns (uint256 tokenId)
     {
         require(recipient != address(0), "Invalid recipient");

@@ -3,10 +3,11 @@ pragma solidity ^0.8.19;
 
 import "./lib/openzeppelin/access/AccessControl.sol";
 import "./lib/openzeppelin/security/Pausable.sol";
+import "./lib/openzeppelin/security/ReentrancyGuard.sol";
 import "./ccip/Client.sol";
 import "./ccip/IRouterClient.sol";
 
-contract CropChainCCIPSender is AccessControl, Pausable {
+contract CropChainCCIPSender is AccessControl, Pausable, ReentrancyGuard {
     bytes32 public constant CCIP_SENDER_ROLE = keccak256("CCIP_SENDER_ROLE");
 
     struct RetailerProofPayload {
@@ -70,6 +71,7 @@ contract CropChainCCIPSender is AccessControl, Pausable {
         external
         onlyRole(CCIP_SENDER_ROLE)
         whenNotPaused
+        nonReentrant
         returns (bytes32 messageId)
     {
         require(destinationChainSelector > 0, "Destination not set");
@@ -132,7 +134,7 @@ contract CropChainCCIPSender is AccessControl, Pausable {
         _unpause();
     }
 
-    function withdraw(address payable to, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function withdraw(address payable to, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         require(to != address(0), "Invalid recipient");
         require(amount <= address(this).balance, "Insufficient balance");
 

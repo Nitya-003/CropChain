@@ -3,11 +3,12 @@ pragma solidity ^0.8.19;
 
 import "./lib/openzeppelin/access/AccessControl.sol";
 import "./lib/openzeppelin/security/Pausable.sol";
+import "./lib/openzeppelin/security/ReentrancyGuard.sol";
 import "./ccip/Client.sol";
 import "./ccip/IAny2EVMMessageReceiver.sol";
 import "./ProofOfDeliveryNFT.sol";
 
-contract CropChainCCIPReceiver is AccessControl, Pausable, IAny2EVMMessageReceiver {
+contract CropChainCCIPReceiver is AccessControl, Pausable, ReentrancyGuard, IAny2EVMMessageReceiver {
     struct RetailerProofPayload {
         bytes32 batchId;
         string actorName;
@@ -59,7 +60,7 @@ contract CropChainCCIPReceiver is AccessControl, Pausable, IAny2EVMMessageReceiv
         emit SourceConfigured(sourceChainSelector, sourceSender);
     }
 
-    function ccipReceive(Client.Any2EVMMessage calldata message) external override whenNotPaused {
+    function ccipReceive(Client.Any2EVMMessage calldata message) external override whenNotPaused nonReentrant {
         require(msg.sender == router, "Only router");
         require(!processedMessages[message.messageId], "Message processed");
 
