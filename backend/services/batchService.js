@@ -10,6 +10,7 @@ const Counter = require('../models/Counter');
 const blockchainService = require('./blockchainService');
 const notificationService = require('./notificationService');
 const apiResponse = require('../utils/apiResponse');
+const { STAGE_TO_NUMBER } = require('../constants/stages');
 
 class BatchService {
     /**
@@ -332,8 +333,7 @@ class BatchService {
                     batch.description || ''
                 );
             } else if (action === 'update') {
-                const stageMap = { 'farmer': 0, 'processor': 1, 'distributor': 2, 'retailer': 3, 'consumer': 4 };
-                const stageNum = stageMap[batch.currentStage] || 0;
+                const stageNum = STAGE_TO_NUMBER[batch.currentStage] ?? 0;
                 const lastUpdate = batch.updates[batch.updates.length - 1];
 
                 await blockchainService.updateBatchOnChain(
