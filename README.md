@@ -10,7 +10,7 @@ CropChain is a comprehensive full-stack web application that enables transparent
 
 ---
 
-## 🌟 Features
+## Features
 
 ### Core Functionality
 - **Complete Supply Chain Tracking**: Track crops through all stages - Farmer → Mandi (Market) → Transport → Retailer
@@ -33,7 +33,7 @@ CropChain is a comprehensive full-stack web application that enables transparent
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ### Frontend (React + TypeScript)
 - **Framework**: React 18 with TypeScript
@@ -69,7 +69,7 @@ CropChain is a comprehensive full-stack web application that enables transparent
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/vallabhatech/CropChain.git
+   git clone https://github.com/Nitya-003/CropChain.git
    cd CropChain
    ```
 
@@ -88,10 +88,10 @@ CropChain is a comprehensive full-stack web application that enables transparent
    
    Once all containers are running, you can access:
    
-   - **🌐 Frontend**: http://localhost:5173
-   - **🔧 Backend API**: http://localhost:3001
-   - **⛏️ Hardhat Node**: http://localhost:8545
-   - **🗄️ MongoDB**: mongodb://localhost:27017
+   - **Frontend**: http://localhost:5173
+   - **Backend API**: http://localhost:3001
+   - **Hardhat Node**: http://localhost:8545
+   - **MongoDB**: mongodb://localhost:27017
 
 4. **Deploy Smart Contracts**
    
@@ -103,10 +103,10 @@ CropChain is a comprehensive full-stack web application that enables transparent
 ### Development Workflow
 
 With Docker Compose, you get:
-- **🔄 Hot Reloading**: All services automatically restart on code changes
-- **🔗 Service Discovery**: Containers communicate via internal network
-- **💾 Data Persistence**: MongoDB data persists across container restarts
-- **🛡️ Isolated Environment**: Clean, reproducible development setup
+- **Hot Reloading**: All services automatically restart on code changes
+- **Service Discovery**: Containers communicate via internal network
+- **Data Persistence**: MongoDB data persists across container restarts
+- **Isolated Environment**: Clean, reproducible development setup
 
 ### Stopping the Services
 
@@ -191,7 +191,7 @@ docker compose down -v
 >>>>>>> upstream/main
 ---
 
-## �🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Node.js (v14+)
@@ -204,7 +204,7 @@ docker compose down -v
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/cropchain.git
+   git clone https://github.com/Nitya-003/cropchain.git
    cd cropchain
    ```
 
@@ -315,7 +315,7 @@ sequenceDiagram
 
 ---
 
-## 📱 Usage
+## Usage
 
 ### For Farmers
 1. Navigate to "Add Batch" page
@@ -354,7 +354,7 @@ sequenceDiagram
 
 ---
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -402,7 +402,7 @@ networks: {
 ```
 ---
 
-## 🧪 Testing
+## Testing
 
 ### Frontend Tests
 ```bash
@@ -421,7 +421,7 @@ npx hardhat test
 ```
 ---
 
-## 🚀 Deployment
+## Deployment
 
 ### Frontend Deployment (Netlify/Vercel)
 ```bash
@@ -446,7 +446,7 @@ npx hardhat run scripts/deploy.js --network polygon
 ```
 ---
 
-## 🔒 Security Features
+## Security Features
 
 - **Access Control**: Role-based permissions in smart contracts
 - **Data Validation**: Input sanitization and validation
@@ -457,7 +457,7 @@ npx hardhat run scripts/deploy.js --network polygon
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 **Frontend**
 - React 18 + TypeScript
@@ -490,36 +490,36 @@ npx hardhat run scripts/deploy.js --network polygon
 
 ---
 
-## 📈 Roadmap
+## Roadmap
 
 ### Phase 1 (Current)
-- ✅ Basic supply chain tracking
-- ✅ QR code generation and scanning
-- ✅ Multi-role interfaces
-- ✅ Admin dashboard
-- ✅ AI-powered chatbot assistant
-- ✅ Offline-first data logging with background sync
+- Basic supply chain tracking
+- QR code generation and scanning
+- Multi-role interfaces
+- Admin dashboard
+- AI-powered chatbot assistant
+- Offline-first data logging with background sync
 
 ### Phase 2 (Next)
-- 🔄 Service Worker background sync
-- 🔄 Progressive Web App (PWA)
-- 🔄 IoT Sensor Integration
-- 🔄 Advanced analytics and reporting
-- 🔄 Mobile app development
-- 🔄 Multi-language support
-- 🔄 Enhanced AI capabilities (voice, image recognition)
+- Service Worker background sync
+- Progressive Web App (PWA)
+- IoT Sensor Integration
+- Advanced analytics and reporting
+- Mobile app development
+- Multi-language support
+- Enhanced AI capabilities (voice, image recognition)
 
 ### Phase 3 (Future)
-- 📋 AI-powered quality prediction
-- 📋 Carbon footprint tracking
-- 📋 Marketplace integration
-- 📋 Government compliance features
-- 📋 Predictive supply chain analytics
-- 📋 Offline image caching and compression
+- AI-powered quality prediction
+- Carbon footprint tracking
+- Marketplace integration
+- Government compliance features
+- Predictive supply chain analytics
+- Offline image caching and compression
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 I welcome contributions! 
 
@@ -529,13 +529,13 @@ I welcome contributions!
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the Apache License 2.0- see the [LICENSE](LICENSE) file for further details.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - OpenZeppelin for smart contract libraries
 - Infura/Alchemy for blockchain infrastructure
@@ -544,6 +544,6 @@ This project is licensed under the Apache License 2.0- see the [LICENSE](LICENSE
 
 ---
 
-**Built with ❤️ for transparent agriculture and food safety**
+**Built with love for transparent agriculture and food safety**
 
 *CropChain - Connecting farms to forks with blockchain transparency*
