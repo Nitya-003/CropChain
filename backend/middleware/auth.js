@@ -13,9 +13,17 @@ const protect = async (req, res, next) => {
         if (!token) return res.status(401).json({ error: 'Not authorized', message: 'Token is empty' });
         
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = await User.findById(decoded.id).select('-password');
+        const user = await User.findById(decoded.id).select('-password');
         
-        if (!req.user) return res.status(401).json({ error: 'Not authorized', message: 'User not found' });
+        if (!user) return res.status(401).json({ error: 'Not authorized', message: 'User not found' });
+
+        const normalizedUser = user.toObject({ virtuals: true });
+        normalizedUser._id = normalizedUser._id.toString();
+        normalizedUser.id = normalizedUser._id;
+        normalizedUser.farmerId = normalizedUser.farmerId || normalizedUser.id;
+
+        req.user = normalizedUser;
+
         if (req.user.status !== 'active' && req.user.role !== ROLES.SUPER_ADMIN) {
             return res.status(403).json({ error: 'Access denied', message: 'User account is not active' });
         }
