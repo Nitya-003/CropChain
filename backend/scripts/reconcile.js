@@ -3,174 +3,103 @@ const { ethers } = require('ethers');
 const Batch = require('../models/Batch');
 const { getContract } = require('../config/blockchain');
 
-<<<<<<< HEAD
-// Stage enum mapping from CropChain.sol
-const STAGE_NAMES = ['Farmer', 'Mandi', 'Transport', 'Retailer'];
+const STAGE_NAMES = ['farmer', 'mandi', 'transport', 'retailer'];
 
-/**
- * Convert uint8 stage to human-readable string
- * @param {number} stage - Stage enum value (uint8)
- * @returns {string} Stage name
- */
-function getStageName(stage) {
-    if (stage >= 0 && stage < STAGE_NAMES.length) {
-        return STAGE_NAMES[stage];
-    }
-    return 'Unknown';
-=======
-/**
- * Reconciles blockchain data with the database.
- * Uses getTotalBatches(), getBatchIdByIndex(), and getBatch() 
- * to iterate through batches stored in the contract's mapping and allBatchIds array.
- */
-async function reconcile() {
-  const contract = await getContract();
-
-  // Get total number of batches from the allBatchIds array
-  const total = await contract.getTotalBatches();
-  console.log(`Found ${total} batches on blockchain`);
-
-  for (let i = 0; i < total; i++) {
-    // Get batch ID by index from the allBatchIds array
-    const batchIdBytes = await contract.getBatchIdByIndex(i);
-    
-    // Convert bytes32 to string (hex) for use as batchId
-    const batchId = batchIdBytes.toString();
-    
-    // Get the full batch data from the cropBatches mapping
-    const onChain = await contract.getBatch(batchIdBytes);
-    
-    // Get the latest update to find the current stage
-    let currentStage = 0;
-    try {
-      const latestUpdate = await contract.getLatestUpdate(batchIdBytes);
-      currentStage = latestUpdate.stage.toNumber();
-    } catch (err) {
-      // If no updates exist yet, default to stage 0 (Farmer)
-      console.log(`No updates found for batch ${batchId}, defaulting to stage 0`);
-    }
-
-    // Map contract stage number to stage name
-    const stageNames = ['Farmer', 'Mandi', 'Transport', 'Retailer'];
-    const stageName = stageNames[currentStage] || 'Farmer';
-
-    await Batch.updateOne(
-      { batchId: batchId },
-      {
-        stage: stageName,
-        syncStatus: 'synced',
-        // Also sync other blockchain data
-        quantity: onChain.quantity.toNumber(),
-        ipfsCID: onChain.ipfsCID,
-        isRecalled: onChain.isRecalled,
-        blockchainCreator: onChain.creator
-      },
-      { upsert: true }
-    );
-
-    console.log(`Synced batch ${batchId} (stage: ${stageName})`);
-  }
-
-  console.log('✅ Reconciliation complete');
->>>>>>> upstream/main
+function toNumber(value) {
+    if (value == null) return 0;
+    if (typeof value === 'number') return value;
+    if (typeof value === 'bigint') return Number(value);
+    if (typeof value.toNumber === 'function') return value.toNumber();
+    return Number(value);
 }
 
-/**
- * Reconcile blockchain data with MongoDB database
- * Syncs batch data from blockchain to local database
- */
+function getStageName(stage) {
+    return STAGE_NAMES[stage] || STAGE_NAMES[0];
+}
+
+function normalizeBatchId(batchIdBytes32) {
+    try {
+        return ethers.decodeBytes32String(batchIdBytes32);
+    } catch (error) {
+        return ethers.hexlify(batchIdBytes32);
+    }
+}
+
 async function reconcile() {
     console.log('🔄 Starting reconciliation...');
-    
+
     const contract = getContract();
-    
     if (!contract) {
         console.error('❌ Blockchain contract not available. Check configuration.');
         process.exit(1);
     }
-    
+
     try {
-        // Get total number of batches on blockchain
         const totalBatches = await contract.getTotalBatches();
-        console.log(`📊 Found ${totalBatches} batches on blockchain`);
-        
+        const total = toNumber(totalBatches);
+        console.log(`📊 Found ${total} batches on blockchain`);
+
         let synced = 0;
         let skipped = 0;
         let errors = 0;
-        
-        // Iterate through all batch IDs on blockchain
-        for (let i = 0; i < totalBatches; i++) {
+
+        for (let index = 0; index < total; index++) {
             try {
-                // Get batch ID at index
-                const batchIdBytes32 = await contract.getBatchIdByIndex(i);
-                
-<<<<<<< HEAD
-=======
-                // Convert bytes32 to string (remove padding)
-                const batchId = ethers.zeroPadValue(batchIdBytes32, 32).toString();
-                
->>>>>>> upstream/main
-                // Get full batch data
+                const batchIdBytes32 = await contract.getBatchIdByIndex(index);
+                const batchId = normalizeBatchId(batchIdBytes32);
                 const onChainBatch = await contract.getBatch(batchIdBytes32);
-                
-                // Only sync batches that exist on chain
-                if (onChainBatch.exists) {
-                    // Convert batchId bytes32 to readable string format
-                    const readableBatchId = ethers.toUtf8String(batchIdBytes32);
-                    
-                    // Map blockchain stage (uint8) to string
-<<<<<<< HEAD
-                    const stageName = getStageName(0);
-=======
-                    const stageName = getStageName(Number(onChainBatch.quantity) > 0 ? 0 : 0); // Stage is in updates, not CropBatch struct
->>>>>>> upstream/main
-                    
-                    // Update or insert batch in MongoDB
-                    await Batch.updateOne(
-                        { batchId: readableBatchId },
-                        {
-                            $set: {
-<<<<<<< HEAD
-=======
-                                // Keep local data but update sync status
->>>>>>> upstream/main
-                                syncStatus: 'synced',
-                                lastSyncedAt: new Date(),
-                                onChainData: {
-                                    quantity: Number(onChainBatch.quantity),
-                                    creator: onChainBatch.creator,
-                                    createdAt: new Date(Number(onChainBatch.createdAt) * 1000),
-                                    exists: onChainBatch.exists,
-                                    isRecalled: onChainBatch.isRecalled
-                                }
-                            }
-                        },
-                        { upsert: true }
-                    );
-                    
-                    synced++;
-                    console.log(`  ✓ Synced batch: ${readableBatchId}`);
-                } else {
+
+                if (!onChainBatch?.exists) {
                     skipped++;
+                    continue;
                 }
+
+                let stage = 0;
+                try {
+                    const latestUpdate = await contract.getLatestUpdate(batchIdBytes32);
+                    stage = toNumber(latestUpdate.stage);
+                } catch (error) {
+                    stage = 0;
+                }
+
+                const stageName = getStageName(stage);
+
+                const updateResult = await Batch.updateOne(
+                    { batchId },
+                    {
+                        $set: {
+                            syncStatus: 'synced',
+                            currentStage: stageName,
+                            isRecalled: Boolean(onChainBatch.isRecalled)
+                        }
+                    },
+                    { upsert: false }
+                );
+
+                if (updateResult.matchedCount === 0) {
+                    skipped++;
+                    console.log(`  - Skipped batch not found locally: ${batchId}`);
+                    continue;
+                }
+
+                synced++;
+                console.log(`  ✓ Synced batch: ${batchId}`);
             } catch (batchError) {
                 errors++;
-                console.error(`  ✗ Error processing batch at index ${i}:`, batchError.message);
+                console.error(`  ✗ Error processing batch at index ${index}:`, batchError.message);
             }
         }
-        
+
         console.log(`\n✅ Reconciliation complete:`);
         console.log(`   - Synced: ${synced}`);
         console.log(`   - Skipped: ${skipped}`);
         console.log(`   - Errors: ${errors}`);
-        
     } catch (error) {
         console.error('❌ Reconciliation failed:', error.message);
         process.exit(1);
     }
 }
 
-// Run if called directly
 if (require.main === module) {
     reconcile()
         .then(() => process.exit(0))
