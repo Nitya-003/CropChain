@@ -6,7 +6,7 @@ export interface User {
     id: string;
     name: string;
     email: string;
-    role: 'farmer' | 'transporter' | 'admin' | '';
+    role: 'farmer' | 'mandi' | 'transporter' | 'retailer' | 'admin' | '';
     walletAddress?: string;
     verification?: {
         isVerified: boolean;
@@ -24,7 +24,7 @@ export interface RegisterCredentials {
     name: string;
     email: string;
     password: string;
-    role: 'farmer' | 'transporter' | 'admin';
+    role: 'farmer' | 'mandi' | 'transporter' | 'retailer';
 }
 
 export interface WalletLoginCredentials {
@@ -39,7 +39,7 @@ export interface WalletRegisterCredentials {
     walletAddress: string;
     signature: string;
     nonce?: string;
-    role: 'farmer' | 'transporter';
+    role: 'farmer' | 'mandi' | 'transporter' | 'retailer';
 }
 
 interface AuthResponse {

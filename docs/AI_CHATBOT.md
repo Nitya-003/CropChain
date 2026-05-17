@@ -164,7 +164,7 @@ If no OpenAI API key is provided, the chatbot operates in fallback mode with pre
 ### Basic Queries
 ```
 User: "How do I track a batch?"
-AI: "To track a batch, you can either scan the QR code or search by batch ID (format: CROP-YYYY-XXX) on the Track Batch page. This will show you the complete supply chain journey."
+AI: "To track a batch, you can either scan the QR code or search by batch ID (format: CROP-YYYY-XXXX) on the Track Batch page. This will show you the complete supply chain journey."
 ```
 
 ### Batch Searches

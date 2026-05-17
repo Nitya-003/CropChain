@@ -13,10 +13,12 @@ const connectDB = async () => {
         console.log(`MongoDB Connected: ${conn.connection.host}`);
     } catch (error) {
         console.error(`Error: ${error.message}`);
-        // Do not exit process in dev/test, just log error
+        // In production, throw error for proper handling instead of unsafe process.exit()
         if (process.env.NODE_ENV === 'production') {
-            process.exit(1);
+            throw new Error(`Database connection failed: ${error.message}`);
         }
+        // In development, just log the error and continue
+        console.warn('Running in development mode - server will continue without database');
     }
 };
 

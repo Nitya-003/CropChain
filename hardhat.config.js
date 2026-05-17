@@ -2,6 +2,10 @@ require("@nomicfoundation/hardhat-ethers");
 require("@nomicfoundation/hardhat-chai-matchers");
 require("dotenv").config();
 
+// Only use a random wallet if explicitly needed for CI on external networks, otherwise leave empty
+const { ethers } = require("ethers");
+const fallbackKey = process.env.PRIVATE_KEY || ethers.Wallet.createRandom().privateKey;
+
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: {
@@ -17,6 +21,7 @@ module.exports = {
     // Local development network
     localhost: {
       url: "http://127.0.0.1:8545"
+      // Hardhat automatically uses its default 20 test accounts for localhost
     },
     
     // Polygon Mumbai Testnet

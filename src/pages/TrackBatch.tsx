@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { Search, Package, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Package, ArrowRight, Thermometer, AlertTriangle, CheckCircle, Wifi, WifiOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { realCropBatchService } from '../services/realCropBatchService';
 import Timeline from '../components/Timeline';
 import { EmptyState } from '../components/common/EmptyState';
 import { ErrorState } from '../components/common/ErrorState';
 import Skeleton from '../components/Skeleton';
+import { useBatchSocket } from '../hooks/useBatchSocket';
 
 const TrackBatch: React.FC = () => {
   const [batchId, setBatchId] = useState('');
@@ -15,7 +16,19 @@ const TrackBatch: React.FC = () => {
 
   const { t } = useTranslation();
 
-  const handleSearch = async (e?: React.FormEvent) => {
+  // WebSocket connection for real-time updates
+  const { isConnected: socketConnected, lastUpdate } = useBatchSocket({
+    batchId: batch?.batchId || batch?.id,
+    enabled: !!batch,
+    onBatchUpdate: (data) => {
+      console.log('[TrackBatch] Real-time batch update received:', data);
+      if (data.batch) {
+        setBatch(data.batch);
+      }
+    }
+  });
+
+  const handleSearch = async (e?: React.FormEvent<HTMLFormElement>) => {
     if (e) e.preventDefault();
     if (!batchId.trim()) return;
 
@@ -85,7 +98,7 @@ const TrackBatch: React.FC = () => {
         </form>
       </div>
 
-      {/* 🟢 SKELETON LOADING STATE */}
+      {/* SKELETON LOADING STATE */}
       {isSearching && (
         <div className="grid md:grid-cols-3 gap-8 animate-pulse">
           {/* Left Column Skeleton */}
@@ -170,16 +183,105 @@ const TrackBatch: React.FC = () => {
           {/* Right Column: The Visual Timeline */}
           <div className="md:col-span-2">
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
-              <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-6 border-b pb-4">
-                Supply Chain Journey
+              <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-6 border-b pb-4 flex items-center justify-between">
+                <span>Supply Chain Journey</span>
+                {socketConnected && (
+                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400 animate-pulse">
+                    <Wifi className="h-5 w-5" />
+                    <span className="text-xs font-semibold">LIVE</span>
+                  </div>
+                )}
               </h2>
 
               <Timeline
                 events={getTimelineEvents(batch)}
                 currentStep={batch.currentStage || 0}
               />
+              
+              {lastUpdate && (
+                <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 text-right">
+                  Last updated: {lastUpdate.toLocaleTimeString()}
+                </div>
+              )}
             </div>
           </div>
+
+          {/* IoT Data Display */}
+          {batch.currentTemperature !== undefined && (
+            <div className="md:col-span-3">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4 flex items-center">
+                  <Thermometer className="h-5 w-5 mr-2" />
+                  IoT Sensor Data
+                </h3>
+                
+                {/* Spoilage Alert */}
+                {batch.isSpoiled ? (
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-red-800 dark:text-red-200 text-sm">
+                          ⚠️ WARNING: Cold Chain Breached
+                        </p>
+                        <p className="text-red-700 dark:text-red-300 text-sm mt-1">
+                          Crop Spoiled. Temperature exceeded safe limits.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-4">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-green-800 dark:text-green-200 text-sm">
+                          ✅ Oracle Verified: Optimal Conditions
+                        </p>
+                        <div className="mt-2 space-y-1">
+                          <div className="flex justify-between">
+                            <span className="text-green-700 dark:text-green-300 text-sm">Temperature:</span>
+                            <span className="font-bold text-green-800 dark:text-green-200 text-sm">
+                              {batch.currentTemperature ? `${batch.currentTemperature}°F` : 'N/A'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-green-700 dark:text-green-300 text-sm">Humidity:</span>
+                            <span className="font-bold text-green-800 dark:text-green-200 text-sm">
+                              {batch.currentHumidity !== undefined ? `${batch.currentHumidity}%` : 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="text-sm text-gray-500">Last Reading</label>
+                    <p className="font-semibold text-gray-800 dark:text-white">
+                      {batch.iotTimestamp ? new Date(batch.iotTimestamp).toLocaleString() : 'No readings yet'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-500">Sensor Status</label>
+                    <p className="font-semibold text-gray-800 dark:text-white">
+                      {batch.isSpoiled ? (
+                        <span className="text-red-600 dark:text-red-400">
+                          ❌ Spoilage Detected
+                        </span>
+                      ) : (
+                        <span className="text-green-600 dark:text-green-400">
+                          ✅ Fresh
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* QR Code */}
           {batch.qrCode && (

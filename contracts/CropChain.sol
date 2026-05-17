@@ -3,8 +3,15 @@ pragma solidity ^0.8.19;
 
 import "./lib/openzeppelin/security/Pausable.sol";
 import "./lib/openzeppelin/security/ReentrancyGuard.sol";
+import "./lib/openzeppelin/access/AccessControl.sol";
 
-contract CropChain is Pausable, ReentrancyGuard {
+contract CropChain is Pausable, ReentrancyGuard, AccessControl {
+    bytes32 public constant FARMER_ROLE = keccak256("FARMER_ROLE");
+    bytes32 public constant MANDI_ROLE = keccak256("MANDI_ROLE");
+    bytes32 public constant TRANSPORTER_ROLE = keccak256("TRANSPORTER_ROLE");
+    bytes32 public constant RETAILER_ROLE = keccak256("RETAILER_ROLE");
+    bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
+
     enum Stage {
         Farmer,
         Mandi,
@@ -31,6 +38,9 @@ contract CropChain is Pausable, ReentrancyGuard {
         address creator;
         bool exists;
         bool isRecalled;
+        int256 currentTemperature;
+        int256 currentHumidity;
+        bool isSpoiled;
     }
 
     struct SupplyChainUpdate {
@@ -66,7 +76,7 @@ contract CropChain is Pausable, ReentrancyGuard {
     mapping(bytes32 => uint256) public latestOraclePrice;
     mapping(address => uint256) public pendingWithdrawals;
 
-    string[] public allBatchIds;
+    bytes32[] public allBatchIds;
 
     address public owner;
     uint256 public nextListingId;
@@ -84,6 +94,8 @@ contract CropChain is Pausable, ReentrancyGuard {
     event ProceedsWithdrawn(address indexed account, uint256 amountWei);
     event SpotPriceRecorded(bytes32 indexed cropTypeHash, uint256 priceWei, uint256 timestamp);
     event TwapConfigUpdated(uint256 twapWindowSeconds, uint256 maxPriceDeviationBps);
+    event IoTDataRequested(bytes32 indexed batchId, address requester);
+    event IoTDataFulfilled(bytes32 indexed batchId, int256 temperature, int256 humidity, bool isSpoiled);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
@@ -112,20 +124,59 @@ contract CropChain is Pausable, ReentrancyGuard {
         nextListingId = 1;
         twapWindow = 1 hours;
         maxPriceDeviationBps = 1500;
+        
+        // Grant DEFAULT_ADMIN_ROLE to deployer
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        
+        // Set up role hierarchy
+        _setRoleAdmin(FARMER_ROLE, DEFAULT_ADMIN_ROLE);
+        _setRoleAdmin(MANDI_ROLE, DEFAULT_ADMIN_ROLE);
+        _setRoleAdmin(TRANSPORTER_ROLE, DEFAULT_ADMIN_ROLE);
+        _setRoleAdmin(RETAILER_ROLE, DEFAULT_ADMIN_ROLE);
+        _setRoleAdmin(ORACLE_ROLE, DEFAULT_ADMIN_ROLE);
     }
 
     function setRole(address user, ActorRole role) external onlyOwner nonReentrant {
         require(user != address(0), "Invalid address");
+        require(user != owner, "Cannot change owner role via setRole");
+        // Admin role must be managed exclusively through transferOwnership
+        require(role != ActorRole.Admin, "Use transferOwnership to assign Admin");
+
+        // Revoke the previous OZ AccessControl role for this user if one was set
+        ActorRole previousRole = roles[user];
+        if (previousRole == ActorRole.Farmer) _revokeRole(FARMER_ROLE, user);
+        else if (previousRole == ActorRole.Mandi) _revokeRole(MANDI_ROLE, user);
+        else if (previousRole == ActorRole.Transporter) _revokeRole(TRANSPORTER_ROLE, user);
+        else if (previousRole == ActorRole.Retailer) _revokeRole(RETAILER_ROLE, user);
+        else if (previousRole == ActorRole.Oracle) _revokeRole(ORACLE_ROLE, user);
+
         roles[user] = role;
+
+        // Keep OZ AccessControl in sync so onlyRole() guards match the legacy mapping
+        if (role == ActorRole.Farmer) _grantRole(FARMER_ROLE, user);
+        else if (role == ActorRole.Mandi) _grantRole(MANDI_ROLE, user);
+        else if (role == ActorRole.Transporter) _grantRole(TRANSPORTER_ROLE, user);
+        else if (role == ActorRole.Retailer) _grantRole(RETAILER_ROLE, user);
+        else if (role == ActorRole.Oracle) _grantRole(ORACLE_ROLE, user);
+
         emit RoleUpdated(user, role);
     }
 
-    function transferOwnership(address newOwner) external onlyOwner nonReentrant {
+    function transferOwnership(address newOwner) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         require(newOwner != address(0), "Invalid address");
+        require(newOwner != owner, "Already owner");
 
         address previousOwner = owner;
         owner = newOwner;
+
+        // Transfer legacy admin role: clear old owner, elevate new owner
+        roles[previousOwner] = ActorRole.None;
         roles[newOwner] = ActorRole.Admin;
+
+        // Sync OZ AccessControl: revoke DEFAULT_ADMIN_ROLE from old owner,
+        // grant it to new owner so privileged functions remain consistent
+        _revokeRole(DEFAULT_ADMIN_ROLE, previousOwner);
+        _grantRole(DEFAULT_ADMIN_ROLE, newOwner);
 
         emit OwnershipTransferred(previousOwner, newOwner);
     }
@@ -164,7 +215,13 @@ contract CropChain is Pausable, ReentrancyGuard {
         string calldata actorName,
         string calldata location,
         string calldata notes
-    ) external onlyAuthorized whenNotPaused nonReentrant {
+    ) external onlyRole(FARMER_ROLE) whenNotPaused nonReentrant {
+        // Input validations to prevent malformed data and gas exhaustion attacks
+        _validateStringLength(ipfsCID, 46, 64, "Invalid IPFS CID length");
+        _validateStringLength(actorName, 2, 50, "Actor name length invalid");
+        _validateStringLength(location, 2, 100, "Location length invalid");
+        _validateStringLength(notes, 0, 500, "Notes too long");
+        
         require(!cropBatches[batchId].exists, "Batch already exists");
         require(batchId != bytes32(0), "Invalid batch ID");
         require(cropTypeHash != bytes32(0), "Invalid crop type");
@@ -178,7 +235,10 @@ contract CropChain is Pausable, ReentrancyGuard {
             createdAt: block.timestamp,
             creator: msg.sender,
             exists: true,
-            isRecalled: false
+            isRecalled: false,
+            currentTemperature: 0,
+            currentHumidity: 0,
+            isSpoiled: false
         });
 
         _batchUpdates[batchId].push(
@@ -203,17 +263,19 @@ contract CropChain is Pausable, ReentrancyGuard {
         string calldata actorName,
         string calldata location,
         string calldata notes
-    ) external onlyAuthorized whenNotPaused nonReentrant batchExists(batchId) {
+    ) external whenNotPaused nonReentrant batchExists(batchId) {
+        // Input validations to prevent malformed data and gas exhaustion attacks
+        _validateStringLength(actorName, 2, 50, "Actor name length invalid");
+        _validateStringLength(location, 2, 100, "Location length invalid");
+        _validateStringLength(notes, 0, 500, "Notes too long");
+        
         require(!cropBatches[batchId].isRecalled, "Batch is recalled");
         require(bytes(actorName).length > 0, "Actor required");
         require(bytes(location).length > 0, "Location required");
         require(_isNextStage(batchId, stage), "Invalid stage transition");
 
-        ActorRole senderRole = roles[msg.sender];
-        require(
-            senderRole == ActorRole.Admin || _canUpdate(stage, senderRole),
-            "Role not allowed for stage"
-        );
+        // Dynamic role checks based on stage transition
+        require(_canUpdateStage(batchId, stage), "Role not allowed for this stage transition");
 
         _batchUpdates[batchId].push(
             SupplyChainUpdate({
@@ -312,7 +374,7 @@ contract CropChain is Pausable, ReentrancyGuard {
     function cancelListing(uint256 listingId) external whenNotPaused nonReentrant {
         MarketListing storage listing = listings[listingId];
         require(listing.active, "Listing inactive");
-        require(msg.sender == listing.seller || msg.sender == owner, "Not allowed");
+        require(msg.sender == listing.seller || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Not allowed");
 
         listing.active = false;
         listing.quantityAvailable = 0;
@@ -435,11 +497,58 @@ contract CropChain is Pausable, ReentrancyGuard {
         return weightedSum / totalWeight;
     }
 
+    function grantStakeholderRole(bytes32 role, address account) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
+        require(account != address(0), "Invalid address");
+        require(
+            role == FARMER_ROLE || role == MANDI_ROLE || role == TRANSPORTER_ROLE || role == RETAILER_ROLE,
+            "Invalid stakeholder role"
+        );
+
+        // Sync the legacy roles mapping so onlyAuthorized and createListing checks work
+        if (role == FARMER_ROLE) roles[account] = ActorRole.Farmer;
+        else if (role == MANDI_ROLE) roles[account] = ActorRole.Mandi;
+        else if (role == TRANSPORTER_ROLE) roles[account] = ActorRole.Transporter;
+        else if (role == RETAILER_ROLE) roles[account] = ActorRole.Retailer;
+
+        _grantRole(role, account);
+        emit RoleUpdated(account, roles[account]);
+    }
+
     function _canUpdate(Stage stage, ActorRole role) internal pure returns (bool) {
         if (stage == Stage.Farmer && role == ActorRole.Farmer) return true;
         if (stage == Stage.Mandi && role == ActorRole.Mandi) return true;
         if (stage == Stage.Transport && role == ActorRole.Transporter) return true;
         if (stage == Stage.Retailer && role == ActorRole.Retailer) return true;
+        return false;
+    }
+
+    function _canUpdateStage(bytes32 batchId, Stage newStage) internal view returns (bool) {
+        SupplyChainUpdate[] storage updates = _batchUpdates[batchId];
+        
+        // Admin can always update
+        if (hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) {
+            return true;
+        }
+        
+        // Get current stage
+        Stage currentStage;
+        if (updates.length == 0) {
+            currentStage = Stage.Farmer;
+        } else {
+            currentStage = updates[updates.length - 1].stage;
+        }
+        
+        // Check role-based stage transitions
+        if (currentStage == Stage.Farmer && newStage == Stage.Mandi) {
+            return hasRole(MANDI_ROLE, msg.sender);
+        }
+        if (currentStage == Stage.Mandi && newStage == Stage.Transport) {
+            return hasRole(TRANSPORTER_ROLE, msg.sender);
+        }
+        if (currentStage == Stage.Transport && newStage == Stage.Retailer) {
+            return hasRole(RETAILER_ROLE, msg.sender);
+        }
+        
         return false;
     }
 
@@ -462,5 +571,87 @@ contract CropChain is Pausable, ReentrancyGuard {
         uint256 lower = (referencePrice * (10_000 - bps)) / 10_000;
         uint256 upper = (referencePrice * (10_000 + bps)) / 10_000;
         return observed >= lower && observed <= upper;
+    }
+
+    /**
+     * @dev Validates string length within specified bounds
+     * @param str The string to validate
+     * @param minLen Minimum allowed length
+     * @param maxLen Maximum allowed length
+     * @param errorMessage Error message to revert with if validation fails
+     */
+    function _validateStringLength(string memory str, uint256 minLen, uint256 maxLen, string memory errorMessage) internal pure {
+        uint256 length = bytes(str).length;
+        require(length >= minLen && length <= maxLen, errorMessage);
+    }
+
+    /**
+     * @dev Request IoT verification for a batch
+     * Can be called by TRANSPORTER_ROLE or MANDI_ROLE
+     */
+    function requestIoTVerification(bytes32 batchId) 
+        external 
+        whenNotPaused 
+        nonReentrant 
+        batchExists(batchId)
+    {
+        require(
+            hasRole(TRANSPORTER_ROLE, msg.sender) || hasRole(MANDI_ROLE, msg.sender),
+            "Unauthorized: Only Transporter or Mandi can request IoT verification"
+        );
+        
+        require(!cropBatches[batchId].isRecalled, "Batch is recalled");
+        
+        emit IoTDataRequested(batchId, msg.sender);
+    }
+
+    /**
+     * @dev Fulfill IoT data for a batch
+     * Can only be called by ORACLE_ROLE
+     */
+    function fulfillIoTData(
+        bytes32 batchId, 
+        int256 temperature, 
+        int256 humidity
+    ) 
+        external 
+        onlyRole(ORACLE_ROLE) 
+        whenNotPaused 
+        nonReentrant 
+        batchExists(batchId)
+    {
+        require(!cropBatches[batchId].isRecalled, "Batch is recalled");
+        
+        // Update batch IoT data
+        cropBatches[batchId].currentTemperature = temperature;
+        cropBatches[batchId].currentHumidity = humidity;
+        
+        // Check if batch is spoiled based on temperature thresholds
+        // Temperature is in hundredths of degree: 800 = 80.0°F, 320 = 32.0°F
+        bool isSpoiled = (temperature > 800 || temperature < 320);
+        cropBatches[batchId].isSpoiled = isSpoiled;
+        
+        emit IoTDataFulfilled(batchId, temperature, humidity, isSpoiled);
+    }
+
+    /**
+     * @dev Get IoT data for a batch
+     */
+    function getBatchIoTData(bytes32 batchId) 
+        external 
+        view 
+        batchExists(batchId) 
+        returns (
+            int256 temperature,
+            int256 humidity,
+            bool isSpoiled
+        )
+    {
+        CropBatch storage batch = cropBatches[batchId];
+        return (
+            batch.currentTemperature,
+            batch.currentHumidity,
+            batch.isSpoiled
+        );
     }
 }
