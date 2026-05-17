@@ -181,15 +181,15 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         emit OwnershipTransferred(previousOwner, newOwner);
     }
 
-    function pause() external onlyOwner nonReentrant {
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         _pause();
     }
 
-    function unpause() external onlyOwner nonReentrant {
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         _unpause();
     }
 
-    function setPaused(bool shouldPause) external onlyOwner nonReentrant {
+    function setPaused(bool shouldPause) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         if (shouldPause) {
             _pause();
         } else {
@@ -197,7 +197,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         }
     }
 
-    function setTwapConfig(uint256 twapWindowSeconds, uint256 maxDeviationBps) external onlyOwner nonReentrant {
+    function setTwapConfig(uint256 twapWindowSeconds, uint256 maxDeviationBps) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         require(twapWindowSeconds > 0, "Window=0");
         require(maxDeviationBps <= 5000, "Deviation too high");
 
