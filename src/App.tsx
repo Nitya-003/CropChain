@@ -21,6 +21,10 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AIChatbot from './components/AIChatbot';
 import { CurrencyProvider } from "./context/CurrencyContext";
 
+import Login from './pages/Login';
+import Register from './pages/Register';
+import AccessDenied from './pages/AccessDenied';
+
 
 function App() {
   return (
@@ -37,6 +41,10 @@ function App() {
               <Route path="/track-batch" element={<TrackBatch />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/crop-recommendation" element={<CropRecommendation />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/access-denied" element={<AccessDenied />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
 
