@@ -10,7 +10,7 @@ const Counter = require('../models/Counter');
 const blockchainService = require('./blockchainService');
 const notificationService = require('./notificationService');
 const apiResponse = require('../utils/apiResponse');
-const { STAGE_TO_NUMBER } = require('../constants/stages');
+const { getStageNumber, getStagesString, isValidStage, normalizeStage } = require('../constants/stages');
 
 class BatchService {
     /**
@@ -164,7 +164,11 @@ class BatchService {
     async updateBatch(batchId, updateData, user) {
         try {
             // Normalize stage to lowercase
-            const normalizedStage = updateData.stage.toLowerCase();
+            const normalizedStage = normalizeStage(updateData.stage);
+
+            if (!isValidStage(normalizedStage)) {
+                throw new Error(`Invalid stage: ${updateData.stage}. Must be one of: ${getStagesString()}`);
+            }
 
             const blockchainHash = blockchainService.simulateHash(updateData);
 
@@ -333,7 +337,7 @@ class BatchService {
                     batch.description || ''
                 );
             } else if (action === 'update') {
-                const stageNum = STAGE_TO_NUMBER[batch.currentStage] ?? 0;
+                const stageNum = getStageNumber(batch.currentStage);
                 const lastUpdate = batch.updates[batch.updates.length - 1];
 
                 await blockchainService.updateBatchOnChain(
