@@ -37,7 +37,7 @@ contract ReentrancyAttacker {
         target.createBatch(
             batchId,
             cropTypeHash,
-            "ipfs://attack-batch",
+            "ipfs://bafybeigdyrztqz4xq7x4z7m4xq7x4z7m4xq7x4z7m4",
             batchQuantity,
             "attacker",
             "mandi",
