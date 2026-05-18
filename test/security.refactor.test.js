@@ -125,4 +125,32 @@ describe("CropChain Security Refactor", function () {
       cropChain.buyFromListing(1, 1, { value: ethers.parseEther("5") })
     ).to.be.revertedWith("TWAP deviation too high");
   });
+
+  it("restricts circuit breaker and TWAP tuning to the admin role", async function () {
+    const { cropChain, buyer } = await deployFixture();
+
+    await expect(cropChain.connect(buyer).pause()).to.be.revertedWith(
+      "AccessControl: account " +
+        buyer.address.toLowerCase() +
+        " is missing role " +
+        DEFAULT_ADMIN_ROLE
+    );
+
+    await expect(
+      cropChain.connect(buyer).setTwapConfig(3600, 1000)
+    ).to.be.revertedWith(
+      "AccessControl: account " +
+        buyer.address.toLowerCase() +
+        " is missing role " +
+        DEFAULT_ADMIN_ROLE
+    );
+
+    await expect(cropChain.pause()).to.not.be.reverted;
+    expect(await cropChain.paused()).to.be.true;
+
+    await expect(cropChain.setTwapConfig(7200, 1000))
+      .to.not.be.reverted;
+    expect(await cropChain.twapWindow()).to.equal(7200n);
+    expect(await cropChain.maxPriceDeviationBps()).to.equal(1000n);
+  });
 });
