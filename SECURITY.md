@@ -2,14 +2,13 @@
 
 ## 🔐 Private Key Management
 
-This document outlines the security improvements made to prevent hardcoded private keys in the Hardhat configuration.
+This document outlines the security controls used to keep blockchain secrets out of the repository and out of source-controlled config.
 
 ### ⚠️ Security Issue Resolved
 
 **Previous Issue**: The `hardhat.config.js` file contained a hardcoded private key:
-```
-0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-```
+
+That example has been removed from the configuration and replaced with environment-variable loading.
 
 This is a well-known Hardhat default account that poses significant security risks:
 - **Exposure**: Anyone with access to the codebase can extract this private key
@@ -25,18 +24,14 @@ This is a well-known Hardhat default account that poses significant security ris
 
 #### 2. Environment-Based Security
 ```javascript
-// Dynamic fallback for CI/CD if needed
-const { ethers } = require("ethers");
-const fallbackKey = process.env.PRIVATE_KEY || ethers.Wallet.createRandom().privateKey;
-
 // Network configuration
 accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
 ```
 
 #### 3. Network-Specific Behavior
 - **Localhost**: Uses Hardhat's default 20 test accounts automatically
-- **External Networks**: Requires explicit `PRIVATE_KEY` environment variable
-- **CI/CD**: Can optionally use generated random keys for external network testing
+- **External Networks**: Uses `accounts: []` when `PRIVATE_KEY` is not present, so deployments cannot accidentally sign transactions
+- **CI/CD**: Inject `PRIVATE_KEY` and RPC URLs from the platform secret manager at runtime
 
 ## 🛡️ Security Features
 
@@ -81,7 +76,7 @@ mumbai: {
 
 1. **Repository Secrets**: Store `PRIVATE_KEY` as a repository secret
 2. **Environment Variables**: Inject during CI/CD runs
-3. **Optional Fallback**: Can use generated keys for compilation-only testing
+3. **Rotation**: Rotate any key that may have been exposed in a repo, build log, or ticket
 
 ### Generate New Wallet
 ```bash
@@ -139,6 +134,8 @@ INFURA_URL=https://polygon-mumbai.infura.io/v3/your_project_id
 POLYGONSCAN_API_KEY=your_api_key_here
 ```
 
+Never commit `.env`; keep it local or inject the same values from your CI/CD secret store.
+
 ### CI/CD Environment
 ```yaml
 # GitHub Actions example
@@ -154,6 +151,7 @@ env:
 - **Always** verify network before transactions
 - **Rotate** keys periodically for production
 - **Monitor** for unauthorized access
+- **Store** production secrets in a CI/CD secret manager, not in the repository
 
 ### Hardhat Behavior
 - **Localhost**: Automatically provides 20 test accounts with 1000 ETH each

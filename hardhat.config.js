@@ -2,9 +2,7 @@ require("@nomicfoundation/hardhat-ethers");
 require("@nomicfoundation/hardhat-chai-matchers");
 require("dotenv").config();
 
-// Only use a random wallet if explicitly needed for CI on external networks, otherwise leave empty
-const { ethers } = require("ethers");
-const fallbackKey = process.env.PRIVATE_KEY || ethers.Wallet.createRandom().privateKey;
+const getAccounts = () => (process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []);
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -27,7 +25,7 @@ module.exports = {
     // Polygon Mumbai Testnet
     mumbai: {
       url: process.env.INFURA_URL || "https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: getAccounts(),
       gasPrice: 20000000000, // 20 gwei
       gas: 6000000
     },
@@ -35,7 +33,7 @@ module.exports = {
     // Polygon Mainnet
     polygon: {
       url: process.env.POLYGON_URL || "https://polygon-mainnet.infura.io/v3/YOUR_PROJECT_ID",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: getAccounts(),
       gasPrice: 30000000000, // 30 gwei
       gas: 6000000
     },
@@ -43,14 +41,14 @@ module.exports = {
     // Ethereum Sepolia Testnet
     sepolia: {
       url: process.env.SEPOLIA_URL || "https://sepolia.infura.io/v3/YOUR_PROJECT_ID",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: getAccounts(),
       gasPrice: 20000000000 // 20 gwei
     },
     
     // Ethereum Mainnet
     mainnet: {
       url: process.env.MAINNET_URL || "https://mainnet.infura.io/v3/YOUR_PROJECT_ID",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: getAccounts(),
       gasPrice: 20000000000 // 20 gwei
     }
   },
