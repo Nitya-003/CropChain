@@ -364,8 +364,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
 
         uint256 refund = msg.value - totalCost;
         if (refund > 0) {
-            (bool refunded, ) = payable(msg.sender).call{value: refund}("");
-            require(refunded, "Refund failed");
+            pendingWithdrawals[msg.sender] += refund;
         }
 
         emit ListingPurchased(listingId, msg.sender, quantity, totalCost);
