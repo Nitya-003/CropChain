@@ -8,7 +8,7 @@ interface AuthContextType {
   register: (credentials: RegisterCredentials) => Promise<void>;
   connectWallet: () => Promise<void>;
   walletLogin: () => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isLoading: boolean;
   isWalletConnected: boolean;
 }
@@ -23,16 +23,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const initAuth = async () => {
       try {
-        const currentUser = authService.getCurrentUser();
-        if (currentUser && currentUser.role) {
-          // User has a valid role from backend authentication
-          setUser(currentUser);
-        } else {
-          // Only check wallet if no user is logged in
-          await checkWalletConnected();
-        }
+        const response = await authService.refreshSession();
+        setUser(response.user);
+        localStorage.setItem('user', JSON.stringify(response.user));
       } catch (error) {
-        console.error("Auth initialization error:", error);
+        localStorage.removeItem('user');
+        await checkWalletConnected();
       } finally {
         setIsLoading(false);
       }
@@ -66,7 +62,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const response = await authService.login(credentials);
       setUser(response.user);
       localStorage.setItem('user', JSON.stringify(response.user));
-      localStorage.setItem('token', response.token);
       toast.success('Login successful!');
     } catch (error: any) {
       const message = error.response?.data?.message || 'Login failed';
@@ -83,7 +78,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const response = await authService.register(credentials);
       setUser(response.user);
       localStorage.setItem('user', JSON.stringify(response.user));
-      localStorage.setItem('token', response.token);
       toast.success('Registration successful!');
     } catch (error: any) {
       const message = error.response?.data?.message || 'Registration failed';
@@ -174,7 +168,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Step 4: Store JWT and user data
       setUser(response.user);
       localStorage.setItem('user', JSON.stringify(response.user));
-      localStorage.setItem('token', response.token);
       
       toast.success('Wallet authentication successful!');
     } catch (error: any) {
@@ -191,8 +184,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const logout = () => {
-    authService.logout();
+  const logout = async () => {
+    await authService.logout();
     setUser(null);
     setIsWalletConnected(false);
     toast.success("Logged out");

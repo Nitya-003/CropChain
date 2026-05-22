@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+import { apiClient } from './apiClient';
 
 export interface VerificationStatus {
     isVerified: boolean;
@@ -60,16 +58,7 @@ export const verificationService = {
             params: [message, walletAddress],
         }) as string;
 
-        const token = localStorage.getItem('token');
-        const response = await axios.post(
-            `${API_URL}/verification/link-wallet`,
-            { walletAddress, signature },
-            {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            }
-        );
+        const response = await apiClient.post('/verification/link-wallet', { walletAddress, signature });
 
         return response.data;
     },
@@ -91,8 +80,6 @@ export const verificationService = {
 
         const adminAddress = accounts[0];
 
-        const token = localStorage.getItem('token');
-
         // Sign verification message with deterministic, non-PII content
         const message = `Issue credential for user ${userId} with wallet ${walletAddress}`;
         const signature = await window.ethereum.request({
@@ -100,15 +87,7 @@ export const verificationService = {
             params: [message, adminAddress],
         }) as string;
 
-        const response = await axios.post(
-            `${API_URL}/verification/issue`,
-            { userId, signature, walletAddress },
-            {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            }
-        );
+        const response = await apiClient.post('/verification/issue', { userId, signature, walletAddress });
 
         return response.data;
     },
@@ -120,16 +99,7 @@ export const verificationService = {
         userId: string,
         reason: string
     ): Promise<{ success: boolean }> {
-        const token = localStorage.getItem('token');
-        const response = await axios.post(
-            `${API_URL}/verification/revoke`,
-            { userId, reason },
-            {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            }
-        );
+        const response = await apiClient.post('/verification/revoke', { userId, reason });
 
         return response.data;
     },
@@ -138,7 +108,7 @@ export const verificationService = {
      * Check verification status
      */
     async checkVerification(userId: string): Promise<VerificationStatus> {
-        const response = await axios.get(`${API_URL}/verification/check/${userId}`);
+        const response = await apiClient.get(`/verification/check/${userId}`);
         return response.data;
     },
 
@@ -146,12 +116,7 @@ export const verificationService = {
      * Get unverified users (Admin only)
      */
     async getUnverifiedUsers(): Promise<UnverifiedUser[]> {
-        const token = localStorage.getItem('token');
-        const response = await axios.get(`${API_URL}/verification/unverified`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        });
+        const response = await apiClient.get('/verification/unverified');
 
         return response.data.users;
     },
@@ -160,12 +125,7 @@ export const verificationService = {
      * Get verified users (Admin only)
      */
     async getVerifiedUsers(): Promise<VerifiedUser[]> {
-        const token = localStorage.getItem('token');
-        const response = await axios.get(`${API_URL}/verification/verified`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        });
+        const response = await apiClient.get('/verification/verified');
 
         return response.data.users;
     },

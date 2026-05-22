@@ -1,6 +1,5 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+import { apiClient } from './apiClient';
+import { tokenService } from './token.service';
 
 export interface User {
     id: string;
@@ -59,12 +58,14 @@ interface NonceResponse {
 
 export const authService = {
     async login(credentials: LoginCredentials): Promise<AuthResponse> {
-        const response = await axios.post<{ data: AuthResponse }>(`${API_URL}/auth/login`, credentials);
+        const response = await apiClient.post<{ data: AuthResponse }>('/auth/login', credentials);
+        tokenService.setAccessToken(response.data.data.token);
         return response.data.data;
     },
 
     async register(credentials: RegisterCredentials): Promise<AuthResponse> {
-        const response = await axios.post<{ data: AuthResponse }>(`${API_URL}/auth/register`, credentials);
+        const response = await apiClient.post<{ data: AuthResponse }>('/auth/register', credentials);
+        tokenService.setAccessToken(response.data.data.token);
         return response.data.data;
     },
 
@@ -73,7 +74,7 @@ export const authService = {
      * This should be called before signing the message
      */
     async getNonce(address: string): Promise<string> {
-        const response = await axios.get<NonceResponse>(`${API_URL}/auth/nonce`, {
+        const response = await apiClient.get<NonceResponse>('/auth/nonce', {
             params: { address }
         });
         return response.data.data.nonce;
@@ -88,7 +89,8 @@ export const authService = {
      * 4. Backend verifies signature and returns JWT with user role
      */
     async walletLogin(credentials: WalletLoginCredentials): Promise<AuthResponse> {
-        const response = await axios.post<{ data: AuthResponse }>(`${API_URL}/auth/wallet-login`, credentials);
+        const response = await apiClient.post<{ data: AuthResponse }>('/auth/wallet-login', credentials);
+        tokenService.setAccessToken(response.data.data.token);
         return response.data.data;
     },
 
@@ -97,13 +99,24 @@ export const authService = {
      * Similar to wallet login but creates a new user
      */
     async walletRegister(credentials: WalletRegisterCredentials): Promise<AuthResponse> {
-        const response = await axios.post<{ data: AuthResponse }>(`${API_URL}/auth/wallet-register`, credentials);
+        const response = await apiClient.post<{ data: AuthResponse }>('/auth/wallet-register', credentials);
+        tokenService.setAccessToken(response.data.data.token);
         return response.data.data;
     },
 
-    logout() {
+    async refreshSession(): Promise<AuthResponse> {
+        const response = await apiClient.post<{ data: AuthResponse }>('/auth/refresh');
+        tokenService.setAccessToken(response.data.data.token);
+        return response.data.data;
+    },
+
+    async logout() {
+        try {
+            await apiClient.post('/auth/logout');
+        } finally {
+            tokenService.clearAccessToken();
+        }
         localStorage.removeItem('user');
-        localStorage.removeItem('token');
     },
 
     getCurrentUser(): User | null {
@@ -119,6 +132,6 @@ export const authService = {
     },
 
     getToken(): string | null {
-        return localStorage.getItem('token');
+        return tokenService.getAccessToken();
     }
 };
