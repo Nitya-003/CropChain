@@ -1,7 +1,9 @@
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
+const { generateRefreshToken } = require('../utils/generateToken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const { z } = require('zod');
 const apiResponse = require('../utils/apiResponse');
 const { verifyMessage } = require('ethers');
@@ -73,6 +75,40 @@ const sanitizeUser = (user) => ({
     createdAt: user.createdAt
 });
 
+const REFRESH_COOKIE_NAME = 'refreshToken';
+
+const getRefreshCookieOptions = () => ({
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/api/auth',
+    maxAge: 7 * 24 * 60 * 60 * 1000
+});
+
+const parseCookieHeader = (cookieHeader = '') => {
+    return cookieHeader.split(';').reduce((cookies, cookie) => {
+        const [rawName, ...rawValue] = cookie.trim().split('=');
+        if (!rawName || rawValue.length === 0) return cookies;
+
+        cookies[rawName] = decodeURIComponent(rawValue.join('='));
+        return cookies;
+    }, {});
+};
+
+const buildAuthPayload = (user) => ({
+    token: generateToken(user._id, user.role, user.name),
+    user: sanitizeUser(user)
+});
+
+const attachRefreshCookie = (res, user) => {
+    res.cookie(REFRESH_COOKIE_NAME, generateRefreshToken(user._id), getRefreshCookieOptions());
+};
+
+const clearRefreshCookie = (res) => {
+    const { maxAge, ...cookieOptions } = getRefreshCookieOptions();
+    res.clearCookie(REFRESH_COOKIE_NAME, cookieOptions);
+};
+
 const registerUser = async (req, res) => {
     try {
         // Validate request body
@@ -112,11 +148,9 @@ const registerUser = async (req, res) => {
         });
 
         if (user) {
+            attachRefreshCookie(res, user);
             const response = apiResponse.successResponse(
-                {
-                    token: generateToken(user._id, user.role, user.name),
-                    user: sanitizeUser(user)
-                },
+                buildAuthPayload(user),
                 'Registration successful',
                 201
             );
@@ -163,11 +197,9 @@ const loginUser = async (req, res) => {
         const user = await User.findOne({ email }).select('+password');
 
         if (user && (await bcrypt.compare(password, user.password))) {
+            attachRefreshCookie(res, user);
             const response = apiResponse.successResponse(
-                {
-                    token: generateToken(user._id, user.role, user.name),
-                    user: sanitizeUser(user)
-                },
+                buildAuthPayload(user),
                 'Login successful'
             );
             return res.json(response);
@@ -396,11 +428,9 @@ const walletLogin = async (req, res) => {
         nonceStore.delete(normalizedAddress);
 
         // Generate JWT with user's role from database
+        attachRefreshCookie(res, user);
         const response = apiResponse.successResponse(
-            {
-                token: generateToken(user._id, user.role, user.name),
-                user: sanitizeUser(user)
-            },
+            buildAuthPayload(user),
             'Wallet authentication successful'
         );
         
@@ -511,11 +541,9 @@ const walletRegister = async (req, res) => {
         // Delete used nonce
         nonceStore.delete(normalizedAddress);
 
+        attachRefreshCookie(res, user);
         const response = apiResponse.successResponse(
-            {
-                token: generateToken(user._id, user.role, user.name),
-                user: sanitizeUser(user)
-            },
+            buildAuthPayload(user),
             'Wallet registration successful',
             201
         );
@@ -535,11 +563,61 @@ const walletRegister = async (req, res) => {
     }
 };
 
+const refreshSession = async (req, res) => {
+    try {
+        const cookies = parseCookieHeader(req.headers.cookie);
+        const refreshToken = cookies[REFRESH_COOKIE_NAME];
+
+        if (!refreshToken) {
+            return res.status(401).json(
+                apiResponse.unauthorizedResponse('Refresh token is required')
+            );
+        }
+
+        const refreshSecret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+        const decoded = jwt.verify(refreshToken, refreshSecret);
+
+        if (decoded.type !== 'refresh') {
+            return res.status(401).json(
+                apiResponse.unauthorizedResponse('Invalid refresh token')
+            );
+        }
+
+        const user = await User.findById(decoded.id).select('-password');
+
+        if (!user) {
+            clearRefreshCookie(res);
+            return res.status(401).json(
+                apiResponse.unauthorizedResponse('User not found')
+            );
+        }
+
+        attachRefreshCookie(res, user);
+        return res.json(
+            apiResponse.successResponse(buildAuthPayload(user), 'Session refreshed')
+        );
+    } catch (error) {
+        clearRefreshCookie(res);
+        return res.status(401).json(
+            apiResponse.unauthorizedResponse('Invalid or expired refresh token')
+        );
+    }
+};
+
+const logoutUser = (req, res) => {
+    clearRefreshCookie(res);
+    return res.json(
+        apiResponse.successResponse(null, 'Logout successful')
+    );
+};
+
 module.exports = {
     registerUser,
     loginUser,
     walletLogin,
     walletRegister,
     getNonce,
-    updateProfile
+    updateProfile,
+    refreshSession,
+    logoutUser
 };
