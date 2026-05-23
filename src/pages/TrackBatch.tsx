@@ -5,7 +5,7 @@ import { realCropBatchService } from '../services/realCropBatchService';
 import Timeline from '../components/Timeline';
 import { EmptyState } from '../components/common/EmptyState';
 import { ErrorState } from '../components/common/ErrorState';
-import Skeleton from '../components/Skeleton';
+import { TrackBatchSkeleton } from '../components/skeletons';
 import { useBatchSocket } from '../hooks/useBatchSocket';
 
 const TrackBatch: React.FC = () => {
@@ -100,44 +100,7 @@ const TrackBatch: React.FC = () => {
 
       {/* SKELETON LOADING STATE */}
       {isSearching && (
-        <div className="grid md:grid-cols-3 gap-8 animate-pulse">
-          {/* Left Column Skeleton */}
-          <div className="md:col-span-1">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-              <div className="flex items-center space-x-3 mb-6">
-                <Skeleton className="h-12 w-12 rounded-full" />
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-16" />
-                  <Skeleton className="h-5 w-24" />
-                </div>
-              </div>
-              <div className="space-y-4">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column Skeleton (Timeline) */}
-          <div className="md:col-span-2">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
-              <Skeleton className="h-6 w-48 mb-8" />
-              <div className="space-y-8">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex gap-4">
-                    <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />
-                    <div className="w-full space-y-2">
-                      <Skeleton className="h-5 w-1/3" />
-                      <Skeleton className="h-4 w-1/4" />
-                      <Skeleton className="h-16 w-full rounded-lg mt-2" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        <TrackBatchSkeleton />
       )}
 
       {/* Results Section */}
