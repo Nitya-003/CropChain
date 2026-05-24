@@ -59,64 +59,86 @@ CropChain is a comprehensive full-stack web application that enables transparent
 
 ---
 
-## Docker Quickstart (Recommended)
+## Quick Start
 
 ### Prerequisites
 - [Docker](https://www.docker.com/get-started/) installed on your system
-- [Docker Compose](https://docs.docker.com/compose/install/) installed on your system
+- Docker Compose plugin (`docker compose`)
 
-### Quick Start Instructions
+### 1. Clone the Repository
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Siddh2024/CropChain.git
-   cd CropChain
-   ```
+```bash
+git clone https://github.com/Siddh2024/CropChain.git
+cd CropChain
+```
 
-2. **Start the entire stack**
-   ```bash
-   docker-compose up --build
-   ```
-   
-   This will build and start all services:
-   - Frontend (React/Vite)
-   - Backend (Node.js/Express)
-   - MongoDB (Database)
-   - Hardhat (Blockchain)
+### 2. Configure Environment Variables
 
-3. **Access the applications**
-   
-   Once all containers are running, you can access:
-   
-   - **Frontend**: http://localhost:5173
-   - **Backend API**: http://localhost:3001
-   - **Hardhat Node**: http://localhost:8545
-   - **MongoDB**: mongodb://localhost:27017
+Create a root `.env` file:
 
-4. **Deploy Smart Contracts**
-   
-   To deploy smart contracts to the running Hardhat container:
-   ```bash
-   docker-compose exec hardhat npx hardhat run scripts/deploy.js --network localhost
-   ```
+```bash
+cp .env.example .env
+```
+
+Update the `.env` file with the required values:
+
+```env
+# Frontend build-time API endpoint
+VITE_API_URL=http://localhost:3001
+
+# Backend runtime
+NODE_ENV=production
+PORT=3001
+MONGODB_URI=mongodb://db:27017/cropchain
+FRONTEND_URL=http://localhost:3000
+ALLOWED_ORIGINS=http://localhost:3000
+
+# Blockchain configuration
+INFURA_URL=https://polygon-mainnet.infura.io/v3/YOUR_PROJECT_ID
+CONTRACT_ADDRESS=0xYOUR_CONTRACT_ADDRESS
+PRIVATE_KEY=0xYOUR_PRIVATE_KEY
+```
+
+> **Note:** `VITE_*` variables are evaluated during build time. If you modify them later, rebuild the frontend image with `docker compose build frontend` or `docker compose up --build`.
+
+### 3. Build and Start All Services
+
+```bash
+docker compose up --build
+```
+
+This starts:
+- **Frontend** (React/Vite) — served on port 3000
+- **Backend** (Node.js/Express) — API on port 3001
+- **MongoDB** (Database) — port 27017
+- **Hardhat** (Blockchain Node) — port 8545
+
+### 4. Deploy Smart Contracts
+
+To deploy smart contracts to the running Hardhat container:
+
+```bash
+docker compose exec hardhat npx hardhat run scripts/deploy.js --network localhost
+```
+
+### 5. Stop the Services
+
+```bash
+# Stop all services
+docker compose down
+
+# Stop and remove volumes (for fresh start)
+docker compose down -v
+```
 
 ### Development Workflow
 
-With Docker Compose, you get:
+With Docker Compose you get:
 - **Hot Reloading**: All services automatically restart on code changes
 - **Service Discovery**: Containers communicate via internal network
 - **Data Persistence**: MongoDB data persists across container restarts
 - **Isolated Environment**: Clean, reproducible development setup
 
-### Stopping the Services
-
-```bash
-# Stop all services
-docker-compose down
-
-# Stop and remove volumes (for fresh start)
-docker-compose down -v
-```
 ---
 
 ## Quick Start
