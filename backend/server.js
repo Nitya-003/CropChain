@@ -19,16 +19,6 @@ const errorHandlerMiddleware = require('./middleware/errorHandler');
 const { createBatchSchema, updateBatchSchema } = require("./validations/batchSchema");
 const { protect, adminOnly, authorizeBatchOwner, authorizeRoles, authorizeStageTransition, authorizeBlockchainTransaction } = require('./middleware/auth');
 const apiResponse = require('./utils/apiResponse');
-<<<<<<< HEAD
-
-// Import Services
-const blockchainService = require('./services/blockchainService');
-const batchService = require('./services/batchService');
-const notificationService = require('./services/notificationService');
-
-// Import MongoDB Model
-const Batch = require('./models/Batch');
-=======
 const ccipService = require('./services/ccipService');
 const crypto = require('crypto');
 
@@ -72,7 +62,6 @@ process.on('uncaughtException', (error) => {
 
 // Connect to Database
 connectDB();
->>>>>>> upstream/main
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -284,8 +273,6 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     customSiteTitle: 'CropChain API Documentation'
 }));
 
-<<<<<<< HEAD
-=======
 // Blockchain configuration
 const REQUIRED_ENV_VARS = [
     'INFURA_URL',
@@ -381,7 +368,6 @@ function simulateBlockchainHash(data) {
         .digest('hex');
 }
 
->>>>>>> upstream/main
 // Import Routes
 const authRoutes = require('./routes/authRoutes');
 const verificationRoutes = require('./routes/verification');
@@ -393,14 +379,10 @@ app.use('/api/auth', authLimiter, authRoutes);
 // Mount Verification Routes
 app.use('/api/verification', generalLimiter, verificationRoutes);
 
-<<<<<<< HEAD
-// ==================== BATCH ROUTES (USING BATCH SERVICE) ====================
-=======
 // Mount Approval Routes (Multi-signature for high-stakes actions)
 app.use('/api/approvals', batchLimiter, approvalRoutes);
 
 // Batch routes - ALL USING MONGODB ONLY
->>>>>>> upstream/main
 
 // CREATE batch - requires farmer role and blockchain authorization
 // Uses MongoDB transaction to prevent race conditions in batch ID generation (CVSS 7.5 fix)
@@ -413,10 +395,6 @@ app.post('/api/batches', batchLimiter, protect, validateRequest(createBatchSchem
 
         console.log(`[SUCCESS] Batch created: ${result.batch.batchId} by user ${req.user.id} (${req.user.email}) from IP: ${req.ip}`);
 
-<<<<<<< HEAD
-        // Notify about batch creation
-        notificationService.notifyBatchCreated(result.batch.batchId, req.user);
-=======
         const batch = await Batch.create([{
             batchId,
             farmerId: req.user.farmerId || req.user.id, // Use authenticated user's ID
@@ -451,7 +429,6 @@ app.post('/api/batches', batchLimiter, protect, validateRequest(createBatchSchem
         session.endSession();
 
         console.log(`[SUCCESS] Batch created: ${batchId} by user ${req.user.id} (${req.user.email}) from IP: ${req.ip}`);
->>>>>>> upstream/main
 
         const response = apiResponse.successResponse(
             { batch: result.batch },
@@ -486,12 +463,7 @@ app.post('/api/batches', batchLimiter, protect, validateRequest(createBatchSchem
 app.get('/api/batches/:batchId', batchLimiter, async (req, res) => {
     try {
         const { batchId } = req.params;
-<<<<<<< HEAD
-        
-        const result = await batchService.getBatch(batchId);
-=======
         const batch = await Batch.findOne({ batchId }).lean();
->>>>>>> upstream/main
 
         if (!result.success) {
             console.log(`[NOT FOUND] Batch lookup failed: ${batchId} from IP: ${req.ip}`);
@@ -528,10 +500,6 @@ app.put('/api/batches/:batchId', batchLimiter, protect, authorizeBatchOwner, aut
 
         console.log(`[SUCCESS] Batch updated: ${batchId} to stage ${validatedData.stage} by ${validatedData.actor} from IP: ${req.ip}`);
 
-<<<<<<< HEAD
-        // Notify about batch update
-        notificationService.notifyBatchUpdated(batchId, validatedData.stage, req.user);
-=======
         const shouldDispatchCrossChain = normalizedStage === 'retailer' && ccipService.isEnabled();
 
         const crossChainState = shouldDispatchCrossChain
@@ -611,7 +579,6 @@ app.put('/api/batches/:batchId', batchLimiter, protect, authorizeBatchOwner, aut
         }
 
         console.log(`[SUCCESS] Batch updated: ${batchId} to stage ${normalizedStage} by ${validatedData.actor} from IP: ${req.ip}`);
->>>>>>> upstream/main
 
         const response = apiResponse.successResponse(
             { batch: result.batch },
@@ -667,9 +634,6 @@ app.post(
 // The new { currentStage: 1, createdAt: -1 } compound index handles pagination and sorting efficiently.
 app.get('/api/batches', batchLimiter, async (req, res) => {
     try {
-<<<<<<< HEAD
-        const result = await batchService.getAllBatches();
-=======
         // Use aggregation for statistics to avoid loading all batches into memory
         const statsPipeline = [
             {
@@ -704,16 +668,11 @@ app.get('/api/batches', batchLimiter, async (req, res) => {
         
         // Use lean() for read-only queries to skip Mongoose document hydration
         const allBatches = await Batch.find().lean().sort({ createdAt: -1 });
->>>>>>> upstream/main
 
         console.log(`[SUCCESS] Batches list retrieved from IP: ${req.ip}`);
 
         const response = apiResponse.successResponse(
-<<<<<<< HEAD
-            { stats: result.stats, batches: result.batches },
-=======
             { stats: stats || { totalBatches: 0, totalQuantity: 0, totalFarmers: 0, recentBatches: 0 }, batches: allBatches },
->>>>>>> upstream/main
             'Batches retrieved successfully'
         );
         res.json(response);
@@ -729,19 +688,6 @@ app.get('/api/batches', batchLimiter, async (req, res) => {
     }
 });
 
-<<<<<<< HEAD
-// ==================== AI SERVICE ====================
-
-// Create batch service interface for AI service
-const batchServiceForAI = {
-    async getBatch(batchId) {
-        const result = await batchService.getBatch(batchId);
-        return result.success ? result.batch : null;
-    },
-
-    async getDashboardStats() {
-        return await batchService.getDashboardStats();
-=======
 // AI Service - MongoDB only with optimized queries
 const batchServiceForAI = {
     async getBatch(batchId) {
@@ -783,7 +729,6 @@ const batchServiceForAI = {
         return {
             stats: stats || { totalBatches: 0, totalQuantity: 0, totalFarmers: 0, recentBatches: 0 }
         };
->>>>>>> upstream/main
     }
 };
 
@@ -924,22 +869,7 @@ process.on('unhandledRejection', (reason, promise) => {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-<<<<<<< HEAD
-// ==================== SERVER STARTUP ====================
-
-// Connect to Database
-connectDB();
-
-// Import createAdmin script
-const createAdmin = require('./scripts/create-admin');
-
-// Import blockchain listener
-const startListener = require('./services/blockchainListener');
-
-// Start server
-=======
 // Start server using HTTP server (with Socket.IO attached)
->>>>>>> upstream/main
 if (process.env.NODE_ENV !== 'test') {
     server.listen(PORT, async () => {
         console.log(`🚀 CropChain API server running on port ${PORT}`);
