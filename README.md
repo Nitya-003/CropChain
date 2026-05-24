@@ -59,8 +59,7 @@ CropChain is a comprehensive full-stack web application that enables transparent
 
 ---
 
-<<<<<<< HEAD
-## � Docker Quickstart (Recommended)
+## Docker Quickstart (Recommended)
 
 ### Prerequisites
 - [Docker](https://www.docker.com/get-started/) installed on your system
@@ -70,7 +69,7 @@ CropChain is a comprehensive full-stack web application that enables transparent
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/Nitya-003/CropChain.git
+   git clone https://github.com/Siddh2024/CropChain.git
    cd CropChain
    ```
 
@@ -118,78 +117,6 @@ docker-compose down
 # Stop and remove volumes (for fresh start)
 docker-compose down -v
 ```
-
-=======
-## Docker Setup
-
-### Prerequisites
-- [Docker](https://www.docker.com/get-started/) 24+
-- Docker Compose plugin (`docker compose`)
-
-### 1. Configure Environment
-
-Create a root `.env` file (Compose reads this automatically):
-
-```bash
-cp .env.example .env
-```
-
-Add required backend secrets and network values in `.env`:
-
-```env
-# Frontend build-time API endpoint
-VITE_API_URL=http://localhost:3001
-
-# Backend runtime
-NODE_ENV=production
-PORT=3001
-MONGODB_URI=mongodb://db:27017/cropchain
-FRONTEND_URL=http://localhost:3000
-ALLOWED_ORIGINS=http://localhost:3000
-
-# Blockchain (required by backend)
-INFURA_URL=https://polygon-mainnet.infura.io/v3/YOUR_PROJECT_ID
-CONTRACT_ADDRESS=0xYOUR_CONTRACT_ADDRESS
-PRIVATE_KEY=0xYOUR_PRIVATE_KEY
-```
-> Note: `VITE_*` variables (like `VITE_API_URL`) are evaluated at **build time**.  
-> If you change them in `.env`, rebuild the frontend image with  
-> `docker compose build frontend` or `docker compose up --build`.
-### 2. Build and Start All Services
-
-```bash
-docker compose up --build
-```
-
-This starts:
-- `db` (`mongo:7.0`)
-- `backend` (Node/Express on port `3001`)
-- `frontend` (React build served on port `3000`)
-
-### 3. Access the Stack
-
-- Frontend: `http://localhost:3000`
-- Backend API: `http://localhost:3001`
-- MongoDB: `mongodb://localhost:27017`
-
-### 4. Stop the Stack
-
-```bash
-docker compose down
-```
-
-To remove MongoDB volume too:
-
-```bash
-docker compose down -v
-```
-
-### Notes
-- The root `Dockerfile` is multi-stage and includes separate production targets for frontend and backend.
-- `.dockerignore` excludes heavy folders (`node_modules`, `dist`, `build`, `.git`) to keep build context small.
-- To validate image size, run `docker images` and confirm service images remain under your target limit.
-
->>>>>>> upstream/main
 ---
 
 ## Quick Start
