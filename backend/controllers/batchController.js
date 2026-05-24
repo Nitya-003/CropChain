@@ -3,6 +3,22 @@ const Counter = require('../models/Counter');
 const mongoose = require('mongoose');
 const apiResponse = require('../utils/apiResponse');
 
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const buildSafeSearchFilter = (value) => {
+    if (typeof value !== 'string') {
+        return null;
+    }
+
+    const trimmedValue = value.trim();
+
+    if (!trimmedValue) {
+        return null;
+    }
+
+    return { $regex: escapeRegex(trimmedValue), $options: 'i' };
+};
+
 /**
  * Generate a unique batch ID using MongoDB counter
  */
@@ -260,14 +276,17 @@ exports.getBatches = async (req, res) => {
 
         const query = {};
 
-        if (batchId) {
-            query.batchId = { $regex: batchId, $options: 'i' };
+        const batchIdFilter = buildSafeSearchFilter(batchId);
+        if (batchIdFilter) {
+            query.batchId = batchIdFilter;
         }
-        if (farmerName) {
-            query.farmerName = { $regex: farmerName, $options: 'i' };
+        const farmerNameFilter = buildSafeSearchFilter(farmerName);
+        if (farmerNameFilter) {
+            query.farmerName = farmerNameFilter;
         }
-        if (cropType) {
-            query.cropType = { $regex: cropType, $options: 'i' };
+        const cropTypeFilter = buildSafeSearchFilter(cropType);
+        if (cropTypeFilter) {
+            query.cropType = cropTypeFilter;
         }
         
         if (status) {
