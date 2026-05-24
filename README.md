@@ -59,35 +59,159 @@ CropChain is a comprehensive full-stack web application that enables transparent
 
 ---
 
+````md
+## Docker Setup
+
+### Prerequisites
+
+Make sure the following are installed on your system:
+
+- Docker 24+
+- Docker Compose plugin (`docker compose`)
+
+---
+
 ## Quick Start
 
-Choose one of the following setup methods:
+### 1. Clone the Repository
 
-### Docker Setup (Recommended)
+```bash
+git clone https://github.com/Nitya-003/CropChain.git
+cd CropChain
+````
 
-**Prerequisites:** [Docker](https://www.docker.com/get-started/) + Docker Compose plugin (`docker compose`)
+### 2. Configure Environment Variables
 
-1. **Clone and configure**
-   ```bash
-   git clone https://github.com/Siddh2024/CropChain.git
-   cd CropChain
-   cp .env.example .env
-   ```
-2. **Start all services**
-   ```bash
-   docker compose up --build
-   ```
-3. **Deploy smart contracts** (in another terminal)
-   ```bash
-   docker compose exec hardhat npx hardhat run scripts/deploy.js --network localhost
-   ```
-4. **Stop services** — `docker compose down` (add `-v` to remove volumes)
+Create a root `.env` file:
 
-**What you get:** Frontend (port 3000), Backend API (port 3001), MongoDB (27017), Hardhat blockchain (8545), hot reloading, and isolated networking.
+```bash
+cp .env.example .env
+```
 
-### Local Setup
+Update the `.env` file with the required values:
 
-**Prerequisites:** Node.js (v18+), npm/yarn, MetaMask wallet, MongoDB
+```env
+# Frontend build-time API endpoint
+VITE_API_URL=http://localhost:3001
+
+# Backend runtime
+NODE_ENV=production
+PORT=3001
+MONGODB_URI=mongodb://db:27017/cropchain
+FRONTEND_URL=http://localhost:3000
+ALLOWED_ORIGINS=http://localhost:3000
+
+# Blockchain configuration
+INFURA_URL=https://polygon-mainnet.infura.io/v3/YOUR_PROJECT_ID
+CONTRACT_ADDRESS=0xYOUR_CONTRACT_ADDRESS
+PRIVATE_KEY=0xYOUR_PRIVATE_KEY
+```
+
+> **Note:** `VITE_*` variables are evaluated during build time.
+> If you modify them later, rebuild the frontend image using:
+>
+> ```bash
+> docker compose build frontend
+> ```
+>
+> or
+>
+> ```bash
+> docker compose up --build
+> ```
+
+---
+
+## Start the Application Stack
+
+Build and start all services:
+
+```bash
+docker compose up --build
+```
+
+This starts:
+
+* Frontend (React + Vite)
+* Backend (Node.js + Express)
+* MongoDB Database
+* Hardhat Blockchain Node
+
+---
+
+## Access the Services
+
+| Service      | URL                       |
+| ------------ | ------------------------- |
+| Frontend     | http://localhost:3000     |
+| Backend API  | http://localhost:3001     |
+| Hardhat Node | http://localhost:8545     |
+| MongoDB      | mongodb://localhost:27017 |
+
+---
+
+## Deploy Smart Contracts
+
+To deploy smart contracts to the running Hardhat container:
+
+```bash
+docker compose exec hardhat npx hardhat run scripts/deploy.js --network localhost
+```
+
+---
+
+## Development Workflow
+
+Docker Compose provides:
+
+* Hot reloading for development
+* Isolated and reproducible environments
+* Internal container networking
+* Persistent MongoDB storage
+* Simplified multi-service orchestration
+
+---
+
+## Stop the Services
+
+Stop all running containers:
+
+```bash
+docker compose down
+```
+
+Stop containers and remove volumes:
+
+```bash
+docker compose down -v
+```
+
+---
+
+## Additional Notes
+
+* The root `Dockerfile` uses a multi-stage build setup for optimized frontend and backend images.
+* `.dockerignore` excludes unnecessary folders like `node_modules`, `dist`, `build`, and `.git` to reduce build size.
+* To inspect built image sizes, run:
+
+```bash
+docker images
+```
+
+```
+```
+
+
+## Quick Start
+
+### Prerequisites
+- Node.js (v14+)
+- npm or yarn
+- MetaMask wallet
+- Infura/Alchemy account (for blockchain)
+- MongoDB (for production)
+
+### Installation
 
 1. **Clone the repository**
    ```bash
