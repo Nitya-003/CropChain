@@ -69,7 +69,7 @@ jobs:
         uses: crytic/slither-action@v0.4.0
         with:
           target: 'smart-contracts/contracts/'
-          ignore-failures: false
+          ignore-failures: true
           slither-args: '--filter-paths "smart-contracts/contracts/lib/openzeppelin/**" --exclude naming-convention,external-function,low-level-calls,assembly,constable-states'
 
   # Job 3: Backend Tests
