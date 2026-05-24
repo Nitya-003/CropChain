@@ -22,9 +22,40 @@ const mockUser = {
     create: jest.fn()
 };
 
+jest.mock('../middleware/auth', () => ({
+    protect: jest.fn((req, res, next) => {
+        req.user = { id: 'FARM123', name: 'Test Farmer', role: 'farmer' };
+        next();
+    }),
+    adminOnly: jest.fn((req, res, next) => next()),
+    verifiedOnly: jest.fn((req, res, next) => next()),
+    authorizeBatchOwner: jest.fn((req, res, next) => next()),
+    authorizeRoles: jest.fn(() => (req, res, next) => next()),
+    authorizeStageTransition: jest.fn((req, res, next) => next()),
+    authorizeBlockchainTransaction: jest.fn((req, res, next) => next()),
+    requirePermissions: jest.fn(() => (req, res, next) => next()),
+    requireAllPermissions: jest.fn(() => (req, res, next) => next()),
+    inspectorOnly: jest.fn((req, res, next) => next()),
+    requireMultisigOrAdmin: jest.fn(() => (req, res, next) => next()),
+    checkBatchSafetyStatus: jest.fn((req, res, next) => next())
+}));
+
 // Mock Mongoose
 jest.mock('mongoose', () => {
-  const Schema = jest.fn();
+  const Schema = jest.fn().mockImplementation(() => {
+    return {
+      index: jest.fn(),
+      virtual: jest.fn().mockReturnValue({
+        get: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis()
+      }),
+      set: jest.fn(),
+      pre: jest.fn(),
+      post: jest.fn(),
+      methods: {},
+      statics: {}
+    };
+  });
   Schema.Types = {
       ObjectId: 'ObjectId',
       String: 'String',
@@ -126,10 +157,11 @@ describe('Issue #100 Fixes', () => {
       const createCalls = mockBatch.create.mock.calls;
       expect(createCalls.length).toBe(3);
 
-      const batchIds = createCalls.map(call => call[0].batchId);
-      expect(batchIds).toContain('CROP-2024-001');
-      expect(batchIds).toContain('CROP-2024-002');
-      expect(batchIds).toContain('CROP-2024-003');
+      const currentYear = new Date().getFullYear();
+      const batchIds = createCalls.map(call => Array.isArray(call[0]) ? call[0][0].batchId : call[0].batchId);
+      expect(batchIds).toContain(`CROP-${currentYear}-0001`);
+      expect(batchIds).toContain(`CROP-${currentYear}-0002`);
+      expect(batchIds).toContain(`CROP-${currentYear}-0003`);
     });
   });
 
@@ -154,7 +186,8 @@ describe('Issue #100 Fixes', () => {
 
       expect(res.status).toBe(201);
 
-      const createCall = mockBatch.create.mock.calls[0][0];
+      const rawCall = mockBatch.create.mock.calls[0][0];
+      const createCall = Array.isArray(rawCall) ? rawCall[0] : rawCall;
       expect(createCall.blockchainHash).toBeDefined();
 
       // SHA-256 hash is 64 hex characters. '0x' prefix makes it 66.

@@ -62,63 +62,77 @@ class BatchService {
      * @param {Object} user - Authenticated user object
      * @returns {Object} - Result with created batch or error
      */
-    async createBatch(batchData, user) {
-        const session = await mongoose.startSession();
-        session.startTransaction();
+    async createBatch(batchData, user, attempts = 3) {
+        let lastError;
+        for (let i = 0; i < attempts; i++) {
+            const session = await mongoose.startSession();
+            session.startTransaction();
 
-        try {
-            // Generate batch ID within transaction for atomicity
-            const batchId = await this.generateBatchId(session);
-            const qrCode = await this.generateQRCode(batchId);
+            try {
+                // Generate batch ID within transaction for atomicity
+                const batchId = await this.generateBatchId(session);
+                const qrCode = await this.generateQRCode(batchId);
 
-            const blockchainHash = blockchainService.simulateHash(batchData);
+                const blockchainHash = blockchainService.simulateHash(batchData);
 
-            const batch = await Batch.create([{
-                batchId,
-                farmerId: user.farmerId || user.id,
-                farmerName: batchData.farmerName || user.name,
-                farmerAddress: batchData.farmerAddress || user.address || '',
-                cropType: batchData.cropType,
-                quantity: batchData.quantity,
-                harvestDate: batchData.harvestDate,
-                origin: batchData.origin,
-                certifications: batchData.certifications,
-                description: batchData.description,
-                currentStage: 'farmer',
-                isRecalled: false,
-                qrCode,
-                blockchainHash,
-                syncStatus: 'pending',
-                updates: [{
-                    stage: 'farmer',
-                    actor: batchData.farmerName || user.name,
-                    location: batchData.origin,
-                    timestamp: batchData.harvestDate,
-                    notes: batchData.description || 'Initial harvest recorded'
-                }]
-            }], { session });
+                const batch = await Batch.create([{
+                    batchId,
+                    farmerId: user.farmerId || user.id,
+                    farmerName: batchData.farmerName || user.name,
+                    farmerAddress: batchData.farmerAddress || user.address || '',
+                    cropType: batchData.cropType,
+                    quantity: batchData.quantity,
+                    harvestDate: batchData.harvestDate,
+                    origin: batchData.origin,
+                    certifications: batchData.certifications,
+                    description: batchData.description,
+                    currentStage: 'farmer',
+                    isRecalled: false,
+                    qrCode,
+                    blockchainHash,
+                    syncStatus: 'pending',
+                    updates: [{
+                        stage: 'farmer',
+                        actor: batchData.farmerName || user.name,
+                        location: batchData.origin,
+                        timestamp: batchData.harvestDate,
+                        notes: batchData.description || 'Initial harvest recorded'
+                    }]
+                }], { session });
 
-            // Commit the transaction
-            await session.commitTransaction();
-            session.endSession();
+                const createdBatch = Array.isArray(batch) ? batch[0] : batch;
 
-            // Try to sync with blockchain (non-blocking)
-            this.syncToBlockchain(batch[0], 'create');
+                // Commit the transaction
+                await session.commitTransaction();
+                session.endSession();
 
-            console.log(`[SUCCESS] Batch created: ${batchId} by user ${user.id} (${user.email})`);
+                // Try to sync with blockchain (non-blocking)
+                this.syncToBlockchain(createdBatch, 'create');
 
-            return {
-                success: true,
-                batch: batch[0],
-                message: 'Batch created successfully'
-            };
-        } catch (error) {
-            await session.abortTransaction();
-            session.endSession();
+                console.log(`[SUCCESS] Batch created: ${batchId} by user ${user.id} (${user.email || 'N/A'})`);
 
-            console.error('Error creating batch:', error);
-            throw error;
+                return {
+                    success: true,
+                    batch: createdBatch,
+                    message: 'Batch created successfully'
+                };
+            } catch (error) {
+                await session.abortTransaction();
+                session.endSession();
+
+                lastError = error;
+                // If duplicate key error, retry up to the limit
+                if (error.code === 11000 && i < attempts - 1) {
+                    console.warn(`[RETRY] Duplicate batch ID detected. Retrying batch creation... (${i + 1}/${attempts})`);
+                    continue;
+                }
+
+                console.error('Error creating batch:', error);
+                throw error;
+            }
         }
+        console.error('Error creating batch: Max retries exceeded', lastError);
+        throw lastError;
     }
 
     /**

@@ -337,12 +337,9 @@ app.use('/api/approvals', batchLimiter, approvalRoutes);
 
 // CREATE batch - requires farmer role and blockchain authorization
 // Uses MongoDB transaction to prevent race conditions in batch ID generation (CVSS 7.5 fix)
-app.post('/api/batches', batchLimiter, protect, validateRequest(createBatchSchema), async (req, res) => {
+app.post('/api/batches', batchLimiter, protect, authorizeRoles('farmer'), validateRequest(createBatchSchema), async (req, res) => {
     try {
-        session = await mongoose.startSession();
-        session.startTransaction();
-        
-        const result = await batchService.createBatch(validatedData, req.user);
+        const result = await batchService.createBatch(req.body, req.user);
 
         console.log(`[SUCCESS] Batch created: ${result.batch.batchId} by user ${req.user.id} (${req.user.email}) from IP: ${req.ip}`);
 
