@@ -7,14 +7,7 @@ FROM base AS frontend-builder
 ENV NODE_ENV=development
 COPY package*.json ./
 RUN npm ci
-COPY index.html ./
-COPY vite.config.ts ./
-COPY tsconfig.json ./
-COPY tsconfig.app.json ./
-COPY tsconfig.node.json ./
-COPY postcss.config.js ./
-COPY tailwind.config.js ./
-COPY src ./src
+COPY frontend/ ./frontend
 ARG VITE_API_URL=http://localhost:3001
 ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
@@ -23,7 +16,7 @@ RUN npm run build
 FROM base AS frontend-runner
 ENV NODE_ENV=production
 RUN npm install -g serve@14.2.4
-COPY --from=frontend-builder /app/dist ./dist
+COPY --from=frontend-builder /app/frontend/dist ./dist
 EXPOSE 3000
 CMD ["serve", "-s", "dist", "-l", "3000"]
 

@@ -30,7 +30,7 @@ services:
   hardhat:
     image: node:18-alpine
     container_name: cropchain-hardhat
-    working_dir: /usr/src/app
+    working_dir: /usr/src/app/smart-contracts
     volumes:
       - .:/usr/src/app
     command: npx hardhat node --hostname 0.0.0.0
@@ -65,7 +65,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: docker/Dockerfile.dev
     container_name: cropchain-frontend
     ports:
       - "5173:5173"
@@ -88,7 +88,7 @@ volumes:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile
       target: backend-runner
     container_name: cropchain-backend
     restart: unless-stopped
@@ -126,7 +126,7 @@ volumes:
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile
       target: frontend-runner
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
