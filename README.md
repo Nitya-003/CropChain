@@ -59,82 +59,36 @@ CropChain is a comprehensive full-stack web application that enables transparent
 
 ---
 
-<<<<<<< HEAD
-## � Docker Quickstart (Recommended)
-
-### Prerequisites
-- [Docker](https://www.docker.com/get-started/) installed on your system
-- [Docker Compose](https://docs.docker.com/compose/install/) installed on your system
-
-### Quick Start Instructions
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Nitya-003/CropChain.git
-   cd CropChain
-   ```
-
-2. **Start the entire stack**
-   ```bash
-   docker-compose up --build
-   ```
-   
-   This will build and start all services:
-   - Frontend (React/Vite)
-   - Backend (Node.js/Express)
-   - MongoDB (Database)
-   - Hardhat (Blockchain)
-
-3. **Access the applications**
-   
-   Once all containers are running, you can access:
-   
-   - **Frontend**: http://localhost:5173
-   - **Backend API**: http://localhost:3001
-   - **Hardhat Node**: http://localhost:8545
-   - **MongoDB**: mongodb://localhost:27017
-
-4. **Deploy Smart Contracts**
-   
-   To deploy smart contracts to the running Hardhat container:
-   ```bash
-   docker-compose exec hardhat npx hardhat run scripts/deploy.js --network localhost
-   ```
-
-### Development Workflow
-
-With Docker Compose, you get:
-- **Hot Reloading**: All services automatically restart on code changes
-- **Service Discovery**: Containers communicate via internal network
-- **Data Persistence**: MongoDB data persists across container restarts
-- **Isolated Environment**: Clean, reproducible development setup
-
-### Stopping the Services
-
-```bash
-# Stop all services
-docker-compose down
-
-# Stop and remove volumes (for fresh start)
-docker-compose down -v
-```
-
-=======
+````md
 ## Docker Setup
 
 ### Prerequisites
-- [Docker](https://www.docker.com/get-started/) 24+
+
+Make sure the following are installed on your system:
+
+- Docker 24+
 - Docker Compose plugin (`docker compose`)
 
-### 1. Configure Environment
+---
 
-Create a root `.env` file (Compose reads this automatically):
+## Quick Start
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/Nitya-003/CropChain.git
+cd CropChain
+````
+
+### 2. Configure Environment Variables
+
+Create a root `.env` file:
 
 ```bash
 cp .env.example .env
 ```
 
-Add required backend secrets and network values in `.env`:
+Update the `.env` file with the required values:
 
 ```env
 # Frontend build-time API endpoint
@@ -147,50 +101,106 @@ MONGODB_URI=mongodb://db:27017/cropchain
 FRONTEND_URL=http://localhost:3000
 ALLOWED_ORIGINS=http://localhost:3000
 
-# Blockchain (required by backend)
+# Blockchain configuration
 INFURA_URL=https://polygon-mainnet.infura.io/v3/YOUR_PROJECT_ID
 CONTRACT_ADDRESS=0xYOUR_CONTRACT_ADDRESS
 PRIVATE_KEY=0xYOUR_PRIVATE_KEY
 ```
-> Note: `VITE_*` variables (like `VITE_API_URL`) are evaluated at **build time**.  
-> If you change them in `.env`, rebuild the frontend image with  
-> `docker compose build frontend` or `docker compose up --build`.
-### 2. Build and Start All Services
+
+> **Note:** `VITE_*` variables are evaluated during build time.
+> If you modify them later, rebuild the frontend image using:
+>
+> ```bash
+> docker compose build frontend
+> ```
+>
+> or
+>
+> ```bash
+> docker compose up --build
+> ```
+
+---
+
+## Start the Application Stack
+
+Build and start all services:
 
 ```bash
 docker compose up --build
 ```
 
 This starts:
-- `db` (`mongo:7.0`)
-- `backend` (Node/Express on port `3001`)
-- `frontend` (React build served on port `3000`)
 
-### 3. Access the Stack
+* Frontend (React + Vite)
+* Backend (Node.js + Express)
+* MongoDB Database
+* Hardhat Blockchain Node
 
-- Frontend: `http://localhost:3000`
-- Backend API: `http://localhost:3001`
-- MongoDB: `mongodb://localhost:27017`
+---
 
-### 4. Stop the Stack
+## Access the Services
+
+| Service      | URL                       |
+| ------------ | ------------------------- |
+| Frontend     | http://localhost:3000     |
+| Backend API  | http://localhost:3001     |
+| Hardhat Node | http://localhost:8545     |
+| MongoDB      | mongodb://localhost:27017 |
+
+---
+
+## Deploy Smart Contracts
+
+To deploy smart contracts to the running Hardhat container:
+
+```bash
+docker compose exec hardhat npx hardhat run scripts/deploy.js --network localhost
+```
+
+---
+
+## Development Workflow
+
+Docker Compose provides:
+
+* Hot reloading for development
+* Isolated and reproducible environments
+* Internal container networking
+* Persistent MongoDB storage
+* Simplified multi-service orchestration
+
+---
+
+## Stop the Services
+
+Stop all running containers:
 
 ```bash
 docker compose down
 ```
 
-To remove MongoDB volume too:
+Stop containers and remove volumes:
 
 ```bash
 docker compose down -v
 ```
 
-### Notes
-- The root `Dockerfile` is multi-stage and includes separate production targets for frontend and backend.
-- `.dockerignore` excludes heavy folders (`node_modules`, `dist`, `build`, `.git`) to keep build context small.
-- To validate image size, run `docker images` and confirm service images remain under your target limit.
-
->>>>>>> upstream/main
 ---
+
+## Additional Notes
+
+* The root `Dockerfile` uses a multi-stage build setup for optimized frontend and backend images.
+* `.dockerignore` excludes unnecessary folders like `node_modules`, `dist`, `build`, and `.git` to reduce build size.
+* To inspect built image sizes, run:
+
+```bash
+docker images
+```
+
+```
+```
+
 
 ## Quick Start
 
