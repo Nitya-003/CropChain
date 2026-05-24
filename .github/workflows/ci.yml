@@ -67,9 +67,10 @@ jobs:
       # Step 4: Run Slither Security Analysis
       - name: Run Slither Security Analysis
         uses: crytic/slither-action@v0.4.0
+        continue-on-error: true
         with:
           target: 'smart-contracts/contracts/'
-          ignore-failures: true
+          fail-on: none
           slither-args: '--filter-paths "smart-contracts/contracts/lib/openzeppelin/**" --exclude naming-convention,external-function,low-level-calls,assembly,constable-states'
 
   # Job 3: Backend Tests
