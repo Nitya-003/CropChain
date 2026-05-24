@@ -5,6 +5,6 @@ module.exports = {
     transform: {
         '^.+\\.(ts|tsx)$': 'ts-jest',
     },
-    testMatch: ['<rootDir>/src/utils/**/*.test.ts'],
+    testMatch: ['<rootDir>/frontend/src/utils/**/*.test.ts'],
     modulePathIgnorePatterns: ['<rootDir>/backend/'],
 };

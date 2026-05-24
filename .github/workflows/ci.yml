@@ -40,6 +40,7 @@ jobs:
       
       # Step 5: Compile contracts (additional verification)
       - name: Compile Smart Contracts
+        working-directory: smart-contracts/
         run: npx hardhat compile
 
   # Job 2: Smart Contract Security Audit
@@ -56,9 +57,9 @@ jobs:
       - name: Run Slither Security Analysis
         uses: crytic/slither-action@v0.4.0
         with:
-          target: 'contracts/'
+          target: 'smart-contracts/contracts/'
           ignore-failures: false
-          slither-args: '--filter-paths "contracts/lib/openzeppelin/**" --exclude naming-convention,external-function,low-level-calls,assembly,constable-states'
+          slither-args: '--filter-paths "smart-contracts/contracts/lib/openzeppelin/**" --exclude naming-convention,external-function,low-level-calls,assembly,constable-states'
 
   # Job 3: Backend Tests
   backend-tests:
