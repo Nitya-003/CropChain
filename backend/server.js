@@ -482,16 +482,12 @@ app.post('/api/batches', batchLimiter, protect, validateRequest(createBatchSchem
     }
 });
 
-// GET one batch
-app.get('/api/batches/:batchId', batchLimiter, async (req, res) => {
+// GET one batch - requires authentication
+app.get('/api/batches/:batchId', batchLimiter, protect, async (req, res) => {
     try {
         const { batchId } = req.params;
-<<<<<<< HEAD
-        
+
         const result = await batchService.getBatch(batchId);
-=======
-        const batch = await Batch.findOne({ batchId }).lean();
->>>>>>> upstream/main
 
         if (!result.success) {
             console.log(`[NOT FOUND] Batch lookup failed: ${batchId} from IP: ${req.ip}`);
@@ -662,58 +658,17 @@ app.post(
     }
 );
 
-// GET all batches
+// GET all batches - requires authentication
 // NOTE: This endpoint uses .lean() and compound indexes for optimal performance.
 // The new { currentStage: 1, createdAt: -1 } compound index handles pagination and sorting efficiently.
-app.get('/api/batches', batchLimiter, async (req, res) => {
+app.get('/api/batches', batchLimiter, protect, async (req, res) => {
     try {
-<<<<<<< HEAD
         const result = await batchService.getAllBatches();
-=======
-        // Use aggregation for statistics to avoid loading all batches into memory
-        const statsPipeline = [
-            {
-                $group: {
-                    _id: null,
-                    totalBatches: { $sum: 1 },
-                    totalQuantity: { $sum: "$quantity" },
-                    uniqueFarmers: { $addToSet: "$farmerName" },
-                    recentBatches: {
-                        $sum: {
-                            $cond: [
-                                { $gte: ["$createdAt", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)] },
-                                1,
-                                0
-                            ]
-                        }
-                    }
-                }
-            },
-            {
-                $project: {
-                    _id: 0,
-                    totalBatches: 1,
-                    totalQuantity: 1,
-                    totalFarmers: { $size: "$uniqueFarmers" },
-                    recentBatches: 1
-                }
-            }
-        ];
 
-        const [stats] = await Batch.aggregate(statsPipeline);
-        
-        // Use lean() for read-only queries to skip Mongoose document hydration
-        const allBatches = await Batch.find().lean().sort({ createdAt: -1 });
->>>>>>> upstream/main
-
-        console.log(`[SUCCESS] Batches list retrieved from IP: ${req.ip}`);
+        console.log(`[SUCCESS] Batches list retrieved by user: ${req.user?.id} from IP: ${req.ip}`);
 
         const response = apiResponse.successResponse(
-<<<<<<< HEAD
             { stats: result.stats, batches: result.batches },
-=======
-            { stats: stats || { totalBatches: 0, totalQuantity: 0, totalFarmers: 0, recentBatches: 0 }, batches: allBatches },
->>>>>>> upstream/main
             'Batches retrieved successfully'
         );
         res.json(response);
