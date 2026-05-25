@@ -92,7 +92,7 @@ router.get('/batch/:batchId/iot-data', protect, async (req, res) => {
  * GET /api/oracle/stats
  * Admin only
  */
-router.get('/stats', protect, authorizeRoles('admin'), async (req, res) => {
+router.get('/stats', protect, authorizeRoles('admin', 'super_admin'), async (req, res) => {
     try {
         const status = oracleService.getStatus();
         
