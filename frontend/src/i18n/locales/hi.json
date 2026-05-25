@@ -11,7 +11,8 @@
     "admin": "एडमिन",
     "login": "लॉगिन",
     "register": "रजिस्टर",
-    "logout": "लॉगआउट"
+    "logout": "लॉगआउट",
+    "smartPlanting": "स्मार्ट प्लांटिंग"
   },
   "common": {
     "submit": "जमा करें",
