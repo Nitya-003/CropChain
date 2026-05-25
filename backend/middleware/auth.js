@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Batch = require('../models/Batch');
-const { PERMISSIONS, ROLES } = require('../constants/permissions');
+const { PERMISSIONS, ROLES, isAdminRole } = require('../constants/permissions');
 const RBACService = require('../services/rbacService');
 
 const protect = async (req, res, next) => {
@@ -34,7 +34,7 @@ const protect = async (req, res, next) => {
 };
 
 const adminOnly = (req, res, next) => {
-    if (req.user && (req.user.role === ROLES.ADMIN || req.user.role === ROLES.SUPER_ADMIN)) {
+    if (req.user && isAdminRole(req.user.role)) {
         return next();
     }
     return res.status(403).json({ error: 'Access denied', message: 'Admin access required' });
@@ -56,7 +56,7 @@ const authorizeBatchOwner = async (req, res, next) => {
         const userId = req.user.id || req.user._id;
         const userFarmerId = req.user.farmerId || userId;
         
-        if (req.user.role === ROLES.ADMIN || req.user.role === ROLES.SUPER_ADMIN) {
+        if (isAdminRole(req.user.role)) {
             req.batch = batch;
             return next();
         }
@@ -189,7 +189,7 @@ const checkBatchSafetyStatus = async (req, res, next) => {
         if (!batch) return res.status(404).json({ error: 'Not found', message: 'Batch not found' });
 
         if (batch.safetyStatus && batch.safetyStatus !== 'safe') {
-            if (req.user.role !== ROLES.ADMIN && req.user.role !== ROLES.SUPER_ADMIN) {
+            if (!isAdminRole(req.user.role)) {
                 return res.status(403).json({ error: 'Access denied', message: `Batch is currently ${batch.safetyStatus} and cannot be modified` });
             }
         }
