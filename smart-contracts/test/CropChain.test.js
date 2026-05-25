@@ -72,7 +72,7 @@ describe("CropChain", function () {
 
     const batchId = toBytes32String("BATCH-001");
     const cropTypeHash = toBytes32String("WHEAT");
-    const ipfsCID = "QmHash";
+    const ipfsCID = "QmYwAPJhy5n2aBhajbN7yXq3TqK6Lj5ee2ov3333333333";
     const quantity = 100;
 
     await expect(cropChain.connect(farmer).createBatch(
@@ -92,7 +92,7 @@ describe("CropChain", function () {
     const cropTypeHash = toBytes32String("WHEAT");
     
     await expect(cropChain.connect(mandi).createBatch(
-      batchId, cropTypeHash, "QmHash", 100, "Mandi Guy", "Kansas", "Received"
+      batchId, cropTypeHash, "QmYwAPJhy5n2aBhajbN7yXq3TqK6Lj5ee2ov3333333333", 100, "Mandi Guy", "Kansas", "Received"
     )).to.be.revertedWith("AccessControl: account" + " " + mandi.address.toLowerCase() + " " + "is missing role" + " " + FARMER_ROLE);
   });
 
@@ -107,7 +107,7 @@ describe("CropChain", function () {
     const batchId = toBytes32String("BATCH-003");
     const cropTypeHash = toBytes32String("CORN");
     await cropChain.connect(farmer).createBatch(
-      batchId, cropTypeHash, "QmHash", 500, "Farmer Joe", "Iowa", "Harvested"
+      batchId, cropTypeHash, "QmYwAPJhy5n2aBhajbN7yXq3TqK6Lj5ee2ov3333333333", 500, "Farmer Joe", "Iowa", "Harvested"
     );
 
     // Update to Mandi (Stage 1) - only MANDI_ROLE can do this
@@ -155,7 +155,7 @@ describe("CropChain", function () {
     const batchId = toBytes32String("BATCH-004");
     const cropTypeHash = toBytes32String("CORN");
     await cropChain.connect(farmer).createBatch(
-      batchId, cropTypeHash, "QmHash", 500, "Farmer Joe", "Iowa", "Harvested"
+      batchId, cropTypeHash, "QmYwAPJhy5n2aBhajbN7yXq3TqK6Lj5ee2ov3333333333", 500, "Farmer Joe", "Iowa", "Harvested"
     );
 
     // Try to jump to Retailer (Stage 3) directly from Farmer (Stage 0)
@@ -165,7 +165,7 @@ describe("CropChain", function () {
       "Supermarket",
       "Chicago",
       "Stocked"
-    )).to.be.revertedWith("Role not allowed for this stage transition");
+    )).to.be.revertedWith("Invalid stage transition");
 
     // Try to have farmer update to Mandi (should fail - only MANDI_ROLE can do this)
     await expect(cropChain.connect(farmer).updateBatch(
@@ -185,7 +185,7 @@ describe("CropChain", function () {
     const batchId = toBytes32String("BATCH-005");
     const cropTypeHash = toBytes32String("WHEAT");
     await cropChain.connect(farmer).createBatch(
-      batchId, cropTypeHash, "QmHash", 200, "Farmer Joe", "Kansas", "Harvested"
+      batchId, cropTypeHash, "QmYwAPJhy5n2aBhajbN7yXq3TqK6Lj5ee2ov3333333333", 200, "Farmer Joe", "Kansas", "Harvested"
     );
 
     // Admin should be able to update any stage
@@ -383,7 +383,7 @@ describe("CropChain", function () {
       await cropChain.connect(farmer).createBatch(
         testBatchId,
         cropTypeHash,
-        "QmTestHash",
+        "QmYwAPJhy5n2aBhajbN7yXq3TqK6Lj5ee2ov3333333333",
         1000,
         "Test Farmer",
         "Test Location",
@@ -399,7 +399,7 @@ describe("CropChain", function () {
         .withArgs(testBatchId, transporter.address);
       
       const receipt = await tx.wait();
-      expect(receipt.gasUsed.toNumber()).to.be.greaterThan(0);
+      expect(Number(receipt.gasUsed)).to.be.greaterThan(0);
     });
 
     it("Should allow Mandi to request IoT verification", async function () {
@@ -413,19 +413,19 @@ describe("CropChain", function () {
     it("Should prevent Farmer from requesting IoT verification", async function () {
       await expect(
         cropChain.connect(farmer).requestIoTVerification(testBatchId)
-      ).to.be.revertedWith("AccessControl: account" + " " + farmer.address.toLowerCase() + " " + "is missing role" + " " + ORACLE_ROLE);
+      ).to.be.revertedWith("Unauthorized: Only Transporter or Mandi can request IoT verification");
     });
 
     it("Should prevent Retailer from requesting IoT verification", async function () {
       await expect(
         cropChain.connect(retailer).requestIoTVerification(testBatchId)
-      ).to.be.revertedWith("AccessControl: account" + " " + retailer.address.toLowerCase() + " " + "is missing role" + " " + ORACLE_ROLE);
+      ).to.be.revertedWith("Unauthorized: Only Transporter or Mandi can request IoT verification");
     });
 
     it("Should prevent unauthorized accounts from requesting IoT verification", async function () {
       await expect(
         cropChain.connect(other).requestIoTVerification(testBatchId)
-      ).to.be.revertedWith("AccessControl: account" + " " + other.address.toLowerCase() + " " + "is missing role" + " " + ORACLE_ROLE);
+      ).to.be.revertedWith("Unauthorized: Only Transporter or Mandi can request IoT verification");
     });
 
     it("Should allow Oracle to fulfill IoT data with optimal conditions", async function () {
@@ -522,7 +522,7 @@ describe("CropChain", function () {
           650,
           45
         )
-      ).to.be.revertedWith("Batch does not exist");
+      ).to.be.revertedWith("Batch not found");
     });
 
     it("Should allow reading IoT data for any batch", async function () {
@@ -550,7 +550,7 @@ describe("CropChain", function () {
       await cropChain.connect(farmer).createBatch(
         batchId2,
         cropTypeHash2,
-        "QmTestHash2",
+        "QmYwAPJhy5n2aBhajbN7yXq3TqK6Lj5ee2ov3333333333",
         500,
         "Test Farmer 2",
         "Test Location 2",

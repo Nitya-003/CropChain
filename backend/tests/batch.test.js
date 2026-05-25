@@ -21,9 +21,40 @@ const mockUser = {
     create: jest.fn()
 };
 
+jest.mock('../middleware/auth', () => ({
+    protect: jest.fn((req, res, next) => {
+        req.user = { id: 'FARM123', name: 'Test Farmer', role: 'farmer' };
+        next();
+    }),
+    adminOnly: jest.fn((req, res, next) => next()),
+    verifiedOnly: jest.fn((req, res, next) => next()),
+    authorizeBatchOwner: jest.fn((req, res, next) => next()),
+    authorizeRoles: jest.fn(() => (req, res, next) => next()),
+    authorizeStageTransition: jest.fn((req, res, next) => next()),
+    authorizeBlockchainTransaction: jest.fn((req, res, next) => next()),
+    requirePermissions: jest.fn(() => (req, res, next) => next()),
+    requireAllPermissions: jest.fn(() => (req, res, next) => next()),
+    inspectorOnly: jest.fn((req, res, next) => next()),
+    requireMultisigOrAdmin: jest.fn(() => (req, res, next) => next()),
+    checkBatchSafetyStatus: jest.fn((req, res, next) => next())
+}));
+
 // Mock Mongoose
 jest.mock('mongoose', () => {
-  const Schema = jest.fn();
+  const Schema = jest.fn().mockImplementation(() => {
+    return {
+      index: jest.fn(),
+      virtual: jest.fn().mockReturnValue({
+        get: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis()
+      }),
+      set: jest.fn(),
+      pre: jest.fn(),
+      post: jest.fn(),
+      methods: {},
+      statics: {}
+    };
+  });
   Schema.Types = {
       ObjectId: 'ObjectId',
       String: 'String',

@@ -19,10 +19,15 @@ const errorHandlerMiddleware = require('./middleware/errorHandler');
 const { createBatchSchema, updateBatchSchema } = require("./validations/batchSchema");
 const { protect, adminOnly, authorizeBatchOwner, authorizeRoles, authorizeStageTransition, authorizeBlockchainTransaction } = require('./middleware/auth');
 const apiResponse = require('./utils/apiResponse');
-const ccipService = require('./services/ccipService');
 const crypto = require('crypto');
 
-// Import MongoDB Model
+// Import Services
+const blockchainService = require('./services/blockchainService');
+const batchService = require('./services/batchService');
+const ccipService = require('./services/ccipService');
+const notificationService = require('./services/notificationService');
+
+// Import MongoDB Models
 const Batch = require('./models/Batch');
 const Counter = require('./models/Counter');
 
@@ -32,31 +37,18 @@ try {
     validateStageMapping();
 } catch (error) {
     console.error('❌ CRITICAL ERROR:', error.message);
-    process.exit(1); // Exit immediately if stages are misconfigured
+    process.exit(1);
 }
 
 // ==================== GLOBAL EXCEPTION HANDLERS ====================
 
-// Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
     console.error('🔥 UNHANDLED REJECTION:', reason);
     console.error('Promise:', promise);
-    // Log to external service in production
-    if (process.env.NODE_ENV === 'production') {
-        // In production, you might want to send to a logging service
-        // sendToLoggingService({ type: 'unhandledRejection', reason, promise });
-    }
 });
 
-// Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
     console.error('🔥 UNCAUGHT EXCEPTION:', error);
-    // Log to external service in production
-    if (process.env.NODE_ENV === 'production') {
-        // In production, you might want to send to a logging service
-        // sendToLoggingService({ type: 'uncaughtException', error });
-    }
-    // Exit with non-zero code to indicate failure
     process.exit(1);
 });
 
@@ -307,15 +299,7 @@ if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY) {
         provider = new ethers.JsonRpcProvider(PROVIDER_URL);
         wallet = new ethers.Wallet(PRIVATE_KEY, provider);
 
-        const contractABI = [
-            "event BatchCreated(bytes32 indexed batchId, string ipfsCID, uint256 quantity, address indexed creator)",
-            "event BatchUpdated(bytes32 indexed batchId, uint8 stage, string actorName, string location, address indexed updatedBy)",
-            "function getBatch(bytes32 batchId) view returns (tuple(bytes32 batchId, bytes32 cropTypeHash, string ipfsCID, uint256 quantity, uint256 createdAt, address creator, bool exists, bool isRecalled))",
-            "function createBatch(bytes32 batchId, bytes32 cropTypeHash, string calldata ipfsCID, uint256 quantity, string calldata actorName, string calldata location, string calldata notes) returns (bool)",
-            "function updateBatch(bytes32 batchId, uint8 stage, string calldata actorName, string calldata location, string calldata notes) returns (bool)"
-        ];
-
-        contractInstance = new ethers.Contract(CONTRACT_ADDRESS, contractABI, wallet);
+        contractInstance = new ethers.Contract(CONTRACT_ADDRESS, blockchainService.getContractABI(), wallet);
         console.log('✓ Blockchain contract instance initialized');
     } catch (error) {
         console.error('Failed to initialize blockchain connection:', error.message);
@@ -325,48 +309,16 @@ if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY) {
     console.log('ℹ️  Blockchain not configured - running without contract instance');
 }
 
-/**
- * Generate batch ID with optional session support for transaction safety
- * @param {mongoose.ClientSession} session - MongoDB session for transaction
- * @returns {string} - Generated batch ID
- */
 async function generateBatchId(session = null) {
-    const currentYear = new Date().getFullYear();
-    const options = { new: true, upsert: true };
-    if (session) {
-        options.session = session;
-    }
-
-    const counter = await Counter.findOneAndUpdate(
-        { name: 'batchId' },
-        { $inc: { seq: 1 } },
-        options
-    );
-    return `CROP-${currentYear}-${String(counter.seq).padStart(4, '0')}`;
+    return await batchService.generateBatchId(session);
 }
 
-
 async function generateQRCode(batchId) {
-    try {
-        return await QRCode.toDataURL(batchId, {
-            width: 200,
-            margin: 2,
-            color: {
-                dark: '#22c55e',
-                light: '#ffffff'
-            }
-        });
-    } catch (error) {
-        console.error('Failed to generate QR code:', error);
-        return '';
-    }
+    return await batchService.generateQRCode(batchId);
 }
 
 function simulateBlockchainHash(data) {
-    return '0x' + crypto
-        .createHash('sha256')
-        .update(JSON.stringify(data) + Date.now().toString())
-        .digest('hex');
+    return blockchainService.simulateHash(data);
 }
 
 
@@ -387,15 +339,16 @@ app.use('/api/approvals', batchLimiter, approvalRoutes);
 
 // Batch routes - ALL USING MONGODB ONLY
 upstream/main
+// Mount Approval Routes (Multi-signature for high-stakes actions)
+app.use('/api/approvals', batchLimiter, approvalRoutes);
+
+// ==================== BATCH ROUTES ====================
 
 // CREATE batch - requires farmer role and blockchain authorization
 // Uses MongoDB transaction to prevent race conditions in batch ID generation (CVSS 7.5 fix)
-app.post('/api/batches', batchLimiter, protect, validateRequest(createBatchSchema), async (req, res) => {
+app.post('/api/batches', batchLimiter, protect, authorizeRoles('farmer'), validateRequest(createBatchSchema), async (req, res) => {
     try {
-        session = await mongoose.startSession();
-        session.startTransaction();
-        
-        const result = await batchService.createBatch(validatedData, req.user);
+        const result = await batchService.createBatch(req.body, req.user);
 
         console.log(`[SUCCESS] Batch created: ${result.batch.batchId} by user ${req.user.id} (${req.user.email}) from IP: ${req.ip}`);
 
@@ -431,11 +384,12 @@ app.post('/api/batches', batchLimiter, protect, validateRequest(createBatchSchem
     }
 });
 
-// GET one batch
-app.get('/api/batches/:batchId', batchLimiter, async (req, res) => {
+// GET one batch - requires authentication
+app.get('/api/batches/:batchId', batchLimiter, protect, async (req, res) => {
     try {
         const { batchId } = req.params;
         
+
         const result = await batchService.getBatch(batchId);
 
         if (!result.success) {
@@ -525,14 +479,15 @@ app.post(
     }
 );
 
-// GET all batches
+// GET all batches - requires authentication
 // NOTE: This endpoint uses .lean() and compound indexes for optimal performance.
 // The new { currentStage: 1, createdAt: -1 } compound index handles pagination and sorting efficiently.
-app.get('/api/batches', batchLimiter, async (req, res) => {
+app.get('/api/batches', batchLimiter, protect, async (req, res) => {
     try {
         const result = await batchService.getAllBatches();
 
         console.log(`[SUCCESS] Batches list retrieved from IP: ${req.ip}`);
+        console.log(`[SUCCESS] Batches list retrieved by user: ${req.user?.id} from IP: ${req.ip}`);
 
         const response = apiResponse.successResponse(
             { stats: result.stats, batches: result.batches },
@@ -685,24 +640,12 @@ const createAdmin = require('./scripts/create-admin');
 // Import blockchain listener
 const startListener = require('./services/blockchainListener');
 
-// Global error handlers for uncaught exceptions and unhandled rejections
-process.on('uncaughtException', (err) => {
-    console.error('✗ Uncaught Exception:', err.message);
-    console.error('Stack:', err.stack);
-    gracefulShutdown('uncaughtException');
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('✗ Unhandled Rejection at:', promise);
-    console.error('Reason:', reason);
-    gracefulShutdown('unhandledRejection');
-});
-
 // Handle termination signals
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Start server using HTTP server (with Socket.IO attached)
+// Start server
 if (process.env.NODE_ENV !== 'test') {
     server.listen(PORT, async () => {
         console.log(`🚀 CropChain API server running on port ${PORT}`);

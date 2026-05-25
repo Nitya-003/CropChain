@@ -2,6 +2,23 @@ const Batch = require('../models/Batch');
 const Counter = require('../models/Counter');
 const mongoose = require('mongoose');
 const apiResponse = require('../utils/apiResponse');
+const { isAdminRole } = require('../constants/permissions');
+
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const buildSafeSearchFilter = (value) => {
+    if (typeof value !== 'string') {
+        return null;
+    }
+
+    const trimmedValue = value.trim();
+
+    if (!trimmedValue) {
+        return null;
+    }
+
+    return { $regex: escapeRegex(trimmedValue), $options: 'i' };
+};
 
 /**
  * Generate a unique batch ID using MongoDB counter
@@ -217,6 +234,16 @@ exports.recallBatch = async (req, res) => {
             );
         }
 
+        if (!req.user || !isAdminRole(req.user.role)) {
+            return res.status(403).json(
+                apiResponse.errorResponse(
+                    'Access denied. Admin privileges required.',
+                    'FORBIDDEN',
+                    403
+                )
+            );
+        }
+
         batch.isRecalled = true;
         await batch.save();
 
@@ -260,14 +287,17 @@ exports.getBatches = async (req, res) => {
 
         const query = {};
 
-        if (batchId) {
-            query.batchId = { $regex: batchId, $options: 'i' };
+        const batchIdFilter = buildSafeSearchFilter(batchId);
+        if (batchIdFilter) {
+            query.batchId = batchIdFilter;
         }
-        if (farmerName) {
-            query.farmerName = { $regex: farmerName, $options: 'i' };
+        const farmerNameFilter = buildSafeSearchFilter(farmerName);
+        if (farmerNameFilter) {
+            query.farmerName = farmerNameFilter;
         }
-        if (cropType) {
-            query.cropType = { $regex: cropType, $options: 'i' };
+        const cropTypeFilter = buildSafeSearchFilter(cropType);
+        if (cropTypeFilter) {
+            query.cropType = cropTypeFilter;
         }
         
         if (status) {
@@ -313,7 +343,7 @@ exports.getBatches = async (req, res) => {
 exports.updateBatchStatus = async (req, res) => {
     try {
         // CRITICAL: Check if user has admin role
-        if (!req.user || req.user.role !== 'admin') {
+        if (!req.user || !isAdminRole(req.user.role)) {
             return res.status(403).json(
                 apiResponse.errorResponse(
                     'Access denied. Admin privileges required.',

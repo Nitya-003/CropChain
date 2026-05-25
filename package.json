@@ -9,7 +9,7 @@
     "lint": "cd frontend && npx eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "compile": "cd smart-contracts && npx hardhat compile",
     "test": "cd smart-contracts && npx hardhat test",
-    "test:ci": "cd smart-contracts && npx hardhat test --reporter spec --reporter json",
+    "test:ci": "cd smart-contracts && npx hardhat test",
     "test:unit": "jest",
     "deploy:localhost": "cd smart-contracts && npx hardhat run scripts/deploy.js --network localhost",
     "deploy:mumbai": "cd smart-contracts && npx hardhat run scripts/deploy.js --network mumbai",

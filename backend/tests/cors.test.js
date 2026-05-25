@@ -20,7 +20,10 @@ describe('CORS Configuration', () => {
                     index: jest.fn(),
                     pre: jest.fn(),
                     post: jest.fn(),
-                    virtual: jest.fn(),
+                    virtual: jest.fn().mockReturnValue({
+                        get: jest.fn().mockReturnThis(),
+                        set: jest.fn().mockReturnThis()
+                    }),
                     methods: {},
                     statics: {}
                 };

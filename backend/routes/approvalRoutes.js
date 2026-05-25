@@ -5,7 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect, adminOnly, inspectorOnly, requirePermissions } = require('../middleware/auth');
-const { PERMISSIONS } = require('../constants/permissions');
+const { PERMISSIONS, ROLES, isAdminRole } = require('../constants/permissions');
 const MultisigService = require('../services/multisigService');
 const Joi = require('joi');
 
@@ -71,8 +71,8 @@ router.get('/:requestId', protect, async (req, res) => {
     try {
         const approval = await MultisigService.getRequestDetails(req.params.requestId);
         const isInitiator = approval.initiatedBy._id.toString() === req.user._id.toString();
-        const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
-        const isInspector = req.user.role === 'quality_inspector';
+        const isAdmin = isAdminRole(req.user.role);
+        const isInspector = req.user.role === ROLES.QUALITY_INSPECTOR;
         if (!isInitiator && !isAdmin && !isInspector) {
             return res.status(403).json({ error: 'Access denied', message: 'Not authorized to view this approval request' });
         }

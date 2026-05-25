@@ -215,28 +215,19 @@ docker images
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/Nitya-003/cropchain.git
-   cd cropchain
+   git clone https://github.com/Siddh2024/CropChain.git
+   cd CropChain
    ```
 
-2. **Install Frontend Dependencies**
+2. **Install dependencies**
    ```bash
+   # Frontend
    npm install
+   # Backend
+   cd backend && npm install && cd ..
    ```
 
-3. **Install Backend Dependencies**
-   ```bash
-   cd backend
-   npm install
-   cd ..
-   ```
-
-4. **Install Smart Contract Dependencies**
-   ```bash
-   npm install --save-dev @nomicfoundation/hardhat-toolbox
-   ```
-
-5. **Environment Setup**
+3. **Environment Setup**
    ```bash
    # Copy environment files
    cp backend/.env.example backend/.env
