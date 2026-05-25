@@ -61,6 +61,12 @@ const authorizeBatchOwner = async (req, res, next) => {
             return next();
         }
 
+        // Bypassed for non-farmer roles who are updating stages
+        if (req.user.role !== ROLES.FARMER) {
+            req.batch = batch;
+            return next();
+        }
+
         const batchFarmerIdStr = batch.farmerId?.toString?.() || String(batch.farmerId || '');
         const userFarmerIdStr = userFarmerId?.toString?.() || String(userFarmerId || '');
         const userIdStr = userId?.toString?.() || String(userId || '');

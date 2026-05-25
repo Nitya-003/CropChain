@@ -499,7 +499,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     function grantStakeholderRole(bytes32 role, address account) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         require(account != address(0), "Invalid address");
         require(
-            role == FARMER_ROLE || role == MANDI_ROLE || role == TRANSPORTER_ROLE || role == RETAILER_ROLE,
+            role == FARMER_ROLE || role == MANDI_ROLE || role == TRANSPORTER_ROLE || role == RETAILER_ROLE || role == ORACLE_ROLE,
             "Invalid stakeholder role"
         );
 
@@ -508,6 +508,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         else if (role == MANDI_ROLE) roles[account] = ActorRole.Mandi;
         else if (role == TRANSPORTER_ROLE) roles[account] = ActorRole.Transporter;
         else if (role == RETAILER_ROLE) roles[account] = ActorRole.Retailer;
+        else if (role == ORACLE_ROLE) roles[account] = ActorRole.Oracle;
 
         _grantRole(role, account);
         emit RoleUpdated(account, roles[account]);
