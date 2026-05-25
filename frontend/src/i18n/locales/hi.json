@@ -105,7 +105,10 @@
     "registerButton": "रजिस्टर करें",
     "noAccount": "खाता नहीं है?",
     "haveAccount": "पहले से खाता है?",
-    "forgotPassword": "पासवर्ड भूल गए?"
+    "forgotPassword": "पासवर्ड भूल गए?",
+    "welcomeBack": "वापस स्वागत है!",
+    "loginSubtitle": "अपने डैशबोर्ड तक पहुंचने के लिए लॉगिन करें",
+    "connectWallet": "वॉलेट कनेक्ट करें"
   },
   "batch": {
     "addTitle": "नया बैच जोड़ें",
