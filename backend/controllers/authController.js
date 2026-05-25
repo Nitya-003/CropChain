@@ -550,7 +550,19 @@ const refreshSession = async (req, res) => {
             );
         }
 
-        const refreshSecret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+        const refreshSecret = process.env.JWT_REFRESH_SECRET;
+
+if (!refreshSecret) {
+    console.error('JWT_REFRESH_SECRET is not configured');
+
+    return res.status(500).json(
+        apiResponse.errorResponse(
+            'Refresh token secret is not configured',
+            'SERVER_CONFIGURATION_ERROR',
+            500
+        )
+    );
+
         const decoded = jwt.verify(refreshToken, refreshSecret);
 
         if (decoded.type !== 'refresh') {
