@@ -15,9 +15,11 @@ const root = createRoot(document.getElementById("root")!);
 root.render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <App />
-      </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <App />
+          </ThemeProvider>
+        </AuthProvider>
     </QueryClientProvider>
   </StrictMode>
 );
