@@ -3,9 +3,9 @@ name: CropChain CI/CD & Security Audit
 # Triggers: Push to main branch and Pull Requests targeting main
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 # Global environment variables
 env:
@@ -17,27 +17,27 @@ jobs:
   smart-contract-tests:
     name: Smart Contract Tests
     runs-on: ubuntu-latest
-    
+
     steps:
       # Step 1: Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       # Step 2: Setup Node.js 20
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-      
+          node-version: "20"
+          cache: "npm"
+
       # Step 3: Install dependencies
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
-      
+
       # Step 4: Run Hardhat tests
       - name: Run Smart Contract Tests
         run: npm run test:ci
-      
+
       # Step 5: Compile contracts (additional verification)
       - name: Compile Smart Contracts
         working-directory: smart-contracts/
@@ -47,29 +47,29 @@ jobs:
   smart-contract-security-audit:
     name: Smart Contract Security Audit
     runs-on: ubuntu-latest
-    
+
     steps:
       # Step 1: Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       # Step 2: Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-      
+          node-version: "20"
+          cache: "npm"
+
       # Step 3: Install dependencies
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
-      
+
       # Step 4: Run Slither Security Analysis
       - name: Run Slither Security Analysis
         uses: crytic/slither-action@v0.4.0
         continue-on-error: true
         with:
-          target: 'smart-contracts/contracts/'
+          target: "smart-contracts/contracts/"
           fail-on: none
           slither-args: '--filter-paths "smart-contracts/contracts/lib/openzeppelin/**" --exclude naming-convention,external-function,low-level-calls,assembly,constable-states'
 
@@ -77,25 +77,25 @@ jobs:
   backend-tests:
     name: Backend Tests
     runs-on: ubuntu-latest
-    
+
     steps:
       # Step 1: Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       # Step 2: Setup Node.js 20
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
           cache-dependency-path: backend/package-lock.json
-      
+
       # Step 3: Install backend dependencies
       - name: Install backend dependencies
         working-directory: backend/
-        run: npm ci
-      
+        run: npm ci --legacy-peer-deps
+
       # Step 4: Run backend tests
       - name: Run Backend Tests
         working-directory: backend/
@@ -105,23 +105,23 @@ jobs:
   frontend-build-check:
     name: Frontend Build Check
     runs-on: ubuntu-latest
-    
+
     steps:
       # Step 1: Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       # Step 2: Setup Node.js 20
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-      
+          node-version: "20"
+          cache: "npm"
+
       # Step 3: Install frontend dependencies
       - name: Install frontend dependencies
         run: npm ci --legacy-peer-deps
-      
+
       # Step 4: Build frontend (TypeScript compilation check)
       - name: Build Frontend
         run: npm run build

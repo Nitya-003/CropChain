@@ -2,6 +2,7 @@ const didService = require('../services/didService');
 const User = require('../models/User');
 const { z } = require('zod');
 const apiResponse = require('../utils/apiResponse');
+const { ROLES } = require('../constants/permissions');
 
 // Validation schemas
 const linkWalletSchema = z.object({
@@ -184,7 +185,7 @@ const getUnverifiedUsers = async (req, res) => {
     try {
         const users = await User.find({
             'verification.isVerified': { $ne: true },
-            role: { $ne: 'admin' },
+            role: { $nin: [ROLES.ADMIN, ROLES.SUPER_ADMIN] },
         }).select('name email role walletAddress createdAt');
 
         const response = apiResponse.successResponse(

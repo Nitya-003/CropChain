@@ -1,5 +1,6 @@
 const { ethers } = require('ethers');
 const User = require('../models/User');
+const { isAdminRole } = require('../constants/permissions');
 
 /**
  * DID Service for Verifiable Credentials
@@ -52,7 +53,7 @@ class DIDService {
                 throw new Error('User not found');
             }
 
-            if (!verifier || verifier.role !== 'admin') {
+            if (!verifier || !isAdminRole(verifier.role)) {
                 throw new Error('Only Mandi officers (admins) can verify users');
             }
 
@@ -136,7 +137,7 @@ class DIDService {
                 throw new Error('User not found');
             }
 
-            if (!admin || admin.role !== 'admin') {
+            if (!admin || !isAdminRole(admin.role)) {
                 throw new Error('Only admins can revoke credentials');
             }
 

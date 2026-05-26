@@ -265,6 +265,7 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     customSiteTitle: 'CropChain API Documentation'
 }));
 
+
 // Blockchain configuration
 const REQUIRED_ENV_VARS = [
     'INFURA_URL',
@@ -319,6 +320,8 @@ async function generateQRCode(batchId) {
 function simulateBlockchainHash(data) {
     return blockchainService.simulateHash(data);
 }
+
+
 // Import Routes
 const authRoutes = require('./routes/authRoutes');
 const verificationRoutes = require('./routes/verification');
@@ -329,6 +332,12 @@ app.use('/api/auth', authLimiter, authRoutes);
 
 // Mount Verification Routes
 app.use('/api/verification', generalLimiter, verificationRoutes);
+
+
+// Mount Approval Routes (Multi-signature for high-stakes actions)
+app.use('/api/approvals', batchLimiter, approvalRoutes);
+
+// Batch routes - ALL USING MONGODB ONLY
 
 // Mount Approval Routes (Multi-signature for high-stakes actions)
 app.use('/api/approvals', batchLimiter, approvalRoutes);
@@ -343,6 +352,7 @@ app.post('/api/batches', batchLimiter, protect, authorizeRoles('farmer'), valida
 
         console.log(`[SUCCESS] Batch created: ${result.batch.batchId} by user ${req.user.id} (${req.user.email}) from IP: ${req.ip}`);
 
+        // Notify about batch creation
         notificationService.notifyBatchCreated(result.batch.batchId, req.user);
 
         const response = apiResponse.successResponse(
@@ -378,6 +388,7 @@ app.post('/api/batches', batchLimiter, protect, authorizeRoles('farmer'), valida
 app.get('/api/batches/:batchId', batchLimiter, protect, async (req, res) => {
     try {
         const { batchId } = req.params;
+        
 
         const result = await batchService.getBatch(batchId);
 
@@ -475,6 +486,7 @@ app.get('/api/batches', batchLimiter, protect, async (req, res) => {
     try {
         const result = await batchService.getAllBatches();
 
+        console.log(`[SUCCESS] Batches list retrieved from IP: ${req.ip}`);
         console.log(`[SUCCESS] Batches list retrieved by user: ${req.user?.id} from IP: ${req.ip}`);
 
         const response = apiResponse.successResponse(
@@ -632,6 +644,7 @@ const startListener = require('./services/blockchainListener');
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
+// Start server using HTTP server (with Socket.IO attached)
 // Start server
 if (process.env.NODE_ENV !== 'test') {
     server.listen(PORT, async () => {

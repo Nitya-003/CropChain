@@ -11,7 +11,8 @@
     "admin": "Admin",
     "login": "Login",
     "register": "Register",
-    "logout": "Logout"
+    "logout": "Logout",
+    "smartPlanting": "Smart Planting"
   },
   "common": {
     "submit": "Submit",

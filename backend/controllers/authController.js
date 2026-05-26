@@ -9,7 +9,26 @@ const apiResponse = require('../utils/apiResponse');
 const { verifyMessage } = require('ethers');
 const { VALID_ROLES, ROLES } = require('../constants/permissions');
 require('dotenv').config();
+const Redis = require('ioredis');
 
+let redis = null;
+
+if (process.env.NODE_ENV !== 'test') {
+    redis = new Redis({
+        host: process.env.REDIS_HOST || '127.0.0.1',
+        port: process.env.REDIS_PORT || 6379,
+        password: process.env.REDIS_PASSWORD || undefined,
+        db: process.env.REDIS_DB || 0,
+    });
+
+    redis.on('connect', () => {
+    console.log('Redis connected');
+});
+
+redis.on('error', (err) => {
+    console.error('Redis error:', err);
+});
+}
 // Validation Schemas
 const registerSchema = z.object({
     name: z.string()
@@ -292,45 +311,13 @@ const updateProfile = async (req, res) => {
  * This ensures role is ALWAYS assigned by backend, never by frontend.
  */
 const walletLoginSchema = z.object({
-    address: z.string()
-        .regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address'),
-    signature: z.string()
-        .min(1, 'Signature is required'),
-    nonce: z.string().optional()
 });
 
-// In-memory nonce store with automatic cleanup to prevent memory leak
-const nonceStore = new Map();
-const NONCE_EXPIRY_TIME = 5 * 60 * 1000; // 5 minutes
-
-// Automatic cleanup job - runs every minute to remove expired nonces
-// This prevents unbounded memory growth when users never complete auth
-if (process.env.NODE_ENV !== 'test') {
-    setInterval(() => {
-        const now = Date.now();
-        let cleanedCount = 0;
-        
-        for (const [key, value] of nonceStore.entries()) {
-            if (now - value.expiresAt > 0) {
-                nonceStore.delete(key);
-                cleanedCount++;
-            }
-        }
-        
-        if (cleanedCount > 0) {
-            console.log(`[NonceStore] Cleaned up ${cleanedCount} expired nonces. Current size: ${nonceStore.size}`);
-        }
-    }, 60 * 1000); // Run every 1 minute
-}
-
-/**
- * Generate a nonce for wallet authentication
- */
 const getNonce = async (req, res) => {
-    try {
-        const { address } = req.query;
-        
-        if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
+  try {
+    const { address } = req.query;
+
+    if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
             return res.status(400).json(
                 apiResponse.errorResponse('Valid address is required', 'INVALID_ADDRESS', 400)
             );
@@ -340,10 +327,13 @@ const getNonce = async (req, res) => {
         const nonce = `CropChain Authentication ${Date.now()}`;
         
         // Store nonce with expiration (5 minutes)
-        nonceStore.set(address.toLowerCase(), {
-            nonce,
-            expiresAt: Date.now() + NONCE_EXPIRY_TIME
-        });
+   await redis.set(
+    `nonce:${address.toLowerCase()}`,
+    nonce,
+    'EX',
+    300
+);
+       
 
         return res.json(apiResponse.successResponse({ nonce }, 'Nonce generated'));
     } catch (error) {
@@ -374,8 +364,7 @@ const walletLogin = async (req, res) => {
         const normalizedAddress = address.toLowerCase();
 
         // Get stored nonce
-        const storedNonce = nonceStore.get(normalizedAddress);
-        
+     const storedNonce = await redis.get(`nonce:${normalizedAddress}`);        
         // ALWAYS require stored nonce - never fall back to constant string
         if (!storedNonce) {
             return res.status(401).json(
@@ -384,16 +373,9 @@ const walletLogin = async (req, res) => {
         }
         
         // Use stored nonce (provided nonce is for backwards compatibility only)
-        const nonce = providedNonce || storedNonce.nonce;
-
+    const nonce = storedNonce;
         // Clean up expired nonces
-        if (storedNonce && storedNonce.expiresAt < Date.now()) {
-            nonceStore.delete(normalizedAddress);
-            return res.status(401).json(
-                apiResponse.unauthorizedResponse('Nonce expired. Please request a new one.')
-            );
-        }
-
+       
         // Verify the signature
         let recoveredAddress;
         try {
@@ -425,8 +407,7 @@ const walletLogin = async (req, res) => {
         }
 
         // Delete used nonce to prevent replay attacks
-        nonceStore.delete(normalizedAddress);
-
+    await redis.del(`nonce:${normalizedAddress}`);
         // Generate JWT with user's role from database
         attachRefreshCookie(res, user);
         const response = apiResponse.successResponse(
@@ -485,7 +466,7 @@ const walletRegister = async (req, res) => {
         const normalizedAddress = walletAddress.toLowerCase();
 
         // Get stored nonce
-        const storedNonce = nonceStore.get(normalizedAddress);
+       const storedNonce = await redis.get(`nonce:${normalizedAddress}`);
         
         // ALWAYS require stored nonce - never fall back to constant string
         if (!storedNonce) {
@@ -539,7 +520,7 @@ const walletRegister = async (req, res) => {
         });
 
         // Delete used nonce
-        nonceStore.delete(normalizedAddress);
+       await redis.del(`nonce:${normalizedAddress}`);
 
         attachRefreshCookie(res, user);
         const response = apiResponse.successResponse(
@@ -574,7 +555,20 @@ const refreshSession = async (req, res) => {
             );
         }
 
-        const refreshSecret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+        const refreshSecret = process.env.JWT_REFRESH_SECRET;
+
+        if (!refreshSecret) {
+            console.error('JWT_REFRESH_SECRET is not configured');
+
+            return res.status(500).json(
+                apiResponse.errorResponse(
+                    'Refresh token secret is not configured',
+                    'SERVER_CONFIGURATION_ERROR',
+                    500
+                )
+            );
+        }
+
         const decoded = jwt.verify(refreshToken, refreshSecret);
 
         if (decoded.type !== 'refresh') {
@@ -587,19 +581,28 @@ const refreshSession = async (req, res) => {
 
         if (!user) {
             clearRefreshCookie(res);
+
             return res.status(401).json(
                 apiResponse.unauthorizedResponse('User not found')
             );
         }
 
         attachRefreshCookie(res, user);
+
         return res.json(
-            apiResponse.successResponse(buildAuthPayload(user), 'Session refreshed')
+            apiResponse.successResponse(
+                buildAuthPayload(user),
+                'Session refreshed'
+            )
         );
+
     } catch (error) {
         clearRefreshCookie(res);
+
         return res.status(401).json(
-            apiResponse.unauthorizedResponse('Invalid or expired refresh token')
+            apiResponse.unauthorizedResponse(
+                'Invalid or expired refresh token'
+            )
         );
     }
 };

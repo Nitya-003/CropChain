@@ -3,14 +3,8 @@ version: '3.8'
 services:
   # MongoDB Service
   mongodb:
-    image: mongo:7.0
+    image: mongo:latest
     container_name: cropchain-mongodb
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     ports:
       - "27017:27017"
     volumes:
@@ -70,7 +64,6 @@ services:
     depends_on:
       - backend
 
-# Named Volumes
 volumes:
   mongodb_data:
     driver: local

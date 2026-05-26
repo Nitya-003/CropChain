@@ -250,6 +250,13 @@ function isInspector(role) {
 }
 
 /**
+ * Check if role has admin-level access
+ */
+function isAdminRole(role) {
+    return role === ROLES.ADMIN || role === ROLES.SUPER_ADMIN;
+}
+
+/**
  * Check if user can approve multisig actions
  */
 function canApproveMultisig(role, action) {
@@ -298,6 +305,7 @@ module.exports = {
     hasAnyPermission,
     hasAllPermissions,
     isInspector,
+    isAdminRole,
     canApproveMultisig,
     getRoleLevel,
     isRoleHigher

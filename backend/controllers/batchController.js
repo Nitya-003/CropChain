@@ -2,6 +2,7 @@ const Batch = require('../models/Batch');
 const Counter = require('../models/Counter');
 const mongoose = require('mongoose');
 const apiResponse = require('../utils/apiResponse');
+const { isAdminRole } = require('../constants/permissions');
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -233,6 +234,16 @@ exports.recallBatch = async (req, res) => {
             );
         }
 
+        if (!req.user || !isAdminRole(req.user.role)) {
+            return res.status(403).json(
+                apiResponse.errorResponse(
+                    'Access denied. Admin privileges required.',
+                    'FORBIDDEN',
+                    403
+                )
+            );
+        }
+
         batch.isRecalled = true;
         await batch.save();
 
@@ -332,7 +343,7 @@ exports.getBatches = async (req, res) => {
 exports.updateBatchStatus = async (req, res) => {
     try {
         // CRITICAL: Check if user has admin role
-        if (!req.user || req.user.role !== 'admin') {
+        if (!req.user || !isAdminRole(req.user.role)) {
             return res.status(403).json(
                 apiResponse.errorResponse(
                     'Access denied. Admin privileges required.',
