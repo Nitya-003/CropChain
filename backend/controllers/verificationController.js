@@ -21,19 +21,39 @@ const revokeCredentialSchema = z.object({
     reason: z.string().min(1, 'Revocation reason is required'),
 });
 
+const handleZodValidation = (res, schema, reqBody) => {
+    const validationResult = schema.safeParse(reqBody);
+
+    if (!validationResult.success) {
+        res.status(400).json(
+            apiResponse.validationErrorResponse(
+                validationResult.error.errors.map(err => err.message)
+            )
+        );
+
+        return { ok: false };
+    }
+
+    return { ok: true, data: validationResult.data };
+};
+
+const handleServerError = (res, error, { code, message }) => {
+    console.error(message, error);
+
+    return res.status(500).json(
+        apiResponse.errorResponse(message, code, 500)
+    );
+};
+
 /**
  * Link wallet address to user account
  */
 const linkWallet = async (req, res) => {
     try {
-        const validationResult = linkWalletSchema.safeParse(req.body);
+        const validationResult = handleZodValidation(res, linkWalletSchema, req.body);
 
-        if (!validationResult.success) {
-            return res.status(400).json(
-                apiResponse.validationErrorResponse(
-                    validationResult.error.errors.map(err => err.message)
-                )
-            );
+        if (!validationResult.ok) {
+            return;
         }
 
         const { walletAddress, signature } = validationResult.data;
@@ -43,11 +63,10 @@ const linkWallet = async (req, res) => {
 
         res.json(result);
     } catch (error) {
-        console.error('Wallet linking failed:', error);
-
-        return res.status(500).json(
-            apiResponse.errorResponse('Wallet linking failed', 'WALLET_LINKING_ERROR', 500)
-        );
+        return handleServerError(res, error, {
+            code: 'WALLET_LINKING_ERROR',
+            message: 'Wallet linking failed',
+        });
     }
 };
 
@@ -56,14 +75,10 @@ const linkWallet = async (req, res) => {
  */
 const issueCredential = async (req, res) => {
     try {
-        const validationResult = issueCredentialSchema.safeParse(req.body);
+        const validationResult = handleZodValidation(res, issueCredentialSchema, req.body);
 
-        if (!validationResult.success) {
-            return res.status(400).json(
-                apiResponse.validationErrorResponse(
-                    validationResult.error.errors.map(err => err.message)
-                )
-            );
+        if (!validationResult.ok) {
+            return;
         }
 
         const { userId, signature, walletAddress } = validationResult.data;
@@ -73,15 +88,10 @@ const issueCredential = async (req, res) => {
 
         res.json(result);
     } catch (error) {
-        console.error('Credential issuing failed:', error);
-
-        return res.status(500).json(
-            apiResponse.errorResponse(
-                'Credential issuing failed',
-                'CREDENTIAL_ISSUE_ERROR',
-                500
-            )
-        );
+        return handleServerError(res, error, {
+            code: 'CREDENTIAL_ISSUE_ERROR',
+            message: 'Credential issuing failed',
+        });
     }
 };
 
@@ -90,14 +100,10 @@ const issueCredential = async (req, res) => {
  */
 const revokeCredential = async (req, res) => {
     try {
-        const validationResult = revokeCredentialSchema.safeParse(req.body);
+        const validationResult = handleZodValidation(res, revokeCredentialSchema, req.body);
 
-        if (!validationResult.success) {
-            return res.status(400).json(
-                apiResponse.validationErrorResponse(
-                    validationResult.error.errors.map(err => err.message)
-                )
-            );
+        if (!validationResult.ok) {
+            return;
         }
 
         const { userId, reason } = validationResult.data;
@@ -107,15 +113,10 @@ const revokeCredential = async (req, res) => {
 
         res.json(result);
     } catch (error) {
-        console.error('Credential revocation failed:', error);
-
-        return res.status(500).json(
-            apiResponse.errorResponse(
-                'Credential revocation failed',
-                'CREDENTIAL_REVOKE_ERROR',
-                500
-            )
-        );
+        return handleServerError(res, error, {
+            code: 'CREDENTIAL_REVOKE_ERROR',
+            message: 'Credential revocation failed',
+        });
     }
 };
 
