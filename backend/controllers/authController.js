@@ -552,42 +552,52 @@ const refreshSession = async (req, res) => {
 
         const refreshSecret = process.env.JWT_REFRESH_SECRET;
 
-if (!refreshSecret) {
-    console.error('JWT_REFRESH_SECRET is not configured');
+        if (!refreshSecret) {
+            console.error('JWT_REFRESH_SECRET is not configured');
 
-    return res.status(500).json(
-        apiResponse.errorResponse(
-            'Refresh token secret is not configured',
-            'SERVER_CONFIGURATION_ERROR',
-            500
-        )
-    );
-} // <- ADD THIS
+            return res.status(500).json(
+                apiResponse.errorResponse(
+                    'Refresh token secret is not configured',
+                    'SERVER_CONFIGURATION_ERROR',
+                    500
+                )
+            );
+        }
 
-const decoded = jwt.verify(refreshToken, refreshSecret);
+        const decoded = jwt.verify(refreshToken, refreshSecret);
 
-if (decoded.type !== 'refresh') {
-    return res.status(401).json(
-        apiResponse.unauthorizedResponse('Invalid refresh token')
-    );
-}
+        if (decoded.type !== 'refresh') {
+            return res.status(401).json(
+                apiResponse.unauthorizedResponse('Invalid refresh token')
+            );
+        }
 
-const user = await User.findById(decoded.id).select('-password');
+        const user = await User.findById(decoded.id).select('-password');
 
-if (!user) {
-    clearRefreshCookie(res);
-    return res.status(401).json(
-        apiResponse.unauthorizedResponse('User not found')
-    );
-}
+        if (!user) {
+            clearRefreshCookie(res);
 
-attachRefreshCookie(res, user);
-return res.json(
-    apiResponse.successResponse(buildAuthPayload(user), 'Session refreshed')
-);
+            return res.status(401).json(
+                apiResponse.unauthorizedResponse('User not found')
+            );
+        }
+
+        attachRefreshCookie(res, user);
+
+        return res.json(
+            apiResponse.successResponse(
+                buildAuthPayload(user),
+                'Session refreshed'
+            )
+        );
+
+    } catch (error) {
         clearRefreshCookie(res);
+
         return res.status(401).json(
-            apiResponse.unauthorizedResponse('Invalid or expired refresh token')
+            apiResponse.unauthorizedResponse(
+                'Invalid or expired refresh token'
+            )
         );
     }
 };
