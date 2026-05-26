@@ -91,7 +91,7 @@ multiSigApprovalSchema.methods.addSignature = async function(signatureData) {
     this.signatures.push({
         inspector, inspectorCertificationId: signatureData.certificationId,
         walletAddress: signatureData.walletAddress, decision,
-        signedAt: new Date(), signature, reason, ipAddress
+        signedAt: new Date(signatureData.timestamp || Date.now()), signature, reason, ipAddress
     });
     
     if (decision === 'approved') this.approvalCount += 1;
