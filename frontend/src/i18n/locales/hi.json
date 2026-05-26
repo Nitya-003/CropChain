@@ -203,6 +203,26 @@
       "help": "क्रॉपचेन का उपयोग कैसे करें?"
     }
   },
+  "journey": {
+    "title": "लीफ-टू-शेल्फ यात्रा मानचित्र",
+    "subtitle": "पूर्ण अपरिवर्तनीय आपूर्ति श्रृंखला इतिहास",
+    "stage_planted": "रोपण",
+    "stage_growing": "बढ़ रहा है",
+    "stage_harvested": "कटाई की गई",
+    "stage_at_mandi": "मंडी में",
+    "stage_quality_check": "गुणवत्ता जांच",
+    "stage_in_transit": "ट्रांजिट में",
+    "stage_at_retailer": "रिटेलर के पास",
+    "stage_sold": "बेचा गया",
+    "view_full_journey": "पूर्ण यात्रा मानचित्र देखें",
+    "temperature": "तापमान",
+    "humidity": "आर्द्रता",
+    "verified_on_chain": "ब्लॉकचेन पर सत्यापित",
+    "updated_by": "कर्ता",
+    "environment_chart": "पर्यावरण रीडिंग",
+    "journey_path": "भौगोलिक ट्रांजिट मानचित्र",
+    "no_updates": "अभी तक कोई यात्रा डेटा उपलब्ध नहीं है"
+  },
   "errors": {
     "notFound": "पेज नहीं मिला",
     "accessDenied": "पहुंच अस्वीकृत",

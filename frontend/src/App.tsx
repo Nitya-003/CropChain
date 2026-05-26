@@ -16,6 +16,7 @@ import VerificationDashboard from './pages/VerificationDashboard';
 import NotFound from './pages/NotFound';
 import CropRecommendation from './pages/CropRecommendation';
 import ProtectedRoute from './components/ProtectedRoute';
+import JourneyMap from './pages/JourneyMap';
 
 // Components
 import AIChatbot from './components/AIChatbot';
@@ -40,6 +41,7 @@ function App() {
               <Route path="/add-batch" element={<AddBatch />} />
               <Route path="/update-batch" element={<UpdateBatch />} />
               <Route path="/track-batch" element={<TrackBatch />} />
+              <Route path="/batch/:batchId/journey" element={<JourneyMap />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/crop-recommendation" element={<CropRecommendation />} />
               <Route path="/login" element={<Login />} />
