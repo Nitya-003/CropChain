@@ -10,20 +10,25 @@ const { verifyMessage } = require('ethers');
 const { VALID_ROLES, ROLES } = require('../constants/permissions');
 require('dotenv').config();
 const Redis = require('ioredis');
-const redis = new Redis({
-    host: process.env.REDIS_HOST || '127.0.0.1',
-    port: process.env.REDIS_PORT || 6379,
-    password: process.env.REDIS_PASSWORD || undefined,
-    db: process.env.REDIS_DB || 0,
-});
 
-redis.on('connect', () => {
+let redis = null;
+
+if (process.env.NODE_ENV !== 'test') {
+    redis = new Redis({
+        host: process.env.REDIS_HOST || '127.0.0.1',
+        port: process.env.REDIS_PORT || 6379,
+        password: process.env.REDIS_PASSWORD || undefined,
+        db: process.env.REDIS_DB || 0,
+    });
+
+    redis.on('connect', () => {
     console.log('Redis connected');
 });
 
 redis.on('error', (err) => {
     console.error('Redis error:', err);
 });
+}
 // Validation Schemas
 const registerSchema = z.object({
     name: z.string()
@@ -550,7 +555,20 @@ const refreshSession = async (req, res) => {
             );
         }
 
-        const refreshSecret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+        const refreshSecret = process.env.JWT_REFRESH_SECRET;
+
+        if (!refreshSecret) {
+            console.error('JWT_REFRESH_SECRET is not configured');
+
+            return res.status(500).json(
+                apiResponse.errorResponse(
+                    'Refresh token secret is not configured',
+                    'SERVER_CONFIGURATION_ERROR',
+                    500
+                )
+            );
+        }
+
         const decoded = jwt.verify(refreshToken, refreshSecret);
 
         if (decoded.type !== 'refresh') {
@@ -563,19 +581,28 @@ const refreshSession = async (req, res) => {
 
         if (!user) {
             clearRefreshCookie(res);
+
             return res.status(401).json(
                 apiResponse.unauthorizedResponse('User not found')
             );
         }
 
         attachRefreshCookie(res, user);
+
         return res.json(
-            apiResponse.successResponse(buildAuthPayload(user), 'Session refreshed')
+            apiResponse.successResponse(
+                buildAuthPayload(user),
+                'Session refreshed'
+            )
         );
+
     } catch (error) {
         clearRefreshCookie(res);
+
         return res.status(401).json(
-            apiResponse.unauthorizedResponse('Invalid or expired refresh token')
+            apiResponse.unauthorizedResponse(
+                'Invalid or expired refresh token'
+            )
         );
     }
 };
