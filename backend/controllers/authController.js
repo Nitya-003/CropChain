@@ -562,29 +562,29 @@ if (!refreshSecret) {
             500
         )
     );
+} // <- ADD THIS
 
-        const decoded = jwt.verify(refreshToken, refreshSecret);
+const decoded = jwt.verify(refreshToken, refreshSecret);
 
-        if (decoded.type !== 'refresh') {
-            return res.status(401).json(
-                apiResponse.unauthorizedResponse('Invalid refresh token')
-            );
-        }
+if (decoded.type !== 'refresh') {
+    return res.status(401).json(
+        apiResponse.unauthorizedResponse('Invalid refresh token')
+    );
+}
 
-        const user = await User.findById(decoded.id).select('-password');
+const user = await User.findById(decoded.id).select('-password');
 
-        if (!user) {
-            clearRefreshCookie(res);
-            return res.status(401).json(
-                apiResponse.unauthorizedResponse('User not found')
-            );
-        }
+if (!user) {
+    clearRefreshCookie(res);
+    return res.status(401).json(
+        apiResponse.unauthorizedResponse('User not found')
+    );
+}
 
-        attachRefreshCookie(res, user);
-        return res.json(
-            apiResponse.successResponse(buildAuthPayload(user), 'Session refreshed')
-        );
-    } catch (error) {
+attachRefreshCookie(res, user);
+return res.json(
+    apiResponse.successResponse(buildAuthPayload(user), 'Session refreshed')
+);
         clearRefreshCookie(res);
         return res.status(401).json(
             apiResponse.unauthorizedResponse('Invalid or expired refresh token')
