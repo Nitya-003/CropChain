@@ -7,6 +7,7 @@ import { EmptyState } from '../components/common/EmptyState';
 import { ErrorState } from '../components/common/ErrorState';
 import { TrackBatchSkeleton } from '../components/skeletons';
 import { useBatchSocket } from '../hooks/useBatchSocket';
+import { JourneyPreview } from '../components/journey/JourneyPreview';
 
 const TrackBatch: React.FC = () => {
   const [batchId, setBatchId] = useState('');
@@ -144,7 +145,13 @@ const TrackBatch: React.FC = () => {
           </div>
 
           {/* Right Column: The Visual Timeline */}
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 space-y-6">
+            <JourneyPreview
+              batchId={batch.batchId || batch.id}
+              currentStage={batch.currentStage || 'farmer'}
+              updates={batch.updates || []}
+            />
+
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
               <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-6 border-b pb-4 flex items-center justify-between">
                 <span>Supply Chain Journey</span>

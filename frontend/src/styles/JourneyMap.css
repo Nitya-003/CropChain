@@ -1,0 +1,141 @@
+/* JourneyMap.css - Premium visual styling for the Leaf-to-Shelf Journey Map */
+
+/* Custom Keyframe Animations */
+@keyframes journeyPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+    transform: scale(1);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+    transform: scale(1.05);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+    transform: scale(1);
+  }
+}
+
+@keyframes dashOffset {
+  to {
+    stroke-dashoffset: -40;
+  }
+}
+
+@keyframes pinDrop {
+  0% {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Glassmorphism Cards */
+.journey-glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark .journey-glass-card {
+  background: rgba(31, 41, 55, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+}
+
+.journey-glass-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.dark .journey-glass-card:hover {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Timeline Custom Styles */
+.journey-line-active {
+  background: linear-gradient(to bottom, var(--primary, #22c55e), var(--secondary, #3b82f6));
+}
+
+.journey-node-pulse {
+  animation: journeyPulse 2s infinite;
+}
+
+/* Path Map Animated Lines */
+.journey-svg-path {
+  stroke-dasharray: 8, 8;
+  animation: dashOffset 2s linear infinite;
+}
+
+.journey-pin-animate {
+  animation: pinDrop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Sparkline environment charts */
+.journey-chart-area {
+  fill: url(#chart-gradient);
+}
+
+/* Responsive Grid and Panels */
+.journey-grid-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .journey-grid-container {
+    grid-template-columns: 1.2fr 0.8fr;
+  }
+}
+
+/* Interactive stage state styling */
+.journey-stage-completed {
+  color: #16a34a;
+}
+.journey-stage-current {
+  color: #3b82f6;
+}
+.journey-stage-pending {
+  color: #9ca3af;
+}
+
+/* Telemetry Badge Styles */
+.telemetry-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.telemetry-badge-safe {
+  background-color: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.telemetry-badge-warning {
+  background-color: rgba(234, 179, 8, 0.1);
+  color: #ca8a04;
+  border: 1px solid rgba(234, 179, 8, 0.2);
+}
+
+.telemetry-badge-danger {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}

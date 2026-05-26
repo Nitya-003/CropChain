@@ -85,15 +85,16 @@ const Home: React.FC = () => {
           </h2>
           <div className="grid md:grid-cols-4 gap-8">
             {stages.map((stage, index) => (
-              <div key={index} className="text-center group">
-                <div className="bg-white dark:bg-gray-800 rounded-full w-24 h-24 mx-auto mb-6 flex items-center justify-center text-4xl shadow-lg group-hover:shadow-xl transform group-hover:scale-110 transition-all duration-300">
+              <div key={index} className="text-center group relative flex flex-col items-center">
+                {/* Connecting Line */}
+                {index < stages.length - 1 && (
+                  <div className="hidden md:block absolute left-1/2 ml-12 top-12 w-[calc(100%-4rem)] h-0.5 bg-gradient-to-r from-green-500 to-blue-500 z-0 opacity-60"></div>
+                )}
+                <div className="bg-white dark:bg-gray-800 rounded-full w-24 h-24 mb-6 flex items-center justify-center text-4xl shadow-lg group-hover:shadow-xl transform group-hover:scale-110 transition-all duration-300 relative z-10 border border-gray-100 dark:border-gray-700">
                   {stage.icon}
                 </div>
-                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-3">{stage.title}</h3>
-                <p className="text-gray-600 dark:text-gray-400">{stage.description}</p>
-                {index < stages.length - 1 && (
-                  <div className="hidden md:block absolute mt-12 ml-24 w-8 h-0.5 bg-green-300"></div>
-                )}
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-3 relative z-10">{stage.title}</h3>
+                <p className="text-gray-600 dark:text-gray-400 text-sm max-w-[200px] relative z-10">{stage.description}</p>
               </div>
             ))}
           </div>

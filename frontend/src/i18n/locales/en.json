@@ -203,6 +203,26 @@
       "help": "How to use CropChain?"
     }
   },
+  "journey": {
+    "title": "Leaf-to-Shelf Journey Map",
+    "subtitle": "Complete immutable supply chain history",
+    "stage_planted": "Planted",
+    "stage_growing": "Growing",
+    "stage_harvested": "Harvested",
+    "stage_at_mandi": "At Mandi",
+    "stage_quality_check": "Quality Check",
+    "stage_in_transit": "In Transit",
+    "stage_at_retailer": "At Retailer",
+    "stage_sold": "Sold",
+    "view_full_journey": "View Full Journey Map",
+    "temperature": "Temperature",
+    "humidity": "Humidity",
+    "verified_on_chain": "Verified on Blockchain",
+    "updated_by": "Actor",
+    "environment_chart": "Environmental Telemetry",
+    "journey_path": "Geographic Transit Map",
+    "no_updates": "No journey data available yet"
+  },
   "errors": {
     "notFound": "Page not found",
     "accessDenied": "Access Denied",
