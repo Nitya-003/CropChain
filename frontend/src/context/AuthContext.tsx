@@ -10,6 +10,7 @@ interface AuthContextType {
   walletLogin: () => Promise<void>;
   logout: () => Promise<void>;
   isLoading: boolean;
+  isAuthenticated: boolean;
   isWalletConnected: boolean;
 }
 
@@ -200,6 +201,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       walletLogin, 
       logout, 
       isLoading,
+      isAuthenticated: !!user,
       isWalletConnected 
     }}>
       {children}
