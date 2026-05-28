@@ -146,7 +146,7 @@ const registerUser = async (req, res) => {
         const { name, email, password, role } = validationResult.data;
 
         // Check if user exists (case-insensitive)
-        const userExists = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } });
+        const userExists = await User.findOne({ email: email.toLowerCase() });
 
         if (userExists) {
             return res.status(409).json(
@@ -260,7 +260,7 @@ const updateProfile = async (req, res) => {
 
         if (email && email !== user.email) {
             const emailExists = await User.findOne({ 
-                email: { $regex: new RegExp(`^${email}$`, 'i') },
+                email: email.toLowerCase(),
                 _id: { $ne: user._id }
             });
 
@@ -475,8 +475,8 @@ const walletRegister = async (req, res) => {
             );
         }
         
-        // Use stored nonce (provided nonce is for backwards compatibility only)
-        const nonce = providedNonce || storedNonce.nonce;
+        // Use stored nonce — storedNonce is a plain string returned from Redis
+        const nonce = storedNonce;
 
         // Verify signature
         let recoveredAddress;

@@ -280,11 +280,25 @@ class BatchService {
      * Get all batches with statistics
      * @returns {Object} - Result with batches and stats
      */
-    async getAllBatches() {
+    async getAllBatches(limit = 100) {
         try {
-            const allBatches = await Batch.find().sort({ createdAt: -1 });
+            // Fetch only the most recent batches — avoids OOM on large datasets
+            const allBatches = await Batch.find().sort({ createdAt: -1 }).limit(limit).lean();
 
-            const stats = this.calculateStats(allBatches);
+            // Compute stats efficiently without loading full dataset
+            const [totalBatches, recalledBatches, recentBatches] = await Promise.all([
+                Batch.countDocuments(),
+                Batch.countDocuments({ isRecalled: true }),
+                Batch.countDocuments({ createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } })
+            ]);
+
+            const stats = {
+                totalBatches,
+                recalledBatches,
+                recentBatches,
+                totalFarmers: new Set(allBatches.map(b => b.farmerName)).size,
+                totalQuantity: allBatches.reduce((sum, b) => sum + (b.quantity || 0), 0)
+            };
 
             return {
                 success: true,

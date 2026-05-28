@@ -69,7 +69,11 @@ class MultisigService {
         
         const timestamp = Date.now();
         const signatureData = `${requestId}:${signer._id}:${decision}:${timestamp}`;
-        const signature = crypto.createHmac('sha256', process.env.JWT_SECRET || 'default-secret').update(signatureData).digest('hex');
+        const hmacSecret = process.env.MULTISIG_HMAC_SECRET;
+        if (!hmacSecret) {
+            throw new Error('MULTISIG_HMAC_SECRET is not configured. Please set it in your .env file.');
+        }
+        const signature = crypto.createHmac('sha256', hmacSecret).update(signatureData).digest('hex');
         
         await approval.addSignature({
             inspector: signer._id,
