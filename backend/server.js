@@ -151,8 +151,9 @@ app.use((_req, res, next) => {
 });
 
 // Rate limiting configurations
+const isTestEnv = process.env.NODE_ENV === 'test';
 const rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
-const rateLimitMaxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100;
+const rateLimitMaxRequests = isTestEnv ? 10000 : (parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100);
 
 const generalLimiter = rateLimit({
     windowMs: rateLimitWindowMs,
@@ -167,7 +168,7 @@ const generalLimiter = rateLimit({
 
 const authLimiter = rateLimit({
     windowMs: rateLimitWindowMs,
-    max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 5,
+    max: isTestEnv ? 10000 : (parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 5),
     message: {
         error: 'Too many authentication attempts from this IP, please try again later.',
         retryAfter: `${Math.ceil(rateLimitWindowMs / 60000)} minutes`
@@ -178,7 +179,7 @@ const authLimiter = rateLimit({
 
 const batchLimiter = rateLimit({
     windowMs: rateLimitWindowMs,
-    max: parseInt(process.env.BATCH_RATE_LIMIT_MAX) || 20,
+    max: isTestEnv ? 10000 : (parseInt(process.env.BATCH_RATE_LIMIT_MAX) || 20),
     message: {
         error: 'Too many batch operations from this IP, please try again later.',
         retryAfter: `${Math.ceil(rateLimitWindowMs / 60000)} minutes`

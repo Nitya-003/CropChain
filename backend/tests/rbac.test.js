@@ -169,15 +169,26 @@ describe('RBAC Backend Tests', () => {
         // Create test users with different roles
         const users = [
             { name: 'Test Farmer', email: 'farmer@test.com', password: 'Password123!', role: 'farmer' },
+            { name: 'Another Farmer', email: 'farmer2@test.com', password: 'Password123!', role: 'farmer' },
             { name: 'Test Mandi', email: 'mandi@test.com', password: 'Password123!', role: 'mandi' },
             { name: 'Test Transporter', email: 'transporter@test.com', password: 'Password123!', role: 'transporter' },
             { name: 'Test Retailer', email: 'retailer@test.com', password: 'Password123!', role: 'retailer' },
-            { name: 'Test Admin', email: 'admin@test.com', password: 'Password123!', role: 'admin' }
+            { name: 'Test Admin', email: 'admin@test.com', password: 'Password123!', role: 'admin' },
+            { name: 'Test Inspector', email: 'inspector@test.com', password: 'Password123!', role: 'quality_inspector' },
+            { name: 'Test Future Role', email: 'future@test.com', password: 'Password123!', role: 'processor' }
         ];
 
         for (const userData of users) {
             const user = await User.create(userData);
-            tokens[userData.role] = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'test-secret');
+            const key = userData.email.split('@')[0];
+            tokens[key] = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'test-secret');
+            
+            // Map roles directly for backward compatibility
+            if (userData.role !== 'farmer') {
+                tokens[userData.role] = tokens[key];
+            } else if (userData.email === 'farmer@test.com') {
+                tokens['farmer'] = tokens[key];
+            }
         }
     });
 
@@ -443,6 +454,63 @@ describe('RBAC Backend Tests', () => {
 
             expect(response.body.success).toBe(true);
             expect(response.body.data.batch.currentStage).toBe('mandi');
+        });
+
+        it('Should reject farmer trying to update another farmer\'s batch', async () => {
+            const updateData = {
+                stage: 'farmer',
+                actor: 'Another Farmer',
+                location: 'Farm Location',
+                timestamp: '2024-01-02',
+                notes: 'Farmer trying to update someone else\'s batch'
+            };
+
+            const response = await request(app)
+                .put(`/api/batches/${testBatch.batchId}`)
+                .set('Authorization', `Bearer ${tokens.farmer2}`)
+                .send(updateData)
+                .expect(403);
+
+            expect(response.body.success).toBe(false);
+            expect(response.body.message).toContain('Unauthorized access to batch');
+        });
+
+        it('Should reject quality inspector trying to update batch (lack of update permission)', async () => {
+            const updateData = {
+                stage: 'farmer',
+                actor: 'Test Inspector',
+                location: 'Testing Lab',
+                timestamp: '2024-01-02',
+                notes: 'Quality Inspector trying to update batch'
+            };
+
+            const response = await request(app)
+                .put(`/api/batches/${testBatch.batchId}`)
+                .set('Authorization', `Bearer ${tokens.inspector}`)
+                .send(updateData)
+                .expect(403);
+
+            expect(response.body.success).toBe(false);
+            expect(response.body.message).toContain('Unauthorized access to batch');
+        });
+
+        it('Should reject unregistered or future roles trying to update batch (deny-by-default)', async () => {
+            const updateData = {
+                stage: 'farmer',
+                actor: 'Test Processor',
+                location: 'Processing Plant',
+                timestamp: '2024-01-02',
+                notes: 'Future role trying to update batch'
+            };
+
+            const response = await request(app)
+                .put(`/api/batches/${testBatch.batchId}`)
+                .set('Authorization', `Bearer ${tokens.future}`)
+                .send(updateData)
+                .expect(403);
+
+            expect(response.body.success).toBe(false);
+            expect(response.body.message).toContain('Unauthorized access to batch');
         });
     });
 
