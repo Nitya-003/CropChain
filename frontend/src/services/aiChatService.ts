@@ -11,7 +11,7 @@ interface ChatResponse {
   response: string;
   timestamp: string;
   functionCalled?: string;
-  functionResult?: any;
+  functionResult?: unknown;
   error?: string;
 }
 
@@ -64,6 +64,91 @@ class AIChatService {
     }
   }
 
+  async sendMessageStream(
+    message: string,
+    context: ChatContext | undefined,
+    onToken: (token: string) => void
+  ): Promise<ChatResponse> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/ai/chat`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'text/event-stream',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: message.trim(),
+          context
+        })
+      });
+
+      if (!response.ok || !response.body) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to stream AI response');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let finalResponse: ChatResponse | null = null;
+
+      const readEvents = (chunk: string) => {
+        buffer += chunk;
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || '';
+
+        events.forEach((eventText) => {
+          const eventName = eventText.match(/^event: (.+)$/m)?.[1];
+          const dataText = eventText.match(/^data: (.+)$/m)?.[1];
+          if (!eventName || !dataText) return;
+
+          const data = JSON.parse(dataText);
+
+          if (eventName === 'token') {
+            onToken(data.token || '');
+          }
+
+          if (eventName === 'done') {
+            finalResponse = {
+              success: true,
+              response: data.response || '',
+              timestamp: data.timestamp,
+              functionCalled: data.functionCalled,
+              functionResult: data.functionResult
+            };
+          }
+
+          if (eventName === 'error') {
+            throw new Error(data.error || 'AI stream failed');
+          }
+        });
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        readEvents(decoder.decode(value, { stream: true }));
+      }
+
+      readEvents(decoder.decode());
+
+      if (finalResponse) {
+        return finalResponse;
+      }
+
+      throw new Error('AI stream ended before sending a final response');
+    } catch (error) {
+      console.error('AI Chat Stream Error:', error);
+
+      return {
+        success: false,
+        response: "I'm sorry, I'm having trouble connecting right now. Please try again or contact support if the issue persists.",
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
   // Get chat history
   getMessages(): ChatMessage[] {
     return [...this.messages];
@@ -79,6 +164,15 @@ class AIChatService {
     };
 
     this.messages.push(message);
+    return message;
+  }
+
+  updateMessage(id: string, content: string): ChatMessage | undefined {
+    const message = this.messages.find(msg => msg.id === id);
+    if (message) {
+      message.content = content;
+    }
+
     return message;
   }
 

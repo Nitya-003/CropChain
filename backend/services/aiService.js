@@ -279,6 +279,190 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
         }
     }
 
+    async chatStream(message, batchService, onToken) {
+        if (!this.apiKey) {
+            const fallback = this.getFallbackResponse(message);
+            await this.streamText(fallback.message, onToken);
+            return fallback;
+        }
+
+        try {
+            const messages = [
+                {
+                    role: 'system',
+                    content: this.getCropChainContext()
+                },
+                {
+                    role: 'user',
+                    content: message
+                }
+            ];
+
+            const initialResponse = await this.streamOpenAICompletion({
+                model: this.model,
+                messages,
+                tools: this.getFunctionDefinitions(),
+                tool_choice: 'auto',
+                max_tokens: this.maxTokens,
+                temperature: this.temperature
+            }, onToken);
+
+            if (initialResponse.toolCalls.length > 0) {
+                const toolCall = initialResponse.toolCalls[0];
+                const functionName = toolCall.function.name;
+                const parameters = JSON.parse(toolCall.function.arguments || '{}');
+                const functionResult = await this.executeFunction(functionName, parameters, batchService);
+                const assistantToolCallMessage = {
+                    role: 'assistant',
+                    content: initialResponse.message || null,
+                    tool_calls: initialResponse.toolCalls
+                };
+
+                const followUpResponse = await this.streamOpenAICompletion({
+                    model: this.model,
+                    messages: [
+                        ...messages,
+                        assistantToolCallMessage,
+                        {
+                            role: 'tool',
+                            tool_call_id: toolCall.id,
+                            content: JSON.stringify(functionResult)
+                        }
+                    ],
+                    max_tokens: this.maxTokens,
+                    temperature: this.temperature
+                }, onToken);
+
+                return {
+                    success: true,
+                    message: followUpResponse.message,
+                    functionCalled: functionName,
+                    functionResult
+                };
+            }
+
+            return {
+                success: true,
+                message: initialResponse.message
+            };
+        } catch (error) {
+            console.error('OpenAI streaming API error:', error.response?.data || error.message);
+            const fallback = this.getFallbackResponse(message);
+            await this.streamText(fallback.message, onToken);
+            return fallback;
+        }
+    }
+
+    async streamOpenAICompletion(payload, onToken) {
+        const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+            ...payload,
+            stream: true
+        }, {
+            headers: {
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            responseType: 'stream'
+        });
+
+        return new Promise((resolve, reject) => {
+            let buffer = '';
+            let message = '';
+            const toolCallsByIndex = new Map();
+
+            response.data.on('data', (chunk) => {
+                buffer += chunk.toString('utf8');
+                const events = buffer.split('\n\n');
+                buffer = events.pop() || '';
+
+                for (const event of events) {
+                    const lines = event.split('\n').filter((line) => line.startsWith('data: '));
+
+                    for (const line of lines) {
+                        const data = line.replace(/^data: /, '').trim();
+                        if (!data) continue;
+
+                        if (data === '[DONE]') {
+                            resolve({
+                                message,
+                                toolCalls: Array.from(toolCallsByIndex.entries())
+                                    .sort(([a], [b]) => a - b)
+                                    .map(([, toolCall]) => toolCall)
+                            });
+                            return;
+                        }
+
+                        const parsed = JSON.parse(data);
+                        const delta = parsed.choices?.[0]?.delta;
+                        const content = delta?.content || '';
+
+                        if (content) {
+                            message += content;
+                            onToken(content);
+                        }
+
+                        if (delta?.tool_calls) {
+                            for (const partialToolCall of delta.tool_calls) {
+                                const index = partialToolCall.index || 0;
+                                const existing = toolCallsByIndex.get(index) || {
+                                    id: '',
+                                    type: 'function',
+                                    function: {
+                                        name: '',
+                                        arguments: ''
+                                    }
+                                };
+
+                                existing.id += partialToolCall.id || '';
+                                existing.type = partialToolCall.type || existing.type;
+                                existing.function.name += partialToolCall.function?.name || '';
+                                existing.function.arguments += partialToolCall.function?.arguments || '';
+                                toolCallsByIndex.set(index, existing);
+                            }
+                        }
+                    }
+                }
+            });
+
+            response.data.on('end', () => {
+                if (buffer.trim()) {
+                    try {
+                        const data = buffer.replace(/^data: /, '').trim();
+                        if (data && data !== '[DONE]') {
+                            const parsed = JSON.parse(data);
+                            const content = parsed.choices?.[0]?.delta?.content || '';
+                            if (content) {
+                                message += content;
+                                onToken(content);
+                            }
+                        }
+                    } catch (error) {
+                        reject(error);
+                        return;
+                    }
+                }
+
+                resolve({
+                    message,
+                    toolCalls: Array.from(toolCallsByIndex.entries())
+                        .sort(([a], [b]) => a - b)
+                        .map(([, toolCall]) => toolCall)
+                });
+            });
+
+            response.data.on('error', reject);
+        });
+    }
+
+    async streamText(text, onToken) {
+        const words = text.split(/(\s+)/);
+        for (const word of words) {
+            if (!word) continue;
+            onToken(word);
+            await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+    }
+
     // Fallback responses when OpenAI is unavailable
     getFallbackResponse(message) {
         const lowerMessage = message.toLowerCase();
