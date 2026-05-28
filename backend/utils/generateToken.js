@@ -8,7 +8,11 @@ const generateToken = (id, role, name) => {
 };
 
 const generateRefreshToken = (id) => {
-    const refreshSecret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+    const refreshSecret = process.env.JWT_REFRESH_SECRET;
+
+    if (!refreshSecret) {
+        throw new Error('JWT_REFRESH_SECRET is not configured. Please set it in your .env file.');
+    }
 
     return jwt.sign({ id, type: 'refresh' }, refreshSecret, {
         expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',

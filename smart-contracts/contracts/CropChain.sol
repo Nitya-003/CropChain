@@ -75,6 +75,9 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     mapping(bytes32 => PriceObservation[]) private _priceObservations;
     mapping(bytes32 => uint256) public latestOraclePrice;
     mapping(address => uint256) public pendingWithdrawals;
+    /// @dev Tracks the total quantity currently committed across all active listings for a batch.
+    ///      Prevents double-listing and over-allocation beyond the physical batch quantity.
+    mapping(bytes32 => uint256) public batchListedQuantity;
 
     bytes32[] public allBatchIds;
 
@@ -306,7 +309,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     {
         CropBatch storage batch = cropBatches[batchId];
         require(!batch.isRecalled, "Batch is recalled");
-        require(quantity > 0 && quantity <= batch.quantity, "Invalid quantity");
+        require(quantity > 0, "Quantity must be > 0");
         require(unitPriceWei > 0, "Price=0");
 
         ActorRole senderRole = roles[msg.sender];
@@ -314,6 +317,16 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
             msg.sender == batch.creator || senderRole == ActorRole.Mandi || senderRole == ActorRole.Admin,
             "Only creator/mandi/admin"
         );
+
+        // FIX: Validate against remaining unlisted quantity, not the static batch total.
+        // This prevents double-listing and over-allocation attacks where multiple listings
+        // for the same batchId could collectively exceed the physical batch quantity.
+        uint256 alreadyListed = batchListedQuantity[batchId];
+        require(
+            quantity <= batch.quantity - alreadyListed,
+            "Quantity exceeds available unlisted batch supply"
+        );
+        batchListedQuantity[batchId] = alreadyListed + quantity;
 
         uint256 listingId = nextListingId;
         nextListingId = listingId + 1;
@@ -356,6 +369,9 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         require(msg.value >= totalCost, "Insufficient payment");
 
         listing.quantityAvailable -= quantity;
+        // FIX: Release sold units from the batch's listed-quantity tracker so those
+        // physical units are correctly accounted for as having been fulfilled/sold.
+        batchListedQuantity[listing.batchId] -= quantity;
         if (listing.quantityAvailable == 0) {
             listing.active = false;
         }
@@ -374,6 +390,10 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         MarketListing storage listing = listings[listingId];
         require(listing.active, "Listing inactive");
         require(msg.sender == listing.seller || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Not allowed");
+
+        // FIX: Restore the listing's remaining available quantity back to the batch's
+        // listed-quantity tracker so those units can be re-listed or sold via a new listing.
+        batchListedQuantity[listing.batchId] -= listing.quantityAvailable;
 
         listing.active = false;
         listing.quantityAvailable = 0;

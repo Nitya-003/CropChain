@@ -18,8 +18,10 @@ const aiService = require('./services/aiService');
 const errorHandlerMiddleware = require('./middleware/errorHandler');
 const { createBatchSchema, updateBatchSchema } = require("./validations/batchSchema");
 const { protect, adminOnly, authorizeBatchOwner, authorizeRoles, authorizeStageTransition, authorizeBlockchainTransaction } = require('./middleware/auth');
+const mongoose = require('mongoose');
 const apiResponse = require('./utils/apiResponse');
 const crypto = require('crypto');
+const oracleService = require('./services/oracleService');
 
 // Import Services
 const blockchainService = require('./services/blockchainService');
@@ -339,9 +341,6 @@ app.use('/api/approvals', batchLimiter, approvalRoutes);
 
 // Batch routes - ALL USING MONGODB ONLY
 
-// Mount Approval Routes (Multi-signature for high-stakes actions)
-app.use('/api/approvals', batchLimiter, approvalRoutes);
-
 // ==================== BATCH ROUTES ====================
 
 // CREATE batch - requires farmer role and blockchain authorization
@@ -486,7 +485,6 @@ app.get('/api/batches', batchLimiter, protect, async (req, res) => {
     try {
         const result = await batchService.getAllBatches();
 
-        console.log(`[SUCCESS] Batches list retrieved from IP: ${req.ip}`);
         console.log(`[SUCCESS] Batches list retrieved by user: ${req.user?.id} from IP: ${req.ip}`);
 
         const response = apiResponse.successResponse(
@@ -521,7 +519,7 @@ const batchServiceForAI = {
 };
 
 // AI Chat endpoint
-app.post('/api/ai/chat', batchLimiter, validateRequest(chatSchema), async (req, res) => {
+app.post('/api/ai/chat', batchLimiter, protect, validateRequest(chatSchema), async (req, res) => {
     try {
         const { message } = req.body;
 

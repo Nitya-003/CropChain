@@ -92,5 +92,14 @@
     "react-router-dom": "^7.7.1",
     "remark-gfm": "^4.0.1",
     "socket.io-client": "^4.8.3"
+  },
+  "overrides": {
+    "hardhat": "$hardhat",
+    "@nomicfoundation/hardhat-ethers": "$@nomicfoundation/hardhat-ethers",
+    "@nomicfoundation/hardhat-verify": "$@nomicfoundation/hardhat-verify",
+    "@nomicfoundation/hardhat-ignition-ethers": "$@nomicfoundation/hardhat-ignition-ethers",
+    "@typechain/ethers-v6": "$@typechain/ethers-v6",
+    "@typechain/hardhat": "$@typechain/hardhat",
+    "hardhat-gas-reporter": "$hardhat-gas-reporter"
   }
 }
