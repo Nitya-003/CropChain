@@ -28,7 +28,7 @@ import AccessDenied from './pages/AccessDenied';
 
 function App() {
   return (
-
+    <AuthProvider>
     <CurrencyProvider>
       <Toaster position="top-right" reverseOrder={false} />
       <Router>
@@ -56,7 +56,7 @@ function App() {
         </div>
       </Router>
     </CurrencyProvider>
-
+    </AuthProvider>
   );
 }
 
