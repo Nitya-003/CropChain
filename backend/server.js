@@ -227,14 +227,7 @@ app.use(cors(corsOptions));
 const maxFileSize = parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024;
 
 app.use(express.json({
-    limit: maxFileSize,
-    verify: (req, res, buf) => {
-        try {
-            JSON.parse(buf);
-        } catch (e) {
-            res.status(400).json({ error: 'Invalid JSON' });
-        }
-    }
+    limit: maxFileSize
 }));
 
 app.use(express.urlencoded({ extended: true, limit: maxFileSize }));
