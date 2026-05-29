@@ -1,0 +1,7 @@
+{
+  "cleanUrls": true,
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
