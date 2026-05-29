@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Package, Coins, Activity, TrendingUp, Check, Copy } from 'lucide-react';
+import { Shield, Package, Coins, Activity, TrendingUp, Check, Copy, RefreshCw } from 'lucide-react';
 import { realCropBatchService } from '../services/realCropBatchService';
 import { usePriceConverter } from '../hooks/usePriceConverter';
+import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "../components/ui/table";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
 
 const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState({
@@ -35,13 +39,18 @@ const AdminDashboard: React.FC = () => {
   };
 
   const getStageColor = (stage: string) => {
-    const colors: any = {
-      farmer: 'bg-green-100 text-green-800',
-      mandi: 'bg-blue-100 text-blue-800',
-      transport: 'bg-yellow-100 text-yellow-800',
-      retailer: 'bg-purple-100 text-purple-800'
-    };
-    return colors[stage] || 'bg-gray-100 text-gray-800';
+    switch (stage?.toLowerCase()) {
+      case 'farmer':
+        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-300/30';
+      case 'mandi':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-300/30';
+      case 'transport':
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300/30';
+      case 'retailer':
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border-purple-300/30';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-700/30';
+    }
   };
 
   const copyToClipboard = (text: string) => {
@@ -52,17 +61,17 @@ const AdminDashboard: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto space-y-8">
-        <div className="text-center">
-          <div className="h-12 bg-gray-300 dark:bg-gray-700 rounded w-64 mx-auto mb-4 animate-pulse"></div>
-          <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded w-96 mx-auto animate-pulse"></div>
+      <div className="max-w-7xl mx-auto space-y-8 animate-pulse py-6">
+        <div className="text-center space-y-3">
+          <div className="h-10 bg-muted rounded-lg w-64 mx-auto"></div>
+          <div className="h-5 bg-muted rounded-lg w-96 mx-auto"></div>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl p-6 animate-pulse">
-              <div className="h-20 bg-gray-300 dark:bg-gray-700 rounded mb-4"></div>
-              <div className="h-8 bg-gray-300 dark:bg-gray-700 rounded"></div>
-            </div>
+            <Card key={i} className="border-border bg-card">
+              <CardHeader className="h-24"></CardHeader>
+              <CardContent className="h-12"></CardContent>
+            </Card>
           ))}
         </div>
       </div>
@@ -70,190 +79,230 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-4 flex items-center justify-center">
-          <Shield className="h-10 w-10 mr-4 text-green-600 dark:text-green-400" />
-          Admin Dashboard
-        </h1>
-        <p className="text-xl text-gray-600 dark:text-gray-300">Monitor and manage the CropChain supply chain network</p>
+    <div className="max-w-7xl mx-auto space-y-8 py-4">
+      {/* Title */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-border/40 pb-6">
+        <div className="flex items-center gap-3">
+          <div className="bg-emerald-500/10 p-3 rounded-2xl">
+            <Shield className="h-8 w-8 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">Admin Dashboard</h1>
+            <p className="text-sm text-muted-foreground">Monitor and manage the CropChain supply chain network</p>
+          </div>
+        </div>
+        <Button variant="outline" size="sm" onClick={loadDashboardData} className="gap-1.5 bg-background/50">
+          <RefreshCw className="h-3.5 w-3.5" />
+          Refresh Stats
+        </Button>
       </div>
 
       {/* Stats Overview */}
       <div className="grid md:grid-cols-3 gap-6">
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-green-100 text-sm mb-2">Total Batches</p>
-              <p className="text-3xl font-bold">{stats.totalBatches}</p>
+        <Card className="border border-border bg-card hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <span className="text-sm font-medium text-muted-foreground">Total Batches</span>
+            <div className="bg-emerald-500/10 p-2 rounded-xl">
+              <Package className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <Package className="h-12 w-12 text-green-200" />
-          </div>
-          <div className="mt-4 flex items-center">
-            <TrendingUp className="h-4 w-4 mr-2" />
-            <span className="text-sm">+12% from last month</span>
-          </div>
-        </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="text-3xl font-bold tracking-tight">{stats.totalBatches}</div>
+            <div className="flex items-center text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+              <TrendingUp className="h-3.5 w-3.5 mr-1" />
+              <span>+12% from last month</span>
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-6 text-white shadow-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-indigo-100 text-sm mb-2">Total Batch Value</p>
+        <Card className="border border-border bg-card hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <span className="text-sm font-medium text-muted-foreground">Total Batch Value</span>
+            <div className="bg-indigo-500/10 p-2 rounded-xl">
+              <Coins className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="text-3xl font-bold tracking-tight">
               {isPricesLoading ? (
-                <div className="h-9 w-24 bg-white/20 animate-pulse rounded mt-1"></div>
+                <div className="h-9 w-24 bg-muted animate-pulse rounded mt-1"></div>
               ) : (
-                <p className="text-3xl font-bold">{convert(stats.totalQuantity * 0.05, 'MATIC')}</p>
+                convert(stats.totalQuantity * 0.05, 'MATIC')
               )}
             </div>
-            <Coins className="h-12 w-12 text-indigo-200" />
-          </div>
-          <div className="mt-4 flex items-center">
-            <TrendingUp className="h-4 w-4 mr-2" />
-            <span className="text-sm">Based on {stats.totalQuantity} kg</span>
-          </div>
-        </div>
+            <div className="flex items-center text-xs text-muted-foreground font-medium">
+              <TrendingUp className="h-3.5 w-3.5 mr-1 text-emerald-600 dark:text-emerald-400" />
+              <span>Based on {stats.totalQuantity.toLocaleString()} kg</span>
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-6 text-white shadow-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-red-100 text-sm mb-2">Estimated Gas Fees</p>
+        <Card className="border border-border bg-card hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <span className="text-sm font-medium text-muted-foreground">Estimated Gas Fees</span>
+            <div className="bg-rose-500/10 p-2 rounded-xl">
+              <Activity className="h-5 w-5 text-rose-600 dark:text-rose-400" />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="text-3xl font-bold tracking-tight">
               {isPricesLoading ? (
-                <div className="h-9 w-24 bg-white/20 animate-pulse rounded mt-1"></div>
+                <div className="h-9 w-24 bg-muted animate-pulse rounded mt-1"></div>
               ) : (
-                <p className="text-3xl font-bold">{convert(stats.totalBatches * 0.002, 'ETH')}</p>
+                convert(stats.totalBatches * 0.002, 'ETH')
               )}
             </div>
-            <Activity className="h-12 w-12 text-red-200" />
-          </div>
-          <div className="mt-4 flex items-center">
-            <TrendingUp className="h-4 w-4 mr-2" />
-            <span className="text-sm">Network Avg</span>
-          </div>
-        </div>
+            <div className="flex items-center text-xs text-muted-foreground font-medium">
+              <span className="text-rose-600 dark:text-rose-400">Network Average Gas Fee</span>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Recent Batches Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
-        <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
-          <Package className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
-          Recent Batches
-        </h2>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-700">
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Batch ID</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Farmer</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Crop Type</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Quantity</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Current Stage</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Tx Value</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-200">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {batches.map((batch, index) => (
-                <tr key={batch.batchId} className={`border-b border-gray-100 dark:border-gray-700 ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'} hover:bg-green-50 dark:hover:bg-gray-600 transition-colors`}>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm bg-gray-100 dark:bg-gray-600 dark:text-white px-2 py-1 rounded">
-                        {batch.batchId}
-                      </span>
-                      <button
-                        onClick={() => copyToClipboard(batch.batchId)}
-                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-500 rounded transition-colors"
-                        title={copiedId === batch.batchId ? 'Copied!' : 'Copy Batch ID'}
-                      >
-                        {copiedId === batch.batchId ? (
-                          <Check className="h-4 w-4 text-green-600" />
+      {/* Recent Batches Section */}
+      <Card className="border border-border bg-card">
+        <CardHeader className="pb-3 border-b border-border/40">
+          <div className="flex items-center gap-2">
+            <Package className="h-5 w-5 text-primary" />
+            <CardTitle className="text-lg font-semibold text-foreground">Recent Batches</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40 hover:bg-muted/40 border-b border-border/40">
+                  <TableHead className="py-4 px-6 font-semibold text-foreground">Batch ID</TableHead>
+                  <TableHead className="py-4 px-6 font-semibold text-foreground">Farmer</TableHead>
+                  <TableHead className="py-4 px-6 font-semibold text-foreground">Crop Type</TableHead>
+                  <TableHead className="py-4 px-6 font-semibold text-foreground">Quantity</TableHead>
+                  <TableHead className="py-4 px-6 font-semibold text-foreground">Current Stage</TableHead>
+                  <TableHead className="py-4 px-6 font-semibold text-foreground">Tx Value</TableHead>
+                  <TableHead className="py-4 px-6 font-semibold text-foreground">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {batches.map((batch) => (
+                  <TableRow key={batch.batchId} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
+                    <TableCell className="py-4 px-6">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-xs bg-muted text-muted-foreground px-2 py-1 rounded border border-border">
+                          {batch.batchId.slice(0, 8)}...{batch.batchId.slice(-4)}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => copyToClipboard(batch.batchId)}
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                          title={copiedId === batch.batchId ? 'Copied!' : 'Copy Batch ID'}
+                        >
+                          {copiedId === batch.batchId ? (
+                            <Check className="h-3.5 w-3.5 text-emerald-600" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-4 px-6">
+                      <div>
+                        <p className="font-medium text-foreground text-sm">{batch.farmerName}</p>
+                        <p className="text-xs text-muted-foreground">{batch.origin}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-4 px-6">
+                      <span className="capitalize font-medium text-foreground text-sm">{batch.cropType}</span>
+                    </TableCell>
+                    <TableCell className="py-4 px-6">
+                      <span className="font-medium text-foreground text-sm">{batch.quantity.toLocaleString()} kg</span>
+                    </TableCell>
+                    <TableCell className="py-4 px-6">
+                      <Badge variant="outline" className={`capitalize font-semibold border ${getStageColor(batch.currentStage)}`}>
+                        {batch.currentStage}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="py-4 px-6">
+                      <div className="text-foreground text-sm font-medium">
+                        {isPricesLoading ? (
+                          <div className="h-4 w-16 bg-muted animate-pulse rounded"></div>
                         ) : (
-                          <Copy className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                          convert(batch.quantity * 0.05, 'MATIC')
                         )}
-                      </button>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div>
-                      <p className="font-medium text-gray-800 dark:text-white">{batch.farmerName}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{batch.origin}</p>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="capitalize font-medium text-gray-800 dark:text-white">{batch.cropType}</span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="font-medium text-gray-800 dark:text-white">{batch.quantity} kg</span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getStageColor(batch.currentStage)}`}>
-                      {batch.currentStage}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="text-gray-800 dark:text-white font-medium">
-                      {isPricesLoading ? (
-                        <div className="h-4 w-16 bg-gray-200 dark:bg-gray-600 animate-pulse rounded"></div>
-                      ) : (
-                        convert(batch.quantity * 0.05, 'MATIC')
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center">
-                      <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
-                      <span className="text-sm text-green-600 dark:text-green-400 font-medium">Active</span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-4 px-6">
+                      <div className="flex items-center gap-2">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">Active</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Charts Section */}
+      {/* Analytics Charts Section */}
       <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
-          <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Crop Types Distribution</h3>
-          <div className="space-y-4">
+        <Card className="border border-border bg-card">
+          <CardHeader className="border-b border-border/40 pb-3">
+            <CardTitle className="text-base font-semibold text-foreground">Crop Distribution</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6 space-y-4">
             {['Rice', 'Wheat', 'Corn', 'Tomato'].map((crop, index) => {
-              const percentage = Math.random() * 40 + 10;
+              const percentages = [35.4, 28.2, 21.1, 15.3];
+              const percentage = percentages[index];
               return (
-                <div key={crop} className="flex items-center">
-                  <span className="w-16 text-sm text-gray-600 dark:text-gray-300 capitalize">{crop}</span>
-                  <div className="flex-1 mx-4 bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                <div key={crop} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs font-semibold">
+                    <span className="text-muted-foreground">{crop}</span>
+                    <span className="text-foreground">{percentage}%</span>
+                  </div>
+                  <div className="bg-muted rounded-full h-2.5 overflow-hidden">
                     <div
-                      className={`h-3 rounded-full ${index === 0 ? 'bg-green-500' :
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        index === 0 ? 'bg-emerald-500' :
                         index === 1 ? 'bg-blue-500' :
-                          index === 2 ? 'bg-yellow-500' : 'bg-purple-500'
-                        }`}
+                        index === 2 ? 'bg-amber-500' : 'bg-purple-500'
+                      }`}
                       style={{ width: `${percentage}%` }}
                     ></div>
                   </div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{percentage.toFixed(1)}%</span>
                 </div>
               );
             })}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
-          <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Monthly Activity</h3>
-          <div className="flex items-end justify-between h-48 px-4">
-            {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((month) => {
-              const height = Math.random() * 120 + 30;
-              return (
-                <div key={month} className="flex flex-col items-center">
-                  <div
-                    className="bg-gradient-to-t from-green-500 to-green-400 rounded-t-lg w-8 transition-all duration-500 hover:from-green-600 hover:to-green-500"
-                    style={{ height: `${height}px` }}
-                  ></div>
-                  <span className="text-xs text-gray-600 dark:text-gray-300 mt-2">{month}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <Card className="border border-border bg-card">
+          <CardHeader className="border-b border-border/40 pb-3">
+            <CardTitle className="text-base font-semibold text-foreground">Monthly Network Activity</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="flex items-end justify-between h-48 px-4 pt-4">
+              {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((month, index) => {
+                const heights = [60, 95, 80, 110, 135, 120];
+                const height = heights[index];
+                return (
+                  <div key={month} className="flex flex-col items-center gap-2 group flex-1">
+                    <div className="relative w-full flex justify-center">
+                      <div
+                        className="bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t-md w-8 transition-all duration-300 group-hover:from-emerald-500 group-hover:to-emerald-300"
+                        style={{ height: `${height}px` }}
+                      ></div>
+                    </div>
+                    <span className="text-xs text-muted-foreground font-semibold">{month}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

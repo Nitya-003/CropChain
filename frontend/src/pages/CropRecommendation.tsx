@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Leaf, Thermometer, Droplets, CloudRain, FlaskConical, Sprout, ChevronRight, RotateCcw, Plus } from 'lucide-react';
+import { Leaf, Thermometer, Droplets, CloudRain, FlaskConical, Sprout, ChevronRight, RotateCcw, Plus, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
   getCropRecommendation,
@@ -10,33 +10,33 @@ import {
 
 // ── Crop display metadata ────────────────────────────────────────────────────
 
-const CROP_META: Record<string, { emoji: string; color: string; bgColor: string }> = {
-  rice:        { emoji: '🌾', color: 'text-yellow-700', bgColor: 'bg-yellow-50 dark:bg-yellow-900/20' },
-  maize:       { emoji: '🌽', color: 'text-yellow-600', bgColor: 'bg-yellow-50 dark:bg-yellow-900/20' },
-  chickpea:    { emoji: '🫘', color: 'text-amber-700',  bgColor: 'bg-amber-50 dark:bg-amber-900/20' },
-  kidneybeans: { emoji: '🫘', color: 'text-red-700',    bgColor: 'bg-red-50 dark:bg-red-900/20' },
-  pigeonpeas:  { emoji: '🫛', color: 'text-green-700',  bgColor: 'bg-green-50 dark:bg-green-900/20' },
-  mothbeans:   { emoji: '🌿', color: 'text-green-600',  bgColor: 'bg-green-50 dark:bg-green-900/20' },
-  mungbean:    { emoji: '🌱', color: 'text-emerald-700',bgColor: 'bg-emerald-50 dark:bg-emerald-900/20' },
-  blackgram:   { emoji: '🫘', color: 'text-gray-700',   bgColor: 'bg-gray-50 dark:bg-gray-800' },
-  lentil:      { emoji: '🫘', color: 'text-orange-700', bgColor: 'bg-orange-50 dark:bg-orange-900/20' },
-  pomegranate: { emoji: '🍎', color: 'text-red-600',    bgColor: 'bg-red-50 dark:bg-red-900/20' },
-  banana:      { emoji: '🍌', color: 'text-yellow-500', bgColor: 'bg-yellow-50 dark:bg-yellow-900/20' },
-  mango:       { emoji: '🥭', color: 'text-orange-600', bgColor: 'bg-orange-50 dark:bg-orange-900/20' },
-  grapes:      { emoji: '🍇', color: 'text-purple-700', bgColor: 'bg-purple-50 dark:bg-purple-900/20' },
-  watermelon:  { emoji: '🍉', color: 'text-green-600',  bgColor: 'bg-green-50 dark:bg-green-900/20' },
-  muskmelon:   { emoji: '🍈', color: 'text-lime-700',   bgColor: 'bg-lime-50 dark:bg-lime-900/20' },
-  apple:       { emoji: '🍎', color: 'text-red-600',    bgColor: 'bg-red-50 dark:bg-red-900/20' },
-  orange:      { emoji: '🍊', color: 'text-orange-600', bgColor: 'bg-orange-50 dark:bg-orange-900/20' },
-  papaya:      { emoji: '🍈', color: 'text-orange-500', bgColor: 'bg-orange-50 dark:bg-orange-900/20' },
-  coconut:     { emoji: '🥥', color: 'text-amber-800',  bgColor: 'bg-amber-50 dark:bg-amber-900/20' },
-  cotton:      { emoji: '🌸', color: 'text-pink-600',   bgColor: 'bg-pink-50 dark:bg-pink-900/20' },
-  jute:        { emoji: '🌿', color: 'text-teal-700',   bgColor: 'bg-teal-50 dark:bg-teal-900/20' },
-  coffee:      { emoji: '☕', color: 'text-stone-700',  bgColor: 'bg-stone-50 dark:bg-stone-900/20' },
+const CROP_META: Record<string, { color: string; bgColor: string }> = {
+  rice:        { color: 'text-yellow-600 dark:text-yellow-400', bgColor: 'bg-yellow-50/50 dark:bg-yellow-950/10 border-yellow-200/50 dark:border-yellow-900/20' },
+  maize:       { color: 'text-yellow-500 dark:text-yellow-300', bgColor: 'bg-yellow-50/30 dark:bg-yellow-950/10 border-yellow-200/30 dark:border-yellow-900/10' },
+  chickpea:    { color: 'text-amber-600 dark:text-amber-400',  bgColor: 'bg-amber-50/50 dark:bg-amber-950/10 border-amber-200/50 dark:border-amber-900/20' },
+  kidneybeans: { color: 'text-red-650 dark:text-red-400',    bgColor: 'bg-red-50/50 dark:bg-red-950/10 border-red-200/50 dark:border-red-900/20' },
+  pigeonpeas:  { color: 'text-emerald-600 dark:text-emerald-400',  bgColor: 'bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-200/50 dark:border-emerald-900/20' },
+  mothbeans:   { color: 'text-green-600 dark:text-green-400',  bgColor: 'bg-green-50/50 dark:bg-green-950/10 border-green-200/50 dark:border-green-900/20' },
+  mungbean:    { color: 'text-emerald-555 dark:text-emerald-400',bgColor: 'bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-200/50 dark:border-emerald-900/20' },
+  blackgram:   { color: 'text-slate-600 dark:text-slate-400',   bgColor: 'bg-slate-50/50 dark:bg-slate-900/20 border-slate-200/50 dark:border-slate-800/30' },
+  lentil:      { color: 'text-orange-600 dark:text-orange-400', bgColor: 'bg-orange-50/50 dark:bg-orange-950/10 border-orange-200/50 dark:border-orange-900/20' },
+  pomegranate: { color: 'text-red-500 dark:text-red-455',    bgColor: 'bg-red-50/50 dark:bg-red-950/10 border-red-200/50 dark:border-red-900/20' },
+  banana:      { color: 'text-yellow-500 dark:text-yellow-355', bgColor: 'bg-yellow-50/30 dark:bg-yellow-950/10 border-yellow-200/30 dark:border-yellow-900/10' },
+  mango:       { color: 'text-orange-500 dark:text-orange-400', bgColor: 'bg-orange-50/50 dark:bg-orange-950/10 border-orange-200/50 dark:border-orange-900/20' },
+  grapes:      { color: 'text-purple-600 dark:text-purple-400', bgColor: 'bg-purple-50/50 dark:bg-purple-950/10 border-purple-200/50 dark:border-purple-900/20' },
+  watermelon:  { color: 'text-emerald-500 dark:text-emerald-400',  bgColor: 'bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-200/50 dark:border-emerald-900/20' },
+  muskmelon:   { color: 'text-lime-650 dark:text-lime-400',   bgColor: 'bg-lime-50/50 dark:bg-lime-950/10 border-lime-200/50 dark:border-lime-900/20' },
+  apple:       { color: 'text-red-500 dark:text-red-400',    bgColor: 'bg-red-50/50 dark:bg-red-950/10 border-red-200/50 dark:border-red-900/20' },
+  orange:      { color: 'text-orange-500 dark:text-orange-455', bgColor: 'bg-orange-50/50 dark:bg-orange-950/10 border-orange-200/50 dark:border-orange-900/20' },
+  papaya:      { color: 'text-orange-500 dark:text-orange-400', bgColor: 'bg-orange-50/50 dark:bg-orange-950/10 border-orange-200/50 dark:border-orange-900/20' },
+  coconut:     { color: 'text-amber-700 dark:text-amber-400',  bgColor: 'bg-amber-50/50 dark:bg-amber-950/10 border-amber-200/50 dark:border-amber-900/20' },
+  cotton:      { color: 'text-pink-500 dark:text-pink-400',   bgColor: 'bg-pink-50/50 dark:bg-pink-950/10 border-pink-200/50 dark:border-pink-900/20' },
+  jute:        { color: 'text-teal-600 dark:text-teal-400',   bgColor: 'bg-teal-50/50 dark:bg-teal-950/10 border-teal-200/50 dark:border-teal-900/20' },
+  coffee:      { color: 'text-stone-600 dark:text-stone-400',  bgColor: 'bg-stone-50/50 dark:bg-stone-950/10 border-stone-200/50 dark:border-stone-900/20' },
 };
 
 function getCropMeta(crop: string) {
-  return CROP_META[crop.toLowerCase()] ?? { emoji: '🌱', color: 'text-green-700', bgColor: 'bg-green-50 dark:bg-green-900/20' };
+  return CROP_META[crop.toLowerCase()] ?? { color: 'text-green-600 dark:text-green-400', bgColor: 'bg-green-50/50 dark:bg-green-950/10 border-green-200/50 dark:border-green-900/20' };
 }
 
 function capitalize(s: string) {
@@ -64,7 +64,7 @@ const SliderField: React.FC<SliderFieldProps> = ({
   <div className="space-y-2">
     <div className="flex items-center justify-between">
       <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-        <span className="text-green-600 dark:text-green-400">{icon}</span>
+        <span className="text-primary">{icon}</span>
         {label}
       </label>
       <div className="flex items-center gap-1.5">
@@ -90,7 +90,7 @@ const SliderField: React.FC<SliderFieldProps> = ({
       step={step}
       value={value}
       onChange={(e) => onChange(name, parseFloat(e.target.value))}
-      className="w-full h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full appearance-none cursor-pointer accent-green-500"
+      className="w-full h-1.5 bg-gray-250 dark:bg-gray-700 rounded-full appearance-none cursor-pointer accent-primary"
     />
     <p className="text-xs text-gray-400 dark:text-gray-500">{description}</p>
   </div>
@@ -102,12 +102,12 @@ const ConfidenceArc: React.FC<{ value: number }> = ({ value }) => {
   const radius = 52;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (value / 100) * circumference;
-  const color = value >= 80 ? '#16a34a' : value >= 60 ? '#ca8a04' : '#dc2626';
+  const color = value >= 80 ? '#10b981' : value >= 60 ? '#f59e0b' : '#ef4444';
 
   return (
     <div className="relative flex items-center justify-center w-32 h-32">
       <svg className="w-32 h-32 -rotate-90" viewBox="0 0 120 120">
-        <circle cx="60" cy="60" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="10" className="dark:stroke-gray-700" />
+        <circle cx="60" cy="60" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="10" className="dark:stroke-gray-800" />
         <circle
           cx="60" cy="60" r={radius} fill="none"
           stroke={color} strokeWidth="10"
@@ -166,7 +166,6 @@ const CropRecommendation: React.FC = () => {
 
   const handleCreateBatch = () => {
     if (!result) return;
-    navigate('/add-batch');
     navigate(`/add-batch?cropType=${encodeURIComponent(result.crop)}`, {
       state: { cropType: result.crop },
     });
@@ -179,7 +178,7 @@ const CropRecommendation: React.FC = () => {
 
       {/* ── Hero ── */}
       <div className="text-center space-y-3 pt-4">
-        <div className="inline-flex items-center gap-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-sm font-medium px-4 py-1.5 rounded-full">
+        <div className="inline-flex items-center gap-2 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 text-sm font-medium px-4 py-1.5 rounded-full">
           <Sprout className="w-4 h-4" />
           AI-Powered Advisory
         </div>
@@ -193,12 +192,12 @@ const CropRecommendation: React.FC = () => {
 
       {/* ── Input form ── */}
       <form onSubmit={handleSubmit}>
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div className="bg-white dark:bg-card rounded-2xl shadow-lg border border-gray-150 dark:border-border overflow-hidden">
 
           {/* Soil Nutrients */}
-          <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+          <div className="p-6 border-b border-gray-150 dark:border-border">
             <h2 className="flex items-center gap-2 text-base font-semibold text-gray-800 dark:text-white mb-6">
-              <FlaskConical className="w-4 h-4 text-green-500" />
+              <FlaskConical className="w-4 h-4 text-primary" />
               Soil Nutrients
             </h2>
             <div className="grid gap-6 sm:grid-cols-3">
@@ -224,7 +223,7 @@ const CropRecommendation: React.FC = () => {
           </div>
 
           {/* Soil Chemistry */}
-          <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+          <div className="p-6 border-b border-gray-150 dark:border-border">
             <h2 className="flex items-center gap-2 text-base font-semibold text-gray-800 dark:text-white mb-6">
               <FlaskConical className="w-4 h-4 text-blue-500" />
               Soil Chemistry
@@ -273,7 +272,7 @@ const CropRecommendation: React.FC = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-semibold px-8 py-3 rounded-xl transition-colors shadow-md shadow-green-200 dark:shadow-none"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/95 disabled:bg-primary/50 text-primary-foreground font-semibold px-8 py-3 rounded-xl transition-colors shadow-md shadow-primary/10 dark:shadow-none"
           >
             {isLoading ? (
               <>
@@ -304,22 +303,24 @@ const CropRecommendation: React.FC = () => {
       {/* ── Result card ── */}
       {result && meta && (
         <div id="result-card">
-          <div className={`rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden ${meta.bgColor}`}>
+          <div className={`rounded-2xl shadow-lg border border-border overflow-hidden ${meta.bgColor}`}>
 
             {/* Top banner */}
-            <div className="bg-green-600 px-6 py-3 flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-300 animate-pulse" />
-              <span className="text-green-100 text-sm font-medium">Recommendation Ready</span>
+            <div className="bg-primary/90 px-6 py-3 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+              <span className="text-primary-foreground text-sm font-medium">Recommendation Ready</span>
             </div>
 
             <div className="p-6 sm:p-8">
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
 
-                {/* Confidence arc + emoji */}
+                {/* Confidence arc + icon */}
                 <div className="flex flex-col items-center gap-3 shrink-0">
                   <div className="relative">
                     <ConfidenceArc value={result.confidence} />
-                    <div className="absolute -bottom-1 -right-1 text-4xl">{meta.emoji}</div>
+                    <div className="absolute -bottom-1 -right-1 bg-background dark:bg-card p-2 rounded-full border border-border shadow-sm">
+                      <Sprout className={`h-6 w-6 ${meta.color}`} />
+                    </div>
                   </div>
                 </div>
 
@@ -339,8 +340,8 @@ const CropRecommendation: React.FC = () => {
 
                   {/* Alternatives */}
                   {result.alternatives?.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                         Alternatives
                       </p>
                       <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
@@ -349,10 +350,11 @@ const CropRecommendation: React.FC = () => {
                           return (
                             <span
                               key={alt.crop}
-                              className="inline-flex items-center gap-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm font-medium px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm"
+                              className="inline-flex items-center gap-1.5 bg-background dark:bg-card text-gray-700 dark:text-gray-300 text-sm font-medium px-3 py-1.5 rounded-lg border border-border shadow-sm"
                             >
-                              {altMeta.emoji} {capitalize(alt.crop)}
-                              <span className="text-xs text-gray-400">{alt.confidence}%</span>
+                              <Sprout className={`h-4 w-4 ${altMeta.color}`} />
+                              <span>{capitalize(alt.crop)}</span>
+                              <span className="text-xs text-gray-400 font-normal">{alt.confidence}%</span>
                             </span>
                           );
                         })}
@@ -363,7 +365,7 @@ const CropRecommendation: React.FC = () => {
                   {/* CTA */}
                   <button
                     onClick={handleCreateBatch}
-                    className="inline-flex items-center gap-2 bg-gray-900 dark:bg-white hover:bg-gray-700 dark:hover:bg-gray-100 text-white dark:text-gray-900 font-semibold px-6 py-2.5 rounded-xl transition-colors mt-2"
+                    className="inline-flex items-center gap-2 bg-foreground text-background hover:opacity-90 font-semibold px-6 py-2.5 rounded-xl transition-colors mt-2"
                   >
                     <Plus className="w-4 h-4" />
                     Create Batch with {capitalize(result.crop)}
@@ -374,7 +376,7 @@ const CropRecommendation: React.FC = () => {
             </div>
 
             {/* Input summary footer */}
-            <div className="bg-white/60 dark:bg-gray-800/60 border-t border-gray-100 dark:border-gray-700 px-6 py-3">
+            <div className="bg-background/40 dark:bg-card/40 border-t border-border px-6 py-3">
               <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                 Inputs used — N:{inputs.N} · P:{inputs.P} · K:{inputs.K} · pH:{inputs.pH} · {inputs.temperature}°C · {inputs.humidity}% humidity · {inputs.rainfall}mm rainfall
               </p>
@@ -386,12 +388,12 @@ const CropRecommendation: React.FC = () => {
       {/* ── Info callouts ── */}
       <div className="grid sm:grid-cols-3 gap-4 text-sm">
         {[
-          { icon: '🌱', title: 'For Farmers', text: 'Reduce the risk of planting the wrong crop in unsuitable soil conditions.' },
-          { icon: '📦', title: 'For the Supply Chain', text: 'Predict what crops will enter the market, helping Mandis and Retailers plan ahead.' },
-          { icon: '♻️', title: 'For Sustainability', text: 'Encourages optimal resource use — less water and fewer fertilizers wasted.' },
-        ].map(({ icon, title, text }) => (
-          <div key={title} className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm space-y-1">
-            <div className="text-xl">{icon}</div>
+          { icon: Sprout, title: 'For Farmers', text: 'Reduce the risk of planting the wrong crop in unsuitable soil conditions.' },
+          { icon: Package, title: 'For the Supply Chain', text: 'Predict what crops will enter the market, helping Mandis and Retailers plan ahead.' },
+          { icon: RotateCcw, title: 'For Sustainability', text: 'Encourages optimal resource use — less water and fewer fertilizers wasted.' },
+        ].map(({ icon: IconComponent, title, text }) => (
+          <div key={title} className="bg-white dark:bg-card rounded-xl p-4 border border-gray-150 dark:border-border shadow-sm space-y-1">
+            <div className="text-primary mb-2"><IconComponent className="h-6 w-6" /></div>
             <p className="font-semibold text-gray-800 dark:text-white">{title}</p>
             <p className="text-gray-500 dark:text-gray-400">{text}</p>
           </div>

@@ -95,7 +95,7 @@ declare module 'react' {
 }
 
 declare module 'react-i18next' {
-  export const useTranslation: () => { t: (key: string) => string };
+  export const useTranslation: () => { t: (key: string, defaultValue?: string) => string; i18n: any };
 }
 
 declare module 'react-router-dom' {

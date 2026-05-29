@@ -33,7 +33,7 @@ function App() {
     <CurrencyProvider>
       <Toaster position="top-right" reverseOrder={false} />
       <Router>
-        <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+        <div className="min-h-screen bg-gradient-to-br from-green-50/40 to-blue-50/40 dark:from-black dark:to-black text-foreground">
           <Header />
           <main className="container mx-auto px-4 py-8">
             <Routes>
@@ -42,7 +42,8 @@ function App() {
               <Route path="/update-batch" element={<UpdateBatch />} />
               <Route path="/track-batch" element={<TrackBatch />} />
               <Route path="/batch/:batchId/journey" element={<JourneyMap />} />
-              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+              <Route path="/verification" element={<ProtectedRoute allowedRoles={['admin']}><VerificationDashboard /></ProtectedRoute>} />
               <Route path="/crop-recommendation" element={<CropRecommendation />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />

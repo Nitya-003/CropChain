@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Compass, CheckCircle2, ChevronRight } from 'lucide-react';
+import { Compass, CheckCircle2, ChevronRight, Sprout, Building2, Truck, Store } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface JourneyPreviewProps {
@@ -18,10 +18,10 @@ export const JourneyPreview: React.FC<JourneyPreviewProps> = ({
   const { t } = useTranslation();
 
   const stages = [
-    { value: 'farmer', label: t('status.harvested', 'Harvested'), icon: '🌱' },
-    { value: 'mandi', label: t('status.atMandi', 'At Mandi'), icon: '🏢' },
-    { value: 'transport', label: t('status.inTransit', 'In Transit'), icon: '🚚' },
-    { value: 'retailer', label: t('status.atRetailer', 'At Retailer'), icon: '🛒' }
+    { value: 'farmer', label: t('status.harvested', 'Harvested'), icon: Sprout },
+    { value: 'mandi', label: t('status.atMandi', 'At Mandi'), icon: Building2 },
+    { value: 'transport', label: t('status.inTransit', 'In Transit'), icon: Truck },
+    { value: 'retailer', label: t('status.atRetailer', 'At Retailer'), icon: Store }
   ];
 
   // Determine active step index
@@ -70,7 +70,7 @@ export const JourneyPreview: React.FC<JourneyPreviewProps> = ({
           {stages.map((stage, index) => {
             const isCompleted = index < currentStepIndex;
             const isCurrent = index === currentStepIndex;
-            const isPending = index > currentStepIndex;
+            const IconComponent = stage.icon;
 
             return (
               <div 
@@ -91,7 +91,7 @@ export const JourneyPreview: React.FC<JourneyPreviewProps> = ({
                   {isCompleted ? (
                     <CheckCircle2 className="h-5 w-5 text-white" />
                   ) : (
-                    <span>{stage.icon}</span>
+                    <IconComponent className="h-4 w-4" />
                   )}
                 </div>
 

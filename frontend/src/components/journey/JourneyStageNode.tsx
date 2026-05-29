@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, MapPin, User, ExternalLink, ShieldCheck, Thermometer, Droplets, AlertTriangle } from 'lucide-react';
+import { Calendar, MapPin, User, ExternalLink, ShieldCheck, Thermometer, Droplets, AlertTriangle, Sprout, Building2, Truck, Store } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 export interface StageUpdate {
@@ -66,13 +66,13 @@ export const JourneyStageNode: React.FC<JourneyStageNodeProps> = ({
     const iconSize = "h-5 w-5";
     switch (update.stage) {
       case 'farmer':
-        return <span className={iconSize}>🌱</span>;
+        return <Sprout className={iconSize} />;
       case 'mandi':
-        return <span className={iconSize}>🏢</span>;
+        return <Building2 className={iconSize} />;
       case 'transport':
-        return <span className={iconSize}>🚚</span>;
+        return <Truck className={iconSize} />;
       case 'retailer':
-        return <span className={iconSize}>🛒</span>;
+        return <Store className={iconSize} />;
     }
   };
 
