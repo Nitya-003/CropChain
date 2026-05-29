@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "build": "echo 'No build step required for serverless Node.js backend'",
     "test": "jest --watchAll",
     "test:ci": "NODE_ENV=test jest --ci --coverage --watchAll=false",
     "test:ai": "node test-ai-chat.js",
