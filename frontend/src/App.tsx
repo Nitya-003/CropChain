@@ -2,7 +2,6 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast'; // <--- 1. IMPORT THIS
 
-import { AuthProvider } from './context/AuthContext';
 // import { ToastProvider } from './context/ToastContext'; // Removed old context to avoid conflicts
 import Header from './components/Header';
 // import ToastContainer from './components/ToastContainer'; // Removed old container
