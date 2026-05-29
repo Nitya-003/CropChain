@@ -4,11 +4,10 @@ import { Shield, UserCheck, UserX, AlertCircle } from 'lucide-react';
 import { verificationService, UnverifiedUser, VerifiedUser } from '../services/verificationService';
 import VerificationBadge from '../components/VerificationBadge';
 import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
+import toast from 'react-hot-toast';
 
 const VerificationDashboard: React.FC = () => {
     const { user } = useAuth();
-    const toast = useToast();
     const [unverifiedUsers, setUnverifiedUsers] = useState<UnverifiedUser[]>([]);
     const [verifiedUsers, setVerifiedUsers] = useState<VerifiedUser[]>([]);
     const [loading, setLoading] = useState(true);

@@ -112,13 +112,10 @@ export const verificationService = {
         return response.data;
     },
 
-    /**
-     * Get unverified users (Admin only)
-     */
     async getUnverifiedUsers(): Promise<UnverifiedUser[]> {
         const response = await apiClient.get('/verification/unverified');
 
-        return response.data.users;
+        return response.data.data.users;
     },
 
     /**
@@ -127,6 +124,6 @@ export const verificationService = {
     async getVerifiedUsers(): Promise<VerifiedUser[]> {
         const response = await apiClient.get('/verification/verified');
 
-        return response.data.users;
+        return response.data.data.users;
     },
 };
