@@ -1,43 +1,23 @@
-// src/services/realCropBatchService.ts
-
-// Uses VITE_API_URL env var (set in .env), falls back to the backend default port 3001
-const API_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api`;
+import { apiClient } from './apiClient';
 
 export const realCropBatchService = {
-  // Existing method you likely already had
   createBatch: async (formData: any) => {
-    const response = await fetch(`${API_URL}/batches`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
-    });
-    if (!response.ok) throw new Error('Failed to create batch');
-    return await response.json();
+    const response = await apiClient.post('/batches', formData);
+    return response.data.data.batch;
   },
 
-  // 🟢 NEW METHOD: This was missing!
   getAllBatches: async () => {
-    try {
-      const response = await fetch(`${API_URL}/dashboard-data`);
-      if (!response.ok) throw new Error('Failed to fetch dashboard data');
-      return await response.json();
-    } catch (error) {
-      console.error("API Error:", error);
-      throw error;
-    }
+    const response = await apiClient.get('/batches');
+    return response.data.data;
   },
 
   getBatch: async (batchId: string) => {
-    try {
-      const response = await fetch(`${API_URL}/batches/${batchId}`);
-      if (!response.ok) {
-        if (response.status === 404) throw new Error('Batch not found');
-        throw new Error('Failed to fetch batch');
-      }
-      return await response.json();
-    } catch (error) {
-      console.error("API Error:", error);
-      throw error;
-    }
+    const response = await apiClient.get(`/batches/${batchId}`);
+    return response.data.data.batch;
+  },
+
+  updateBatch: async (batchId: string, updateData: any) => {
+    const response = await apiClient.put(`/batches/${batchId}`, updateData);
+    return response.data.data.batch;
   }
 };

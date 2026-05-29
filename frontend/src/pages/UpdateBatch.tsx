@@ -3,7 +3,7 @@ import { RefreshCw, Search, Package, Clock, User, MapPin, Shield, AlertTriangle,
 import { cropBatchService } from '../services/cropBatchService';
 import Timeline from '../components/Timeline';
 import { realCropBatchService } from '../services/realCropBatchService';
-import { useToast } from '../context/ToastContext';
+import toast from 'react-hot-toast';
 import { FormSkeleton, BatchInfoSkeleton } from '../components/skeletons';
 import { useRbac } from '../hooks/useRbac';
 import { ethers } from 'ethers';
@@ -12,7 +12,7 @@ const UpdateBatch: React.FC = () => {
   const [batchId, setBatchId] = useState('');
   const [batch, setBatch] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
-  const toast = useToast();
+
   const { canUpdateToStage, getNextAllowedStage, getRoleDisplayName } = useRbac();
   const [updateData, setUpdateData] = useState({
     actor: '',
@@ -57,7 +57,7 @@ const UpdateBatch: React.FC = () => {
     }
   };
 
-  const handleUpdate = async (e: React.FormEvent) => {
+  const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!batch) return;
     
@@ -114,7 +114,7 @@ const UpdateBatch: React.FC = () => {
     
     try {
       // Call smart contract to request IoT verification
-      const contractAddress = process.env.REACT_APP_CONTRACT_ADDRESS;
+      const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
       const contractABI = [
         "function requestIoTVerification(bytes32 batchId) external"
       ];
@@ -155,6 +155,23 @@ const UpdateBatch: React.FC = () => {
     } finally {
       setIsRequestingIoT(false);
     }
+  };
+
+  const getTimelineEvents = (batchData: any) => {
+    if (!batchData || !batchData.updates) return [];
+
+    return batchData.updates.map((update: any) => ({
+      title: update.stage.charAt(0).toUpperCase() + update.stage.slice(1),
+      date: update.timestamp,
+      location: update.location || 'Unknown Location',
+      description: update.notes || `Processed by ${update.actor}`
+    }));
+  };
+
+  const getStageIndex = (stage: string) => {
+    const stagesList = ['farmer', 'mandi', 'transport', 'retailer'];
+    const idx = stagesList.indexOf(stage?.toLowerCase());
+    return idx >= 0 ? idx : 0;
   };
 
   return (
@@ -266,7 +283,7 @@ const UpdateBatch: React.FC = () => {
               <Clock className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
               Supply Chain Timeline
             </h2>
-            <Timeline events={batch.updates} globalCertifications={batch.certifications} />
+            <Timeline events={getTimelineEvents(batch)} currentStep={getStageIndex(batch.currentStage)} />
           </div>
 
           {/* Update Form */}
