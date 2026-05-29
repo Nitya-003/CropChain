@@ -21,6 +21,7 @@
   "author": "CropChain Team",
   "license": "MIT",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@pinata/sdk": "^2.1.0",
     "axios": "^1.16.1",
     "bcryptjs": "^2.4.3",

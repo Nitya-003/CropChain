@@ -5,7 +5,6 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const jwt = require('jsonwebtoken');
-const { ethers } = require('ethers');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
 const connectDB = require('./config/db');
@@ -20,7 +19,6 @@ const { createBatchSchema, updateBatchSchema } = require("./validations/batchSch
 const { protect, adminOnly, authorizeBatchOwner, authorizeRoles, authorizeStageTransition, authorizeBlockchainTransaction } = require('./middleware/auth');
 const mongoose = require('mongoose');
 const apiResponse = require('./utils/apiResponse');
-const crypto = require('crypto');
 const oracleService = require('./services/oracleService');
 
 // Import Services
@@ -263,60 +261,37 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 
 
 // Blockchain configuration
-const REQUIRED_ENV_VARS = [
-    'INFURA_URL',
-    'CONTRACT_ADDRESS',
-    'PRIVATE_KEY'
-];
+const hasUrl = process.env.INFURA_URL || process.env.SEPOLIA_URL;
+const hasPrivateKey = process.env.PRIVATE_KEY || process.env.ETH_PRIVATE_KEY;
+const hasContract = process.env.CONTRACT_ADDRESS;
 
-if (process.env.NODE_ENV !== 'test') {
-    REQUIRED_ENV_VARS.forEach((key) => {
-        if (!process.env[key]) {
-            throw new Error(`Missing required environment variable: ${key}`);
-        }
-    });
+if (process.env.NODE_ENV === 'production') {
+    if (!hasUrl) throw new Error('Missing required environment variable: INFURA_URL or SEPOLIA_URL');
+    if (!hasContract) throw new Error('Missing required environment variable: CONTRACT_ADDRESS');
+    if (!hasPrivateKey) throw new Error('Missing required environment variable: PRIVATE_KEY or ETH_PRIVATE_KEY');
 
-    if (!/^0x[a-fA-F0-9]{64}$/.test(process.env.PRIVATE_KEY)) {
+    const pk = process.env.PRIVATE_KEY || process.env.ETH_PRIVATE_KEY;
+    const formattedPk = pk.startsWith('0x') ? pk : '0x' + pk;
+    if (!/^0x[a-fA-F0-9]{64}$/.test(formattedPk)) {
         throw new Error('Invalid PRIVATE_KEY format');
     }
-}
+} else if (process.env.NODE_ENV !== 'test') {
+    // In development mode, check and warn instead of throwing
+    const missing = [];
+    if (!hasUrl) missing.push('INFURA_URL/SEPOLIA_URL');
+    if (!hasContract) missing.push('CONTRACT_ADDRESS');
+    if (!hasPrivateKey) missing.push('PRIVATE_KEY/ETH_PRIVATE_KEY');
 
-const PROVIDER_URL = process.env.INFURA_URL;
-const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
-const PRIVATE_KEY = process.env.PRIVATE_KEY;
-
-// Initialize blockchain provider and contract (reused for listener)
-let provider;
-let contractInstance;
-let wallet;
-
-if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY) {
-    try {
-        provider = new ethers.JsonRpcProvider(PROVIDER_URL);
-        wallet = new ethers.Wallet(PRIVATE_KEY, provider);
-
-        contractInstance = new ethers.Contract(CONTRACT_ADDRESS, blockchainService.getContractABI(), wallet);
-        console.log('✓ Blockchain contract instance initialized');
-    } catch (error) {
-        console.error('Failed to initialize blockchain connection:', error.message);
-        contractInstance = null;
+    if (missing.length > 0) {
+        console.log(`ℹ️  Missing environment variables for blockchain connection: ${missing.join(', ')}. Running in demo mode.`);
+    } else {
+        const pk = process.env.PRIVATE_KEY || process.env.ETH_PRIVATE_KEY;
+        const formattedPk = pk.startsWith('0x') ? pk : '0x' + pk;
+        if (!/^0x[a-fA-F0-9]{64}$/.test(formattedPk)) {
+            console.warn('⚠️  Invalid PRIVATE_KEY format - running in demo mode');
+        }
     }
-} else {
-    console.log('ℹ️  Blockchain not configured - running without contract instance');
 }
-
-async function generateBatchId(session = null) {
-    return await batchService.generateBatchId(session);
-}
-
-async function generateQRCode(batchId) {
-    return await batchService.generateQRCode(batchId);
-}
-
-function simulateBlockchainHash(data) {
-    return blockchainService.simulateHash(data);
-}
-
 
 // Import Routes
 const authRoutes = require('./routes/authRoutes');
@@ -740,13 +715,17 @@ if (process.env.NODE_ENV !== 'test') {
             console.log('ℹ️  CCIP service not configured - cross-chain dispatch disabled');
         }
 
-        // Start Oracle service for IoT data verification
-        try {
-            await oracleService.initialize();
-            console.log('🔮 Oracle service started successfully');
-        } catch (error) {
-            console.error('❌ Failed to start Oracle service:', error.message);
-            console.log('⚠️  Continuing without Oracle service...');
+        // Start Oracle service for IoT data verification if blockchain is active
+        if (blockchainService.isAvailable() && process.env.ORACLE_PRIVATE_KEY) {
+            try {
+                await oracleService.initialize();
+                console.log('🔮 Oracle service started successfully');
+            } catch (error) {
+                console.error('❌ Failed to start Oracle service:', error.message);
+                console.log('⚠️  Continuing without Oracle service...');
+            }
+        } else {
+            console.log('ℹ️  Oracle service disabled (blockchain running in demo mode or ORACLE_PRIVATE_KEY missing)');
         }
     });
 }

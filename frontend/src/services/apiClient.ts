@@ -1,7 +1,8 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { tokenService } from './token.service';
 
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const baseApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+export const API_URL = baseApiUrl.endsWith('/api') ? baseApiUrl : `${baseApiUrl.replace(/\/$/, '')}/api`;
 
 interface RetriableRequestConfig extends InternalAxiosRequestConfig {
     _retry?: boolean;

@@ -7,17 +7,21 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   
   console.log("Deploying contracts with the account:", deployer.address);
-  console.log("Account balance:", ethers.utils.formatEther(await deployer.getBalance()));
+  console.log("Account balance:", ethers.formatEther(await ethers.provider.getBalance(deployer.address)));
 
   // Deploy the contract
   const CropChain = await ethers.getContractFactory("CropChain");
   const cropChain = await CropChain.deploy();
 
-  await cropChain.deployed();
+  await cropChain.waitForDeployment();
+  const contractAddress = await cropChain.getAddress();
 
-  console.log("CropChain contract deployed to:", cropChain.address);
-  console.log("Transaction hash:", cropChain.deployTransaction.hash);
-  console.log("Gas used:", cropChain.deployTransaction.gasLimit.toString());
+  const tx = cropChain.deploymentTransaction();
+  const receipt = await tx.wait();
+
+  console.log("CropChain contract deployed to:", contractAddress);
+  console.log("Transaction hash:", tx.hash);
+  console.log("Gas used:", receipt.gasUsed.toString());
 
   // Verify deployment and RBAC setup
   console.log("\n=== Verifying RBAC Setup ===");
@@ -65,31 +69,34 @@ async function main() {
 
   // Grant ORACLE_ROLE to a test oracle address
   console.log("\n=== Setting up Oracle Role ===");
-  const [, , oracle] = await ethers.getSigners(); // Use third account as oracle
+  const signers = await ethers.getSigners();
+  const oracle = signers[2] || signers[0]; // Fallback if less signers
   
-  try {
-    const grantOracleTx = await cropChain.grantStakeholderRole(ORACLE_ROLE, oracle.address);
-    await grantOracleTx.wait();
-    console.log("ORACLE_ROLE granted to:", oracle.address);
-    console.log("Transaction hash:", grantOracleTx.hash);
-  } catch (error) {
-    console.error("Failed to grant ORACLE_ROLE:", error.message);
+  if (oracle) {
+    try {
+      const grantOracleTx = await cropChain.grantStakeholderRole(ORACLE_ROLE, oracle.address);
+      await grantOracleTx.wait();
+      console.log("ORACLE_ROLE granted to:", oracle.address);
+      console.log("Transaction hash:", grantOracleTx.hash);
+    } catch (error) {
+      console.error("Failed to grant ORACLE_ROLE:", error.message);
+    }
   }
   
   // Verify oracle role
-  const hasOracleRole = await cropChain.hasRole(ORACLE_ROLE, oracle.address);
+  const hasOracleRole = oracle ? await cropChain.hasRole(ORACLE_ROLE, oracle.address) : false;
   console.log("Oracle has ORACLE_ROLE:", hasOracleRole);
 
   // Save deployment info
   const deploymentInfo = {
-    contractAddress: cropChain.address,
-    transactionHash: cropChain.deployTransaction.hash,
+    contractAddress: contractAddress,
+    transactionHash: tx.hash,
     deployer: deployer.address,
     oracle: oracle?.address || null,
     network: (await ethers.provider.getNetwork()).name,
-    blockNumber: cropChain.deployTransaction.blockNumber,
-    gasUsed: cropChain.deployTransaction.gasLimit?.toString(),
-    gasPrice: cropChain.deployTransaction.gasPrice?.toString(),
+    blockNumber: receipt.blockNumber.toString(),
+    gasUsed: receipt.gasUsed.toString(),
+    gasPrice: tx.gasPrice?.toString() || "0",
     timestamp: new Date().toISOString(),
     rbac: {
       DEFAULT_ADMIN_ROLE,
@@ -107,12 +114,12 @@ async function main() {
   // Instructions for next steps
   console.log("\n=== Next Steps ===");
   console.log("1. Update your .env file with contract address:");
-  console.log(`   CONTRACT_ADDRESS=${cropChain.address}`);
+  console.log(`   CONTRACT_ADDRESS=${contractAddress}`);
   console.log("\n2. Grant roles to stakeholders:");
   console.log("   Example: cropChain.grantStakeholderRole(FARMER_ROLE, farmerAddress)");
   console.log("   Example: cropChain.grantStakeholderRole(ORACLE_ROLE, oracleAddress)");
   console.log("\n3. Verify the contract on block explorer (if on testnet/mainnet):");
-  console.log(`   npx hardhat verify --network <network> ${cropChain.address}`);
+  console.log(`   npx hardhat verify --network <network> ${contractAddress}`);
   console.log("\n4. Update your frontend/backend to use this contract address");
   console.log("\n5. Run tests to verify RBAC functionality:");
   console.log("   npx hardhat test");
