@@ -265,7 +265,7 @@ const hasUrl = process.env.INFURA_URL || process.env.SEPOLIA_URL;
 const hasPrivateKey = process.env.PRIVATE_KEY || process.env.ETH_PRIVATE_KEY;
 const hasContract = process.env.CONTRACT_ADDRESS;
 
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === 'production' && process.env.STRICT_BLOCKCHAIN_CHECK === 'true') {
     if (!hasUrl) throw new Error('Missing required environment variable: INFURA_URL or SEPOLIA_URL');
     if (!hasContract) throw new Error('Missing required environment variable: CONTRACT_ADDRESS');
     if (!hasPrivateKey) throw new Error('Missing required environment variable: PRIVATE_KEY or ETH_PRIVATE_KEY');
@@ -276,7 +276,7 @@ if (process.env.NODE_ENV === 'production') {
         throw new Error('Invalid PRIVATE_KEY format');
     }
 } else if (process.env.NODE_ENV !== 'test') {
-    // In development mode, check and warn instead of throwing
+    // Check and warn instead of throwing (allows running in demo/offline mode)
     const missing = [];
     if (!hasUrl) missing.push('INFURA_URL/SEPOLIA_URL');
     if (!hasContract) missing.push('CONTRACT_ADDRESS');
