@@ -1,0 +1,23 @@
+{
+  "family": "cropchain",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::148221445428:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "my-app",
+      "image": "148221445428.dkr.ecr.ap-south-1.amazonaws.com/cropchain:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3001,
+          "protocol": "tcp"
+        }
+      ]
+    }
+  ]
+}

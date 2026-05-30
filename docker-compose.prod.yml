@@ -27,11 +27,11 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: cropchain-backend-prod
     restart: always
-    ports:
-      - "80:3001"
+    expose:
+      - "3001"
     environment:
       - PORT=3001
       - NODE_ENV=production
@@ -50,6 +50,22 @@ services:
     depends_on:
       - mongodb
       - redis
+ 
+  nginx:
+    build:
+      context: ./backend/nginx
+      dockerfile: Dockerfile
+    container_name: cropchain-nginx-prod
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./backend/nginx/certs:/etc/nginx/certs
+    networks:
+      - cropchain-network
+    depends_on:
+      - backend
 
 volumes:
   mongodb_data:
