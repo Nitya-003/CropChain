@@ -1,6 +1,7 @@
+"use client";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import Link from "next/link";
 import { useEffect } from "react";
 
 const sidebarVariants = {
@@ -19,8 +20,7 @@ const backdropVariants = {
   closed: { opacity: 0 },
 };
 
-const Sidebar = ({ isOpen, setIsOpen, navItems }) => {
-  const location = useLocation();
+const Sidebar = ({ isOpen, setIsOpen, navItems }: { isOpen: boolean; setIsOpen: (isOpen: boolean) => void; navItems: any[] }) => {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -66,7 +66,7 @@ const Sidebar = ({ isOpen, setIsOpen, navItems }) => {
               {navItems.map(({ path, label, icon: Icon }) => (
                 <Link
                   key={path}
-                  to={path}
+                  href={path}
                   onClick={() => setIsOpen(false)}
                   className='flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-green-100 dark:hover:bg-gray-800 transition-colors'
                 >

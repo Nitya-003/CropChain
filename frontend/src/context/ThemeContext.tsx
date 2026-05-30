@@ -10,11 +10,14 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-    // Initialize theme from localStorage or default to 'light'
-    const [theme, setTheme] = useState<Theme>(() => {
-        const savedTheme = localStorage.getItem('theme') as Theme;
-        return savedTheme || 'light';
-    });
+    const [theme, setTheme] = useState<Theme>('light');
+
+    useEffect(() => {
+        const savedTheme = typeof window !== 'undefined' ? localStorage.getItem('theme') as Theme : null;
+        if (savedTheme) {
+            setTheme(savedTheme);
+        }
+    }, []);
 
     useEffect(() => {
         // Update the <html> element's class and save to localStorage
@@ -24,7 +27,9 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
         } else {
             root.classList.remove('dark');
         }
-        localStorage.setItem('theme', theme);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('theme', theme);
+        }
     }, [theme]);
 
     const toggleTheme = () => {

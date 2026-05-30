@@ -2,7 +2,10 @@ require("@nomicfoundation/hardhat-ethers");
 require("@nomicfoundation/hardhat-chai-matchers");
 require("dotenv").config();
 
-const getAccounts = () => (process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []);
+const getAccounts = () => {
+  const pk = process.env.PRIVATE_KEY || process.env.ETH_PRIVATE_KEY;
+  return pk ? [pk] : [];
+};
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -40,9 +43,8 @@ module.exports = {
     
     // Ethereum Sepolia Testnet
     sepolia: {
-      url: process.env.SEPOLIA_URL || "https://sepolia.infura.io/v3/YOUR_PROJECT_ID",
-      accounts: getAccounts(),
-      gasPrice: 20000000000 // 20 gwei
+      url: process.env.SEPOLIA_URL || "https://ethereum-sepolia-rpc.publicnode.com",
+      accounts: getAccounts()
     },
     
     // Ethereum Mainnet

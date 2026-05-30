@@ -11,6 +11,16 @@ CropChain is a comprehensive full-stack web application that enables transparent
 
 ---
 
+## Live Deployment
+
+The system is live and deployed across production services:
+
+* **Frontend Application (Vercel)**: [cropchain.sonusid.in](https://cropchain.sonusid.in)
+* **Backend API (AWS)**: [cropapi.sonusid.in](https://cropapi.sonusid.in) (Health Status: [cropapi.sonusid.in/api/health](https://cropapi.sonusid.in/api/health))
+* **Smart Contract (Sepolia Testnet)**: [`0x2c79F3f6b448270ADF667CA5d23d23feC4d15Fa4`](https://sepolia.etherscan.io/address/0x2c79F3f6b448270ADF667CA5d23d23feC4d15Fa4)
+
+---
+
 ## Features
 
 ### Core Functionality

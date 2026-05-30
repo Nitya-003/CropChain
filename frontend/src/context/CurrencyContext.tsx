@@ -18,12 +18,19 @@ const CurrencyContext = createContext<CurrencyContextType | undefined>(
 );
 
 export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
-  const [currency, setCurrency] = useState<Currency>(
-    (localStorage.getItem("currency") as Currency) || "CRYPTO"
-  );
+  const [currency, setCurrency] = useState<Currency>("CRYPTO");
 
   useEffect(() => {
-    localStorage.setItem("currency", currency);
+    const saved = typeof window !== 'undefined' ? localStorage.getItem("currency") as Currency : null;
+    if (saved) {
+      setCurrency(saved);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem("currency", currency);
+    }
   }, [currency]);
 
   return (

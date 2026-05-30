@@ -26,7 +26,7 @@ class AIChatService {
   private messages: ChatMessage[] = [];
 
   constructor() {
-    this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    this.baseUrl = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001';
   }
 
   // Send message to AI backend
@@ -206,17 +206,17 @@ class AIChatService {
       {
         label: 'Track a Batch',
         message: 'How do I track a batch?',
-        icon: '🔍'
+        icon: ''
       },
       {
         label: 'Help with QR Code',
         message: 'How do QR codes work in CropChain?',
-        icon: '📱'
+        icon: ''
       },
       {
         label: 'Contact Admin',
         message: 'How can I contact an administrator?',
-        icon: '👨‍💼'
+        icon: ''
       }
     ];
 
@@ -225,7 +225,7 @@ class AIChatService {
       baseActions.unshift({
         label: 'Batch Creation Help',
         message: 'Help me create a new batch',
-        icon: '➕'
+        icon: ''
       });
     }
 
@@ -233,7 +233,7 @@ class AIChatService {
       baseActions.unshift({
         label: 'Tracking Help',
         message: 'How do I search for a specific batch?',
-        icon: '🎯'
+        icon: ''
       });
     }
 
@@ -241,7 +241,7 @@ class AIChatService {
       baseActions.unshift({
         label: 'About This Batch',
         message: `Tell me about batch ${context.batchId}`,
-        icon: '📦'
+        icon: ''
       });
     }
 
@@ -250,6 +250,9 @@ class AIChatService {
 
   // Get current page context from URL
   getCurrentPageContext(): ChatContext {
+    if (typeof window === 'undefined') {
+      return { currentPage: 'home', userRole: 'user' };
+    }
     const path = window.location.pathname;
     const searchParams = new URLSearchParams(window.location.search);
     

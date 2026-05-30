@@ -2,6 +2,26 @@
 
 Production-ready Express.js API server for the CropChain blockchain crop tracking system with comprehensive security features.
 
+## 📸 ScreenShots
+
+Here are the user interface designs for CropChain:
+
+### Home Page
+![Home Page](../ScreenShots/Home.png)
+
+### Crop Tracking
+![Track Batch](../ScreenShots/Track.png)
+
+### Smart Planting & Crop Pricing Recommendation
+![Pricing Page](../ScreenShots/Pricing.png)
+
+### Authentication
+#### Sign In
+![Sign In](../ScreenShots/Login.png)
+
+#### Sign Up
+![Sign Up](../ScreenShots/Register.png)
+
 ## 🔒 Security Features
 
 - **Rate Limiting**: Configurable protection against brute-force attacks

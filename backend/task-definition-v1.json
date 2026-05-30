@@ -1,0 +1,136 @@
+{
+  "family": "cropchain",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::148221445428:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::148221445428:role/cropchain-task-role",
+  "containerDefinitions": [
+    {
+      "name": "cropchain",
+      "image": "148221445428.dkr.ecr.us-east-1.amazonaws.com/cropchain:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3001,
+          "hostPort": 3001,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "PORT",
+          "value": "3001"
+        },
+        {
+          "name": "NODE_ENV",
+          "value": "production"
+        },
+        {
+          "name": "FRONTEND_URL",
+          "value": "https://cropchain.sonusid.in"
+        },
+        {
+          "name": "ALLOWED_ORIGINS",
+          "value": "https://cropchain.sonusid.in,http://localhost:3000,http://localhost:5173"
+        },
+        {
+          "name": "REDIS_PORT",
+          "value": "6379"
+        },
+        {
+          "name": "REDIS_DB",
+          "value": "0"
+        },
+        {
+          "name": "REDIS_MAX_RETRIES",
+          "value": "10"
+        },
+        {
+          "name": "AI_PROVIDER",
+          "value": "gemini"
+        },
+        {
+          "name": "GEMINI_MODEL",
+          "value": "gemini-1.5-flash"
+        },
+        {
+          "name": "AI_MAX_TOKENS",
+          "value": "500"
+        },
+        {
+          "name": "AI_TEMPERATURE",
+          "value": "0.7"
+        },
+        {
+          "name": "CONTRACT_ADDRESS",
+          "value": "0x2c79F3f6b448270ADF667CA5d23d23feC4d15Fa4"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "REDIS_HOST",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:148221445428:secret:cropchain-prod-HlD5XK:REDIS_HOST::"
+        },
+        {
+          "name": "MONGODB_URI",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:148221445428:secret:cropchain-prod-HlD5XK:MONGODB_URI::"
+        },
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:148221445428:secret:cropchain-prod-HlD5XK:JWT_SECRET::"
+        },
+        {
+          "name": "JWT_REFRESH_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:148221445428:secret:cropchain-prod-HlD5XK:JWT_REFRESH_SECRET::"
+        },
+        {
+          "name": "MULTISIG_HMAC_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:148221445428:secret:cropchain-prod-HlD5XK:MULTISIG_HMAC_SECRET::"
+        },
+        {
+          "name": "GEMINI_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:148221445428:secret:cropchain-prod-HlD5XK:GEMINI_API_KEY::"
+        },
+        {
+          "name": "PRIVATE_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:148221445428:secret:cropchain-prod-HlD5XK:PRIVATE_KEY::"
+        },
+        {
+          "name": "INFURA_URL",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:148221445428:secret:cropchain-prod-HlD5XK:INFURA_URL::"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/cropchain",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    },
+    {
+      "name": "ml-service",
+      "image": "148221445428.dkr.ecr.us-east-1.amazonaws.com/cropchain-ml:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 5001,
+          "protocol": "tcp"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/cropchain",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ml"
+        }
+      }
+    }
+  ]
+}

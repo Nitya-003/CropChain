@@ -1,8 +1,8 @@
 const { ethers } = require('ethers');
 
-const PROVIDER_URL = process.env.INFURA_URL;
+const PROVIDER_URL = process.env.INFURA_URL || process.env.SEPOLIA_URL || "https://ethereum-sepolia-rpc.publicnode.com";
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
-const PRIVATE_KEY = process.env.PRIVATE_KEY;
+const PRIVATE_KEY = process.env.PRIVATE_KEY || process.env.ETH_PRIVATE_KEY;
 
 // Contract ABI - aligned with CropChain.sol
 const contractABI = [

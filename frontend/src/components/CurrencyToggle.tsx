@@ -29,7 +29,7 @@ export const CurrencyToggle = () => {
       <select
         value={currency}
         onChange={handleChange}
-        className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm font-medium bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
+        className="border border-border rounded-lg px-3 py-1.5 text-xs font-semibold bg-background dark:bg-card text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200 h-9"
       >
         <option value="CRYPTO">Crypto</option>
         <option value="INR">INR (₹)</option>
