@@ -72,6 +72,10 @@
       ],
       "secrets": [
         {
+          "name": "REDIS_HOST",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:148221445428:secret:cropchain-prod-HlD5XK:REDIS_HOST::"
+        },
+        {
           "name": "MONGODB_URI",
           "valueFrom": "arn:aws:secretsmanager:us-east-1:148221445428:secret:cropchain-prod-HlD5XK:MONGODB_URI::"
         },
