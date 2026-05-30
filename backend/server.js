@@ -245,6 +245,45 @@ if (process.env.NODE_ENV !== 'test') {
     }
 }
 
+// ==================== HOST HEADER VALIDATION ====================
+
+const trustedHosts = (() => {
+    const hosts = new Set(['localhost', '127.0.0.1']);
+    if (process.env.FRONTEND_URL) {
+        try {
+            const hostname = new URL(process.env.FRONTEND_URL).hostname;
+            if (hostname) hosts.add(hostname);
+        } catch { }
+    }
+    if (process.env.ALLOWED_ORIGINS) {
+        process.env.ALLOWED_ORIGINS.split(',').forEach(origin => {
+            try {
+                const hostname = new URL(origin.trim()).hostname;
+                if (hostname) hosts.add(hostname);
+            } catch { }
+        });
+    }
+    if (process.env.TRUSTED_HOSTS) {
+        process.env.TRUSTED_HOSTS.split(',').forEach(h => {
+            const trimmed = h.trim().toLowerCase();
+            if (trimmed) hosts.add(trimmed);
+        });
+    }
+    return hosts;
+})();
+
+app.use((req, res, next) => {
+    const host = req.hostname?.toLowerCase();
+    if (host && !trustedHosts.has(host)) {
+        console.warn(`[HOST BLOCKED] Unexpected Host header: ${host}`);
+        return res.status(400).json({
+            error: 'Invalid request',
+            code: 'INVALID_HOST'
+        });
+    }
+    next();
+});
+
 // ==================== ROUTES ====================
 
 // Mount health check main router
