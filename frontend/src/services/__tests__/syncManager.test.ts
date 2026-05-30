@@ -243,7 +243,7 @@ describe('SyncManager - Complete Implementation Test', () => {
     test('should handle sync failure with exponential backoff', async () => {
       const mockToast = toast as jest.MockedFunction<typeof toast>;
       const mockSyncPendingItems = jest.spyOn(syncManager as any, 'syncPendingItems').mockRejectedValue(new Error('Server error'));
-      const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementation((callback, _delay) => {
+      const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementation((callback) => {
         return setTimeout(callback, 10); // Speed up test
       });
       

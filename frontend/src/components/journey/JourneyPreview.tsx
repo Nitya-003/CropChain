@@ -12,8 +12,7 @@ interface JourneyPreviewProps {
 
 export const JourneyPreview: React.FC<JourneyPreviewProps> = ({
   batchId,
-  currentStage,
-  updates: _updates
+  currentStage
 }) => {
   const router = useRouter();
   const { t } = useTranslation();
