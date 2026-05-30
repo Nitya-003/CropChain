@@ -112,69 +112,71 @@ declare module 'lucide-react' {
   export const AlertTriangle: any;
 }
 
-// Add Node.js types for browser environment
-declare const setTimeout: (callback: () => void, delay: number) => number;
-declare const clearTimeout: (id: number) => void;
+declare global {
+  // Add Node.js types for browser environment
+  const setTimeout: (callback: () => void, delay: number) => number;
+  const clearTimeout: (id: number) => void;
 
-// Add Jest types for test files
-declare const describe: (name: string, fn: () => void) => void;
-declare const test: (name: string, fn: () => void) => void;
-declare const beforeEach: (fn: () => void) => void;
-declare const afterEach: (fn: () => void) => void;
-declare const beforeAll: (fn: () => void) => void;
-declare const afterAll: (fn: () => void) => void;
-declare const expect: {
-  <T>(value: T): {
-    toBe: (expected: T) => void;
-    toEqual: (expected: T) => void;
-    toBeDefined: () => void;
-    toBeUndefined: () => void;
-    toBeNull: () => void;
-    toBeTruthy: () => void;
-    toBeFalsy: () => void;
-    toContain: (expected: T) => void;
-    toHaveBeenCalled: () => void;
-    toHaveBeenCalledWith: (...args: any[]) => void;
-    toHaveBeenCalledTimes: (num: number) => void;
-    toThrow: (expected?: string | RegExp) => void;
-    not: {
-      toBe: (expected: any) => void;
-      toEqual: (expected: any) => void;
-      toContain: (expected: any) => void;
+  // Add Jest types for test files
+  const describe: (name: string, fn: () => void) => void;
+  const test: (name: string, fn: () => void) => void;
+  const beforeEach: (fn: () => void) => void;
+  const afterEach: (fn: () => void) => void;
+  const beforeAll: (fn: () => void) => void;
+  const afterAll: (fn: () => void) => void;
+  const expect: {
+    <T>(value: T): {
+      toBe: (expected: T) => void;
+      toEqual: (expected: T) => void;
+      toBeDefined: () => void;
+      toBeUndefined: () => void;
+      toBeNull: () => void;
+      toBeTruthy: () => void;
+      toBeFalsy: () => void;
+      toContain: (expected: T) => void;
       toHaveBeenCalled: () => void;
+      toHaveBeenCalledWith: (...args: any[]) => void;
+      toHaveBeenCalledTimes: (num: number) => void;
       toThrow: (expected?: string | RegExp) => void;
+      not: {
+        toBe: (expected: any) => void;
+        toEqual: (expected: any) => void;
+        toContain: (expected: any) => void;
+        toHaveBeenCalled: () => void;
+        toThrow: (expected?: string | RegExp) => void;
+      };
     };
   };
-};
 
-declare namespace jest {
-  interface Mock<T = any> {
-    (...args: any[]): any;
-    mockImplementation: (fn: (...args: any[]) => any) => Mock<T>;
-    mockReturnValue: (value: any) => Mock<T>;
-    mockResolvedValue: (value: any) => Mock<T>;
-    mockRejectedValue: (error: any) => Mock<T>;
-    calls: Array<any[]>;
-    mock: {
+  namespace jest {
+    interface Mock<T = any> {
+      (...args: any[]): any;
+      mockImplementation: (fn: (...args: any[]) => any) => Mock<T>;
+      mockReturnValue: (value: any) => Mock<T>;
+      mockResolvedValue: (value: any) => Mock<T>;
+      mockRejectedValue: (error: any) => Mock<T>;
       calls: Array<any[]>;
-    };
+      mock: {
+        calls: Array<any[]>;
+      };
+    }
+    
+    function mock<T>(moduleName: string, factory: () => T): void;
+    function fn(): Mock;
+    function spyOn(object: any, method: string): Mock;
   }
-  
-  function mock<T>(moduleName: string, factory: () => T): void;
-  function fn(): Mock;
-  function spyOn(object: any, method: string): Mock;
-}
 
-// Add global types for tests
-declare const global: {
-  describe: typeof describe;
-  test: typeof test;
-  expect: typeof expect;
-  beforeEach: typeof beforeEach;
-  afterEach: typeof afterEach;
-  beforeAll: typeof beforeAll;
-  afterAll: typeof afterAll;
-  jest: typeof jest;
-};
+  // Add global types for tests
+  const global: {
+    describe: typeof describe;
+    test: typeof test;
+    expect: typeof expect;
+    beforeEach: typeof beforeEach;
+    afterEach: typeof afterEach;
+    beforeAll: typeof beforeAll;
+    afterAll: typeof afterAll;
+    jest: typeof jest;
+  };
+}
 
 export {};

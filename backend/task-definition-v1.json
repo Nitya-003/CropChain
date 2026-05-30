@@ -4,8 +4,8 @@
   "requiresCompatibilities": [
     "FARGATE"
   ],
-  "cpu": "256",
-  "memory": "512",
+  "cpu": "512",
+  "memory": "1024",
   "executionRoleArn": "arn:aws:iam::148221445428:role/ecsTaskExecutionRole",
   "taskRoleArn": "arn:aws:iam::148221445428:role/cropchain-task-role",
   "containerDefinitions": [
@@ -110,6 +110,25 @@
           "awslogs-group": "/ecs/cropchain",
           "awslogs-region": "us-east-1",
           "awslogs-stream-prefix": "ecs"
+        }
+      }
+    },
+    {
+      "name": "ml-service",
+      "image": "148221445428.dkr.ecr.us-east-1.amazonaws.com/cropchain-ml:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 5001,
+          "protocol": "tcp"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/cropchain",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ml"
         }
       }
     }

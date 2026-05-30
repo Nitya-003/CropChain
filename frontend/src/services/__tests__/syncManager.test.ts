@@ -1,6 +1,6 @@
 import { syncManager } from '../syncManager';
 import { offlineStorage } from '../offlineStorage';
-import toast, { success as toastSuccess, error as toastError } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 // Mock the offlineStorage
 jest.mock('../offlineStorage', () => ({
@@ -21,10 +21,15 @@ jest.mock('../offlineStorage', () => ({
 }));
 
 // Mock toast
-jest.mock('react-hot-toast', () => ({
-  __esModule: true,
-  default: jest.fn(),
-}));
+jest.mock('react-hot-toast', () => {
+  const mockToast = jest.fn() as any;
+  mockToast.success = jest.fn();
+  mockToast.error = jest.fn();
+  return {
+    __esModule: true,
+    default: mockToast,
+  };
+});
 
 // Mock fetch
 global.fetch = jest.fn();
@@ -44,7 +49,7 @@ describe('SyncManager - Complete Implementation Test', () => {
       const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
       
       // Re-initialize syncManager to test constructor
-      const newSyncManager = new (syncManager as any).constructor();
+      new (syncManager as any).constructor();
       
       expect(addEventListenerSpy).toHaveBeenCalledWith('online', expect.any(Function));
       expect(addEventListenerSpy).toHaveBeenCalledWith('offline', expect.any(Function));
@@ -141,7 +146,7 @@ describe('SyncManager - Complete Implementation Test', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       
       // Re-initialize to test constructor error handling
-      const newSyncManager = new (syncManager as any).constructor();
+      new (syncManager as any).constructor();
       
       await new Promise(resolve => setTimeout(resolve, 0));
       expect(consoleSpy).toHaveBeenCalledWith('[SyncManager] Initial sync check failed:', expect.any(Error));
@@ -238,7 +243,7 @@ describe('SyncManager - Complete Implementation Test', () => {
     test('should handle sync failure with exponential backoff', async () => {
       const mockToast = toast as jest.MockedFunction<typeof toast>;
       const mockSyncPendingItems = jest.spyOn(syncManager as any, 'syncPendingItems').mockRejectedValue(new Error('Server error'));
-      const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementation((callback, delay) => {
+      const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementation((callback, _delay) => {
         return setTimeout(callback, 10); // Speed up test
       });
       

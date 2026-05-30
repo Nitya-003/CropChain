@@ -27,7 +27,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const response = await authService.refreshSession();
         setUser(response.user);
         localStorage.setItem('user', JSON.stringify(response.user));
-      } catch (error) {
+      } catch {
         localStorage.removeItem('user');
         await checkWalletConnected();
       } finally {

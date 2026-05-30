@@ -16,7 +16,7 @@ interface JourneyTimelineProps {
 
 export const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
   updates,
-  currentStage,
+  currentStage: _currentStage,
   blockchainHash,
   currentTemperature,
   currentHumidity,

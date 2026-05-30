@@ -1,7 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { tokenService } from './token.service';
 
-const baseApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const baseApiUrl = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001';
 export const API_URL = baseApiUrl.endsWith('/api') ? baseApiUrl : `${baseApiUrl.replace(/\/$/, '')}/api`;
 
 interface RetriableRequestConfig extends InternalAxiosRequestConfig {
@@ -58,7 +58,7 @@ apiClient.interceptors.response.use(
 
                     tokenService.setAccessToken(nextToken);
                     return nextToken;
-                } catch (err) {
+                } catch {
                     tokenService.clearAccessToken();
                     return null;
                 } finally {

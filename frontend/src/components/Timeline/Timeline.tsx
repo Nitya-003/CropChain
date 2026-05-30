@@ -20,7 +20,7 @@ const Timeline: React.FC<TimelineProps> = ({ events, currentStep }) => {
         // Determine the status of this specific step
         const isCompleted = index < currentStep;
         const isCurrent = index === currentStep;
-        const isFuture = index > currentStep;
+
 
         return (
           <div key={index} className="mb-8 relative pl-8">

@@ -26,7 +26,7 @@ class AIChatService {
   private messages: ChatMessage[] = [];
 
   constructor() {
-    this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    this.baseUrl = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001';
   }
 
   // Send message to AI backend
@@ -250,6 +250,9 @@ class AIChatService {
 
   // Get current page context from URL
   getCurrentPageContext(): ChatContext {
+    if (typeof window === 'undefined') {
+      return { currentPage: 'home', userRole: 'user' };
+    }
     const path = window.location.pathname;
     const searchParams = new URLSearchParams(window.location.search);
     
