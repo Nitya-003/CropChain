@@ -213,7 +213,7 @@ class SyncManager {
 
     try {
       // Call the backend API
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/batches`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/batches`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -256,7 +256,7 @@ class SyncManager {
     try {
       // Call the backend API
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/batches/${pendingUpdate.batchId}`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/batches/${pendingUpdate.batchId}`,
         {
           method: 'PUT',
           headers: {

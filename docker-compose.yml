@@ -58,7 +58,7 @@ services:
     volumes:
       - .:/usr/src/app
     environment:
-      - VITE_API_URL=http://localhost:3001
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
     networks:
       - cropchain-network
     depends_on:

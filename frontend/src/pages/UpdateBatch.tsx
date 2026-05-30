@@ -114,7 +114,7 @@ const UpdateBatch: React.FC = () => {
     
     try {
       // Call smart contract to request IoT verification
-      const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
+      const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
       const contractABI = [
         "function requestIoTVerification(bytes32 batchId) external"
       ];

@@ -6,7 +6,7 @@ export default function NotFound() {
   const navigate = useNavigate();
   const [batchId, setBatchId] = useState("");
   
-  if (import.meta.env.DEV) {
+  if (process.env.NODE_ENV !== "production") {
     console.warn("404 route hit – user navigated to undefined path");
   }
 

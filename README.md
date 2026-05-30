@@ -101,8 +101,8 @@ cp .env.example .env
 Update the `.env` file with the required values:
 
 ```env
-# Frontend build-time API endpoint
-VITE_API_URL=http://localhost:3001
+# Frontend public API endpoint
+NEXT_PUBLIC_API_URL=http://localhost:3001
 
 # Backend runtime
 NODE_ENV=production
@@ -117,7 +117,7 @@ CONTRACT_ADDRESS=0xYOUR_CONTRACT_ADDRESS
 PRIVATE_KEY=0xYOUR_PRIVATE_KEY
 ```
 
-> **Note:** `VITE_*` variables are evaluated during build time.
+> **Note:** `NEXT_PUBLIC_*` variables are exposed to the browser and evaluated during build time.
 > If you modify them later, rebuild the frontend image using:
 >
 > ```bash
@@ -397,10 +397,10 @@ AI_TEMPERATURE=0.7
 **Frontend (.env)**
 ```env
 # API Configuration
-VITE_API_URL=http://localhost:3001
+NEXT_PUBLIC_API_URL=http://localhost:3001
 
 # Development
-VITE_DEV_MODE=true
+NEXT_PUBLIC_DEV_MODE=true
 ```
 
 **Smart Contracts (hardhat.config.js)**

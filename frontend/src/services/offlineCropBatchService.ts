@@ -28,7 +28,7 @@ interface CropBatch {
 }
 
 class OfflineCropBatchService {
-  private readonly API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  private readonly API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
   private async generateQRCode(batchId: string): Promise<string> {
     try {
