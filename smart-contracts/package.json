@@ -5,6 +5,7 @@
   "scripts": {
     "compile": "npx hardhat compile",
     "test": "npx hardhat test",
+    "test:ci": "npx hardhat test",
     "node": "npx hardhat node",
     "clean": "npx hardhat clean",
     "deploy:sepolia": "npx hardhat run scripts/deploy.js --network sepolia",

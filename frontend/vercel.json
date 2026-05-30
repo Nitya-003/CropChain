@@ -1,5 +1,7 @@
 {
   "buildCommand": "next build",
   "outputDirectory": ".next",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "ignoreCommand": "exit 0"
 }
+
