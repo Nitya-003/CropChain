@@ -29,13 +29,16 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
+          cache-dependency-path: smart-contracts/package-lock.json
 
       # Step 3: Install dependencies
       - name: Install dependencies
+        working-directory: smart-contracts/
         run: npm ci --legacy-peer-deps
 
       # Step 4: Run Hardhat tests
       - name: Run Smart Contract Tests
+        working-directory: smart-contracts/
         run: npm run test:ci
 
       # Step 5: Compile contracts (additional verification)
@@ -59,9 +62,11 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
+          cache-dependency-path: smart-contracts/package-lock.json
 
       # Step 3: Install dependencies
       - name: Install dependencies
+        working-directory: smart-contracts/
         run: npm ci --legacy-peer-deps
 
       # Step 4: Run Slither Security Analysis
@@ -117,11 +122,14 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
 
       # Step 3: Install frontend dependencies
       - name: Install frontend dependencies
+        working-directory: frontend/
         run: npm ci --legacy-peer-deps
 
       # Step 4: Build frontend (TypeScript compilation check)
       - name: Build Frontend
+        working-directory: frontend/
         run: npm run build

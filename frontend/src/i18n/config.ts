@@ -19,7 +19,7 @@ i18n
       },
     },
     fallbackLng: 'en', // Fallback language
-    lng: localStorage.getItem('language') || 'en', // Default language
+    lng: (typeof window !== 'undefined' && localStorage.getItem('language')) || 'en', // Default language
     interpolation: {
       escapeValue: false, // React already escapes values
     },

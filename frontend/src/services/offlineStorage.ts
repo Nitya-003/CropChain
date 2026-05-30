@@ -191,7 +191,7 @@ class OfflineStorageService {
   }
 
   // Sync Queue
-  private async addToSyncQueue(
+  async addToSyncQueue(
     type: 'batch' | 'update',
     referenceId: string,
     priority: number

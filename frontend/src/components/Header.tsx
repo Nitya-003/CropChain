@@ -1,5 +1,7 @@
+"use client";
 import React from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
 import { Leaf, LogOut, Shield, Compass, Sparkles, User, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -12,8 +14,8 @@ import toast from 'react-hot-toast';
 
 const Header: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const router = useRouter();
+  const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
   const { t } = useTranslation();
 
@@ -21,8 +23,8 @@ const Header: React.FC = () => {
     try {
       await logout();
       toast.success('Logged out successfully');
-      navigate('/login');
-    } catch (err) {
+      router.push('/login');
+    } catch {
       toast.error('Logout failed');
     }
   };
@@ -51,7 +53,7 @@ const Header: React.FC = () => {
           
           {/* Logo Column (Left-aligned) */}
           <div className="flex justify-start">
-            <Link to="/" className="flex items-center space-x-2 group">
+            <Link href="/" className="flex items-center space-x-2 group">
               <div className="bg-primary/10 p-2 rounded-xl group-hover:bg-primary/20 transition-colors">
                 <Leaf className="h-5 w-5 text-primary" />
               </div>
@@ -65,9 +67,9 @@ const Header: React.FC = () => {
           <div className="hidden md:flex justify-center">
             <nav className="flex items-center gap-1 bg-muted/65 dark:bg-muted/20 p-1 rounded-full border border-border/40 shadow-sm">
               <Link
-                to="/"
+                href="/"
                 className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
-                  location.pathname === '/'
+                  pathname === '/'
                     ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/10'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
@@ -76,9 +78,9 @@ const Header: React.FC = () => {
               </Link>
 
               <Link
-                to="/track-batch"
+                href="/track-batch"
                 className={`flex items-center gap-1 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
-                  location.pathname === '/track-batch'
+                  pathname === '/track-batch'
                     ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/10'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
@@ -88,9 +90,9 @@ const Header: React.FC = () => {
               </Link>
 
               <Link
-                to="/crop-recommendation"
+                href="/crop-recommendation"
                 className={`flex items-center gap-1 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
-                  location.pathname === '/crop-recommendation'
+                  pathname === '/crop-recommendation'
                     ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/10'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
@@ -102,9 +104,9 @@ const Header: React.FC = () => {
               {isAuthenticated && user?.role === 'admin' && (
                 <>
                   <Link
-                    to="/admin"
+                    href="/admin"
                     className={`flex items-center gap-1 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
-                      location.pathname === '/admin'
+                      pathname === '/admin'
                         ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/10'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
@@ -113,9 +115,9 @@ const Header: React.FC = () => {
                     Admin
                   </Link>
                   <Link
-                    to="/verification"
+                    href="/verification"
                     className={`flex items-center gap-1 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
-                      location.pathname === '/verification'
+                      pathname === '/verification'
                         ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/10'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
@@ -167,7 +169,7 @@ const Header: React.FC = () => {
                 </Button>
               </div>
             ) : (
-              <Link to="/login" className="pl-1">
+              <Link href="/login" className="pl-1">
                 <Button variant="default" size="sm" className="h-9 rounded-lg gap-1.5 px-4 text-xs font-bold bg-primary text-primary-foreground shadow-sm hover:bg-primary/95">
                   <LogIn className="h-3.5 w-3.5" />
                   Sign In

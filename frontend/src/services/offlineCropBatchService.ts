@@ -26,9 +26,8 @@ interface CropBatch {
   syncStatus?: 'synced' | 'pending' | 'syncing' | 'failed';
   pendingId?: string;
 }
-
 class OfflineCropBatchService {
-  private readonly API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  private readonly API_URL = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001';
 
   private async generateQRCode(batchId: string): Promise<string> {
     try {
@@ -234,8 +233,8 @@ class OfflineCropBatchService {
       const qrCode = await this.generateQRCode(batchId);
       const pendingData = pendingBatch.data as Omit<CropBatch, 'qrCode' | 'syncStatus' | 'pendingId'>;
       return {
-        batchId: batchId,
         ...pendingData,
+        batchId: batchId,
         qrCode,
         syncStatus: pendingBatch.status,
         pendingId: pendingBatch.id,

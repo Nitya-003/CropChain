@@ -1,5 +1,6 @@
+"use client";
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { Compass, CheckCircle2, ChevronRight, Sprout, Building2, Truck, Store } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -11,10 +12,9 @@ interface JourneyPreviewProps {
 
 export const JourneyPreview: React.FC<JourneyPreviewProps> = ({
   batchId,
-  currentStage,
-  updates
+  currentStage
 }) => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { t } = useTranslation();
 
   const stages = [
@@ -45,7 +45,7 @@ export const JourneyPreview: React.FC<JourneyPreviewProps> = ({
         </div>
 
         <button
-          onClick={() => navigate(`/batch/${batchId}/journey`)}
+          onClick={() => router.push(`/batch/${batchId}/journey`)}
           className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 rounded-xl transition-all duration-200 hover:shadow-md transform hover:scale-[1.02]"
         >
           <span>{t('journey.view_full_journey', 'View Full Journey Map')}</span>
@@ -76,7 +76,7 @@ export const JourneyPreview: React.FC<JourneyPreviewProps> = ({
               <div 
                 key={stage.value} 
                 className="flex flex-col items-center cursor-pointer group"
-                onClick={() => navigate(`/batch/${batchId}/journey`)}
+                onClick={() => router.push(`/batch/${batchId}/journey`)}
               >
                 {/* Node icon / indicator */}
                 <div 

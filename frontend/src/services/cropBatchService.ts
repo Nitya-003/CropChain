@@ -29,7 +29,7 @@ class CropBatchService {
 
   constructor() {
     // Initialize with some sample data
-    if (process.env.NODE_ENV !== 'production') {
+    if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'production') {
       this.initializeSampleData();
     }
   }
