@@ -3,16 +3,39 @@ const User = require('../models/User');
 const { z } = require('zod');
 const apiResponse = require('../utils/apiResponse');
 const { ROLES } = require('../constants/permissions');
+const {
+    CHALLENGE_ACTIONS,
+    createChallenge,
+    consumeChallenge,
+    createFingerprint,
+    deleteIdempotencyRecord,
+    getIdempotencyRecord,
+    reserveIdempotencyKey,
+    storeCompletedIdempotencyRecord,
+} = require('../services/verificationSecurityService');
 
 // Validation schemas
 const linkWalletSchema = z.object({
     walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address'),
     signature: z.string().min(1, 'Signature is required'),
+    nonce: z.string().min(1, 'Nonce is required'),
+    expiresAt: z.coerce.number().int().positive('Expiry timestamp is required'),
 });
 
 const issueCredentialSchema = z.object({
     userId: z.string().min(1, 'User ID is required'),
     signature: z.string().min(1, 'Signature is required'),
+    walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address'),
+    nonce: z.string().min(1, 'Nonce is required'),
+    expiresAt: z.coerce.number().int().positive('Expiry timestamp is required'),
+});
+
+const linkWalletChallengeSchema = z.object({
+    walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address'),
+});
+
+const issueCredentialChallengeSchema = z.object({
+    userId: z.string().min(1, 'User ID is required'),
     walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address'),
 });
 
@@ -45,6 +68,180 @@ const handleServerError = (res, error, { code, message }) => {
     );
 };
 
+const requireIdempotencyKey = (req, res) => {
+    const idempotencyKey = req.get('Idempotency-Key');
+
+    if (!idempotencyKey || !idempotencyKey.trim()) {
+        res.status(400).json(
+            apiResponse.validationErrorResponse(['Idempotency-Key header is required'])
+        );
+
+        return null;
+    }
+
+    return idempotencyKey.trim();
+};
+
+const handleIdempotencyReplay = (res, record) => {
+    return res.status(record.statusCode || 200).json(record.response);
+};
+
+const handleDuplicateIdempotencyKey = (res, message) => {
+    return res.status(409).json(apiResponse.conflictResponse(message));
+};
+
+const handleChallengeValidation = (res, challengeRecord, requestPayload) => {
+    if (!challengeRecord) {
+        return handleDuplicateIdempotencyKey(res, 'Nonce is missing, expired, or already used');
+    }
+
+    if (
+        challengeRecord.expiresAt !== requestPayload.expiresAt ||
+        challengeRecord.nonce !== requestPayload.nonce
+    ) {
+        return handleDuplicateIdempotencyKey(res, 'Nonce does not match the active challenge');
+    }
+
+    return null;
+};
+
+const handleVerificationWithIdempotency = async ({
+    res,
+    action,
+    actorId,
+    userId,
+    walletAddress,
+    signature,
+    nonce,
+    expiresAt,
+    idempotencyKey,
+    execute,
+}) => {
+    const fingerprint = createFingerprint({ action, actorId, userId, walletAddress });
+    const existingRecord = await getIdempotencyRecord({ action, actorId, key: idempotencyKey });
+
+    if (existingRecord) {
+        if (existingRecord.fingerprint !== fingerprint) {
+            return handleDuplicateIdempotencyKey(res, 'Idempotency-Key was already used for a different request');
+        }
+
+        if (existingRecord.state === 'completed') {
+            return handleIdempotencyReplay(res, existingRecord);
+        }
+
+        return handleDuplicateIdempotencyKey(res, 'Request with this Idempotency-Key is already in progress');
+    }
+
+    const challengeRecord = await consumeChallenge({
+        action,
+        actorId,
+        nonce,
+        userId,
+        walletAddress,
+        expiresAt,
+    });
+
+    const challengeError = handleChallengeValidation(res, challengeRecord, { nonce, expiresAt });
+
+    if (challengeError) {
+        return challengeError;
+    }
+
+    const reservation = await reserveIdempotencyKey({
+        action,
+        actorId,
+        key: idempotencyKey,
+        fingerprint,
+    });
+
+    if (!reservation.reserved) {
+        if (!reservation.record) {
+            return handleDuplicateIdempotencyKey(res, 'Unable to reserve the idempotency key');
+        }
+
+        if (reservation.record.fingerprint !== fingerprint) {
+            return handleDuplicateIdempotencyKey(res, 'Idempotency-Key was already used for a different request');
+        }
+
+        if (reservation.record.state === 'completed') {
+            return handleIdempotencyReplay(res, reservation.record);
+        }
+
+        return handleDuplicateIdempotencyKey(res, 'Request with this Idempotency-Key is already in progress');
+    }
+
+    try {
+        const result = await execute(challengeRecord);
+        await storeCompletedIdempotencyRecord({
+            action,
+            actorId,
+            key: idempotencyKey,
+            fingerprint,
+            response: result,
+            statusCode: 200,
+        });
+
+        return res.json(result);
+    } catch (error) {
+        await deleteIdempotencyRecord({ action, actorId, key: idempotencyKey });
+        throw error;
+    }
+};
+
+const generateLinkWalletChallenge = async (req, res) => {
+    try {
+        const validationResult = handleZodValidation(res, linkWalletChallengeSchema, req.body);
+
+        if (!validationResult.ok) {
+            return;
+        }
+
+        const userId = req.user.id;
+        const { walletAddress } = validationResult.data;
+
+        const challenge = await createChallenge({
+            action: CHALLENGE_ACTIONS.LINK_WALLET,
+            actorId: userId,
+            userId,
+            walletAddress,
+        });
+
+        res.json(apiResponse.successResponse({ challenge }, 'Wallet linking challenge generated'));
+    } catch (error) {
+        return handleServerError(res, error, {
+            code: 'WALLET_LINK_CHALLENGE_ERROR',
+            message: 'Failed to generate wallet linking challenge',
+        });
+    }
+};
+
+const generateIssueCredentialChallenge = async (req, res) => {
+    try {
+        const validationResult = handleZodValidation(res, issueCredentialChallengeSchema, req.body);
+
+        if (!validationResult.ok) {
+            return;
+        }
+
+        const actorId = req.user.id;
+        const { userId, walletAddress } = validationResult.data;
+
+        const challenge = await createChallenge({
+            action: CHALLENGE_ACTIONS.ISSUE_CREDENTIAL,
+            actorId,
+            userId,
+            walletAddress,
+        });
+
+        res.json(apiResponse.successResponse({ challenge }, 'Credential issuance challenge generated'));
+    } catch (error) {
+        return handleServerError(res, error, {
+            code: 'CREDENTIAL_ISSUE_CHALLENGE_ERROR',
+            message: 'Failed to generate credential issuance challenge',
+        });
+    }
+};
+
 /**
  * Link wallet address to user account
  */
@@ -56,12 +253,27 @@ const linkWallet = async (req, res) => {
             return;
         }
 
-        const { walletAddress, signature } = validationResult.data;
+        const idempotencyKey = requireIdempotencyKey(req, res);
+
+        if (!idempotencyKey) {
+            return;
+        }
+
+        const { walletAddress, signature, nonce, expiresAt } = validationResult.data;
         const userId = req.user.id;
 
-        const result = await didService.linkWallet(userId, walletAddress, signature);
-
-        res.json(result);
+        return handleVerificationWithIdempotency({
+            res,
+            action: CHALLENGE_ACTIONS.LINK_WALLET,
+            actorId: userId,
+            userId,
+            walletAddress,
+            signature,
+            nonce,
+            expiresAt,
+            idempotencyKey,
+            execute: (challenge) => didService.linkWallet(userId, walletAddress, signature, challenge),
+        });
     } catch (error) {
         return handleServerError(res, error, {
             code: 'WALLET_LINKING_ERROR',
@@ -81,12 +293,27 @@ const issueCredential = async (req, res) => {
             return;
         }
 
-        const { userId, signature, walletAddress } = validationResult.data;
+        const idempotencyKey = requireIdempotencyKey(req, res);
+
+        if (!idempotencyKey) {
+            return;
+        }
+
+        const { userId, signature, walletAddress, nonce, expiresAt } = validationResult.data;
         const verifierId = req.user.id;
 
-        const result = await didService.issueCredential(userId, verifierId, signature, walletAddress);
-
-        res.json(result);
+        return handleVerificationWithIdempotency({
+            res,
+            action: CHALLENGE_ACTIONS.ISSUE_CREDENTIAL,
+            actorId: verifierId,
+            userId,
+            walletAddress,
+            signature,
+            nonce,
+            expiresAt,
+            idempotencyKey,
+            execute: (challenge) => didService.issueCredential(userId, verifierId, signature, walletAddress, challenge),
+        });
     } catch (error) {
         return handleServerError(res, error, {
             code: 'CREDENTIAL_ISSUE_ERROR',
@@ -225,6 +452,8 @@ const getVerifiedUsers = async (req, res) => {
 };
 
 module.exports = {
+    generateLinkWalletChallenge,
+    generateIssueCredentialChallenge,
     linkWallet,
     issueCredential,
     revokeCredential,

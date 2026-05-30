@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const {
+    generateLinkWalletChallenge,
+    generateIssueCredentialChallenge,
     linkWallet,
     issueCredential,
     revokeCredential,
@@ -14,6 +16,8 @@ const { protect, adminOnly } = require('../middleware/auth');
 router.get('/check/:userId', checkVerification);
 
 // Protected routes
+router.post('/challenge/link-wallet', protect, generateLinkWalletChallenge);
+router.post('/challenge/issue', protect, adminOnly, generateIssueCredentialChallenge);
 router.post('/link-wallet', protect, linkWallet);
 
 // Admin only routes

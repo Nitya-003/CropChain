@@ -97,3 +97,6 @@ jspm_packages/
 artifacts/
 cache/
 typechain-types/
+
+# Temporary migration backup directories
+frontend-old/

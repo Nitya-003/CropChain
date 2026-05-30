@@ -38,14 +38,22 @@ class BlockchainService {
      * @throws Error if required variables are missing
      */
     validateEnvironment() {
-        const requiredEnvVars = ['INFURA_URL', 'CONTRACT_ADDRESS', 'PRIVATE_KEY'];
-        const missing = requiredEnvVars.filter(key => !process.env[key]);
+        const hasUrl = process.env.INFURA_URL || process.env.SEPOLIA_URL;
+        const hasPrivateKey = process.env.PRIVATE_KEY || process.env.ETH_PRIVATE_KEY;
+        const hasContract = process.env.CONTRACT_ADDRESS;
+
+        const missing = [];
+        if (!hasUrl) missing.push('INFURA_URL / SEPOLIA_URL');
+        if (!hasContract) missing.push('CONTRACT_ADDRESS');
+        if (!hasPrivateKey) missing.push('PRIVATE_KEY / ETH_PRIVATE_KEY');
 
         if (missing.length > 0) {
             throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
         }
 
-        if (!/^0x[a-fA-F0-9]{64}$/.test(process.env.PRIVATE_KEY)) {
+        const pk = process.env.PRIVATE_KEY || process.env.ETH_PRIVATE_KEY;
+        const formattedPk = pk.startsWith('0x') ? pk : '0x' + pk;
+        if (!/^0x[a-fA-F0-9]{64}$/.test(formattedPk)) {
             throw new Error('Invalid PRIVATE_KEY format');
         }
     }

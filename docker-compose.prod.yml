@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  # MongoDB Service
+  mongodb:
+    image: mongo:latest
+    container_name: cropchain-mongodb-prod
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - cropchain-network
+
+  # Redis Service
+  redis:
+    image: redis:alpine
+    container_name: cropchain-redis-prod
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - cropchain-network
+
+  # Backend Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cropchain-backend-prod
+    restart: always
+    expose:
+      - "3001"
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/cropchain
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CONTRACT_ADDRESS=0x2c79F3f6b448270ADF667CA5d23d23feC4d15Fa4
+      - ETH_PRIVATE_KEY=${ETH_PRIVATE_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - JWT_SECRET=66ae55bf5632b508f7db49ab6e7b16527ba09689fbf09d7328bfb51d1e67ab9a
+      - JWT_REFRESH_SECRET=ca7e0508f749ab6e7b16527ba09689fbf09d7328bfb51d1e67ab9a66ae55bf5632b
+      - MULTISIG_HMAC_SECRET=8fd7ba09689fbf09d7328bfb51d1e67ab9a66ae55bf5632b508f7db49abca7e050
+      - AI_PROVIDER=gemini
+    networks:
+      - cropchain-network
+    depends_on:
+      - mongodb
+      - redis
+ 
+  nginx:
+    build:
+      context: ./backend/nginx
+      dockerfile: Dockerfile
+    container_name: cropchain-nginx-prod
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./backend/nginx/certs:/etc/nginx/certs
+    networks:
+      - cropchain-network
+    depends_on:
+      - backend
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  cropchain-network:
+    driver: bridge

@@ -3,9 +3,7 @@ const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const mongoSanitize = require('express-mongo-sanitize');
 const jwt = require('jsonwebtoken');
-const { ethers } = require('ethers');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
 const connectDB = require('./config/db');
@@ -13,6 +11,7 @@ require('dotenv').config();
 const mainRoutes = require("./routes/index");
 const oracleRoutes = require("./routes/oracle");
 const validateRequest = require('./middleware/validator');
+const createNoSqlSanitizer = require('./middleware/nosqlSanitizer');
 const { chatSchema } = require("./validations/chatSchema");
 const aiService = require('./services/aiService');
 const errorHandlerMiddleware = require('./middleware/errorHandler');
@@ -20,7 +19,6 @@ const { createBatchSchema, updateBatchSchema } = require("./validations/batchSch
 const { protect, adminOnly, authorizeBatchOwner, authorizeRoles, authorizeStageTransition, authorizeBlockchainTransaction } = require('./middleware/auth');
 const mongoose = require('mongoose');
 const apiResponse = require('./utils/apiResponse');
-const crypto = require('crypto');
 const oracleService = require('./services/oracleService');
 
 // Import Services
@@ -151,8 +149,9 @@ app.use((_req, res, next) => {
 });
 
 // Rate limiting configurations
+const isTestEnv = process.env.NODE_ENV === 'test';
 const rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
-const rateLimitMaxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100;
+const rateLimitMaxRequests = isTestEnv ? 10000 : (parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100);
 
 const generalLimiter = rateLimit({
     windowMs: rateLimitWindowMs,
@@ -167,7 +166,7 @@ const generalLimiter = rateLimit({
 
 const authLimiter = rateLimit({
     windowMs: rateLimitWindowMs,
-    max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 5,
+    max: isTestEnv ? 10000 : (parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 60),
     message: {
         error: 'Too many authentication attempts from this IP, please try again later.',
         retryAfter: `${Math.ceil(rateLimitWindowMs / 60000)} minutes`
@@ -178,7 +177,7 @@ const authLimiter = rateLimit({
 
 const batchLimiter = rateLimit({
     windowMs: rateLimitWindowMs,
-    max: parseInt(process.env.BATCH_RATE_LIMIT_MAX) || 20,
+    max: isTestEnv ? 10000 : (parseInt(process.env.BATCH_RATE_LIMIT_MAX) || 20),
     message: {
         error: 'Too many batch operations from this IP, please try again later.',
         retryAfter: `${Math.ceil(rateLimitWindowMs / 60000)} minutes`
@@ -226,20 +225,13 @@ app.use(cors(corsOptions));
 const maxFileSize = parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024;
 
 app.use(express.json({
-    limit: maxFileSize,
-    verify: (req, res, buf) => {
-        try {
-            JSON.parse(buf);
-        } catch (e) {
-            res.status(400).json({ error: 'Invalid JSON' });
-        }
-    }
+    limit: maxFileSize
 }));
 
 app.use(express.urlencoded({ extended: true, limit: maxFileSize }));
 
 // NoSQL injection protection
-app.use(mongoSanitize());
+app.use(createNoSqlSanitizer());
 app.use(securityLogger);
 
 // ==================== BLOCKCHAIN SERVICE INITIALIZATION ====================
@@ -252,6 +244,45 @@ if (process.env.NODE_ENV !== 'test') {
         console.error('Blockchain configuration error:', error.message);
     }
 }
+
+// ==================== HOST HEADER VALIDATION ====================
+
+const trustedHosts = (() => {
+    const hosts = new Set(['localhost', '127.0.0.1']);
+    if (process.env.FRONTEND_URL) {
+        try {
+            const hostname = new URL(process.env.FRONTEND_URL).hostname;
+            if (hostname) hosts.add(hostname);
+        } catch { }
+    }
+    if (process.env.ALLOWED_ORIGINS) {
+        process.env.ALLOWED_ORIGINS.split(',').forEach(origin => {
+            try {
+                const hostname = new URL(origin.trim()).hostname;
+                if (hostname) hosts.add(hostname);
+            } catch { }
+        });
+    }
+    if (process.env.TRUSTED_HOSTS) {
+        process.env.TRUSTED_HOSTS.split(',').forEach(h => {
+            const trimmed = h.trim().toLowerCase();
+            if (trimmed) hosts.add(trimmed);
+        });
+    }
+    return hosts;
+})();
+
+app.use((req, res, next) => {
+    const host = req.hostname?.toLowerCase();
+    if (host && !trustedHosts.has(host)) {
+        console.warn(`[HOST BLOCKED] Unexpected Host header: ${host}`);
+        return res.status(400).json({
+            error: 'Invalid request',
+            code: 'INVALID_HOST'
+        });
+    }
+    next();
+});
 
 // ==================== ROUTES ====================
 
@@ -269,71 +300,52 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 
 
 // Blockchain configuration
-const REQUIRED_ENV_VARS = [
-    'INFURA_URL',
-    'CONTRACT_ADDRESS',
-    'PRIVATE_KEY'
-];
+const hasUrl = process.env.INFURA_URL || process.env.SEPOLIA_URL;
+const hasPrivateKey = process.env.PRIVATE_KEY || process.env.ETH_PRIVATE_KEY;
+const hasContract = process.env.CONTRACT_ADDRESS;
 
-if (process.env.NODE_ENV !== 'test') {
-    REQUIRED_ENV_VARS.forEach((key) => {
-        if (!process.env[key]) {
-            throw new Error(`Missing required environment variable: ${key}`);
-        }
-    });
+if (process.env.NODE_ENV === 'production' && process.env.STRICT_BLOCKCHAIN_CHECK === 'true') {
+    if (!hasUrl) throw new Error('Missing required environment variable: INFURA_URL or SEPOLIA_URL');
+    if (!hasContract) throw new Error('Missing required environment variable: CONTRACT_ADDRESS');
+    if (!hasPrivateKey) throw new Error('Missing required environment variable: PRIVATE_KEY or ETH_PRIVATE_KEY');
 
-    if (!/^0x[a-fA-F0-9]{64}$/.test(process.env.PRIVATE_KEY)) {
+    const pk = process.env.PRIVATE_KEY || process.env.ETH_PRIVATE_KEY;
+    const formattedPk = pk.startsWith('0x') ? pk : '0x' + pk;
+    if (!/^0x[a-fA-F0-9]{64}$/.test(formattedPk)) {
         throw new Error('Invalid PRIVATE_KEY format');
     }
-}
+} else if (process.env.NODE_ENV !== 'test') {
+    // Check and warn instead of throwing (allows running in demo/offline mode)
+    const missing = [];
+    if (!hasUrl) missing.push('INFURA_URL/SEPOLIA_URL');
+    if (!hasContract) missing.push('CONTRACT_ADDRESS');
+    if (!hasPrivateKey) missing.push('PRIVATE_KEY/ETH_PRIVATE_KEY');
 
-const PROVIDER_URL = process.env.INFURA_URL;
-const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
-const PRIVATE_KEY = process.env.PRIVATE_KEY;
-
-// Initialize blockchain provider and contract (reused for listener)
-let provider;
-let contractInstance;
-let wallet;
-
-if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY) {
-    try {
-        provider = new ethers.JsonRpcProvider(PROVIDER_URL);
-        wallet = new ethers.Wallet(PRIVATE_KEY, provider);
-
-        contractInstance = new ethers.Contract(CONTRACT_ADDRESS, blockchainService.getContractABI(), wallet);
-        console.log('✓ Blockchain contract instance initialized');
-    } catch (error) {
-        console.error('Failed to initialize blockchain connection:', error.message);
-        contractInstance = null;
+    if (missing.length > 0) {
+        console.log(`ℹ️  Missing environment variables for blockchain connection: ${missing.join(', ')}. Running in demo mode.`);
+    } else {
+        const pk = process.env.PRIVATE_KEY || process.env.ETH_PRIVATE_KEY;
+        const formattedPk = pk.startsWith('0x') ? pk : '0x' + pk;
+        if (!/^0x[a-fA-F0-9]{64}$/.test(formattedPk)) {
+            console.warn('⚠️  Invalid PRIVATE_KEY format - running in demo mode');
+        }
     }
-} else {
-    console.log('ℹ️  Blockchain not configured - running without contract instance');
 }
-
-async function generateBatchId(session = null) {
-    return await batchService.generateBatchId(session);
-}
-
-async function generateQRCode(batchId) {
-    return await batchService.generateQRCode(batchId);
-}
-
-function simulateBlockchainHash(data) {
-    return blockchainService.simulateHash(data);
-}
-
 
 // Import Routes
 const authRoutes = require('./routes/authRoutes');
 const verificationRoutes = require('./routes/verification');
 const approvalRoutes = require('./routes/approvalRoutes');
+const recommendRoutes = require('./routes/recommendRoutes');
 
 // Mount Auth Routes
 app.use('/api/auth', authLimiter, authRoutes);
 
 // Mount Verification Routes
 app.use('/api/verification', generalLimiter, verificationRoutes);
+
+// Mount Recommendation Routes
+app.use('/api/recommend', recommendRoutes);
 
 
 // Mount Approval Routes (Multi-signature for high-stakes actions)
@@ -525,6 +537,37 @@ app.post('/api/ai/chat', batchLimiter, protect, validateRequest(chatSchema), asy
 
         console.log(`[AI CHAT] Request from IP: ${req.ip} - Message: "${message.substring(0, 50)}..."`);
 
+        const acceptsEventStream = req.headers.accept?.includes('text/event-stream');
+
+        if (acceptsEventStream) {
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache, no-transform');
+            res.setHeader('Connection', 'keep-alive');
+            res.flushHeaders?.();
+
+            const sendEvent = (event, data) => {
+                res.write(`event: ${event}\n`);
+                res.write(`data: ${JSON.stringify(data)}\n\n`);
+            };
+
+            const aiResponse = await aiService.chatStream(message, batchServiceForAI, (token) => {
+                sendEvent('token', { token });
+            });
+
+            sendEvent('done', {
+                response: aiResponse.message,
+                timestamp: new Date().toISOString(),
+                ...(aiResponse.functionCalled && {
+                    functionCalled: aiResponse.functionCalled,
+                    functionResult: aiResponse.functionResult
+                })
+            });
+
+            res.end();
+            console.log(`[AI CHAT SUCCESS] Streamed response generated for IP: ${req.ip}`);
+            return;
+        }
+
         const aiResponse = await aiService.chat(message, batchServiceForAI);
 
         console.log(`[AI CHAT SUCCESS] Response generated for IP: ${req.ip}`);
@@ -545,6 +588,15 @@ app.post('/api/ai/chat', batchLimiter, protect, validateRequest(chatSchema), asy
     } catch (error) {
         notificationService.notifyError('AI chat', error);
         console.error('AI Chat error:', error);
+
+        if (res.headersSent) {
+            res.write(`event: error\n`);
+            res.write(`data: ${JSON.stringify({
+                error: "I'm sorry, I'm having trouble processing your request right now. Please try asking about batch tracking, QR codes, or supply chain processes."
+            })}\n\n`);
+            res.end();
+            return;
+        }
 
         const response = apiResponse.errorResponse(
             "I'm sorry, I'm having trouble processing your request right now. Please try asking about batch tracking, QR codes, or supply chain processes.",
@@ -706,13 +758,17 @@ if (process.env.NODE_ENV !== 'test') {
             console.log('ℹ️  CCIP service not configured - cross-chain dispatch disabled');
         }
 
-        // Start Oracle service for IoT data verification
-        try {
-            await oracleService.initialize();
-            console.log('🔮 Oracle service started successfully');
-        } catch (error) {
-            console.error('❌ Failed to start Oracle service:', error.message);
-            console.log('⚠️  Continuing without Oracle service...');
+        // Start Oracle service for IoT data verification if blockchain is active
+        if (blockchainService.isAvailable() && process.env.ORACLE_PRIVATE_KEY) {
+            try {
+                await oracleService.initialize();
+                console.log('🔮 Oracle service started successfully');
+            } catch (error) {
+                console.error('❌ Failed to start Oracle service:', error.message);
+                console.log('⚠️  Continuing without Oracle service...');
+            }
+        } else {
+            console.log('ℹ️  Oracle service disabled (blockchain running in demo mode or ORACLE_PRIVATE_KEY missing)');
         }
     });
 }

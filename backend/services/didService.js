@@ -1,6 +1,7 @@
 const { ethers } = require('ethers');
 const User = require('../models/User');
 const { isAdminRole } = require('../constants/permissions');
+const { buildVerificationMessage, CHALLENGE_ACTIONS } = require('./verificationSecurityService');
 
 /**
  * DID Service for Verifiable Credentials
@@ -44,7 +45,7 @@ class DIDService {
      * @param {string} walletAddress - User's wallet address
      * @returns {Object} - Verification result
      */
-    async issueCredential(userId, verifierId, signature, walletAddress) {
+    async issueCredential(userId, verifierId, signature, walletAddress, challenge) {
         try {
             const user = await User.findById(userId);
             const verifier = await User.findById(verifierId);
@@ -55,6 +56,10 @@ class DIDService {
 
             if (!verifier || !isAdminRole(verifier.role)) {
                 throw new Error('Only Mandi officers (admins) can verify users');
+            }
+
+            if (!challenge || challenge.action !== CHALLENGE_ACTIONS.ISSUE_CREDENTIAL) {
+                throw new Error('A valid issuance challenge is required');
             }
 
             if (user.verification?.isVerified) {
@@ -83,7 +88,14 @@ class DIDService {
             });
 
             // Verify signature
-            const message = `Verify user ${user.name} (${user.email}) with wallet ${linkedWalletAddress}`;
+            const message = buildVerificationMessage({
+                action: CHALLENGE_ACTIONS.ISSUE_CREDENTIAL,
+                actorId: verifierId,
+                userId: user._id.toString(),
+                walletAddress: linkedWalletAddress,
+                nonce: challenge.nonce,
+                expiresAt: challenge.expiresAt,
+            });
 
             if (!verifier.walletAddress) {
                 throw new Error('Verifier wallet address not found');
@@ -193,7 +205,7 @@ class DIDService {
      * @param {string} signature - Signature proving ownership
      * @returns {Object} - Link result
      */
-    async linkWallet(userId, walletAddress, signature) {
+    async linkWallet(userId, walletAddress, signature, challenge) {
         try {
             const user = await User.findById(userId);
 
@@ -201,8 +213,19 @@ class DIDService {
                 throw new Error('User not found');
             }
 
+            if (!challenge || challenge.action !== CHALLENGE_ACTIONS.LINK_WALLET) {
+                throw new Error('A valid wallet linking challenge is required');
+            }
+
             // Verify wallet ownership
-            const message = `Link wallet ${walletAddress} to CropChain account`;
+            const message = buildVerificationMessage({
+                action: CHALLENGE_ACTIONS.LINK_WALLET,
+                actorId: userId,
+                userId,
+                walletAddress,
+                nonce: challenge.nonce,
+                expiresAt: challenge.expiresAt,
+            });
             const isValidSignature = this.verifySignature(message, signature, walletAddress);
 
             if (!isValidSignature) {
