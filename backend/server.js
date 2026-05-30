@@ -314,9 +314,14 @@ if (process.env.NODE_ENV !== 'test') {
         }
     });
 
-    if (!/^0x[a-fA-F0-9]{64}$/.test(process.env.PRIVATE_KEY)) {
-        throw new Error('Invalid PRIVATE_KEY format');
+    let privateKey = process.env.PRIVATE_KEY;
+    if (!/^(0x)?[a-fA-F0-9]{64}$/.test(privateKey)) {
+        throw new Error('Invalid PRIVATE_KEY format. Expected a 64-character hex string (with or without 0x prefix)');
     }
+    if (!privateKey.startsWith('0x')) {
+        privateKey = '0x' + privateKey;
+    }
+    process.env.PRIVATE_KEY = privateKey;
 }
 
 const PROVIDER_URL = process.env.INFURA_URL;
