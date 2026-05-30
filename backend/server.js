@@ -166,7 +166,7 @@ const generalLimiter = rateLimit({
 
 const authLimiter = rateLimit({
     windowMs: rateLimitWindowMs,
-    max: isTestEnv ? 10000 : (parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 5),
+    max: isTestEnv ? 10000 : (parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 60),
     message: {
         error: 'Too many authentication attempts from this IP, please try again later.',
         retryAfter: `${Math.ceil(rateLimitWindowMs / 60000)} minutes`
@@ -297,12 +297,16 @@ if (process.env.NODE_ENV === 'production' && process.env.STRICT_BLOCKCHAIN_CHECK
 const authRoutes = require('./routes/authRoutes');
 const verificationRoutes = require('./routes/verification');
 const approvalRoutes = require('./routes/approvalRoutes');
+const recommendRoutes = require('./routes/recommendRoutes');
 
 // Mount Auth Routes
 app.use('/api/auth', authLimiter, authRoutes);
 
 // Mount Verification Routes
 app.use('/api/verification', generalLimiter, verificationRoutes);
+
+// Mount Recommendation Routes
+app.use('/api/recommend', recommendRoutes);
 
 
 // Mount Approval Routes (Multi-signature for high-stakes actions)

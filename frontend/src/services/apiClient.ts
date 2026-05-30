@@ -23,6 +23,8 @@ apiClient.interceptors.request.use((config) => {
     return config;
 });
 
+let refreshPromise: Promise<string | null> | null = null;
+
 apiClient.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
@@ -43,21 +45,35 @@ apiClient.interceptors.response.use(
 
         originalRequest._retry = true;
 
-        try {
-            const response = await apiClient.post('/auth/refresh');
-            const nextToken = response.data?.data?.token;
+        if (!refreshPromise) {
+            refreshPromise = (async () => {
+                try {
+                    const response = await apiClient.post('/auth/refresh');
+                    const nextToken = response.data?.data?.token;
 
-            if (!nextToken) {
-                tokenService.clearAccessToken();
-                return Promise.reject(error);
-            }
+                    if (!nextToken) {
+                        tokenService.clearAccessToken();
+                        return null;
+                    }
 
-            tokenService.setAccessToken(nextToken);
-            originalRequest.headers.Authorization = `Bearer ${nextToken}`;
-            return apiClient(originalRequest);
-        } catch (refreshError) {
-            tokenService.clearAccessToken();
-            return Promise.reject(refreshError);
+                    tokenService.setAccessToken(nextToken);
+                    return nextToken;
+                } catch (err) {
+                    tokenService.clearAccessToken();
+                    return null;
+                } finally {
+                    refreshPromise = null;
+                }
+            })();
         }
+
+        const nextToken = await refreshPromise;
+
+        if (!nextToken) {
+            return Promise.reject(error);
+        }
+
+        originalRequest.headers.Authorization = `Bearer ${nextToken}`;
+        return apiClient(originalRequest);
     }
 );
