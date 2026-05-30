@@ -3,7 +3,6 @@ const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const mongoSanitize = require('express-mongo-sanitize');
 const jwt = require('jsonwebtoken');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
@@ -12,6 +11,7 @@ require('dotenv').config();
 const mainRoutes = require("./routes/index");
 const oracleRoutes = require("./routes/oracle");
 const validateRequest = require('./middleware/validator');
+const createNoSqlSanitizer = require('./middleware/nosqlSanitizer');
 const { chatSchema } = require("./validations/chatSchema");
 const aiService = require('./services/aiService');
 const errorHandlerMiddleware = require('./middleware/errorHandler');
@@ -231,7 +231,7 @@ app.use(express.json({
 app.use(express.urlencoded({ extended: true, limit: maxFileSize }));
 
 // NoSQL injection protection
-app.use(mongoSanitize());
+app.use(createNoSqlSanitizer());
 app.use(securityLogger);
 
 // ==================== BLOCKCHAIN SERVICE INITIALIZATION ====================
