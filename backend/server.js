@@ -300,35 +300,48 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 
 
 // Blockchain configuration
-const hasUrl = process.env.INFURA_URL || process.env.SEPOLIA_URL;
-const hasPrivateKey = process.env.PRIVATE_KEY || process.env.ETH_PRIVATE_KEY;
-const hasContract = process.env.CONTRACT_ADDRESS;
+const REQUIRED_ENV_VARS = [
+    'INFURA_URL',
+    'CONTRACT_ADDRESS',
+    'PRIVATE_KEY'
+];
 
-if (process.env.NODE_ENV === 'production' && process.env.STRICT_BLOCKCHAIN_CHECK === 'true') {
-    if (!hasUrl) throw new Error('Missing required environment variable: INFURA_URL or SEPOLIA_URL');
-    if (!hasContract) throw new Error('Missing required environment variable: CONTRACT_ADDRESS');
-    if (!hasPrivateKey) throw new Error('Missing required environment variable: PRIVATE_KEY or ETH_PRIVATE_KEY');
-
-    const pk = process.env.PRIVATE_KEY || process.env.ETH_PRIVATE_KEY;
-    const formattedPk = pk.startsWith('0x') ? pk : '0x' + pk;
-    if (!/^0x[a-fA-F0-9]{64}$/.test(formattedPk)) {
-        throw new Error('Invalid PRIVATE_KEY format');
-    }
-} else if (process.env.NODE_ENV !== 'test') {
-    // Check and warn instead of throwing (allows running in demo/offline mode)
-    const missing = [];
-    if (!hasUrl) missing.push('INFURA_URL/SEPOLIA_URL');
-    if (!hasContract) missing.push('CONTRACT_ADDRESS');
-    if (!hasPrivateKey) missing.push('PRIVATE_KEY/ETH_PRIVATE_KEY');
-
-    if (missing.length > 0) {
-        console.log(`ℹ️  Missing environment variables for blockchain connection: ${missing.join(', ')}. Running in demo mode.`);
-    } else {
-        const pk = process.env.PRIVATE_KEY || process.env.ETH_PRIVATE_KEY;
-        const formattedPk = pk.startsWith('0x') ? pk : '0x' + pk;
-        if (!/^0x[a-fA-F0-9]{64}$/.test(formattedPk)) {
-            console.warn('⚠️  Invalid PRIVATE_KEY format - running in demo mode');
+if (process.env.NODE_ENV !== 'test') {
+    REQUIRED_ENV_VARS.forEach((key) => {
+        if (!process.env[key]) {
+            throw new Error(`Missing required environment variable: ${key}`);
         }
+    });
+
+    let privateKey = process.env.PRIVATE_KEY;
+    if (!/^(0x)?[a-fA-F0-9]{64}$/.test(privateKey)) {
+        throw new Error('Invalid PRIVATE_KEY format. Expected a 64-character hex string (with or without 0x prefix)');
+    }
+    if (!privateKey.startsWith('0x')) {
+        privateKey = '0x' + privateKey;
+    }
+    process.env.PRIVATE_KEY = privateKey;
+}
+
+const PROVIDER_URL = process.env.INFURA_URL;
+const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
+
+// Initialize blockchain provider and contract (reused for listener)
+let provider;
+let contractInstance;
+let wallet;
+
+if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY) {
+    try {
+        provider = new ethers.JsonRpcProvider(PROVIDER_URL);
+        wallet = new ethers.Wallet(PRIVATE_KEY, provider);
+
+        contractInstance = new ethers.Contract(CONTRACT_ADDRESS, blockchainService.getContractABI(), wallet);
+        console.log('✓ Blockchain contract instance initialized');
+    } catch (error) {
+        console.error('Failed to initialize blockchain connection:', error.message);
+        contractInstance = null;
     }
 }
 
