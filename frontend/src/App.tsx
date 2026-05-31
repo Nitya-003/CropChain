@@ -1,3 +1,4 @@
+import BackToTop from "./components/BackToTop";
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast'; // <--- 1. IMPORT THIS
@@ -28,7 +29,7 @@ import AccessDenied from './pages/AccessDenied';
 
 function App() {
   return (
-
+    <AuthProvider>     
     <CurrencyProvider>
       <Router>
         <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
@@ -50,11 +51,13 @@ function App() {
 
           {/* AI Chatbot - Available on all pages */}
           <AIChatbot />
+           {/* Back to Top Button */}
+          <BackToTop />
 
         </div>
       </Router>
     </CurrencyProvider>
-
+ </AuthProvider>  
   );
 }
 
