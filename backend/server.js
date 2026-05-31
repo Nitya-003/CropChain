@@ -2,7 +2,6 @@ const express = require('express');
 const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
@@ -17,6 +16,7 @@ const aiService = require('./services/aiService');
 const errorHandlerMiddleware = require('./middleware/errorHandler');
 const { createBatchSchema, updateBatchSchema } = require("./validations/batchSchema");
 const { protect, adminOnly, authorizeBatchOwner, authorizeRoles, authorizeStageTransition, authorizeBlockchainTransaction } = require('./middleware/auth');
+const { generalLimiter, authLimiter, batchLimiter } = require('./middleware/rateLimiters');
 const mongoose = require('mongoose');
 const apiResponse = require('./utils/apiResponse');
 const oracleService = require('./services/oracleService');
@@ -146,44 +146,6 @@ app.use((_req, res, next) => {
         'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()'
     );
     next();
-});
-
-// Rate limiting configurations
-const isTestEnv = process.env.NODE_ENV === 'test';
-const rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
-const rateLimitMaxRequests = isTestEnv ? 10000 : (parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100);
-
-const generalLimiter = rateLimit({
-    windowMs: rateLimitWindowMs,
-    max: rateLimitMaxRequests,
-    message: {
-        error: 'Too many requests from this IP, please try again later.',
-        retryAfter: `${Math.ceil(rateLimitWindowMs / 60000)} minutes`
-    },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
-const authLimiter = rateLimit({
-    windowMs: rateLimitWindowMs,
-    max: isTestEnv ? 10000 : (parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 60),
-    message: {
-        error: 'Too many authentication attempts from this IP, please try again later.',
-        retryAfter: `${Math.ceil(rateLimitWindowMs / 60000)} minutes`
-    },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
-const batchLimiter = rateLimit({
-    windowMs: rateLimitWindowMs,
-    max: isTestEnv ? 10000 : (parseInt(process.env.BATCH_RATE_LIMIT_MAX) || 20),
-    message: {
-        error: 'Too many batch operations from this IP, please try again later.',
-        retryAfter: `${Math.ceil(rateLimitWindowMs / 60000)} minutes`
-    },
-    standardHeaders: true,
-    legacyHeaders: false,
 });
 
 app.use(generalLimiter);
