@@ -49,15 +49,15 @@ const Header: React.FC = () => {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 transition-colors duration-200">
       <div className="container mx-auto px-4">
-        <div className="flex md:grid md:grid-cols-3 h-16 items-center justify-between">
+        <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 py-3 md:grid md:h-16 md:grid-cols-3 md:flex-nowrap md:gap-0 md:py-0">
           
           {/* Logo Column (Left-aligned) */}
-          <div className="flex justify-start">
-            <Link href="/" className="flex items-center space-x-2 group">
-              <div className="bg-primary/10 p-2 rounded-xl group-hover:bg-primary/20 transition-colors">
+          <div className="flex min-w-0 flex-1 justify-start md:flex-none">
+            <Link href="/" className="group flex min-w-0 items-center space-x-2">
+              <div className="shrink-0 bg-primary/10 p-2 rounded-xl group-hover:bg-primary/20 transition-colors">
                 <Leaf className="h-5 w-5 text-primary" />
               </div>
-              <span className="text-lg font-bold tracking-tight text-foreground bg-gradient-to-r from-primary to-emerald-600 bg-clip-text text-transparent">
+              <span className="truncate text-lg font-bold tracking-tight text-foreground bg-gradient-to-r from-primary to-emerald-600 bg-clip-text text-transparent">
                 CropChain
               </span>
             </Link>
@@ -131,7 +131,7 @@ const Header: React.FC = () => {
           </div>
 
           {/* Action Area Column (Right-aligned) */}
-          <div className="flex justify-end items-center gap-2">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 md:flex-none md:flex-nowrap">
             <CurrencyToggle />
             <LanguageSwitcher />
 
@@ -139,7 +139,7 @@ const Header: React.FC = () => {
               variant="ghost"
               size="icon"
               onClick={toggleTheme}
-              className="h-9 w-9 rounded-lg text-foreground hover:bg-muted border border-border bg-background dark:bg-card transition-colors"
+              className="h-9 w-9 shrink-0 rounded-lg text-foreground hover:bg-muted border border-border bg-background dark:bg-card transition-colors"
               aria-label="Toggle theme"
             >
               {theme === "light" ? (
@@ -151,8 +151,8 @@ const Header: React.FC = () => {
 
             {/* Auth Section */}
             {isAuthenticated && user ? (
-              <div className="flex items-center gap-2 pl-2">
-                <Badge variant="outline" className={`capitalize font-semibold border ${getRoleBadgeColor(user.role)}`}>
+              <div className="flex shrink-0 items-center gap-2 sm:pl-2">
+                <Badge variant="outline" className={`hidden capitalize font-semibold border sm:inline-flex ${getRoleBadgeColor(user.role)}`}>
                   {user.role}
                 </Badge>
                 <div className="hidden lg:flex flex-col items-start leading-none">
@@ -169,10 +169,10 @@ const Header: React.FC = () => {
                 </Button>
               </div>
             ) : (
-              <Link href="/login" className="pl-1">
-                <Button variant="default" size="sm" className="h-9 rounded-lg gap-1.5 px-4 text-xs font-bold bg-primary text-primary-foreground shadow-sm hover:bg-primary/95">
+              <Link href="/login" className="shrink-0 sm:pl-1">
+                <Button variant="default" size="sm" className="h-9 rounded-lg gap-1.5 px-3 text-xs font-bold bg-primary text-primary-foreground shadow-sm hover:bg-primary/95 sm:px-4">
                   <LogIn className="h-3.5 w-3.5" />
-                  Sign In
+                  <span className="hidden sm:inline">Sign In</span>
                 </Button>
               </Link>
             )}
