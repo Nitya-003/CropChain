@@ -194,7 +194,7 @@ npm test
 ### Environment Variables
 ```env
 # Frontend (.env)
-VITE_API_URL=http://localhost:3001
+NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
 
 ### Dependencies Added

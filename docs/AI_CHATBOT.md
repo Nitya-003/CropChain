@@ -141,7 +141,7 @@ AI_TEMPERATURE=0.7
 **Frontend (.env):**
 ```env
 # API endpoint for chat service
-VITE_API_URL=http://localhost:3001
+NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
 
 ### OpenAI Setup

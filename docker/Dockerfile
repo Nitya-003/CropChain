@@ -8,8 +8,8 @@ ENV NODE_ENV=development
 COPY package*.json ./
 RUN npm ci
 COPY frontend/ ./frontend
-ARG VITE_API_URL=http://localhost:3001
-ENV VITE_API_URL=$VITE_API_URL
+ARG NEXT_PUBLIC_API_URL=http://localhost:3001
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN npm run build
 
 # Stage 3: Frontend runner (production)
