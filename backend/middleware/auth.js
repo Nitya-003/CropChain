@@ -45,39 +45,82 @@ const verifiedOnly = (req, res, next) => {
     return res.status(403).json({ error: 'Access denied', message: 'Verified credential required' });
 };
 
+/**
+ * Helper to check if a role has explicit permission for a batch action
+ * without relying on ownership. This implements a deny-by-default logic.
+ * 
+ * @param {string} role - The user's role
+ * @param {string} permission - The required permission (e.g., 'batch:read')
+ * @returns {boolean} True if the role has explicit permission
+ */
+const hasExplicitRolePermission = (role, permission) => {
+    if (!role || !permission) return false;
+
+    // Deny-by-default role permission map for batch actions
+    const rolePermissions = {
+        [ROLES.SUPER_ADMIN]: ['batch:read', 'batch:update', 'batch:delete'],
+        [ROLES.ADMIN]: ['batch:read', 'batch:update', 'batch:delete'],
+        [ROLES.MANDI]: ['batch:read', 'batch:update'],
+        [ROLES.TRANSPORTER]: ['batch:read', 'batch:update'],
+        [ROLES.RETAILER]: ['batch:read', 'batch:update'],
+        [ROLES.QUALITY_INSPECTOR]: ['batch:read'],
+        [ROLES.FARMER]: ['batch:read'] // Farmers only have read access to other batches; update/delete requires ownership
+    };
+
+    return rolePermissions[role]?.includes(permission) || false;
+};
+
 const authorizeBatchOwner = async (req, res, next) => {
     try {
         const { batchId } = req.params;
-        if (!batchId) return res.status(400).json({ error: 'Bad Request', message: 'Batch ID is required' });
+        if (!batchId) {
+            return res.status(400).json({ error: 'Bad Request', message: 'Batch ID is required' });
+        }
 
         const batch = await Batch.findOne({ batchId });
-        if (!batch) return res.status(404).json({ error: 'Not Found', message: 'Batch not found' });
+        if (!batch) {
+            return res.status(404).json({ error: 'Not Found', message: 'Batch not found' });
+        }
 
+        // Map HTTP methods to corresponding batch permissions
+        const methodPermissionMap = {
+            'GET': 'batch:read',
+            'PUT': 'batch:update',
+            'PATCH': 'batch:update',
+            'DELETE': 'batch:delete'
+        };
+        const requiredPermission = methodPermissionMap[req.method];
+        if (!requiredPermission) {
+            return res.status(403).json({ error: 'Access denied', message: 'Action not allowed on batches' });
+        }
+
+        // Safely normalize user and batch ownership IDs for comparison
         const userId = req.user.id || req.user._id;
         const userFarmerId = req.user.farmerId || userId;
         
-        if (isAdminRole(req.user.role)) {
-            req.batch = batch;
-            return next();
+        const batchFarmerIdStr = batch.farmerId?.toString().trim().toLowerCase() || '';
+        const userFarmerIdStr = userFarmerId?.toString().trim().toLowerCase() || '';
+        const userIdStr = userId?.toString().trim().toLowerCase() || '';
+
+        // Check if the current user is the owner of the batch
+        const isOwner = (batchFarmerIdStr === userFarmerIdStr || batchFarmerIdStr === userIdStr);
+
+        // Check if the user's role has explicit permission for the action (independent of ownership)
+        const hasPermission = hasExplicitRolePermission(req.user.role, requiredPermission);
+
+        // Security check: must be owner OR have explicit role permission (deny-by-default)
+        if (!isOwner && !hasPermission) {
+            console.log(`[AUTH FAIL] User ${userId} (${req.user.role}) attempted unauthorized ${req.method} on batch ${batchId} owned by ${batch.farmerId}`);
+            return res.status(403).json({ 
+                success: false, 
+                error: 'Access denied', 
+                message: 'Unauthorized access to batch' 
+            });
         }
 
-        // Bypassed for non-farmer roles who are updating stages
-        if (req.user.role !== ROLES.FARMER) {
-            req.batch = batch;
-            return next();
-        }
-
-        const batchFarmerIdStr = batch.farmerId?.toString?.() || String(batch.farmerId || '');
-        const userFarmerIdStr = userFarmerId?.toString?.() || String(userFarmerId || '');
-        const userIdStr = userId?.toString?.() || String(userId || '');
-
-        if (batchFarmerIdStr !== userFarmerIdStr && batchFarmerIdStr !== userIdStr) {
-            console.log(`[AUTH FAIL] User ${userId} attempted to update batch ${batchId} owned by ${batch.farmerId}`);
-            return res.status(403).json({ error: 'Access denied', message: 'Not authorized to update this batch' });
-        }
-
+        // Attach the validated batch object to request only after successful authorization
         req.batch = batch;
-        next();
+        return next();
     } catch (error) {
         console.error('Authorization error:', error);
         return res.status(500).json({ error: 'Server Error', message: 'Authorization check failed' });

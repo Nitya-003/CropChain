@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "build": "echo 'No build step required for serverless Node.js backend'",
     "test": "jest --watchAll",
     "test:ci": "NODE_ENV=test jest --ci --coverage --watchAll=false",
     "test:ai": "node test-ai-chat.js",
@@ -21,6 +22,7 @@
   "author": "CropChain Team",
   "license": "MIT",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@pinata/sdk": "^2.1.0",
     "axios": "^1.16.1",
     "bcryptjs": "^2.4.3",

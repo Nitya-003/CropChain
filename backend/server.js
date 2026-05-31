@@ -3,9 +3,7 @@ const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const mongoSanitize = require('express-mongo-sanitize');
 const jwt = require('jsonwebtoken');
-const { ethers } = require('ethers');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
 const connectDB = require('./config/db');
@@ -13,6 +11,7 @@ require('dotenv').config();
 const mainRoutes = require("./routes/index");
 const oracleRoutes = require("./routes/oracle");
 const validateRequest = require('./middleware/validator');
+const createNoSqlSanitizer = require('./middleware/nosqlSanitizer');
 const { chatSchema } = require("./validations/chatSchema");
 const aiService = require('./services/aiService');
 const errorHandlerMiddleware = require('./middleware/errorHandler');
@@ -20,7 +19,6 @@ const { createBatchSchema, updateBatchSchema } = require("./validations/batchSch
 const { protect, adminOnly, authorizeBatchOwner, authorizeRoles, authorizeStageTransition, authorizeBlockchainTransaction } = require('./middleware/auth');
 const mongoose = require('mongoose');
 const apiResponse = require('./utils/apiResponse');
-const crypto = require('crypto');
 const oracleService = require('./services/oracleService');
 
 // Import Services
@@ -151,8 +149,9 @@ app.use((_req, res, next) => {
 });
 
 // Rate limiting configurations
+const isTestEnv = process.env.NODE_ENV === 'test';
 const rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
-const rateLimitMaxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100;
+const rateLimitMaxRequests = isTestEnv ? 10000 : (parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100);
 
 const generalLimiter = rateLimit({
     windowMs: rateLimitWindowMs,
@@ -167,7 +166,7 @@ const generalLimiter = rateLimit({
 
 const authLimiter = rateLimit({
     windowMs: rateLimitWindowMs,
-    max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 5,
+    max: isTestEnv ? 10000 : (parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 60),
     message: {
         error: 'Too many authentication attempts from this IP, please try again later.',
         retryAfter: `${Math.ceil(rateLimitWindowMs / 60000)} minutes`
@@ -178,7 +177,7 @@ const authLimiter = rateLimit({
 
 const batchLimiter = rateLimit({
     windowMs: rateLimitWindowMs,
-    max: parseInt(process.env.BATCH_RATE_LIMIT_MAX) || 20,
+    max: isTestEnv ? 10000 : (parseInt(process.env.BATCH_RATE_LIMIT_MAX) || 20),
     message: {
         error: 'Too many batch operations from this IP, please try again later.',
         retryAfter: `${Math.ceil(rateLimitWindowMs / 60000)} minutes`
@@ -232,7 +231,7 @@ app.use(express.json({
 app.use(express.urlencoded({ extended: true, limit: maxFileSize }));
 
 // NoSQL injection protection
-app.use(mongoSanitize());
+app.use(createNoSqlSanitizer());
 app.use(securityLogger);
 
 // ==================== BLOCKCHAIN SERVICE INITIALIZATION ====================
@@ -344,33 +343,22 @@ if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY) {
         console.error('Failed to initialize blockchain connection:', error.message);
         contractInstance = null;
     }
-} else {
-    console.log('ℹ️  Blockchain not configured - running without contract instance');
 }
-
-async function generateBatchId(session = null) {
-    return await batchService.generateBatchId(session);
-}
-
-async function generateQRCode(batchId) {
-    return await batchService.generateQRCode(batchId);
-}
-
-function simulateBlockchainHash(data) {
-    return blockchainService.simulateHash(data);
-}
-
 
 // Import Routes
 const authRoutes = require('./routes/authRoutes');
 const verificationRoutes = require('./routes/verification');
 const approvalRoutes = require('./routes/approvalRoutes');
+const recommendRoutes = require('./routes/recommendRoutes');
 
 // Mount Auth Routes
 app.use('/api/auth', authLimiter, authRoutes);
 
 // Mount Verification Routes
 app.use('/api/verification', generalLimiter, verificationRoutes);
+
+// Mount Recommendation Routes
+app.use('/api/recommend', recommendRoutes);
 
 
 // Mount Approval Routes (Multi-signature for high-stakes actions)
@@ -562,6 +550,37 @@ app.post('/api/ai/chat', batchLimiter, protect, validateRequest(chatSchema), asy
 
         console.log(`[AI CHAT] Request from IP: ${req.ip} - Message: "${message.substring(0, 50)}..."`);
 
+        const acceptsEventStream = req.headers.accept?.includes('text/event-stream');
+
+        if (acceptsEventStream) {
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache, no-transform');
+            res.setHeader('Connection', 'keep-alive');
+            res.flushHeaders?.();
+
+            const sendEvent = (event, data) => {
+                res.write(`event: ${event}\n`);
+                res.write(`data: ${JSON.stringify(data)}\n\n`);
+            };
+
+            const aiResponse = await aiService.chatStream(message, batchServiceForAI, (token) => {
+                sendEvent('token', { token });
+            });
+
+            sendEvent('done', {
+                response: aiResponse.message,
+                timestamp: new Date().toISOString(),
+                ...(aiResponse.functionCalled && {
+                    functionCalled: aiResponse.functionCalled,
+                    functionResult: aiResponse.functionResult
+                })
+            });
+
+            res.end();
+            console.log(`[AI CHAT SUCCESS] Streamed response generated for IP: ${req.ip}`);
+            return;
+        }
+
         const aiResponse = await aiService.chat(message, batchServiceForAI);
 
         console.log(`[AI CHAT SUCCESS] Response generated for IP: ${req.ip}`);
@@ -582,6 +601,15 @@ app.post('/api/ai/chat', batchLimiter, protect, validateRequest(chatSchema), asy
     } catch (error) {
         notificationService.notifyError('AI chat', error);
         console.error('AI Chat error:', error);
+
+        if (res.headersSent) {
+            res.write(`event: error\n`);
+            res.write(`data: ${JSON.stringify({
+                error: "I'm sorry, I'm having trouble processing your request right now. Please try asking about batch tracking, QR codes, or supply chain processes."
+            })}\n\n`);
+            res.end();
+            return;
+        }
 
         const response = apiResponse.errorResponse(
             "I'm sorry, I'm having trouble processing your request right now. Please try asking about batch tracking, QR codes, or supply chain processes.",
@@ -743,13 +771,17 @@ if (process.env.NODE_ENV !== 'test') {
             console.log('ℹ️  CCIP service not configured - cross-chain dispatch disabled');
         }
 
-        // Start Oracle service for IoT data verification
-        try {
-            await oracleService.initialize();
-            console.log('🔮 Oracle service started successfully');
-        } catch (error) {
-            console.error('❌ Failed to start Oracle service:', error.message);
-            console.log('⚠️  Continuing without Oracle service...');
+        // Start Oracle service for IoT data verification if blockchain is active
+        if (blockchainService.isAvailable() && process.env.ORACLE_PRIVATE_KEY) {
+            try {
+                await oracleService.initialize();
+                console.log('🔮 Oracle service started successfully');
+            } catch (error) {
+                console.error('❌ Failed to start Oracle service:', error.message);
+                console.log('⚠️  Continuing without Oracle service...');
+            }
+        } else {
+            console.log('ℹ️  Oracle service disabled (blockchain running in demo mode or ORACLE_PRIVATE_KEY missing)');
         }
     });
 }

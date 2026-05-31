@@ -11,7 +11,7 @@ interface ChatResponse {
   response: string;
   timestamp: string;
   functionCalled?: string;
-  functionResult?: any;
+  functionResult?: unknown;
   error?: string;
 }
 
@@ -26,7 +26,7 @@ class AIChatService {
   private messages: ChatMessage[] = [];
 
   constructor() {
-    this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    this.baseUrl = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001';
   }
 
   // Send message to AI backend
@@ -64,6 +64,91 @@ class AIChatService {
     }
   }
 
+  async sendMessageStream(
+    message: string,
+    context: ChatContext | undefined,
+    onToken: (token: string) => void
+  ): Promise<ChatResponse> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/ai/chat`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'text/event-stream',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: message.trim(),
+          context
+        })
+      });
+
+      if (!response.ok || !response.body) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to stream AI response');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let finalResponse: ChatResponse | null = null;
+
+      const readEvents = (chunk: string) => {
+        buffer += chunk;
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || '';
+
+        events.forEach((eventText) => {
+          const eventName = eventText.match(/^event: (.+)$/m)?.[1];
+          const dataText = eventText.match(/^data: (.+)$/m)?.[1];
+          if (!eventName || !dataText) return;
+
+          const data = JSON.parse(dataText);
+
+          if (eventName === 'token') {
+            onToken(data.token || '');
+          }
+
+          if (eventName === 'done') {
+            finalResponse = {
+              success: true,
+              response: data.response || '',
+              timestamp: data.timestamp,
+              functionCalled: data.functionCalled,
+              functionResult: data.functionResult
+            };
+          }
+
+          if (eventName === 'error') {
+            throw new Error(data.error || 'AI stream failed');
+          }
+        });
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        readEvents(decoder.decode(value, { stream: true }));
+      }
+
+      readEvents(decoder.decode());
+
+      if (finalResponse) {
+        return finalResponse;
+      }
+
+      throw new Error('AI stream ended before sending a final response');
+    } catch (error) {
+      console.error('AI Chat Stream Error:', error);
+
+      return {
+        success: false,
+        response: "I'm sorry, I'm having trouble connecting right now. Please try again or contact support if the issue persists.",
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
   // Get chat history
   getMessages(): ChatMessage[] {
     return [...this.messages];
@@ -79,6 +164,15 @@ class AIChatService {
     };
 
     this.messages.push(message);
+    return message;
+  }
+
+  updateMessage(id: string, content: string): ChatMessage | undefined {
+    const message = this.messages.find(msg => msg.id === id);
+    if (message) {
+      message.content = content;
+    }
+
     return message;
   }
 
@@ -112,17 +206,17 @@ class AIChatService {
       {
         label: 'Track a Batch',
         message: 'How do I track a batch?',
-        icon: '🔍'
+        icon: ''
       },
       {
         label: 'Help with QR Code',
         message: 'How do QR codes work in CropChain?',
-        icon: '📱'
+        icon: ''
       },
       {
         label: 'Contact Admin',
         message: 'How can I contact an administrator?',
-        icon: '👨‍💼'
+        icon: ''
       }
     ];
 
@@ -131,7 +225,7 @@ class AIChatService {
       baseActions.unshift({
         label: 'Batch Creation Help',
         message: 'Help me create a new batch',
-        icon: '➕'
+        icon: ''
       });
     }
 
@@ -139,7 +233,7 @@ class AIChatService {
       baseActions.unshift({
         label: 'Tracking Help',
         message: 'How do I search for a specific batch?',
-        icon: '🎯'
+        icon: ''
       });
     }
 
@@ -147,7 +241,7 @@ class AIChatService {
       baseActions.unshift({
         label: 'About This Batch',
         message: `Tell me about batch ${context.batchId}`,
-        icon: '📦'
+        icon: ''
       });
     }
 
@@ -156,6 +250,9 @@ class AIChatService {
 
   // Get current page context from URL
   getCurrentPageContext(): ChatContext {
+    if (typeof window === 'undefined') {
+      return { currentPage: 'home', userRole: 'user' };
+    }
     const path = window.location.pathname;
     const searchParams = new URLSearchParams(window.location.search);
     

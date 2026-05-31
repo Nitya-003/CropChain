@@ -20,16 +20,16 @@ export const CurrencyToggle = () => {
   };
 
   return (
-    <div className="flex items-center space-x-2">
+    <div className="flex shrink-0 items-center space-x-2">
       {(isFetching || showUpdated) && (
-        <span className={`text-xs animate-pulse ${isFetching ? 'text-yellow-500 dark:text-yellow-400' : 'text-green-500 dark:text-green-400'}`}>
+        <span className={`hidden text-xs animate-pulse sm:inline ${isFetching ? 'text-yellow-500 dark:text-yellow-400' : 'text-green-500 dark:text-green-400'}`}>
           {isFetching ? 'Updating...' : 'Price Updated'}
         </span>
       )}
       <select
         value={currency}
         onChange={handleChange}
-        className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm font-medium bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
+        className="h-9 max-w-[5.75rem] rounded-lg border border-border bg-background px-2 py-1.5 text-xs font-semibold text-foreground shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary dark:bg-card sm:max-w-none sm:px-3"
       >
         <option value="CRYPTO">Crypto</option>
         <option value="INR">INR (₹)</option>

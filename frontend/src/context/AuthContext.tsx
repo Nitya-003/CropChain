@@ -10,6 +10,7 @@ interface AuthContextType {
   walletLogin: () => Promise<void>;
   logout: () => Promise<void>;
   isLoading: boolean;
+  isAuthenticated: boolean;
   isWalletConnected: boolean;
 }
 
@@ -26,7 +27,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const response = await authService.refreshSession();
         setUser(response.user);
         localStorage.setItem('user', JSON.stringify(response.user));
-      } catch (error) {
+      } catch {
         localStorage.removeItem('user');
         await checkWalletConnected();
       } finally {
@@ -200,6 +201,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       walletLogin, 
       logout, 
       isLoading,
+      isAuthenticated: !!user,
       isWalletConnected 
     }}>
       {children}

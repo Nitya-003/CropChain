@@ -1,15 +1,27 @@
-import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+"use client";
+import React, { useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
-    allowedRoles?: ('farmer' | 'transporter' | 'admin')[];
+    allowedRoles?: ('farmer' | 'mandi' | 'transporter' | 'retailer' | 'admin')[];
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
+const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps): React.ReactNode => {
     const { user, isAuthenticated, isLoading } = useAuth();
-    const location = useLocation();
+    const router = useRouter();
+    const pathname = usePathname();
+
+    useEffect(() => {
+        if (!isLoading) {
+            if (!isAuthenticated) {
+                router.replace(`/login?from=${encodeURIComponent(pathname)}`);
+            } else if (allowedRoles && user && !allowedRoles.includes(user.role as any)) {
+                router.replace('/access-denied');
+            }
+        }
+    }, [isLoading, isAuthenticated, user, allowedRoles, router, pathname]);
 
     if (isLoading) {
         return (
@@ -20,11 +32,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
     }
 
     if (!isAuthenticated) {
-        return <Navigate to="/login" state={{ from: location }} replace />;
+        return null;
     }
 
-    if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-        return <Navigate to="/access-denied" replace />;
+    if (allowedRoles && user && !allowedRoles.includes(user.role as any)) {
+        return null;
     }
 
     return <>{children}</>;

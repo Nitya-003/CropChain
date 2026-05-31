@@ -1,6 +1,9 @@
+"use client";
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Sparkles, Leaf, User, Bot, Minimize2, Maximize2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { aiChatService, ChatMessage } from '../services/aiChatService';
 
 const AIChatbot: React.FC = () => {
@@ -33,42 +36,43 @@ const AIChatbot: React.FC = () => {
       );
       setMessages([welcomeMessage]);
     }
-  }, []); // Only run once on mount
+  }, [messages.length]);
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim() || isLoading) return;
+  const handleSendMessage = async (messageOverride?: string) => {
+    const messageToSend = messageOverride ?? inputMessage;
+    if (!messageToSend.trim() || isLoading) return;
 
-    const userMessage = inputMessage.trim();
+    const userMessage = messageToSend.trim();
     setInputMessage('');
 
     // Add user message
     const userMsg = aiChatService.addMessage(userMessage, 'user');
     setMessages(prev => [...prev, userMsg]);
 
-    // Add typing indicator
     setIsLoading(true);
-    const typingMsg = aiChatService.addTypingIndicator();
-    setMessages(prev => [...prev, typingMsg]);
 
     try {
       // Get current context
       const context = aiChatService.getCurrentPageContext();
+      const assistantMsg = aiChatService.addMessage('', 'assistant');
+      setMessages(prev => [...prev, assistantMsg]);
+      let streamedContent = '';
       
-      // Send to AI service
-      const response = await aiChatService.sendMessage(userMessage, context);
-      
-      // Remove typing indicator
-      aiChatService.removeTypingIndicator();
-      
-      // Add AI response
-      aiChatService.addMessage(response.response, 'assistant');
+      const response = await aiChatService.sendMessageStream(userMessage, context, (token) => {
+        streamedContent += token;
+        aiChatService.updateMessage(assistantMsg.id, streamedContent);
+        setMessages(aiChatService.getMessages());
+      });
+
+      aiChatService.updateMessage(
+        assistantMsg.id,
+        streamedContent || response.response
+      );
       setMessages(aiChatService.getMessages());
 
     } catch (error) {
       console.error('Chat error:', error);
       
-      // Remove typing indicator and add error message
-      aiChatService.removeTypingIndicator();
       aiChatService.addMessage(
         "I'm sorry, I encountered an error. Please try again or contact support if the issue persists.",
         'assistant'
@@ -80,11 +84,10 @@ const AIChatbot: React.FC = () => {
   };
 
   const handleQuickAction = (message: string) => {
-    setInputMessage(message);
-    setTimeout(() => handleSendMessage(), 100);
+    handleSendMessage(message);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -92,6 +95,70 @@ const AIChatbot: React.FC = () => {
   };
 
   const quickActions = aiChatService.getQuickActions(aiChatService.getCurrentPageContext());
+
+  const renderMessageContent = (message: ChatMessage) => {
+    if (message.sender === 'user') {
+      return (
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">
+          {message.content}
+        </p>
+      );
+    }
+
+    if (!message.content) {
+      return (
+        <div className="flex items-center space-x-1">
+          <div className="flex space-x-1">
+            {[0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                className="w-2 h-2 bg-green-500 rounded-full"
+                animate={{ y: [0, -8, 0] }}
+                transition={{
+                  duration: 0.6,
+                  repeat: Infinity,
+                  delay: i * 0.1
+                }}
+              />
+            ))}
+          </div>
+          <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
+            CropAssistant is thinking...
+          </span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="text-sm leading-relaxed">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            p: ({ children }) => <p className="my-1">{children}</p>,
+            ul: ({ children }) => <ul className="my-2 list-disc space-y-1 pl-5">{children}</ul>,
+            ol: ({ children }) => <ol className="my-2 list-decimal space-y-1 pl-5">{children}</ol>,
+            li: ({ children }) => <li className="pl-1">{children}</li>,
+            strong: ({ children }) => <strong className="font-semibold text-gray-900 dark:text-white">{children}</strong>,
+            a: ({ children, href }) => (
+              <a className="text-green-600 underline dark:text-green-400" href={href} target="_blank" rel="noreferrer">
+                {children}
+              </a>
+            ),
+            table: ({ children }) => (
+              <div className="my-2 overflow-x-auto">
+                <table className="min-w-full border-collapse text-xs">{children}</table>
+              </div>
+            ),
+            th: ({ children }) => <th className="border border-gray-200 px-2 py-1 text-left dark:border-gray-700">{children}</th>,
+            td: ({ children }) => <td className="border border-gray-200 px-2 py-1 dark:border-gray-700">{children}</td>,
+            code: ({ children }) => <code className="rounded bg-gray-100 px-1 py-0.5 text-xs dark:bg-gray-700">{children}</code>
+          }}
+        >
+          {message.content}
+        </ReactMarkdown>
+      </div>
+    );
+  };
 
   // Animation variants
   const fabVariants = {
@@ -300,29 +367,9 @@ const AIChatbot: React.FC = () => {
                               layout
                             >
                               {message.isTyping ? (
-                                <div className="flex items-center space-x-1">
-                                  <div className="flex space-x-1">
-                                    {[0, 1, 2].map((i) => (
-                                      <motion.div
-                                        key={i}
-                                        className="w-2 h-2 bg-green-500 rounded-full"
-                                        animate={{ y: [0, -8, 0] }}
-                                        transition={{
-                                          duration: 0.6,
-                                          repeat: Infinity,
-                                          delay: i * 0.1
-                                        }}
-                                      />
-                                    ))}
-                                  </div>
-                                  <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
-                                    {message.content}
-                                  </span>
-                                </div>
+                                renderMessageContent({ ...message, content: '' })
                               ) : (
-                                <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                                  {message.content}
-                                </p>
+                                renderMessageContent(message)
                               )}
                               
                               {/* Timestamp */}
@@ -398,7 +445,7 @@ const AIChatbot: React.FC = () => {
                         </div>
                         
                         <motion.button
-                          onClick={handleSendMessage}
+                          onClick={() => handleSendMessage()}
                           disabled={!inputMessage.trim() || isLoading}
                           className="p-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:cursor-not-allowed"
                           aria-label="Send message"

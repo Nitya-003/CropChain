@@ -110,7 +110,7 @@ npm run dev
 
 3. Check the frontend API base URL:
 
-    - In the frontend .env or config (for example VITE_API_URL), it should point to-: http://localhost:3001
+    - In the frontend .env or config (for example NEXT_PUBLIC_API_URL), it should point to-: http://localhost:3001
 
 4. Open the browser DevTools → Network tab:
 
@@ -258,7 +258,7 @@ npm run dev
 
 2. Watch the terminal output for any errors or warnings.
 
-3. If the app uses env variables (like VITE_API_URL or contract address), make sure they are defined in the frontend .env file and restart the dev server after editing them.
+3. If the app uses env variables (like NEXT_PUBLIC_API_URL or contract address), make sure they are defined in the frontend .env file and restart the dev server after editing them.
 
 
 ## 6. Quick checklist before opening an issue

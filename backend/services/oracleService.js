@@ -17,24 +17,23 @@ class OracleService {
         try {
             console.log('🔮 Initializing Oracle Service...');
             
-            // Setup provider (WebSocket for real-time events)
-            const providerUrl = process.env.PROVIDER_URL || 'http://localhost:8545';
-            this.provider = new ethers.WebSocketProvider(providerUrl);
-            
-            // Setup oracle wallet
+            // Setup oracle wallet and check environment variables first
             const privateKey = process.env.ORACLE_PRIVATE_KEY;
             if (!privateKey) {
                 throw new Error('ORACLE_PRIVATE_KEY not found in environment variables');
             }
-            
-            this.oracleWallet = new ethers.Wallet(privateKey, this.provider);
-            console.log(`🔑 Oracle wallet address: ${this.oracleWallet.address}`);
-            
-            // Setup contract instance
+
             const contractAddress = process.env.CONTRACT_ADDRESS;
             if (!contractAddress) {
                 throw new Error('CONTRACT_ADDRESS not found in environment variables');
             }
+            
+            // Setup provider (WebSocket for real-time events)
+            const providerUrl = process.env.PROVIDER_URL || 'http://localhost:8545';
+            this.provider = new ethers.WebSocketProvider(providerUrl);
+            
+            this.oracleWallet = new ethers.Wallet(privateKey, this.provider);
+            console.log(`🔑 Oracle wallet address: ${this.oracleWallet.address}`);
             
             const contractABI = [
                 "event IoTDataRequested(bytes32 indexed batchId, address requester)",

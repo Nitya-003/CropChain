@@ -1,6 +1,7 @@
+"use client";
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Compass, CheckCircle2, ChevronRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Compass, CheckCircle2, ChevronRight, Sprout, Building2, Truck, Store } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface JourneyPreviewProps {
@@ -11,17 +12,16 @@ interface JourneyPreviewProps {
 
 export const JourneyPreview: React.FC<JourneyPreviewProps> = ({
   batchId,
-  currentStage,
-  updates
+  currentStage
 }) => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { t } = useTranslation();
 
   const stages = [
-    { value: 'farmer', label: t('status.harvested', 'Harvested'), icon: '🌱' },
-    { value: 'mandi', label: t('status.atMandi', 'At Mandi'), icon: '🏢' },
-    { value: 'transport', label: t('status.inTransit', 'In Transit'), icon: '🚚' },
-    { value: 'retailer', label: t('status.atRetailer', 'At Retailer'), icon: '🛒' }
+    { value: 'farmer', label: t('status.harvested', 'Harvested'), icon: Sprout },
+    { value: 'mandi', label: t('status.atMandi', 'At Mandi'), icon: Building2 },
+    { value: 'transport', label: t('status.inTransit', 'In Transit'), icon: Truck },
+    { value: 'retailer', label: t('status.atRetailer', 'At Retailer'), icon: Store }
   ];
 
   // Determine active step index
@@ -45,7 +45,7 @@ export const JourneyPreview: React.FC<JourneyPreviewProps> = ({
         </div>
 
         <button
-          onClick={() => navigate(`/batch/${batchId}/journey`)}
+          onClick={() => router.push(`/batch/${batchId}/journey`)}
           className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 rounded-xl transition-all duration-200 hover:shadow-md transform hover:scale-[1.02]"
         >
           <span>{t('journey.view_full_journey', 'View Full Journey Map')}</span>
@@ -70,13 +70,13 @@ export const JourneyPreview: React.FC<JourneyPreviewProps> = ({
           {stages.map((stage, index) => {
             const isCompleted = index < currentStepIndex;
             const isCurrent = index === currentStepIndex;
-            const isPending = index > currentStepIndex;
+            const IconComponent = stage.icon;
 
             return (
               <div 
                 key={stage.value} 
                 className="flex flex-col items-center cursor-pointer group"
-                onClick={() => navigate(`/batch/${batchId}/journey`)}
+                onClick={() => router.push(`/batch/${batchId}/journey`)}
               >
                 {/* Node icon / indicator */}
                 <div 
@@ -91,7 +91,7 @@ export const JourneyPreview: React.FC<JourneyPreviewProps> = ({
                   {isCompleted ? (
                     <CheckCircle2 className="h-5 w-5 text-white" />
                   ) : (
-                    <span>{stage.icon}</span>
+                    <IconComponent className="h-4 w-4" />
                   )}
                 </div>
 
