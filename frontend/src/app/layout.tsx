@@ -1,3 +1,4 @@
+import BackToTop from "../components/BackToTop"; 
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -38,6 +39,7 @@ export default function RootLayout({
             <main className="container mx-auto px-4 py-8">
               {children}
             </main>
+            <BackToTop />
             <AIChatbot />
           </div>
         </Providers>
