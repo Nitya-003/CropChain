@@ -3,6 +3,8 @@
  * Extracted from server.js to follow Separation of Concerns principle
  */
 
+const emailProvider = require('../config/email');
+
 class NotificationService {
     constructor() {
         this.notificationHistory = [];
@@ -58,14 +60,30 @@ class NotificationService {
      * @param {Object} batch - Batch document
      * @param {Object} adminUser - Admin user who initiated recall
      */
-    sendRecallNotification(batch, adminUser) {
-        return this.log('recall', `Batch ${batch.batchId} has been recalled`, {
+    async sendRecallNotification(batch, adminUser) {
+        this.log('recall', `Batch ${batch.batchId} has been recalled`, {
             batchId: batch.batchId,
             cropType: batch.cropType,
             quantity: batch.quantity,
             recalledBy: adminUser.email,
             recalledAt: new Date().toISOString()
         });
+
+        if (adminUser.email) {
+            await this.sendEmail(
+                adminUser.email,
+                `🚨 RECALL: Batch ${batch.batchId}`,
+                `<h2>Batch Recall Notice</h2><p>Batch <strong>${batch.batchId}</strong> (${batch.cropType}, ${batch.quantity}kg) has been <strong>recalled</strong>.</p><p>Recalled by: ${adminUser.email}</p><p>CropChain Team</p>`
+            );
+        }
+
+        if (batch.farmerWalletAddress && batch.farmerName) {
+            await this.sendEmail(
+                `${batch.farmerName} <${batch.farmerWalletAddress}>` || batch.farmerWalletAddress,
+                `🚨 RECALL: Batch ${batch.batchId}`,
+                `<h2>Batch Recall Notice - Action Required</h2><p>Your batch <strong>${batch.batchId}</strong> (${batch.cropType}, ${batch.quantity}kg) has been <strong>recalled</strong>.</p><p>Please check the CropChain dashboard for further instructions.</p><p>CropChain Team</p>`
+            );
+        }
     }
 
     /**
@@ -73,12 +91,20 @@ class NotificationService {
      * @param {string} batchId - Batch identifier
      * @param {Object} user - User who created the batch
      */
-    notifyBatchCreated(batchId, user) {
-        return this.log('info', `Batch created: ${batchId}`, {
+    async notifyBatchCreated(batchId, user) {
+        this.log('info', `Batch created: ${batchId}`, {
             batchId,
             createdBy: user.email || user.id,
             timestamp: new Date().toISOString()
         });
+
+        if (user.email) {
+            await this.sendEmail(
+                user.email,
+                `Batch Created: ${batchId}`,
+                `<h2>Batch Created Successfully</h2><p>Your batch <strong>${batchId}</strong> has been created and recorded on the blockchain.</p><p>CropChain Team</p>`
+            );
+        }
     }
 
     /**
@@ -87,13 +113,21 @@ class NotificationService {
      * @param {string} stage - New stage
      * @param {Object} user - User who updated the batch
      */
-    notifyBatchUpdated(batchId, stage, user) {
-        return this.log('info', `Batch updated: ${batchId} to stage ${stage}`, {
+    async notifyBatchUpdated(batchId, stage, user) {
+        this.log('info', `Batch updated: ${batchId} to stage ${stage}`, {
             batchId,
             stage,
             updatedBy: user.email || user.id,
             timestamp: new Date().toISOString()
         });
+
+        if (user.email) {
+            await this.sendEmail(
+                user.email,
+                `Batch Updated: ${batchId}`,
+                `<h2>Batch Stage Updated</h2><p>Batch <strong>${batchId}</strong> has moved to stage <strong>${stage}</strong>.</p><p>CropChain Team</p>`
+            );
+        }
     }
 
     /**
@@ -148,20 +182,24 @@ class NotificationService {
     }
 
     /**
-     * Send email notification (placeholder for future implementation)
+     * Send email notification via SMTP provider
+     * Falls back to console logging if SMTP is not configured
      * @param {string} to - Recipient email
      * @param {string} subject - Email subject
-     * @param {string} body - Email body
+     * @param {string} body - Email body (HTML)
      */
     async sendEmail(to, subject, body) {
-        // Placeholder for email integration (e.g., SendGrid, Nodemailer)
-        console.log(`[EMAIL] Would send email to ${to}: ${subject}`);
-        
-        this.log('email', `Email queued: ${subject}`, { to, subject });
-        
-        // Future implementation:
-        // const transporter = require('./config/email');
-        // await transporter.sendMail({ to, subject, html: body });
+        const result = await emailProvider.sendEmail(to, subject, body);
+
+        if (result.fallback) {
+            this.log('email', `Email logged (SMTP not configured): ${subject}`, { to, subject });
+        } else if (result.success) {
+            this.log('email', `Email sent: ${subject}`, { to, subject, messageId: result.messageId });
+        } else {
+            this.log('error', `Email failed: ${subject}`, { to, subject, error: result.error });
+        }
+
+        return result;
     }
 
     /**
