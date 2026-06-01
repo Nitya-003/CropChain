@@ -2,9 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Compass, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Compass, ShieldCheck, AlertTriangle, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { realCropBatchService } from '../../../../services/realCropBatchService';
+import { tokenService } from '../../../../services/token.service';
+import { API_URL } from '../../../../services/apiClient';
 import { JourneyTimeline } from '../../../../components/journey/JourneyTimeline';
 import { JourneyPathMap } from '../../../../components/journey/JourneyPathMap';
 import { JourneyEnvironmentChart } from '../../../../components/journey/JourneyEnvironmentChart';
@@ -57,6 +59,29 @@ const JourneyMap: React.FC = () => {
 
   const handleSelectUpdate = (update: any, index: number) => {
     setSelectedUpdateIndex(index);
+  };
+
+  const handleDownloadPDF = async () => {
+    try {
+      const token = tokenService.getAccessToken();
+      const response = await fetch(`${API_URL}/batches/${batchId}/pdf`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to generate PDF');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `batch-${batchId}-journey.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to download PDF:', err);
+    }
   };
 
   if (isLoading) {
@@ -128,8 +153,16 @@ const JourneyMap: React.FC = () => {
           </div>
         </div>
 
-        {/* Global Security / Sync Badges */}
+        {/* Actions & Badges */}
         <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={handleDownloadPDF}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-semibold shadow-sm transition-all hover:scale-105"
+            title="Download as PDF"
+          >
+            <Download className="h-4 w-4" />
+            <span>PDF Report</span>
+          </button>
           {batch.isSpoiled ? (
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 text-xs font-bold shadow-sm">
               <AlertTriangle className="h-4 w-4" />
