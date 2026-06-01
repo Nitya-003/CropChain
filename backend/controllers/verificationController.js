@@ -1,9 +1,14 @@
 const didService = require('../services/didService');
 const User = require('../models/User');
 const { z } = require('zod');
-const apiResponse = require('../utils/apiResponse');
 const { validateParams } = require('../utils/validation');
-const { handleVerificationWithIdempotency } = require('../utils/verificationIdempotency');
+const {
+    handleZodValidation,
+    handleServerError,
+    requireIdempotencyKey,
+    handleVerificationWithIdempotency,
+} = require('../utils/verificationControllerHelpers');
+const apiResponse = require('../utils/apiResponse');
 const { ROLES } = require('../constants/permissions');
 const {
     CHALLENGE_ACTIONS,
@@ -43,44 +48,6 @@ const revokeCredentialSchema = z.object({
 const checkVerificationParamsSchema = z.object({
     userId: z.string().regex(/^[a-fA-F0-9]{24}$/),
 });
-
-const handleZodValidation = (res, schema, reqBody) => {
-    const validationResult = schema.safeParse(reqBody);
-
-    if (!validationResult.success) {
-        res.status(400).json(
-            apiResponse.validationErrorResponse(
-                validationResult.error.errors.map(err => err.message)
-            )
-        );
-
-        return { ok: false };
-    }
-
-    return { ok: true, data: validationResult.data };
-};
-
-const handleServerError = (res, error, { code, message }) => {
-    console.error(message, error);
-
-    return res.status(500).json(
-        apiResponse.errorResponse(message, code, 500)
-    );
-};
-
-const requireIdempotencyKey = (req, res) => {
-    const idempotencyKey = req.get('Idempotency-Key');
-
-    if (!idempotencyKey || !idempotencyKey.trim()) {
-        res.status(400).json(
-            apiResponse.validationErrorResponse(['Idempotency-Key header is required'])
-        );
-
-        return null;
-    }
-
-    return idempotencyKey.trim();
-};
 
 const generateLinkWalletChallenge = async (req, res) => {
     try {
