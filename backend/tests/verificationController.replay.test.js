@@ -21,7 +21,7 @@ jest.mock('../services/verificationSecurityService', () => ({
 
 const didService = require('../services/didService');
 const securityService = require('../services/verificationSecurityService');
-const { linkWallet, issueCredential, generateLinkWalletChallenge } = require('../controllers/verificationController');
+const { linkWallet, issueCredential, generateLinkWalletChallenge, checkVerification } = require('../controllers/verificationController');
 
 const createResponse = () => {
     const response = {
@@ -136,5 +136,52 @@ describe('verification controller replay protection', () => {
             userId: 'user-2',
             walletAddress: '0xABC0000000000000000000000000000000000000',
         });
+    });
+
+    test('returns validation errors for an invalid verification userId param', async () => {
+        const req = {
+            params: {
+                userId: 'not-a-valid-object-id',
+            },
+        };
+        const res = createResponse();
+
+        await checkVerification(req, res);
+
+        expect(res.statusCode).toBe(400);
+        expect(res.body).toEqual({
+            success: false,
+            data: null,
+            error: 'Validation failed',
+            code: 'VALIDATION_ERROR',
+            message: 'Validation failed',
+            statusCode: 400,
+            details: {
+                errors: [expect.any(String)],
+            },
+        });
+        expect(didService.checkVerificationStatus).not.toHaveBeenCalled();
+    });
+
+    test('maps a not-found verification lookup to a 404 response', async () => {
+        didService.checkVerificationStatus.mockRejectedValue({
+            name: 'NotFoundError',
+            code: 'NOT_FOUND',
+            statusCode: 404,
+            message: 'User with 507f1f77bcf86cd799439011 not found',
+        });
+
+        const req = {
+            params: {
+                userId: '507f1f77bcf86cd799439011',
+            },
+        };
+        const res = createResponse();
+
+        await checkVerification(req, res);
+
+        expect(res.statusCode).toBe(404);
+        expect(res.body.code).toBe('NOT_FOUND');
+        expect(res.body.message).toBe('User with 507f1f77bcf86cd799439011 not found');
     });
 });

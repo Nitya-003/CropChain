@@ -2,6 +2,7 @@ const didService = require('../services/didService');
 const User = require('../models/User');
 const { z } = require('zod');
 const apiResponse = require('../utils/apiResponse');
+const { validateParams } = require('../utils/validation');
 const { ROLES } = require('../constants/permissions');
 const {
     CHALLENGE_ACTIONS,
@@ -42,6 +43,10 @@ const issueCredentialChallengeSchema = z.object({
 const revokeCredentialSchema = z.object({
     userId: z.string().min(1, 'User ID is required'),
     reason: z.string().min(1, 'Revocation reason is required'),
+});
+
+const checkVerificationParamsSchema = z.object({
+    userId: z.string().regex(/^[a-fA-F0-9]{24}$/),
 });
 
 const handleZodValidation = (res, schema, reqBody) => {
@@ -352,52 +357,32 @@ const revokeCredential = async (req, res) => {
  */
 const checkVerification = async (req, res) => {
     try {
-        const { userId } = req.params;
+        const validatedParams = validateParams(res, checkVerificationParamsSchema, req.params);
 
-        // Basic validation of userId (e.g., MongoDB ObjectId-style 24 hex chars)
-        if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
-            return res.status(400).json(
-                apiResponse.errorResponse(
-                    'User ID is required',
-                    'MISSING_USERID',
-                    400
-                )
-            );
+        if (!validatedParams) {
+            return;
         }
 
-        if (!/^[a-fA-F0-9]{24}$/.test(userId)) {
-            return res.status(400).json(
-                apiResponse.errorResponse(
-                    'User ID must be a valid identifier',
-                    'INVALID_USERID',
-                    400
-                )
-            );
-        }
+        const { userId } = validatedParams;
 
         const result = await didService.checkVerificationStatus(userId);
 
         res.json(result);
     } catch (error) {
+        const message = error && error.message ? error.message : 'An unexpected error occurred';
+
         let statusCode = 500;
         let errorCode = 'VERIFICATION_CHECK_ERROR';
 
-        const message = error && error.message ? error.message : 'An unexpected error occurred';
-        const name = error && error.name ? error.name : '';
-
-        // Map validation/format errors to 400
-        if (
-            name === 'CastError' ||
-            name === 'ValidationError' ||
-            /invalid/i.test(message)
-        ) {
+        if (error?.name === 'CastError' || error?.name === 'ValidationError') {
             statusCode = 400;
             errorCode = 'INVALID_DATA';
-        }
-        // Map "not found" semantics to 404
-        else if (/not found/i.test(message)) {
+        } else if (error?.name === 'NotFoundError' || error?.code === 'NOT_FOUND' || error?.statusCode === 404) {
             statusCode = 404;
-            errorCode = 'NOT_FOUND';
+            errorCode = error?.code || 'NOT_FOUND';
+        } else if (error?.statusCode && error.statusCode < 500) {
+            statusCode = error.statusCode;
+            errorCode = error?.code || errorCode;
         }
 
         res.status(statusCode).json(
