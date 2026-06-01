@@ -1,0 +1,86 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Try Again",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete"
+  },
+  "auth": {
+    "welcomeBack": "Welcome Back",
+    "signIn": "Sign In",
+    "register": "Create Account",
+    "email": "Email",
+    "password": "Password",
+    "name": "Full Name",
+    "role": "Your Role",
+    "connectWallet": "Connect Wallet",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "logout": "Log Out",
+    "logoutConfirm": "Are you sure you want to logout?"
+  },
+  "home": {
+    "greeting": "Hello",
+    "overview": "Overview",
+    "recentBatches": "Recent Batches",
+    "noBatches": "No batches yet. Scan a QR code to get started.",
+    "scanNow": "Scan Now",
+    "pendingSync": "items pending sync"
+  },
+  "scan": {
+    "title": "Scan QR Code",
+    "instructions": "Point camera at a CropChain QR code",
+    "permissionRequired": "Camera Permission Required",
+    "permissionDescription": "Camera access is needed to scan QR codes on crop batches.",
+    "grantPermission": "Grant Permission",
+    "simulate": "Simulate Scan (Demo)",
+    "flash": "Flash",
+    "cancel": "Cancel"
+  },
+  "batch": {
+    "title": "Batch Details",
+    "notFound": "Batch Not Found",
+    "notFoundDesc": "No batch found with this ID",
+    "journey": "Journey",
+    "information": "Information",
+    "updateStage": "Update Stage",
+    "currentStage": "Current Stage",
+    "crop": "Crop",
+    "farmer": "Farmer",
+    "location": "Location",
+    "weight": "Weight",
+    "price": "Price",
+    "status": "Status"
+  },
+  "profile": {
+    "title": "Profile",
+    "darkMode": "Dark Mode",
+    "notifications": "Notifications",
+    "biometricLock": "Biometric Lock",
+    "about": "About",
+    "signIn": "Sign In",
+    "connectedWallet": "Connected Wallet"
+  },
+  "roles": {
+    "farmer": "Farmer",
+    "mandi": "Mandi (Market)",
+    "transporter": "Transporter",
+    "retailer": "Retailer",
+    "admin": "Administrator",
+    "guest": "Guest"
+  },
+  "stages": {
+    "farmer": "Farm",
+    "mandi": "Mandi Market",
+    "transport": "In Transit",
+    "retailer": "Retail"
+  },
+  "errors": {
+    "network": "No internet connection. Changes will sync when online.",
+    "syncFailed": "Failed to sync some items.",
+    "scanFailed": "Failed to scan QR code. Please try again."
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "name": "cropchain-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "lint": "expo lint"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.1.0",
+    "@react-native-community/netinfo": "^11.4.1",
+    "expo": "~52.0.0",
+    "@expo/vector-icons": "^14.0.0",
+    "i18next": "^25.0.0",
+    "react-i18next": "^16.0.0",
+    "expo-auth-session": "~6.0.0",
+    "expo-constants": "~17.0.0",
+    "expo-crypto": "~14.0.0",
+    "expo-local-authentication": "~15.0.0",
+    "expo-notifications": "~0.29.0",
+    "expo-router": "~4.0.0",
+    "expo-secure-store": "~14.0.0",
+    "expo-status-bar": "~2.0.0",
+    "expo-web-browser": "~14.0.0",
+    "nativewind": "^4.1.0",
+    "react": "18.3.1",
+    "react-native": "0.76.6",
+    "react-native-gesture-handler": "~2.20.0",
+    "react-native-reanimated": "~3.16.0",
+    "react-native-safe-area-context": "~4.14.0",
+    "react-native-screens": "~4.4.0",
+    "react-native-vision-camera": "^4.6.0",
+    "react-native-web": "~0.19.13",
+    "tailwindcss": "^3.4.17",
+    "vision-camera-code-scanner": "^0.3.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@types/react": "~18.3.0",
+    "typescript": "^5.3.0"
+  }
+}

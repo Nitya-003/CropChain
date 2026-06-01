@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "CropChain",
+    "slug": "cropchain-mobile",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "scheme": "cropchain",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#16a34a"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cropchain.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Camera is used to scan QR codes on crop batches for instant tracking and verification.",
+        "NSFaceIDUsageDescription": "Face ID / Touch ID can be used for secure and fast login."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#16a34a"
+      },
+      "package": "com.cropchain.mobile",
+      "permissions": [
+        "CAMERA",
+        "USE_BIOMETRIC",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Camera is used to scan QR codes on crop batches."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#16a34a"
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Face ID / Touch ID can be used for secure login."
+        }
+      ],
+      "expo-router",
+      "expo-secure-store"
+    ]
+  }
+}
