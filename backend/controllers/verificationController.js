@@ -1,17 +1,18 @@
 const didService = require('../services/didService');
 const User = require('../models/User');
 const { z } = require('zod');
+const { validateParams } = require('../utils/validation');
+const {
+    handleZodValidation,
+    handleServerError,
+    requireIdempotencyKey,
+    handleVerificationWithIdempotency,
+} = require('../utils/verificationControllerHelpers');
 const apiResponse = require('../utils/apiResponse');
 const { ROLES } = require('../constants/permissions');
 const {
     CHALLENGE_ACTIONS,
     createChallenge,
-    consumeChallenge,
-    createFingerprint,
-    deleteIdempotencyRecord,
-    getIdempotencyRecord,
-    reserveIdempotencyKey,
-    storeCompletedIdempotencyRecord,
 } = require('../services/verificationSecurityService');
 
 // Validation schemas
@@ -44,149 +45,9 @@ const revokeCredentialSchema = z.object({
     reason: z.string().min(1, 'Revocation reason is required'),
 });
 
-const handleZodValidation = (res, schema, reqBody) => {
-    const validationResult = schema.safeParse(reqBody);
-
-    if (!validationResult.success) {
-        res.status(400).json(
-            apiResponse.validationErrorResponse(
-                validationResult.error.errors.map(err => err.message)
-            )
-        );
-
-        return { ok: false };
-    }
-
-    return { ok: true, data: validationResult.data };
-};
-
-const handleServerError = (res, error, { code, message }) => {
-    console.error(message, error);
-
-    return res.status(500).json(
-        apiResponse.errorResponse(message, code, 500)
-    );
-};
-
-const requireIdempotencyKey = (req, res) => {
-    const idempotencyKey = req.get('Idempotency-Key');
-
-    if (!idempotencyKey || !idempotencyKey.trim()) {
-        res.status(400).json(
-            apiResponse.validationErrorResponse(['Idempotency-Key header is required'])
-        );
-
-        return null;
-    }
-
-    return idempotencyKey.trim();
-};
-
-const handleIdempotencyReplay = (res, record) => {
-    return res.status(record.statusCode || 200).json(record.response);
-};
-
-const handleDuplicateIdempotencyKey = (res, message) => {
-    return res.status(409).json(apiResponse.conflictResponse(message));
-};
-
-const handleChallengeValidation = (res, challengeRecord, requestPayload) => {
-    if (!challengeRecord) {
-        return handleDuplicateIdempotencyKey(res, 'Nonce is missing, expired, or already used');
-    }
-
-    if (
-        challengeRecord.expiresAt !== requestPayload.expiresAt ||
-        challengeRecord.nonce !== requestPayload.nonce
-    ) {
-        return handleDuplicateIdempotencyKey(res, 'Nonce does not match the active challenge');
-    }
-
-    return null;
-};
-
-const handleVerificationWithIdempotency = async ({
-    res,
-    action,
-    actorId,
-    userId,
-    walletAddress,
-    signature,
-    nonce,
-    expiresAt,
-    idempotencyKey,
-    execute,
-}) => {
-    const fingerprint = createFingerprint({ action, actorId, userId, walletAddress });
-    const existingRecord = await getIdempotencyRecord({ action, actorId, key: idempotencyKey });
-
-    if (existingRecord) {
-        if (existingRecord.fingerprint !== fingerprint) {
-            return handleDuplicateIdempotencyKey(res, 'Idempotency-Key was already used for a different request');
-        }
-
-        if (existingRecord.state === 'completed') {
-            return handleIdempotencyReplay(res, existingRecord);
-        }
-
-        return handleDuplicateIdempotencyKey(res, 'Request with this Idempotency-Key is already in progress');
-    }
-
-    const challengeRecord = await consumeChallenge({
-        action,
-        actorId,
-        nonce,
-        userId,
-        walletAddress,
-        expiresAt,
-    });
-
-    const challengeError = handleChallengeValidation(res, challengeRecord, { nonce, expiresAt });
-
-    if (challengeError) {
-        return challengeError;
-    }
-
-    const reservation = await reserveIdempotencyKey({
-        action,
-        actorId,
-        key: idempotencyKey,
-        fingerprint,
-    });
-
-    if (!reservation.reserved) {
-        if (!reservation.record) {
-            return handleDuplicateIdempotencyKey(res, 'Unable to reserve the idempotency key');
-        }
-
-        if (reservation.record.fingerprint !== fingerprint) {
-            return handleDuplicateIdempotencyKey(res, 'Idempotency-Key was already used for a different request');
-        }
-
-        if (reservation.record.state === 'completed') {
-            return handleIdempotencyReplay(res, reservation.record);
-        }
-
-        return handleDuplicateIdempotencyKey(res, 'Request with this Idempotency-Key is already in progress');
-    }
-
-    try {
-        const result = await execute(challengeRecord);
-        await storeCompletedIdempotencyRecord({
-            action,
-            actorId,
-            key: idempotencyKey,
-            fingerprint,
-            response: result,
-            statusCode: 200,
-        });
-
-        return res.json(result);
-    } catch (error) {
-        await deleteIdempotencyRecord({ action, actorId, key: idempotencyKey });
-        throw error;
-    }
-};
+const checkVerificationParamsSchema = z.object({
+    userId: z.string().regex(/^[a-fA-F0-9]{24}$/),
+});
 
 const generateLinkWalletChallenge = async (req, res) => {
     try {
@@ -352,52 +213,32 @@ const revokeCredential = async (req, res) => {
  */
 const checkVerification = async (req, res) => {
     try {
-        const { userId } = req.params;
+        const validatedParams = validateParams(res, checkVerificationParamsSchema, req.params);
 
-        // Basic validation of userId (e.g., MongoDB ObjectId-style 24 hex chars)
-        if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
-            return res.status(400).json(
-                apiResponse.errorResponse(
-                    'User ID is required',
-                    'MISSING_USERID',
-                    400
-                )
-            );
+        if (!validatedParams) {
+            return;
         }
 
-        if (!/^[a-fA-F0-9]{24}$/.test(userId)) {
-            return res.status(400).json(
-                apiResponse.errorResponse(
-                    'User ID must be a valid identifier',
-                    'INVALID_USERID',
-                    400
-                )
-            );
-        }
+        const { userId } = validatedParams;
 
         const result = await didService.checkVerificationStatus(userId);
 
         res.json(result);
     } catch (error) {
+        const message = error && error.message ? error.message : 'An unexpected error occurred';
+
         let statusCode = 500;
         let errorCode = 'VERIFICATION_CHECK_ERROR';
 
-        const message = error && error.message ? error.message : 'An unexpected error occurred';
-        const name = error && error.name ? error.name : '';
-
-        // Map validation/format errors to 400
-        if (
-            name === 'CastError' ||
-            name === 'ValidationError' ||
-            /invalid/i.test(message)
-        ) {
+        if (error?.name === 'CastError' || error?.name === 'ValidationError') {
             statusCode = 400;
             errorCode = 'INVALID_DATA';
-        }
-        // Map "not found" semantics to 404
-        else if (/not found/i.test(message)) {
+        } else if (error?.name === 'NotFoundError' || error?.code === 'NOT_FOUND' || error?.statusCode === 404) {
             statusCode = 404;
-            errorCode = 'NOT_FOUND';
+            errorCode = error?.code || 'NOT_FOUND';
+        } else if (error?.statusCode && error.statusCode < 500) {
+            statusCode = error.statusCode;
+            errorCode = error?.code || errorCode;
         }
 
         res.status(statusCode).json(

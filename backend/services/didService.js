@@ -2,6 +2,7 @@ const { ethers } = require('ethers');
 const User = require('../models/User');
 const { isAdminRole } = require('../constants/permissions');
 const { buildVerificationMessage, CHALLENGE_ACTIONS } = require('./verificationSecurityService');
+const { NotFoundError } = require('../utils/errorHandler');
 
 /**
  * DID Service for Verifiable Credentials
@@ -183,7 +184,7 @@ class DIDService {
             const user = await User.findById(userId).select('verification role');
 
             if (!user) {
-                throw new Error('User not found');
+                throw new NotFoundError('User', userId);
             }
 
             // Zero-knowledge proof: Only return verification status
