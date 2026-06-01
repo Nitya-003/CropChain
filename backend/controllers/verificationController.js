@@ -3,16 +3,11 @@ const User = require('../models/User');
 const { z } = require('zod');
 const apiResponse = require('../utils/apiResponse');
 const { validateParams } = require('../utils/validation');
+const { handleVerificationWithIdempotency } = require('../utils/verificationIdempotency');
 const { ROLES } = require('../constants/permissions');
 const {
     CHALLENGE_ACTIONS,
     createChallenge,
-    consumeChallenge,
-    createFingerprint,
-    deleteIdempotencyRecord,
-    getIdempotencyRecord,
-    reserveIdempotencyKey,
-    storeCompletedIdempotencyRecord,
 } = require('../services/verificationSecurityService');
 
 // Validation schemas
@@ -85,112 +80,6 @@ const requireIdempotencyKey = (req, res) => {
     }
 
     return idempotencyKey.trim();
-};
-
-const handleIdempotencyReplay = (res, record) => {
-    return res.status(record.statusCode || 200).json(record.response);
-};
-
-const handleDuplicateIdempotencyKey = (res, message) => {
-    return res.status(409).json(apiResponse.conflictResponse(message));
-};
-
-const handleChallengeValidation = (res, challengeRecord, requestPayload) => {
-    if (!challengeRecord) {
-        return handleDuplicateIdempotencyKey(res, 'Nonce is missing, expired, or already used');
-    }
-
-    if (
-        challengeRecord.expiresAt !== requestPayload.expiresAt ||
-        challengeRecord.nonce !== requestPayload.nonce
-    ) {
-        return handleDuplicateIdempotencyKey(res, 'Nonce does not match the active challenge');
-    }
-
-    return null;
-};
-
-const handleVerificationWithIdempotency = async ({
-    res,
-    action,
-    actorId,
-    userId,
-    walletAddress,
-    signature,
-    nonce,
-    expiresAt,
-    idempotencyKey,
-    execute,
-}) => {
-    const fingerprint = createFingerprint({ action, actorId, userId, walletAddress });
-    const existingRecord = await getIdempotencyRecord({ action, actorId, key: idempotencyKey });
-
-    if (existingRecord) {
-        if (existingRecord.fingerprint !== fingerprint) {
-            return handleDuplicateIdempotencyKey(res, 'Idempotency-Key was already used for a different request');
-        }
-
-        if (existingRecord.state === 'completed') {
-            return handleIdempotencyReplay(res, existingRecord);
-        }
-
-        return handleDuplicateIdempotencyKey(res, 'Request with this Idempotency-Key is already in progress');
-    }
-
-    const challengeRecord = await consumeChallenge({
-        action,
-        actorId,
-        nonce,
-        userId,
-        walletAddress,
-        expiresAt,
-    });
-
-    const challengeError = handleChallengeValidation(res, challengeRecord, { nonce, expiresAt });
-
-    if (challengeError) {
-        return challengeError;
-    }
-
-    const reservation = await reserveIdempotencyKey({
-        action,
-        actorId,
-        key: idempotencyKey,
-        fingerprint,
-    });
-
-    if (!reservation.reserved) {
-        if (!reservation.record) {
-            return handleDuplicateIdempotencyKey(res, 'Unable to reserve the idempotency key');
-        }
-
-        if (reservation.record.fingerprint !== fingerprint) {
-            return handleDuplicateIdempotencyKey(res, 'Idempotency-Key was already used for a different request');
-        }
-
-        if (reservation.record.state === 'completed') {
-            return handleIdempotencyReplay(res, reservation.record);
-        }
-
-        return handleDuplicateIdempotencyKey(res, 'Request with this Idempotency-Key is already in progress');
-    }
-
-    try {
-        const result = await execute(challengeRecord);
-        await storeCompletedIdempotencyRecord({
-            action,
-            actorId,
-            key: idempotencyKey,
-            fingerprint,
-            response: result,
-            statusCode: 200,
-        });
-
-        return res.json(result);
-    } catch (error) {
-        await deleteIdempotencyRecord({ action, actorId, key: idempotencyKey });
-        throw error;
-    }
 };
 
 const generateLinkWalletChallenge = async (req, res) => {
