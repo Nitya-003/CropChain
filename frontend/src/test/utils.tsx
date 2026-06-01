@@ -1,6 +1,5 @@
 import React, { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '../context/ThemeContext';
 import { AuthProvider } from '../context/AuthContext';
@@ -42,40 +41,32 @@ function createTestQueryClient() {
   });
 }
 
-interface AllProvidersProps {
-  children: React.ReactNode;
-  initialEntries?: string[];
-}
-
-export function AllProviders({ children, initialEntries = ['/'] }: AllProvidersProps) {
+export function AllProviders({ children }: { children: React.ReactNode }) {
   const queryClient = createTestQueryClient();
   return (
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={initialEntries}>
-        <ThemeProvider>
-          <AuthProvider>
-            <CurrencyProvider>
-              <ToastProvider>
-                {children}
-              </ToastProvider>
-            </CurrencyProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </MemoryRouter>
+      <ThemeProvider>
+        <AuthProvider>
+          <CurrencyProvider>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </CurrencyProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
 
 export function renderWithProviders(
   ui: ReactElement,
-  options?: Omit<RenderOptions, 'wrapper'> & { initialEntries?: string[] }
+  options?: Omit<RenderOptions, 'wrapper'>
 ) {
-  const { initialEntries, ...renderOptions } = options || {};
   return render(ui, {
     wrapper: ({ children }) => (
-      <AllProviders initialEntries={initialEntries}>{children}</AllProviders>
+      <AllProviders>{children}</AllProviders>
     ),
-    ...renderOptions,
+    ...options,
   });
 }
 
