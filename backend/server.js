@@ -24,6 +24,7 @@ const oracleService = require('./services/oracleService');
 // Import Services
 const blockchainService = require('./services/blockchainService');
 const batchService = require('./services/batchService');
+const pdfService = require('./services/pdfService');
 const ccipService = require('./services/ccipService');
 const notificationService = require('./services/notificationService');
 
@@ -392,6 +393,36 @@ app.get('/api/batches/:batchId', batchLimiter, protect, async (req, res) => {
         const response = apiResponse.errorResponse(
             'Failed to fetch batch',
             'BATCH_FETCH_ERROR',
+            500
+        );
+        res.status(500).json(response);
+    }
+});
+
+// GET batch journey PDF - requires authentication
+app.get('/api/batches/:batchId/pdf', batchLimiter, protect, async (req, res) => {
+    try {
+        const { batchId } = req.params;
+
+        const result = await batchService.getBatch(batchId);
+
+        if (!result.success) {
+            const response = apiResponse.notFoundResponse('Batch', `ID: ${batchId}`);
+            return res.status(result.statusCode).json(response);
+        }
+
+        const pdfBuffer = await pdfService.generateBatchJourneyPDF(result.batch);
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="batch-${batchId}-journey.pdf"`);
+        res.setHeader('Content-Length', pdfBuffer.length);
+        res.send(pdfBuffer);
+    } catch (error) {
+        notificationService.notifyError('batch pdf generation', error);
+        console.error('Error generating batch PDF:', error);
+        const response = apiResponse.errorResponse(
+            'Failed to generate batch PDF',
+            'PDF_GENERATION_ERROR',
             500
         );
         res.status(500).json(response);
