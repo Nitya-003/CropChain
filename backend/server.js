@@ -465,32 +465,6 @@ app.post(
     }
 );
 
-// GET all batches - requires authentication
-// NOTE: This endpoint uses .lean() and compound indexes for optimal performance.
-// The new { currentStage: 1, createdAt: -1 } compound index handles pagination and sorting efficiently.
-app.get('/api/batches', batchLimiter, protect, async (req, res) => {
-    try {
-        const result = await batchService.getAllBatches();
-
-        console.log(`[SUCCESS] Batches list retrieved by user: ${req.user?.id} from IP: ${req.ip}`);
-
-        const response = apiResponse.successResponse(
-            { stats: result.stats, batches: result.batches },
-            'Batches retrieved successfully'
-        );
-        res.json(response);
-    } catch (error) {
-        notificationService.notifyError('batches fetch', error);
-        console.error('Error fetching batches:', error);
-        const response = apiResponse.errorResponse(
-            'Failed to fetch batches',
-            'BATCHES_FETCH_ERROR',
-            500
-        );
-        res.status(500).json(response);
-    }
-});
-
 // ==================== AI SERVICE ====================
 
 // Create batch service interface for AI service
