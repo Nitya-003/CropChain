@@ -309,6 +309,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     {
         CropBatch storage batch = cropBatches[batchId];
         require(!batch.isRecalled, "Batch is recalled");
+        require(!batch.isSpoiled, "Batch is spoiled");
         require(quantity > 0, "Quantity must be > 0");
         require(unitPriceWei > 0, "Price=0");
 
@@ -359,6 +360,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
 
         CropBatch storage batch = cropBatches[listing.batchId];
         require(batch.exists && !batch.isRecalled, "Batch unavailable");
+        require(!batch.isSpoiled, "Batch is spoiled");
 
         uint256 twapPrice = getTwapPrice(batch.cropTypeHash, twapWindow);
         if (twapPrice > 0) {
@@ -641,6 +643,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         batchExists(batchId)
     {
         require(!cropBatches[batchId].isRecalled, "Batch is recalled");
+        require(humidity >= 0 && humidity <= 10000, "Humidity out of range (0-100.00%)");
         
         // Update batch IoT data
         cropBatches[batchId].currentTemperature = temperature;
