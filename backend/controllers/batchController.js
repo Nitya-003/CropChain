@@ -3,6 +3,7 @@ const Counter = require('../models/Counter');
 const mongoose = require('mongoose');
 const apiResponse = require('../utils/apiResponse');
 const { isAdminRole } = require('../constants/permissions');
+const STAGES = require('../constants/stages');
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -279,6 +280,9 @@ exports.getBatches = async (req, res) => {
             farmerName,
             cropType,
             status,
+            currentStage,
+            startDate,
+            endDate,
             page = 1,
             limit = 10,
             sortBy = 'createdAt',
@@ -302,6 +306,23 @@ exports.getBatches = async (req, res) => {
         
         if (status) {
             query.status = status;
+        }
+
+        if (currentStage) {
+            const normalizedStage = currentStage.toLowerCase();
+            if (STAGES.includes(normalizedStage)) {
+                query.currentStage = normalizedStage;
+            }
+        }
+
+        if (startDate || endDate) {
+            query.createdAt = {};
+            if (startDate) {
+                query.createdAt.$gte = new Date(startDate);
+            }
+            if (endDate) {
+                query.createdAt.$lte = new Date(endDate);
+            }
         }
 
         const pageNumber = parseInt(page, 10);

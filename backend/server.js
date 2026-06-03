@@ -24,6 +24,7 @@ const oracleService = require('./services/oracleService');
 // Import Services
 const blockchainService = require('./services/blockchainService');
 const batchService = require('./services/batchService');
+const pdfService = require('./services/pdfService');
 const ccipService = require('./services/ccipService');
 const notificationService = require('./services/notificationService');
 
@@ -398,6 +399,36 @@ app.get('/api/batches/:batchId', batchLimiter, protect, async (req, res) => {
     }
 });
 
+// GET batch journey PDF - requires authentication
+app.get('/api/batches/:batchId/pdf', batchLimiter, protect, async (req, res) => {
+    try {
+        const { batchId } = req.params;
+
+        const result = await batchService.getBatch(batchId);
+
+        if (!result.success) {
+            const response = apiResponse.notFoundResponse('Batch', `ID: ${batchId}`);
+            return res.status(result.statusCode).json(response);
+        }
+
+        const pdfBuffer = await pdfService.generateBatchJourneyPDF(result.batch);
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="batch-${batchId}-journey.pdf"`);
+        res.setHeader('Content-Length', pdfBuffer.length);
+        res.send(pdfBuffer);
+    } catch (error) {
+        notificationService.notifyError('batch pdf generation', error);
+        console.error('Error generating batch PDF:', error);
+        const response = apiResponse.errorResponse(
+            'Failed to generate batch PDF',
+            'PDF_GENERATION_ERROR',
+            500
+        );
+        res.status(500).json(response);
+    }
+});
+
 // UPDATE batch - requires authentication, ownership, and stage transition authorization
 app.put('/api/batches/:batchId', batchLimiter, protect, authorizeBatchOwner, authorizeStageTransition, authorizeBlockchainTransaction, validateRequest(updateBatchSchema), async (req, res) => {
     try {
@@ -464,32 +495,6 @@ app.post(
         }
     }
 );
-
-// GET all batches - requires authentication
-// NOTE: This endpoint uses .lean() and compound indexes for optimal performance.
-// The new { currentStage: 1, createdAt: -1 } compound index handles pagination and sorting efficiently.
-app.get('/api/batches', batchLimiter, protect, async (req, res) => {
-    try {
-        const result = await batchService.getAllBatches();
-
-        console.log(`[SUCCESS] Batches list retrieved by user: ${req.user?.id} from IP: ${req.ip}`);
-
-        const response = apiResponse.successResponse(
-            { stats: result.stats, batches: result.batches },
-            'Batches retrieved successfully'
-        );
-        res.json(response);
-    } catch (error) {
-        notificationService.notifyError('batches fetch', error);
-        console.error('Error fetching batches:', error);
-        const response = apiResponse.errorResponse(
-            'Failed to fetch batches',
-            'BATCHES_FETCH_ERROR',
-            500
-        );
-        res.status(500).json(response);
-    }
-});
 
 // ==================== AI SERVICE ====================
 

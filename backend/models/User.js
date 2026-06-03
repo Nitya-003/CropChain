@@ -83,6 +83,8 @@ const userSchema = new mongoose.Schema({
 userSchema.index({ role: 1 });
 userSchema.index({ 'inspectorCredentials.certificationId': 1 }, { sparse: true });
 userSchema.index({ walletAddress: 1 }, { sparse: true });
+userSchema.index({ 'verification.isVerified': 1 });
+userSchema.index({ 'verification.isVerified': 1, role: 1 });
 
 userSchema.virtual('canApproveMultisig').get(function() {
     if (this.role !== ROLES.QUALITY_INSPECTOR) return false;
