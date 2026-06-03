@@ -1,4 +1,5 @@
 const apiResponse = require('./apiResponse');
+const { mapHttpError } = require('./httpErrorMapper');
 const {
     createFingerprint,
     getIdempotencyRecord,
@@ -24,12 +25,10 @@ const handleZodValidation = (res, schema, reqBody) => {
     return { ok: true, data: validationResult.data };
 };
 
-const handleServerError = (res, error, { code, message }) => {
-    console.error(message, error);
-
-    return res.status(500).json(
-        apiResponse.errorResponse(message, code, 500)
-    );
+const handleServerError = (res, error, fallbackMeta) => {
+    console.error(fallbackMeta?.message || 'Server error', error);
+    const { statusCode, body } = mapHttpError(error, fallbackMeta);
+    return res.status(statusCode).json(body);
 };
 
 const requireIdempotencyKey = (req, res) => {
