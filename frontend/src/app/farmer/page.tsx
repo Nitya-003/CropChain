@@ -45,7 +45,7 @@ const FarmerDashboardComponent: React.FC = () => {
     }
   };
 
-  const handleCreateBatch = async (e: React.FormEvent) => {
+  const handleCreateBatch = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!formData.cropType || !formData.quantity || !formData.origin) return;
     
