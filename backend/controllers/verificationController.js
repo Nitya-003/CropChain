@@ -49,16 +49,68 @@ const checkVerificationParamsSchema = z.object({
     userId: z.string().regex(/^[a-fA-F0-9]{24}$/),
 });
 
+// Internal helpers for logic de-duplication
+const validateOrRespond = (res, schema, body) => {
+    const result = handleZodValidation(res, schema, body);
+    return result.ok ? result.data : null;
+};
+
+const getIdempotencyKeyOrReturn = (req, res) => {
+    return requireIdempotencyKey(req, res);
+};
+
+const withVerificationAction = async ({
+    req,
+    res,
+    schema,
+    body,
+    action,
+    actorIdFromReq,
+    execute,
+    errorMeta,
+}) => {
+    try {
+        const validatedData = validateOrRespond(res, schema, body);
+        if (!validatedData) {
+            return;
+        }
+
+        const idempotencyKey = getIdempotencyKeyOrReturn(req, res);
+        if (!idempotencyKey) {
+            return;
+        }
+
+        const { walletAddress, signature, nonce, expiresAt, userId } = validatedData;
+        const actorId = actorIdFromReq;
+        const targetUserId = userId || actorId;
+
+        return await handleVerificationWithIdempotency({
+            res,
+            action,
+            actorId,
+            userId: targetUserId,
+            walletAddress,
+            signature,
+            nonce,
+            expiresAt,
+            idempotencyKey,
+            execute: (challenge) => execute(validatedData, challenge),
+        });
+    } catch (error) {
+        return handleServerError(res, error, errorMeta);
+    }
+};
+
 const generateLinkWalletChallenge = async (req, res) => {
     try {
-        const validationResult = handleZodValidation(res, linkWalletChallengeSchema, req.body);
+        const validatedData = validateOrRespond(res, linkWalletChallengeSchema, req.body);
 
-        if (!validationResult.ok) {
+        if (!validatedData) {
             return;
         }
 
         const userId = req.user.id;
-        const { walletAddress } = validationResult.data;
+        const { walletAddress } = validatedData;
 
         const challenge = await createChallenge({
             action: CHALLENGE_ACTIONS.LINK_WALLET,
@@ -78,14 +130,14 @@ const generateLinkWalletChallenge = async (req, res) => {
 
 const generateIssueCredentialChallenge = async (req, res) => {
     try {
-        const validationResult = handleZodValidation(res, issueCredentialChallengeSchema, req.body);
+        const validatedData = validateOrRespond(res, issueCredentialChallengeSchema, req.body);
 
-        if (!validationResult.ok) {
+        if (!validatedData) {
             return;
         }
 
         const actorId = req.user.id;
-        const { userId, walletAddress } = validationResult.data;
+        const { userId, walletAddress } = validatedData;
 
         const challenge = await createChallenge({
             action: CHALLENGE_ACTIONS.ISSUE_CREDENTIAL,
@@ -107,80 +159,40 @@ const generateIssueCredentialChallenge = async (req, res) => {
  * Link wallet address to user account
  */
 const linkWallet = async (req, res) => {
-    try {
-        const validationResult = handleZodValidation(res, linkWalletSchema, req.body);
-
-        if (!validationResult.ok) {
-            return;
-        }
-
-        const idempotencyKey = requireIdempotencyKey(req, res);
-
-        if (!idempotencyKey) {
-            return;
-        }
-
-        const { walletAddress, signature, nonce, expiresAt } = validationResult.data;
-        const userId = req.user.id;
-
-        return handleVerificationWithIdempotency({
-            res,
-            action: CHALLENGE_ACTIONS.LINK_WALLET,
-            actorId: userId,
-            userId,
-            walletAddress,
-            signature,
-            nonce,
-            expiresAt,
-            idempotencyKey,
-            execute: (challenge) => didService.linkWallet(userId, walletAddress, signature, challenge),
-        });
-    } catch (error) {
-        return handleServerError(res, error, {
+    return withVerificationAction({
+        req,
+        res,
+        schema: linkWalletSchema,
+        body: req.body,
+        action: CHALLENGE_ACTIONS.LINK_WALLET,
+        actorIdFromReq: req.user.id,
+        execute: (validatedData, challenge) =>
+            didService.linkWallet(req.user.id, validatedData.walletAddress, validatedData.signature, challenge),
+        errorMeta: {
             code: 'WALLET_LINKING_ERROR',
             message: 'Wallet linking failed',
-        });
-    }
+        },
+    });
 };
 
 /**
  * Issue verifiable credential (Mandi officer only)
  */
 const issueCredential = async (req, res) => {
-    try {
-        const validationResult = handleZodValidation(res, issueCredentialSchema, req.body);
-
-        if (!validationResult.ok) {
-            return;
-        }
-
-        const idempotencyKey = requireIdempotencyKey(req, res);
-
-        if (!idempotencyKey) {
-            return;
-        }
-
-        const { userId, signature, walletAddress, nonce, expiresAt } = validationResult.data;
-        const verifierId = req.user.id;
-
-        return handleVerificationWithIdempotency({
-            res,
-            action: CHALLENGE_ACTIONS.ISSUE_CREDENTIAL,
-            actorId: verifierId,
-            userId,
-            walletAddress,
-            signature,
-            nonce,
-            expiresAt,
-            idempotencyKey,
-            execute: (challenge) => didService.issueCredential(userId, verifierId, signature, walletAddress, challenge),
-        });
-    } catch (error) {
-        return handleServerError(res, error, {
+    return withVerificationAction({
+        req,
+        res,
+        schema: issueCredentialSchema,
+        body: req.body,
+        action: CHALLENGE_ACTIONS.ISSUE_CREDENTIAL,
+        actorIdFromReq: req.user.id,
+        execute: (validatedData, challenge) =>
+            didService.issueCredential(validatedData.userId, req.user.id, validatedData.signature, validatedData.walletAddress, challenge),
+        errorMeta: {
             code: 'CREDENTIAL_ISSUE_ERROR',
             message: 'Credential issuing failed',
-        });
-    }
+        },
+    });
 };
 
 /**
@@ -188,13 +200,13 @@ const issueCredential = async (req, res) => {
  */
 const revokeCredential = async (req, res) => {
     try {
-        const validationResult = handleZodValidation(res, revokeCredentialSchema, req.body);
+        const validatedData = validateOrRespond(res, revokeCredentialSchema, req.body);
 
-        if (!validationResult.ok) {
+        if (!validatedData) {
             return;
         }
 
-        const { userId, reason } = validationResult.data;
+        const { userId, reason } = validatedData;
         const adminId = req.user.id;
 
         const result = await didService.revokeCredential(userId, adminId, reason);
