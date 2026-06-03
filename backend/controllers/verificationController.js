@@ -237,25 +237,10 @@ const checkVerification = async (req, res) => {
 
         res.json(result);
     } catch (error) {
-        const message = error && error.message ? error.message : 'An unexpected error occurred';
-
-        let statusCode = 500;
-        let errorCode = 'VERIFICATION_CHECK_ERROR';
-
-        if (error?.name === 'CastError' || error?.name === 'ValidationError') {
-            statusCode = 400;
-            errorCode = 'INVALID_DATA';
-        } else if (error?.name === 'NotFoundError' || error?.code === 'NOT_FOUND' || error?.statusCode === 404) {
-            statusCode = 404;
-            errorCode = error?.code || 'NOT_FOUND';
-        } else if (error?.statusCode && error.statusCode < 500) {
-            statusCode = error.statusCode;
-            errorCode = error?.code || errorCode;
-        }
-
-        res.status(statusCode).json(
-            apiResponse.errorResponse(message, errorCode, statusCode)
-        );
+        return handleServerError(res, error, {
+            code: 'VERIFICATION_CHECK_ERROR',
+            message: 'Verification check failed',
+        });
     }
 };
 
