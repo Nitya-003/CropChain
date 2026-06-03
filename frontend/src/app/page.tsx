@@ -36,10 +36,10 @@ const Home: React.FC = () => {
   ];
 
   const stages = [
-    { icon: Sprout, title: t('home.stages.farmer.title'), description: t('home.stages.farmer.description'), color: 'text-emerald-500 bg-emerald-500/10' },
-    { icon: Building2, title: t('home.stages.mandi.title'), description: t('home.stages.mandi.description'), color: 'text-blue-500 bg-blue-500/10' },
-    { icon: Truck, title: t('home.stages.transport.title'), description: t('home.stages.transport.description'), color: 'text-amber-500 bg-amber-500/10' },
-    { icon: Store, title: t('home.stages.retailer.title'), description: t('home.stages.retailer.description'), color: 'text-purple-500 bg-purple-500/10' }
+    { href: '/farmer', icon: Sprout, title: t('home.stages.farmer.title'), description: t('home.stages.farmer.description'), color: 'text-emerald-500 bg-emerald-500/10' },
+    { href: '/mandi', icon: Building2, title: t('home.stages.mandi.title'), description: t('home.stages.mandi.description'), color: 'text-blue-500 bg-blue-500/10' },
+    { href: '/transporter', icon: Truck, title: t('home.stages.transport.title'), description: t('home.stages.transport.description'), color: 'text-amber-500 bg-amber-500/10' },
+    { href: '/retailer', icon: Store, title: t('home.stages.retailer.title'), description: t('home.stages.retailer.description'), color: 'text-purple-500 bg-purple-500/10' }
   ];
 
   return (
@@ -111,21 +111,23 @@ const Home: React.FC = () => {
         </div>
         <div className="grid md:grid-cols-4 gap-6 max-w-6xl mx-auto">
           {stages.map((stage, index) => (
-            <Card key={index} className="relative group hover:shadow-md hover:-translate-y-1 transition-all duration-300 border-border bg-card">
-              {/* Connecting Line */}
-              {index < stages.length - 1 && (
-                <div className="hidden md:block absolute left-full top-[4.5rem] w-full h-[1px] bg-gradient-to-r from-primary/30 to-border/30 z-0 translate-x-[-12px] w-[calc(100%-24px)]" />
-              )}
-              <CardHeader className="flex flex-col items-center text-center pb-2">
-                <div className={`p-4 rounded-full ${stage.color} mb-4 transform group-hover:scale-105 transition-transform duration-300`}>
-                  <stage.icon className="h-8 w-8" />
-                </div>
-                <CardTitle className="text-lg font-semibold text-foreground">{stage.title}</CardTitle>
-              </CardHeader>
-              <CardContent className="text-center pb-6">
-                <p className="text-muted-foreground text-xs leading-relaxed">{stage.description}</p>
-              </CardContent>
-            </Card>
+            <Link key={index} href={stage.href} className="block group">
+              <Card className="relative h-full hover:shadow-md hover:-translate-y-1 transition-all duration-300 border-border bg-card cursor-pointer">
+                {/* Connecting Line */}
+                {index < stages.length - 1 && (
+                  <div className="hidden md:block absolute left-full top-[4.5rem] w-full h-[1px] bg-gradient-to-r from-primary/30 to-border/30 z-0 translate-x-[-12px] w-[calc(100%-24px)]" />
+                )}
+                <CardHeader className="flex flex-col items-center text-center pb-2 relative z-10">
+                  <div className={`p-4 rounded-full ${stage.color} mb-4 transform group-hover:scale-105 transition-transform duration-300`}>
+                    <stage.icon className="h-8 w-8" />
+                  </div>
+                  <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">{stage.title}</CardTitle>
+                </CardHeader>
+                <CardContent className="text-center pb-6 relative z-10">
+                  <p className="text-muted-foreground text-xs leading-relaxed">{stage.description}</p>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       </section>
