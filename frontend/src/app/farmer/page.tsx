@@ -34,7 +34,7 @@ const FarmerDashboardComponent: React.FC = () => {
         // Only show this farmer's batches based on farmerName for now 
         // (ideally should be farmerId, but user object contains name and id)
         const farmerBatches = data.batches.filter((b: any) => 
-          b.farmerName === user?.name || b.farmerId === user?._id
+          b.farmerName === user?.name || b.farmerId === user?.id
         );
         setBatches(farmerBatches.length > 0 ? farmerBatches : data.batches); // Fallback to all if matching fails during dev
       }
@@ -55,7 +55,7 @@ const FarmerDashboardComponent: React.FC = () => {
         ...formData,
         quantity: Number(formData.quantity),
         cropType: formData.cropType.toLowerCase(),
-        farmerId: user?.id || user?._id || 'unknown',
+        farmerId: user?.id || 'unknown',
         farmerName: user?.name || 'Unknown Farmer',
         farmerAddress: formData.origin,
         harvestDate: new Date().toISOString()
