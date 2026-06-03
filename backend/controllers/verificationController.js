@@ -249,20 +249,36 @@ const checkVerification = async (req, res) => {
  */
 const getUnverifiedUsers = async (req, res) => {
     try {
-        const users = await User.find({
+        let page = parseInt(req.query.page, 10) || 1;
+        let limit = parseInt(req.query.limit, 10) || 10;
+
+        if (page < 1) page = 1;
+        if (limit < 1) limit = 10;
+        if (limit > 100) limit = 100;
+
+        const skip = (page - 1) * limit;
+        const filter = {
             'verification.isVerified': { $ne: true },
             role: { $nin: [ROLES.ADMIN, ROLES.SUPER_ADMIN] },
-        }).select('name email role walletAddress createdAt');
+        };
+
+        const count = await User.countDocuments(filter);
+        const users = await User.find(filter)
+            .select('name email role walletAddress createdAt')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
 
         const response = apiResponse.successResponse(
-            { count: users.length, users },
+            { count, page, limit, users },
             'Unverified users retrieved successfully'
         );
         res.json(response);
     } catch (error) {
-        res.status(500).json(
-            apiResponse.errorResponse('Failed to fetch users', 'FETCH_USERS_ERROR', 500)
-        );
+        return handleServerError(res, error, {
+            code: 'FETCH_USERS_ERROR',
+            message: 'Failed to fetch users',
+        });
     }
 };
 
@@ -271,21 +287,36 @@ const getUnverifiedUsers = async (req, res) => {
  */
 const getVerifiedUsers = async (req, res) => {
     try {
-        const users = await User.find({
+        let page = parseInt(req.query.page, 10) || 1;
+        let limit = parseInt(req.query.limit, 10) || 10;
+
+        if (page < 1) page = 1;
+        if (limit < 1) limit = 10;
+        if (limit > 100) limit = 100;
+
+        const skip = (page - 1) * limit;
+        const filter = {
             'verification.isVerified': true,
-        })
+        };
+
+        const count = await User.countDocuments(filter);
+        const users = await User.find(filter)
             .select('name email role walletAddress verification.verifiedAt verification.verifiedBy')
-            .populate('verification.verifiedBy', 'name email');
+            .populate('verification.verifiedBy', 'name email')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
 
         const response = apiResponse.successResponse(
-            { count: users.length, users },
+            { count, page, limit, users },
             'Verified users retrieved successfully'
         );
         res.json(response);
     } catch (error) {
-        res.status(500).json(
-            apiResponse.errorResponse('Failed to fetch users', 'FETCH_USERS_ERROR', 500)
-        );
+        return handleServerError(res, error, {
+            code: 'FETCH_USERS_ERROR',
+            message: 'Failed to fetch users',
+        });
     }
 };
 
