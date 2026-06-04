@@ -23,6 +23,7 @@ const JourneyMap: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedUpdateIndex, setSelectedUpdateIndex] = useState<number>(0);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     const fetchBatchDetails = async () => {
@@ -61,26 +62,22 @@ const JourneyMap: React.FC = () => {
     setSelectedUpdateIndex(index);
   };
 
-  const handleDownloadPDF = async () => {
+  const handleExport = async (format: 'pdf' | 'csv') => {
+    setIsExporting(true);
     try {
-      const token = tokenService.getAccessToken();
-      const response = await fetch(`${API_URL}/batches/${batchId}/pdf`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error('Failed to generate PDF');
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const blob = await realCropBatchService.exportBatch(batchId, format);
+      const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement('a');
       link.href = url;
-      link.download = `batch-${batchId}-journey.pdf`;
+      link.download = `batch-${batchId}-journey.${format}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Failed to download PDF:', err);
+      console.error(`Failed to export ${format}:`, err);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -156,12 +153,22 @@ const JourneyMap: React.FC = () => {
         {/* Actions & Badges */}
         <div className="flex items-center gap-3 flex-wrap">
           <button
-            onClick={handleDownloadPDF}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-semibold shadow-sm transition-all hover:scale-105"
+            onClick={() => handleExport('pdf')}
+            disabled={isExporting}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-semibold shadow-sm transition-all hover:scale-105"
             title="Download as PDF"
           >
             <Download className="h-4 w-4" />
-            <span>PDF Report</span>
+            <span>{isExporting ? 'Exporting...' : 'PDF Report'}</span>
+          </button>
+          <button
+            onClick={() => handleExport('csv')}
+            disabled={isExporting}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold shadow-sm transition-all hover:scale-105"
+            title="Download as CSV"
+          >
+            <Download className="h-4 w-4" />
+            <span>{isExporting ? 'Exporting...' : 'CSV Export'}</span>
           </button>
           {batch.isSpoiled ? (
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 text-xs font-bold shadow-sm">
