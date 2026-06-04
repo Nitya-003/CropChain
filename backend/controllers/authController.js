@@ -614,6 +614,127 @@ const logoutUser = (req, res) => {
     );
 };
 
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json(
+                apiResponse.errorResponse('Email is required', 'EMAIL_REQUIRED', 400)
+            );
+        }
+
+        const user = await User.findOne({ email: email.toLowerCase() });
+        if (!user) {
+            return res.status(404).json(
+                apiResponse.errorResponse('User not found with this email', 'USER_NOT_FOUND', 404)
+            );
+        }
+
+        // Generate reset token
+        const resetToken = crypto.randomBytes(20).toString('hex');
+
+        // Hash token and set expire (15 minutes)
+        user.resetPasswordToken = crypto
+            .createHash('sha256')
+            .update(resetToken)
+            .digest('hex');
+        user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
+
+        await user.save();
+
+        // Send email
+        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+        const message = `
+            <h2>Password Reset Request</h2>
+            <p>You requested a password reset. Please click on the link below or paste it into your browser to reset your password:</p>
+            <a href="${resetUrl}" target="_blank">${resetUrl}</a>
+            <p>This link is valid for 15 minutes.</p>
+            <p>If you did not request this, please ignore this email.</p>
+            <p>CropChain Team</p>
+        `;
+
+        try {
+            const notificationService = require('../services/notificationService');
+            await notificationService.sendEmail(user.email, 'Password Reset Request', message);
+            return res.json(
+                apiResponse.successResponse(null, 'Password reset email sent successfully')
+            );
+        } catch (emailErr) {
+            user.resetPasswordToken = undefined;
+            user.resetPasswordExpire = undefined;
+            await user.save();
+            return res.status(500).json(
+                apiResponse.errorResponse('Email could not be sent', 'EMAIL_SEND_ERROR', 500)
+            );
+        }
+    } catch (error) {
+        return res.status(500).json(
+            apiResponse.errorResponse('Server error during forgot password', 'SERVER_ERROR', 500)
+        );
+    }
+};
+
+const resetPassword = async (req, res) => {
+    try {
+        const { token } = req.params;
+        const { password } = req.body;
+
+        if (!password) {
+            return res.status(400).json(
+                apiResponse.errorResponse('New password is required', 'PASSWORD_REQUIRED', 400)
+            );
+        }
+
+        if (password.length < 8) {
+            return res.status(400).json(
+                apiResponse.errorResponse('Password must be at least 8 characters long', 'INVALID_PASSWORD', 400)
+            );
+        }
+
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,128}$/;
+        if (!passwordRegex.test(password)) {
+            return res.status(400).json(
+                apiResponse.errorResponse(
+                    'Password must be 8-128 characters and contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+                    'INVALID_PASSWORD',
+                    400
+                )
+            );
+        }
+
+        const resetPasswordToken = crypto
+            .createHash('sha256')
+            .update(token)
+            .digest('hex');
+
+        const user = await User.findOne({
+            resetPasswordToken,
+            resetPasswordExpire: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json(
+                apiResponse.errorResponse('Invalid or expired password reset token', 'INVALID_TOKEN', 400)
+            );
+        }
+
+        const salt = await bcrypt.genSalt(12);
+        user.password = await bcrypt.hash(password, salt);
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpire = undefined;
+
+        await user.save();
+
+        return res.json(
+            apiResponse.successResponse(null, 'Password reset successful')
+        );
+    } catch (error) {
+        return res.status(500).json(
+            apiResponse.errorResponse('Server error during password reset', 'SERVER_ERROR', 500)
+        );
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
@@ -622,5 +743,7 @@ module.exports = {
     getNonce,
     updateProfile,
     refreshSession,
-    logoutUser
+    logoutUser,
+    forgotPassword,
+    resetPassword
 };
