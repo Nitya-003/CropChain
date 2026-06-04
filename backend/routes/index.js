@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
-const { updateBatchStatus, getBatches } = require("../controllers/batchController");
+const { updateBatchStatus, getBatches, exportBatch } = require("../controllers/batchController");
 const { protect, adminOnly } = require("../middleware/auth");
 const { batchLimiter } = require("../middleware/rateLimiters");
 
@@ -24,6 +24,7 @@ router.get('/status', (req, res) => {
 });
 
 router.get('/batches', batchLimiter, protect, getBatches);
+router.get('/batches/:batchId/export', batchLimiter, protect, exportBatch);
 
 // Update batch status (admin only)
 router.patch('/batches/:batchId/status', batchLimiter, protect, adminOnly, updateBatchStatus);
