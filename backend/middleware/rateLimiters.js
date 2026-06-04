@@ -2,6 +2,7 @@ const rateLimit = require('express-rate-limit');
 
 const isTestEnv = process.env.NODE_ENV === 'test';
 const rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000;
+const rateLimitMaxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 100;
 
 const createLimiter = (maxRequests, message) => rateLimit({
     windowMs: rateLimitWindowMs,
@@ -15,7 +16,7 @@ const createLimiter = (maxRequests, message) => rateLimit({
 });
 
 const generalLimiter = createLimiter(
-    parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 100,
+    rateLimitMaxRequests,
     'Too many requests from this IP, please try again later.'
 );
 
@@ -33,4 +34,6 @@ module.exports = {
     generalLimiter,
     authLimiter,
     batchLimiter,
+    rateLimitWindowMs,
+    rateLimitMaxRequests,
 };
