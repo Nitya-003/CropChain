@@ -133,3 +133,31 @@ jobs:
       - name: Build Frontend
         working-directory: frontend/
         run: npm run build
+
+  # Job 5: Frontend Tests
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Setup Node.js 20
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      # Step 3: Install frontend dependencies
+      - name: Install frontend dependencies
+        working-directory: frontend/
+        run: npm ci --legacy-peer-deps
+
+      # Step 4: Run frontend tests
+      - name: Run Frontend Tests
+        working-directory: frontend/
+        run: npm run test:ci
