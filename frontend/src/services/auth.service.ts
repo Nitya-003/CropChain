@@ -119,6 +119,11 @@ export const authService = {
         localStorage.removeItem('user');
     },
 
+    async updateProfile(data: Record<string, any>): Promise<{ user: User }> {
+        const response = await apiClient.put<{ data: { user: User } }>('/auth/profile', data);
+        return response.data.data;
+    },
+
     getCurrentUser(): User | null {
         const userStr = localStorage.getItem('user');
         if (userStr) {

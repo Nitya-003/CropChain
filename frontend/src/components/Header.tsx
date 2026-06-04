@@ -18,6 +18,7 @@ const Header: React.FC = () => {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
   const { t } = useTranslation();
+  const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
 
   const handleLogout = async () => {
     try {
@@ -151,22 +152,52 @@ const Header: React.FC = () => {
 
             {/* Auth Section */}
             {isAuthenticated && user ? (
-              <div className="flex shrink-0 items-center gap-2 sm:pl-2">
+              <div className="relative flex shrink-0 items-center gap-2 sm:pl-2">
                 <Badge variant="outline" className={`hidden capitalize font-semibold border sm:inline-flex ${getRoleBadgeColor(user.role)}`}>
                   {user.role}
                 </Badge>
-                <div className="hidden lg:flex flex-col items-start leading-none">
-                  <span className="text-xs font-semibold text-foreground">{user.name}</span>
+                
+                <div className="relative">
+                  <button
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-border/60 hover:bg-muted/50 text-foreground transition-all duration-200"
+                    title="User Account"
+                  >
+                    <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                      <User className="h-3.5 w-3.5" />
+                    </div>
+                    <span className="hidden lg:inline text-xs font-semibold max-w-[120px] truncate">{user.name}</span>
+                  </button>
+
+                  {isDropdownOpen && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-30" 
+                        onClick={() => setIsDropdownOpen(false)}
+                      />
+                      <div className="absolute right-0 mt-2 w-48 rounded-xl border border-border bg-card text-foreground shadow-lg p-1.5 z-40 animate-in fade-in slide-in-from-top-2 duration-150">
+                        <Link
+                          href="/profile"
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg text-foreground hover:bg-muted transition-colors"
+                        >
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          Profile Settings
+                        </Link>
+                        <button
+                          onClick={() => {
+                            setIsDropdownOpen(false);
+                            handleLogout();
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          Log Out
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleLogout}
-                  className="h-9 w-9 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-transparent"
-                  title="Log Out"
-                >
-                  <LogOut className="h-4 w-4" />
-                </Button>
               </div>
             ) : (
               <Link href="/login" className="shrink-0 sm:pl-1">
