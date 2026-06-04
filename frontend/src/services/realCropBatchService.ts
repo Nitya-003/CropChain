@@ -6,8 +6,8 @@ export const realCropBatchService = {
     return response.data.data.batch;
   },
 
-  getAllBatches: async () => {
-    const response = await apiClient.get('/batches');
+  getAllBatches: async (params?: any) => {
+    const response = await apiClient.get('/batches', { params });
     return response.data.data;
   },
 
