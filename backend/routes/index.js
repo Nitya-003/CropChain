@@ -26,6 +26,6 @@ router.get('/status', (req, res) => {
 router.get('/batches', batchLimiter, protect, getBatches);
 
 // Update batch status (admin only)
-router.patch('/batch/:batchId/status', batchLimiter, protect, adminOnly, updateBatchStatus);
+router.patch('/batches/:batchId/status', batchLimiter, protect, adminOnly, updateBatchStatus);
 
 module.exports = router;

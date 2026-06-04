@@ -358,7 +358,7 @@ exports.getBatches = async (req, res) => {
 /**
  * Update the status of a batch (Active/Flagged/Inactive)
  * Only accessible by admin users
- * @route PATCH /api/batch/:batchId/status
+ * @route PATCH /api/batches/:batchId/status
  * @access Private (Admin only)
  */
 exports.updateBatchStatus = async (req, res) => {
