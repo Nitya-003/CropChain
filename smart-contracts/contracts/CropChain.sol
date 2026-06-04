@@ -372,6 +372,8 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         // FIX: Release sold units from the batch's listed-quantity tracker so those
         // physical units are correctly accounted for as having been fulfilled/sold.
         batchListedQuantity[listing.batchId] -= quantity;
+        // FIX: Decrease the physical batch quantity to reflect the sold units.
+        batch.quantity -= quantity;
         if (listing.quantityAvailable == 0) {
             listing.active = false;
         }
