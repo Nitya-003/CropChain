@@ -29,6 +29,7 @@ vi.mock('react-hot-toast', () => ({
     error: vi.fn(),
     loading: vi.fn(),
     dismiss: vi.fn(),
+    promise: vi.fn(<T>(promise: Promise<T>) => promise),
   },
 }));
 
