@@ -1,6 +1,9 @@
 const didService = require('../services/didService');
 const User = require('../models/User');
 const VerificationEvent = require('../models/VerificationEvent');
+const BulkVerificationJob = require('../models/BulkVerificationJob');
+const bulkVerificationService = require('../services/bulkVerificationService');
+const mongoose = require('mongoose');
 const { z } = require('zod');
 const { validateParams } = require('../utils/validation');
 const {
@@ -540,6 +543,87 @@ const getVerificationEvents = async (req, res) => {
     }
 };
 
+/**
+ * Initiate challenges or trigger credential issuances in bulk via CSV (Admin only)
+ */
+const bulkIssueCredentials = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json(apiResponse.validationErrorResponse(['CSV file is required']));
+        }
+
+        const csvText = req.file.buffer.toString('utf8');
+        const records = bulkVerificationService.parseCSV(csvText);
+
+        if (records.length === 0) {
+            return res.status(400).json(apiResponse.validationErrorResponse(['CSV file is empty or invalid']));
+        }
+
+        // Validate records have either email or userId, and walletAddress
+        const invalidRows = [];
+        records.forEach((rec, idx) => {
+            const rowNum = idx + 2;
+            if (!rec.userid && !rec.email) {
+                invalidRows.push(`Row ${rowNum}: Either userId or email is required`);
+            }
+            if (!rec.walletaddress) {
+                invalidRows.push(`Row ${rowNum}: walletAddress is required`);
+            }
+        });
+
+        if (invalidRows.length > 0) {
+            return res.status(400).json(apiResponse.validationErrorResponse(invalidRows));
+        }
+
+        const adminId = req.user.id;
+        const job = await BulkVerificationJob.create({
+            status: 'pending',
+            totalRows: records.length,
+            actorId: adminId,
+        });
+
+        // Background processing
+        bulkVerificationService.processJob(job._id, records, adminId).catch((err) => {
+            console.error(`Error processing bulk verification job ${job._id}:`, err);
+        });
+
+        res.status(202).json(apiResponse.successResponse({
+            jobId: job._id,
+            status: job.status,
+            totalRows: job.totalRows,
+        }, 'Bulk verification job initiated successfully'));
+    } catch (error) {
+        return handleServerError(res, error, {
+            code: 'BULK_VERIFICATION_ERROR',
+            message: 'Failed to initiate bulk verification job',
+        });
+    }
+};
+
+/**
+ * Get bulk job status and results (Admin only)
+ */
+const getBulkJobStatus = async (req, res) => {
+    try {
+        const { jobId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(jobId)) {
+            return res.status(400).json(apiResponse.validationErrorResponse(['Invalid job ID format']));
+        }
+
+        const job = await BulkVerificationJob.findById(jobId);
+        if (!job) {
+            return res.status(404).json(apiResponse.errorResponse('Bulk verification job not found', 404));
+        }
+
+        res.json(apiResponse.successResponse(job, 'Bulk verification job retrieved successfully'));
+    } catch (error) {
+        return handleServerError(res, error, {
+            code: 'BULK_VERIFICATION_STATUS_ERROR',
+            message: 'Failed to retrieve bulk job status',
+        });
+    }
+};
+
 module.exports = {
     generateLinkWalletChallenge,
     generateIssueCredentialChallenge,
@@ -552,4 +636,6 @@ module.exports = {
     getVerificationEvents,
     exportUnverifiedUsers,
     exportVerifiedUsers,
+    bulkIssueCredentials,
+    getBulkJobStatus,
 };
