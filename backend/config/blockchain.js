@@ -12,7 +12,9 @@ const contractABI = [
     "function getTotalBatches() view returns (uint256)",
     "function getBatchIdByIndex(uint256 index) view returns (bytes32)",
     "function createBatch(bytes32 batchId, bytes32 cropTypeHash, string calldata ipfsCID, uint256 quantity, string calldata actorName, string calldata location, string calldata notes) returns (bool)",
-    "function updateBatch(bytes32 batchId, uint8 stage, string calldata actorName, string calldata location, string calldata notes) returns (bool)"
+    "function updateBatch(bytes32 batchId, uint8 stage, string calldata actorName, string calldata location, string calldata notes) returns (bool)",
+    "function setRole(address user, uint8 role)",
+    "function roles(address user) view returns (uint8)"
 ];
 
 let contractInstance = null;
