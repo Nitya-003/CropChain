@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { getRedisConnection } = require('../config/redis');
+const VerificationEvent = require('../models/VerificationEvent');
 
 const CHALLENGE_TTL_SECONDS = parseInt(process.env.VERIFICATION_CHALLENGE_TTL_SECONDS, 10) || 180;
 const IDEMPOTENCY_TTL_SECONDS = parseInt(process.env.VERIFICATION_IDEMPOTENCY_TTL_SECONDS, 10) || 24 * 60 * 60;
@@ -71,6 +72,24 @@ const createChallenge = async ({ action, actorId, userId, walletAddress }) => {
     };
 
     await redis.set(buildChallengeKey({ action, actorId, nonce }), JSON.stringify(record), 'EX', CHALLENGE_TTL_SECONDS);
+
+    // Persist audit event
+    try {
+        await VerificationEvent.create({
+            action: 'challenge_created',
+            actorId,
+            userId,
+            walletAddress: record.walletAddress,
+            status: 'success',
+            metadata: {
+                challengeAction: action,
+                nonce,
+                expiresAt,
+            },
+        });
+    } catch (error) {
+        console.error('Failed to persist challenge_created verification event:', error);
+    }
 
     return {
         nonce,

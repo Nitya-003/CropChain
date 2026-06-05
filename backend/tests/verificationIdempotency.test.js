@@ -7,6 +7,10 @@ jest.mock('../services/verificationSecurityService', () => ({
     deleteIdempotencyRecord: jest.fn(),
 }));
 
+jest.mock('../models/VerificationEvent', () => ({
+    create: jest.fn().mockResolvedValue({}),
+}));
+
 const securityService = require('../services/verificationSecurityService');
 const {
     handleVerificationWithIdempotency,

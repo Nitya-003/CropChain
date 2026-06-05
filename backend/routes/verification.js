@@ -9,6 +9,7 @@ const {
     checkVerification,
     getUnverifiedUsers,
     getVerifiedUsers,
+    getVerificationEvents,
 } = require('../controllers/verificationController');
 const { protect, adminOnly } = require('../middleware/auth');
 
@@ -25,5 +26,6 @@ router.post('/issue', protect, adminOnly, issueCredential);
 router.post('/revoke', protect, adminOnly, revokeCredential);
 router.get('/unverified', protect, adminOnly, getUnverifiedUsers);
 router.get('/verified', protect, adminOnly, getVerifiedUsers);
+router.get('/events', protect, adminOnly, getVerificationEvents);
 
 module.exports = router;

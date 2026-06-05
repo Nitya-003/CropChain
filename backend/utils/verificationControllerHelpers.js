@@ -1,5 +1,6 @@
 const apiResponse = require('./apiResponse');
 const { mapHttpError } = require('./httpErrorMapper');
+const VerificationEvent = require('../models/VerificationEvent');
 const {
     createFingerprint,
     getIdempotencyRecord,
@@ -15,7 +16,7 @@ const handleZodValidation = (res, schema, reqBody) => {
     if (!validationResult.success) {
         res.status(400).json(
             apiResponse.validationErrorResponse(
-                validationResult.error.errors.map((err) => err.message)
+                validationResult.error.issues.map((err) => err.message)
             )
         );
 
@@ -149,7 +150,37 @@ const executeAndFinalizeIdempotency = async ({
     execute,
 }) => {
     try {
+        // Log attempt
+        try {
+            await VerificationEvent.create({
+                action: 'verification_attempt',
+                actorId,
+                userId: challengeRecord?.userId,
+                walletAddress: challengeRecord?.walletAddress,
+                idempotencyKey,
+                status: 'attempt',
+                metadata: { originalAction: action }
+            });
+        } catch (eventErr) {
+            console.error('Failed to log verification_attempt event:', eventErr);
+        }
+
         const result = await execute(challengeRecord);
+
+        // Log success
+        try {
+            await VerificationEvent.create({
+                action: 'verification_success',
+                actorId,
+                userId: challengeRecord?.userId,
+                walletAddress: challengeRecord?.walletAddress,
+                idempotencyKey,
+                status: 'success',
+                metadata: { originalAction: action }
+            });
+        } catch (eventErr) {
+            console.error('Failed to log verification_success event:', eventErr);
+        }
 
         await storeCompletedIdempotencyRecord({
             action,
@@ -162,6 +193,21 @@ const executeAndFinalizeIdempotency = async ({
 
         return res.json(result);
     } catch (error) {
+        // Log failure
+        try {
+            await VerificationEvent.create({
+                action: 'verification_failure',
+                actorId,
+                userId: challengeRecord?.userId,
+                walletAddress: challengeRecord?.walletAddress,
+                idempotencyKey,
+                status: 'failure',
+                metadata: { originalAction: action, error: error.message || error.toString() }
+            });
+        } catch (eventErr) {
+            console.error('Failed to log verification_failure event:', eventErr);
+        }
+
         await deleteIdempotencyRecord({ action, actorId, key: idempotencyKey });
         throw error;
     }
