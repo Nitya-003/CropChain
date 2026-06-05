@@ -19,5 +19,13 @@ export const realCropBatchService = {
   updateBatch: async (batchId: string, updateData: any) => {
     const response = await apiClient.put(`/batches/${batchId}`, updateData);
     return response.data.data.batch;
+  },
+
+  exportBatch: async (batchId: string, format: 'pdf' | 'csv') => {
+    const response = await apiClient.get<Blob>(`/batches/${batchId}/export`, {
+      params: { format },
+      responseType: 'blob'
+    });
+    return response.data;
   }
 };

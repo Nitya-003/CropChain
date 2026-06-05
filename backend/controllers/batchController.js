@@ -431,3 +431,62 @@ exports.updateBatchStatus = async (req, res) => {
         res.status(500).json({ error: 'Server error', details: err.message });
     }
 };
+
+exports.exportBatch = async (req, res) => {
+    try {
+        const { batchId } = req.params;
+        const { format = 'pdf' } = req.query;
+
+        const batch = await Batch.findOne({ batchId }).lean();
+        if (!batch) {
+            return res.status(404).json(
+                apiResponse.errorResponse('Batch not found', 'BATCH_NOT_FOUND', 404)
+            );
+        }
+
+        if (format === 'csv') {
+            const csvData = [
+                'Field,Value',
+                `Batch ID,${batch.batchId}`,
+                `Crop Type,${batch.cropType}`,
+                `Quantity,${batch.quantity} kg`,
+                `Harvest Date,${batch.harvestDate || 'N/A'}`,
+                `Origin,${batch.origin}`,
+                `Farmer,${batch.farmerName}`,
+                `Current Stage,${batch.currentStage}`,
+                `Status,${batch.isSpoiled ? 'Spoiled' : 'Active'}`,
+            ];
+
+            if (batch.updates?.length) {
+                csvData.push('');
+                csvData.push('Timeline');
+                csvData.push('Stage,Actor,Location,Date,Notes');
+                batch.updates.forEach(u => {
+                    const stage = (u.stage || '').replace(/"/g, '""');
+                    const actor = (u.actor || '').replace(/"/g, '""');
+                    const location = (u.location || '').replace(/"/g, '""');
+                    const timestamp = (u.timestamp || '').replace(/"/g, '""');
+                    const notes = (u.notes || '').replace(/"/g, '""');
+                    csvData.push(`"${stage}","${actor}","${location}","${timestamp}","${notes}"`);
+                });
+            }
+
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', `attachment; filename="batch-${batchId}.csv"`);
+            return res.send(csvData.join('\n'));
+        }
+
+        // PDF export
+        const pdfService = require('../services/pdfService');
+        const pdfBuffer = await pdfService.generateBatchJourneyPDF(batch);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="batch-${batchId}-journey.pdf"`);
+        res.setHeader('Content-Length', pdfBuffer.length);
+        return res.send(pdfBuffer);
+    } catch (error) {
+        console.error('Export failed:', error);
+        return res.status(500).json(
+            apiResponse.errorResponse('Export failed', 'EXPORT_ERROR', 500)
+        );
+    }
+};
