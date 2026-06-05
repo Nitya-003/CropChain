@@ -102,6 +102,62 @@ const Header: React.FC = () => {
                 {t('nav.smartPlanting')}
               </Link>
 
+              {isAuthenticated && user?.role === 'farmer' && (
+                <Link
+                  href="/farmer"
+                  className={`flex items-center gap-1 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
+                    pathname === '/farmer'
+                      ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/10'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <User className="h-3.5 w-3.5" />
+                  Dashboard
+                </Link>
+              )}
+
+              {isAuthenticated && user?.role === 'mandi' && (
+                <Link
+                  href="/mandi"
+                  className={`flex items-center gap-1 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
+                    pathname === '/mandi'
+                      ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/10'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <User className="h-3.5 w-3.5" />
+                  Dashboard
+                </Link>
+              )}
+
+              {isAuthenticated && user?.role === 'transporter' && (
+                <Link
+                  href="/transporter"
+                  className={`flex items-center gap-1 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
+                    pathname === '/transporter'
+                      ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/10'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <User className="h-3.5 w-3.5" />
+                  Dashboard
+                </Link>
+              )}
+
+              {isAuthenticated && user?.role === 'retailer' && (
+                <Link
+                  href="/retailer"
+                  className={`flex items-center gap-1 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
+                    pathname === '/retailer'
+                      ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/10'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <User className="h-3.5 w-3.5" />
+                  Dashboard
+                </Link>
+              )}
+
               {isAuthenticated && user?.role === 'admin' && (
                 <>
                   <Link
