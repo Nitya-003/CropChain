@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Shield, Package, Coins, Activity, TrendingUp, Check, Copy, RefreshCw } from 'lucide-react';
 import { realCropBatchService } from '../../services/realCropBatchService';
 import { usePriceConverter } from '../../hooks/usePriceConverter';
@@ -20,6 +21,15 @@ const AdminDashboardComponent: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const { convert, isLoading: isPricesLoading } = usePriceConverter();
+  const [selected, setSelected] = useState<string[]>([]);
+
+  const toggleSelect = (batchId: string) => {
+    setSelected(prev =>
+      prev.includes(batchId)
+        ? prev.filter(id => id !== batchId)
+        : prev.length < 4 ? [...prev, batchId] : prev
+    );
+  };
 
   useEffect(() => {
     loadDashboardData();
@@ -93,10 +103,19 @@ const AdminDashboardComponent: React.FC = () => {
             <p className="text-sm text-muted-foreground">Monitor and manage the CropChain supply chain network</p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={loadDashboardData} className="gap-1.5 bg-background/50">
-          <RefreshCw className="h-3.5 w-3.5" />
-          Refresh Stats
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          {selected.length >= 2 && (
+            <Link href={`/compare?ids=${selected.join(',')}`}>
+              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5 h-9">
+                Compare {selected.length} batches
+              </Button>
+            </Link>
+          )}
+          <Button variant="outline" size="sm" onClick={loadDashboardData} className="gap-1.5 bg-background/50">
+            <RefreshCw className="h-3.5 w-3.5" />
+            Refresh Stats
+          </Button>
+        </div>
       </div>
 
       {/* Stats Overview */}
@@ -174,6 +193,7 @@ const AdminDashboardComponent: React.FC = () => {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-muted/40 border-b border-border/40">
+                  <TableHead className="py-4 px-6 font-semibold text-foreground text-left w-[60px]">Select</TableHead>
                   <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Batch ID</TableHead>
                   <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Farmer</TableHead>
                   <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Crop Type</TableHead>
@@ -186,6 +206,14 @@ const AdminDashboardComponent: React.FC = () => {
               <TableBody>
                 {batches.map((batch) => (
                   <TableRow key={batch.batchId} className="border-b border-border/40 hover:bg-muted/30 transition-colors text-left">
+                    <TableCell className="py-4 px-6">
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(batch.batchId)}
+                        onChange={() => toggleSelect(batch.batchId)}
+                        className="h-4 w-4 rounded border-gray-300 dark:border-gray-700 bg-transparent text-primary focus:ring-green-500 cursor-pointer"
+                      />
+                    </TableCell>
                     <TableCell className="py-4 px-6">
                       <div className="flex items-center gap-1.5">
                         <span className="font-mono text-xs bg-muted text-muted-foreground px-2 py-1 rounded border border-border">
