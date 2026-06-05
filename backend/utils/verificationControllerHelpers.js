@@ -194,6 +194,21 @@ const executeAndFinalizeIdempotency = async ({
             console.error('Failed to log verification_attempt event:', eventErr);
         }
 
+        // Emit socket status in_progress
+        const socketService = require('../services/socketService');
+        if (challengeRecord?.userId) {
+            try {
+                socketService.emitToVerificationRoom(challengeRecord.userId, 'verification.status.updated', {
+                    userId: challengeRecord.userId,
+                    newState: 'in_progress',
+                    timestamp: Date.now(),
+                    idempotencyKey,
+                });
+            } catch (sockErr) {
+                console.error('Failed to emit socket verification status (in_progress):', sockErr.message);
+            }
+        }
+
         const result = await execute(challengeRecord);
 
         // Log success
@@ -209,6 +224,20 @@ const executeAndFinalizeIdempotency = async ({
             });
         } catch (eventErr) {
             console.error('Failed to log verification_success event:', eventErr);
+        }
+
+        // Emit socket status success (verified or linked)
+        if (challengeRecord?.userId) {
+            try {
+                socketService.emitToVerificationRoom(challengeRecord.userId, 'verification.status.updated', {
+                    userId: challengeRecord.userId,
+                    newState: action === 'LINK_WALLET' ? 'linked' : 'verified',
+                    timestamp: Date.now(),
+                    idempotencyKey,
+                });
+            } catch (sockErr) {
+                console.error('Failed to emit socket verification status (success):', sockErr.message);
+            }
         }
 
         await storeCompletedIdempotencyRecord({
@@ -235,6 +264,21 @@ const executeAndFinalizeIdempotency = async ({
             });
         } catch (eventErr) {
             console.error('Failed to log verification_failure event:', eventErr);
+        }
+
+        // Emit socket status failure
+        if (challengeRecord?.userId) {
+            try {
+                const socketService = require('../services/socketService');
+                socketService.emitToVerificationRoom(challengeRecord.userId, 'verification.status.updated', {
+                    userId: challengeRecord.userId,
+                    newState: 'failed',
+                    timestamp: Date.now(),
+                    idempotencyKey,
+                });
+            } catch (sockErr) {
+                console.error('Failed to emit socket verification status (failed):', sockErr.message);
+            }
         }
 
         await deleteIdempotencyRecord({ action, actorId, key: idempotencyKey });

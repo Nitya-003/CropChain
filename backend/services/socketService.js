@@ -34,6 +34,18 @@ function initializeSocketIO(httpServer) {
         console.log(`[SOCKET] Client ${socket.id} left batch room: ${batchId}`);
       });
 
+      // Handle client joining verification-specific rooms
+      socket.on('join-verification-room', (userId) => {
+        socket.join(`verification:user:${userId}`);
+        console.log(`[SOCKET] Client ${socket.id} joined verification room: ${userId}`);
+      });
+
+      // Handle client leaving verification rooms
+      socket.on('leave-verification-room', (userId) => {
+        socket.leave(`verification:user:${userId}`);
+        console.log(`[SOCKET] Client ${socket.id} left verification room: ${userId}`);
+      });
+
       // Handle disconnection
       socket.on('disconnect', () => {
         console.log(`[SOCKET] Client disconnected: ${socket.id}`);
@@ -91,9 +103,25 @@ function emitGlobal(eventName, data) {
   }
 }
 
+/**
+ * Emit an event to all clients in a specific user verification room
+ * @param {string} userId - User ID to emit event to
+ * @param {string} eventName - Event name
+ * @param {any} data - Event data payload
+ */
+function emitToVerificationRoom(userId, eventName, data) {
+  if (io) {
+    io.to(`verification:user:${userId}`).emit(eventName, data);
+    console.log(`[SOCKET] Emitted "${eventName}" to verification room ${userId}`);
+  } else {
+    console.warn('[SOCKET WARNING] Cannot emit to verification room - Socket.IO not initialized');
+  }
+}
+
 module.exports = {
   initializeSocketIO,
   getIO,
   emitToBatchRoom,
-  emitGlobal
+  emitGlobal,
+  emitToVerificationRoom
 };

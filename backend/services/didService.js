@@ -255,6 +255,18 @@ class DIDService {
                 }
             }
 
+            // Emit verified socket status
+            try {
+                const socketService = require('./socketService');
+                socketService.emitToVerificationRoom(userId, 'verification.status.updated', {
+                    userId,
+                    newState: 'verified',
+                    timestamp: Date.now()
+                });
+            } catch (sockErr) {
+                console.error('Failed to emit socket verification status (verified):', sockErr.message);
+            }
+
             return {
                 success: true,
                 message: 'Credential issued successfully',
@@ -272,6 +284,20 @@ class DIDService {
                     metadata: { error: error.message || error.toString() }
                 });
             } catch (e) { console.error(e); }
+
+            // Emit failed socket status
+            try {
+                const socketService = require('./socketService');
+                socketService.emitToVerificationRoom(userId, 'verification.status.updated', {
+                    userId,
+                    newState: 'failed',
+                    timestamp: Date.now(),
+                    error: error.message || error.toString()
+                });
+            } catch (sockErr) {
+                console.error('Failed to emit socket verification status (failed):', sockErr.message);
+            }
+
             throw error;
         }
     }
@@ -373,6 +399,18 @@ class DIDService {
                 }
             }
 
+            // Emit unverified socket status
+            try {
+                const socketService = require('./socketService');
+                socketService.emitToVerificationRoom(userId, 'verification.status.updated', {
+                    userId,
+                    newState: 'unverified',
+                    timestamp: Date.now()
+                });
+            } catch (sockErr) {
+                console.error('Failed to emit socket verification status (unverified):', sockErr.message);
+            }
+
             return {
                 success: true,
                 message: 'Credential revoked successfully',
@@ -387,6 +425,20 @@ class DIDService {
                     metadata: { error: error.message || error.toString() }
                 });
             } catch (e) { console.error(e); }
+
+            // Emit failed socket status
+            try {
+                const socketService = require('./socketService');
+                socketService.emitToVerificationRoom(userId, 'verification.status.updated', {
+                    userId,
+                    newState: 'failed',
+                    timestamp: Date.now(),
+                    error: error.message || error.toString()
+                });
+            } catch (sockErr) {
+                console.error('Failed to emit socket verification status (failed):', sockErr.message);
+            }
+
             throw error;
         }
     }
@@ -511,6 +563,18 @@ class DIDService {
                 });
             } catch (e) { console.error(e); }
 
+            // Emit linked socket status
+            try {
+                const socketService = require('./socketService');
+                socketService.emitToVerificationRoom(userId, 'verification.status.updated', {
+                    userId,
+                    newState: 'linked',
+                    timestamp: Date.now()
+                });
+            } catch (sockErr) {
+                console.error('Failed to emit socket verification status (linked):', sockErr.message);
+            }
+
             return {
                 success: true,
                 message: 'Wallet linked successfully',
@@ -527,6 +591,20 @@ class DIDService {
                     metadata: { error: error.message || error.toString() }
                 });
             } catch (e) { console.error(e); }
+
+            // Emit failed socket status
+            try {
+                const socketService = require('./socketService');
+                socketService.emitToVerificationRoom(userId, 'verification.status.updated', {
+                    userId,
+                    newState: 'failed',
+                    timestamp: Date.now(),
+                    error: error.message || error.toString()
+                });
+            } catch (sockErr) {
+                console.error('Failed to emit socket verification status (failed):', sockErr.message);
+            }
+
             throw error;
         }
     }
