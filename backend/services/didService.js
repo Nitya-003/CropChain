@@ -123,6 +123,16 @@ class DIDService {
 
             await user.save();
 
+            // Sync user role to blockchain
+            const blockchainService = require('./blockchainService');
+            if (user.walletAddress) {
+                try {
+                    await blockchainService.syncUserRole(user.walletAddress, user.role);
+                } catch (bcError) {
+                    console.error(`Failed to sync user role on blockchain for ${user.email} during credential issue:`, bcError.message);
+                }
+            }
+
             return {
                 success: true,
                 message: 'Credential issued successfully',
@@ -163,6 +173,16 @@ class DIDService {
             user.verification.revocationReason = reason;
 
             await user.save();
+
+            // Revoke user role on blockchain (sync to ActorRole.None)
+            const blockchainService = require('./blockchainService');
+            if (user.walletAddress) {
+                try {
+                    await blockchainService.syncUserRole(user.walletAddress, 'none');
+                } catch (bcError) {
+                    console.error(`Failed to revoke user role on blockchain for ${user.email}:`, bcError.message);
+                }
+            }
 
             return {
                 success: true,

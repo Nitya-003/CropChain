@@ -223,6 +223,84 @@ class BlockchainService {
     }
 
     /**
+     * Synchronize a user's role to the blockchain
+     * @param {string} walletAddress - The user's wallet address
+     * @param {string} roleName - The user's backend role
+     * @returns {Promise<Object>} - Transaction result
+     */
+    async syncUserRole(walletAddress, roleName) {
+        if (!this.isInitialized || !this.contract) {
+            return {
+                success: false,
+                demo: true,
+                message: 'Blockchain not configured, role sync skipped',
+                simulated: true
+            };
+        }
+
+        if (!walletAddress || !ethers.isAddress(walletAddress)) {
+            console.error('[BlockchainService] Invalid wallet address for role sync:', walletAddress);
+            return {
+                success: false,
+                error: 'Invalid wallet address',
+                message: 'Invalid wallet address'
+            };
+        }
+
+        try {
+            const onChainRole = this.mapRoleToOnChain(roleName);
+            
+            console.log(`[BlockchainService] Syncing role for ${walletAddress}: ${roleName} (mapped to on-chain: ${onChainRole})`);
+            
+            // Check current on-chain role first to avoid redundant transactions
+            const currentOnChainRole = Number(await this.contract.roles(walletAddress));
+            if (currentOnChainRole === onChainRole) {
+                console.log(`[BlockchainService] Role for ${walletAddress} is already synced on-chain (${currentOnChainRole})`);
+                return {
+                    success: true,
+                    alreadySynced: true,
+                    message: 'Role already in sync'
+                };
+            }
+
+            const tx = await this.contract.setRole(walletAddress, onChainRole);
+            const receipt = await tx.wait();
+
+            console.log(`[BlockchainService] Role synced on-chain for ${walletAddress}. Tx: ${receipt.hash}`);
+
+            return {
+                success: true,
+                transactionHash: receipt.hash,
+                blockNumber: receipt.blockNumber,
+                message: 'Role synced on blockchain'
+            };
+        } catch (error) {
+            console.error('[BlockchainService] Error syncing user role on-chain:', error.message);
+            return {
+                success: false,
+                error: error.message,
+                message: 'Failed to sync user role on blockchain'
+            };
+        }
+    }
+
+    /**
+     * Helper to map backend role string to on-chain ActorRole enum
+     */
+    mapRoleToOnChain(roleName) {
+        const mapping = {
+            'farmer': 1,
+            'mandi': 2,
+            'transporter': 3,
+            'retailer': 4,
+            'oracle': 5,
+            'admin': 6,
+            'super_admin': 6
+        };
+        return mapping[roleName] || 0; // ActorRole.None
+    }
+
+    /**
      * Get contract instance for external use (e.g., event listeners)
      * @returns {ethers.Contract|null}
      */

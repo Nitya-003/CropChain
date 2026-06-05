@@ -90,18 +90,97 @@ async function reconcile() {
             }
         }
 
-        console.log(`\n✅ Reconciliation complete:`);
+        console.log(`\n✅ Batch Reconciliation complete:`);
         console.log(`   - Synced: ${synced}`);
         console.log(`   - Skipped: ${skipped}`);
         console.log(`   - Errors: ${errors}`);
+
+        // Reconcile user roles
+        await reconcileRoles(contract);
+
     } catch (error) {
         console.error('❌ Reconciliation failed:', error.message);
         process.exit(1);
     }
 }
 
+async function reconcileRoles(contract) {
+    console.log('\n🔄 Starting role reconciliation...');
+    const User = require('../models/User');
+
+    try {
+        const users = await User.find({ walletAddress: { $exists: true, $ne: null } });
+        console.log(`📊 Found ${users.length} users with linked wallets in database`);
+
+        let roleSynced = 0;
+        let roleMismatches = 0;
+        let roleErrors = 0;
+
+        for (const user of users) {
+            try {
+                const walletAddress = user.walletAddress;
+                if (!ethers.isAddress(walletAddress)) {
+                    console.log(`  - Invalid wallet address for user ${user.email}: ${walletAddress}`);
+                    roleErrors++;
+                    continue;
+                }
+
+                // Check verification and user account status
+                const isVerified = user.verification?.isVerified === true;
+                const isActive = user.status === 'active';
+                const shouldHaveRole = isVerified && isActive;
+                const expectedRoleName = shouldHaveRole ? user.role : 'none';
+
+                // Map to on-chain ActorRole
+                const mapping = {
+                    'farmer': 1,
+                    'mandi': 2,
+                    'transporter': 3,
+                    'retailer': 4,
+                    'oracle': 5,
+                    'admin': 6,
+                    'super_admin': 6
+                };
+                const expectedOnChainRole = mapping[expectedRoleName] || 0;
+
+                // Query on-chain role
+                const currentOnChainRole = Number(await contract.roles(walletAddress));
+
+                if (currentOnChainRole !== expectedOnChainRole) {
+                    roleMismatches++;
+                    console.log(`  ⚠ Role mismatch for ${user.email} (${walletAddress}): expected ${expectedRoleName} (${expectedOnChainRole}), got on-chain ${currentOnChainRole}. Syncing...`);
+                    
+                    const tx = await contract.setRole(walletAddress, expectedOnChainRole);
+                    await tx.wait();
+                    
+                    console.log(`  ✓ Synced role for ${user.email} on-chain`);
+                    roleSynced++;
+                } else {
+                    console.log(`  ✓ User ${user.email} (${walletAddress}) in sync: ${expectedRoleName} (${expectedOnChainRole})`);
+                }
+            } catch (userError) {
+                roleErrors++;
+                console.error(`  ✗ Error processing user ${user.email}:`, userError.message);
+            }
+        }
+
+        console.log(`\n✅ Role Reconciliation complete:`);
+        console.log(`   - Synced/Updated: ${roleSynced}`);
+        console.log(`   - Mismatches corrected: ${roleMismatches}`);
+        console.log(`   - Errors/Skipped: ${roleErrors}`);
+    } catch (error) {
+        console.error('❌ Role reconciliation failed:', error.message);
+    }
+}
+
 if (require.main === module) {
-    reconcile()
+    const connectDB = require('../config/db');
+    connectDB()
+        .then(() => reconcile())
+        .then(() => {
+            const mongoose = require('mongoose');
+            return mongoose.connection.close();
+        })
         .then(() => process.exit(0))
         .catch((error) => {
             console.error('Fatal error:', error);
