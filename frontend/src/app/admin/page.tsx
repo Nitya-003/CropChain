@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Shield, Package, Coins, Activity, TrendingUp, Check, Copy, RefreshCw } from 'lucide-react';
 import { realCropBatchService } from '../../services/realCropBatchService';
 import { usePriceConverter } from '../../hooks/usePriceConverter';
-import { Card, CardHeader, CardTitle, CardContent } from "../../components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "../../components/ui/card";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "../../components/ui/table";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
@@ -31,23 +31,89 @@ const AdminDashboardComponent: React.FC = () => {
     );
   };
 
+  const [filters, setFilters] = useState({
+    search: '',
+    stage: '',
+    cropType: '',
+    status: '',
+    dateFrom: '',
+    dateTo: '',
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+    page: 1,
+    limit: 10
+  });
+
+  const [pagination, setPagination] = useState({
+    totalItems: 0,
+    currentPage: 1,
+    totalPages: 1,
+    limit: 10
+  });
+
+  const [searchInput, setSearchInput] = useState('');
+
+  const activeCount = Object.entries(filters).filter(([key, val]) => {
+    if (key === 'sortBy' && val === 'createdAt') return false;
+    if (key === 'sortOrder' && val === 'desc') return false;
+    if (key === 'page' && val === 1) return false;
+    if (key === 'limit' && val === 10) return false;
+    return val !== '';
+  }).length;
+
   useEffect(() => {
     loadDashboardData();
-  }, []);
+  }, [filters]);
 
   const loadDashboardData = async () => {
     setIsLoading(true);
     try {
-      const data = await realCropBatchService.getAllBatches();
+      const apiFilters: any = {};
+      Object.entries(filters).forEach(([key, val]) => {
+        if (val !== undefined && val !== '') {
+          apiFilters[key] = val;
+        }
+      });
+
+      const data = await realCropBatchService.getAllBatches(apiFilters);
       if (data) {
         setStats(data.stats || { totalBatches: 0, totalFarmers: 0, totalQuantity: 0, recentBatches: [] });
         setBatches(data.batches || []);
+        if (data.pagination) {
+          setPagination({
+            totalItems: data.pagination.totalItems || 0,
+            currentPage: data.pagination.currentPage || 1,
+            totalPages: data.pagination.totalPages || 1,
+            limit: data.pagination.limit || 10
+          });
+        }
       }
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setFilters(f => ({ ...f, search: searchInput, page: 1 }));
+  };
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setFilters({
+      search: '',
+      stage: '',
+      cropType: '',
+      status: '',
+      dateFrom: '',
+      dateTo: '',
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+      page: 1,
+      limit: 10
+    });
   };
 
   const getStageColor = (stage: string) => {
@@ -180,6 +246,110 @@ const AdminDashboardComponent: React.FC = () => {
         </Card>
       </div>
 
+      {/* Filters Section */}
+      <Card className="border border-border bg-card/60 backdrop-blur-md shadow-sm">
+        <CardContent className="p-6 space-y-4">
+          <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                placeholder="Search batches by ID, crop type, or farmer..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-full pl-4 pr-10 py-2.5 border border-border bg-background rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput('');
+                    setFilters(f => ({ ...f, search: '', page: 1 }));
+                  }}
+                  className="absolute right-3 top-3.5 text-muted-foreground hover:text-foreground text-sm"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <Button type="submit" size="sm" className="h-[42px] px-6 rounded-xl font-semibold">
+              Search
+            </Button>
+          </form>
+
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            <div className="flex flex-col gap-1.5 min-w-[140px]">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Stage</label>
+              <select
+                value={filters.stage}
+                onChange={(e) => setFilters(f => ({ ...f, stage: e.target.value, page: 1 }))}
+                className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">All Stages</option>
+                <option value="farmer">Farmer</option>
+                <option value="mandi">Mandi</option>
+                <option value="transport">Transport</option>
+                <option value="retailer">Retailer</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1.5 min-w-[140px]">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date From</label>
+              <input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(e) => setFilters(f => ({ ...f, dateFrom: e.target.value, page: 1 }))}
+                className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5 min-w-[140px]">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date To</label>
+              <input
+                type="date"
+                value={filters.dateTo}
+                onChange={(e) => setFilters(f => ({ ...f, dateTo: e.target.value, page: 1 }))}
+                className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5 min-w-[140px]">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Sort By</label>
+              <select
+                value={filters.sortBy}
+                onChange={(e) => setFilters(f => ({ ...f, sortBy: e.target.value, page: 1 }))}
+                className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="createdAt">Date Created</option>
+                <option value="cropType">Crop Type</option>
+                <option value="quantity">Quantity</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1.5 min-w-[140px]">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Order</label>
+              <select
+                value={filters.sortOrder}
+                onChange={(e) => setFilters(f => ({ ...f, sortOrder: e.target.value, page: 1 }))}
+                className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="desc">Descending</option>
+                <option value="asc">Ascending</option>
+              </select>
+            </div>
+
+            {activeCount > 0 && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="text-xs text-rose-500 hover:text-rose-600 hover:underline mt-4 ml-2 font-bold"
+              >
+                Clear Filters ({activeCount})
+              </button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Recent Batches Section */}
       <Card className="border border-border bg-card">
         <CardHeader className="pb-3 border-b border-border/40">
@@ -275,6 +445,34 @@ const AdminDashboardComponent: React.FC = () => {
             </Table>
           </div>
         </CardContent>
+        <CardFooter className="flex items-center justify-between border-t border-border/40 py-4 px-6">
+          <p className="text-xs text-muted-foreground">
+            Showing {batches.length} of {pagination.totalItems} results
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={pagination.currentPage <= 1 || isLoading}
+              onClick={() => setFilters(f => ({ ...f, page: pagination.currentPage - 1 }))}
+              className="h-8 rounded-lg text-xs"
+            >
+              Previous
+            </Button>
+            <span className="text-xs font-semibold text-foreground">
+              Page {pagination.currentPage} of {pagination.totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={pagination.currentPage >= pagination.totalPages || isLoading}
+              onClick={() => setFilters(f => ({ ...f, page: pagination.currentPage + 1 }))}
+              className="h-8 rounded-lg text-xs"
+            >
+              Next
+            </Button>
+          </div>
+        </CardFooter>
       </Card>
 
       {/* Analytics Charts Section */}

@@ -276,13 +276,17 @@ const simulateBlockchainHash = (data) => {
 exports.getBatches = async (req, res) => {
     try {
         const {
+            search,
             batchId,
             farmerName,
             cropType,
             status,
             currentStage,
+            stage,
             startDate,
             endDate,
+            dateFrom,
+            dateTo,
             page = 1,
             limit = 10,
             sortBy = 'createdAt',
@@ -291,6 +295,17 @@ exports.getBatches = async (req, res) => {
 
         const query = {};
 
+        // 1. Unified Search parameter (regex matches on batchId, cropType, farmerName)
+        if (search) {
+            const escaped = escapeRegex(search.trim());
+            query.$or = [
+                { batchId: { $regex: escaped, $options: 'i' } },
+                { cropType: { $regex: escaped, $options: 'i' } },
+                { farmerName: { $regex: escaped, $options: 'i' } },
+            ];
+        }
+
+        // 2. Individual parameters (from existing & test requirements)
         const batchIdFilter = buildSafeSearchFilter(batchId);
         if (batchIdFilter) {
             query.batchId = batchIdFilter;
@@ -308,20 +323,25 @@ exports.getBatches = async (req, res) => {
             query.status = status;
         }
 
-        if (currentStage) {
-            const normalizedStage = currentStage.toLowerCase();
+        // Handle both 'currentStage' (existing) and 'stage' (new)
+        const targetStage = currentStage || stage;
+        if (targetStage) {
+            const normalizedStage = targetStage.toLowerCase();
             if (STAGES.includes(normalizedStage)) {
                 query.currentStage = normalizedStage;
             }
         }
 
-        if (startDate || endDate) {
+        // Handle date range (both startDate/endDate and dateFrom/dateTo)
+        const start = startDate || dateFrom;
+        const end = endDate || dateTo;
+        if (start || end) {
             query.createdAt = {};
-            if (startDate) {
-                query.createdAt.$gte = new Date(startDate);
+            if (start) {
+                query.createdAt.$gte = new Date(start);
             }
-            if (endDate) {
-                query.createdAt.$lte = new Date(endDate);
+            if (end) {
+                query.createdAt.$lte = new Date(end);
             }
         }
 
@@ -341,17 +361,28 @@ exports.getBatches = async (req, res) => {
 
         const totalItems = await Batch.countDocuments(query);
 
-        res.json({
+        // Fetch slim batch data for calculating statistics
+        const allMatchingBatches = await Batch.find(query).select('farmerName quantity').lean();
+        const totalFarmers = new Set(allMatchingBatches.map(b => b.farmerName)).size;
+        const totalQuantity = allMatchingBatches.reduce((sum, b) => sum + (b.quantity || 0), 0);
+
+        res.json(apiResponse.successResponse({
             batches,
+            stats: {
+                totalBatches: totalItems,
+                totalFarmers,
+                totalQuantity,
+                recentBatches: batches.slice(0, 5)
+            },
             pagination: {
                 totalItems,
                 currentPage: pageNumber,
                 totalPages: Math.ceil(totalItems / limitNumber),
                 limit: limitNumber
             }
-        });
+        }, 'Batches retrieved successfully'));
     } catch (err) {
-        res.status(500).json({ error: 'Server error', details: err.message });
+        res.status(500).json(apiResponse.errorResponse('Failed to fetch batches', 'FETCH_ERROR', 500, err.message));
     }
 };
 
