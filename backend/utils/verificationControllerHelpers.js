@@ -93,12 +93,41 @@ const consumeAndValidateChallenge = async ({ res, action, actorId, nonce, userId
         };
     }
 
-    if (
-        challengeRecord.expiresAt !== expiresAt ||
-        challengeRecord.nonce !== nonce
-    ) {
+    if (challengeRecord.action !== action) {
         return {
-            response: handleDuplicateIdempotencyKey(res, 'Nonce does not match the active challenge'),
+            response: handleDuplicateIdempotencyKey(res, 'Challenge action mismatch'),
+        };
+    }
+
+    const normalizedReqWallet = walletAddress ? walletAddress.toLowerCase() : walletAddress;
+    const normalizedStoredWallet = challengeRecord.walletAddress ? challengeRecord.walletAddress.toLowerCase() : challengeRecord.walletAddress;
+    if (normalizedStoredWallet !== normalizedReqWallet) {
+        return {
+            response: handleDuplicateIdempotencyKey(res, 'Challenge wallet address mismatch'),
+        };
+    }
+
+    if (challengeRecord.nonce !== nonce) {
+        return {
+            response: handleDuplicateIdempotencyKey(res, 'Challenge nonce mismatch'),
+        };
+    }
+
+    if (challengeRecord.expiresAt !== expiresAt) {
+        return {
+            response: handleDuplicateIdempotencyKey(res, 'Challenge expiry mismatch'),
+        };
+    }
+
+    if (challengeRecord.expiresAt <= Date.now()) {
+        return {
+            response: handleDuplicateIdempotencyKey(res, 'Challenge has expired'),
+        };
+    }
+
+    if (challengeRecord.userId !== userId) {
+        return {
+            response: handleDuplicateIdempotencyKey(res, 'Challenge user mismatch'),
         };
     }
 

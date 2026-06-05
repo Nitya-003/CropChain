@@ -337,7 +337,7 @@ describe('Verification Audit Trail', () => {
             securityService.getIdempotencyRecord.mockResolvedValue(null);
             securityService.consumeChallenge.mockResolvedValue({
                 nonce: 'nonce-key',
-                expiresAt: 123456,
+                expiresAt: 9999999999999,
                 action: 'LINK_WALLET',
                 actorId: 'farmer-1',
                 userId: 'farmer-1',
@@ -357,7 +357,7 @@ describe('Verification Audit Trail', () => {
                 walletAddress: '0xfarmer',
                 idempotencyKey: 'idem-key',
                 nonce: 'nonce-key',
-                expiresAt: 123456,
+                expiresAt: 9999999999999,
                 execute,
             });
 
@@ -385,7 +385,7 @@ describe('Verification Audit Trail', () => {
             securityService.getIdempotencyRecord.mockResolvedValue(null);
             securityService.consumeChallenge.mockResolvedValue({
                 nonce: 'nonce-key',
-                expiresAt: 123456,
+                expiresAt: 9999999999999,
                 action: 'LINK_WALLET',
                 actorId: 'farmer-1',
                 userId: 'farmer-1',
@@ -406,7 +406,7 @@ describe('Verification Audit Trail', () => {
                     walletAddress: '0xfarmer',
                     idempotencyKey: 'idem-key',
                     nonce: 'nonce-key',
-                    expiresAt: 123456,
+                    expiresAt: 9999999999999,
                     execute,
                 })
             ).rejects.toThrow('Blockchain transaction timeout');
