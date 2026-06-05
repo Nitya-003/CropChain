@@ -12,6 +12,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   isWalletConnected: boolean;
+  updateUser: (updatedUser: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -192,6 +193,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     toast.success("Logged out");
   };
 
+  const updateUser = (updatedUser: User) => {
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -202,7 +208,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       logout, 
       isLoading,
       isAuthenticated: !!user,
-      isWalletConnected 
+      isWalletConnected,
+      updateUser
     }}>
       {children}
     </AuthContext.Provider>
