@@ -207,7 +207,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       walletLogin, 
       logout, 
       isLoading,
-      isAuthenticated: !!user,
+      isAuthenticated: !!user && !!user.role,
       isWalletConnected,
       updateUser
     }}>
