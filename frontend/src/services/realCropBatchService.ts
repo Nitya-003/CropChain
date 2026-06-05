@@ -1,7 +1,30 @@
 import { apiClient } from './apiClient';
 
+export interface BatchData {
+  batchId: string;
+  farmerName: string;
+  farmerAddress: string;
+  cropType: string;
+  quantity: number;
+  harvestDate: string;
+  origin: string;
+  certifications?: string;
+  description?: string;
+  createdAt: string;
+  currentStage: string;
+  updates: Array<{
+    stage: string;
+    actor: string;
+    location: string;
+    timestamp: string;
+    notes?: string;
+  }>;
+  qrCode: string;
+  blockchainHash?: string;
+}
+
 export const realCropBatchService = {
-  createBatch: async (formData: any) => {
+  createBatch: async (formData: any): Promise<BatchData> => {
     const response = await apiClient.post('/batches', formData);
     return response.data.data.batch;
   },
@@ -11,12 +34,12 @@ export const realCropBatchService = {
     return response.data.data;
   },
 
-  getBatch: async (batchId: string) => {
+  getBatch: async (batchId: string): Promise<BatchData> => {
     const response = await apiClient.get(`/batches/${batchId}`);
     return response.data.data.batch;
   },
 
-  updateBatch: async (batchId: string, updateData: any) => {
+  updateBatch: async (batchId: string, updateData: Partial<BatchData>): Promise<BatchData> => {
     const response = await apiClient.put(`/batches/${batchId}`, updateData);
     return response.data.data.batch;
   },
