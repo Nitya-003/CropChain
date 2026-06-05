@@ -76,6 +76,8 @@ const userSchema = new mongoose.Schema({
         default: 'pending'
     },
     lastLogin: { type: Date },
+    resetPasswordToken: { type: String },
+    resetPasswordExpire: { type: Date },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 }, { timestamps: true });

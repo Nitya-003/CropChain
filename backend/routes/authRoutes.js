@@ -8,7 +8,9 @@ const {
     getNonce,
     updateProfile,
     refreshSession,
-    logoutUser
+    logoutUser,
+    forgotPassword,
+    resetPassword
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const validateRegistration = require('../middleware/validateRegistration');
@@ -17,6 +19,8 @@ router.post('/register', validateRegistration, registerUser);
 router.post('/login', loginUser);
 router.post('/refresh', refreshSession);
 router.post('/logout', logoutUser);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password/:token', resetPassword);
 
 // Wallet authentication routes
 router.get('/nonce', getNonce);
