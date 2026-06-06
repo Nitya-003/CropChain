@@ -17,6 +17,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Persist only non-sensitive fields needed for UI rendering.
+// email, walletAddress, and verification are omitted to limit XSS exposure.
+const persistUser = (user: User) => {
+  const safe = { id: user.id, name: user.name, role: user.role };
+  localStorage.setItem('user', JSON.stringify(safe));
+};
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true); // Start true to check persistence
@@ -27,7 +34,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try {
         const response = await authService.refreshSession();
         setUser(response.user);
-        localStorage.setItem('user', JSON.stringify(response.user));
+        persistUser(response.user);
       } catch {
         localStorage.removeItem('user');
         await checkWalletConnected();
@@ -63,7 +70,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const response = await authService.login(credentials);
       setUser(response.user);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      persistUser(response.user);
       toast.success('Login successful!');
     } catch (error: any) {
       const message = error.response?.data?.message || 'Login failed';
@@ -79,7 +86,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const response = await authService.register(credentials);
       setUser(response.user);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      persistUser(response.user);
       toast.success('Registration successful!');
     } catch (error: any) {
       const message = error.response?.data?.message || 'Registration failed';
@@ -169,8 +176,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       // Step 4: Store JWT and user data
       setUser(response.user);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      
+      persistUser(response.user);
+
       toast.success('Wallet authentication successful!');
     } catch (error: any) {
       console.error('Wallet login error:', error);
