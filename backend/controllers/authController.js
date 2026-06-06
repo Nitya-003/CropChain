@@ -8,6 +8,7 @@ const { z } = require('zod');
 const apiResponse = require('../utils/apiResponse');
 const { verifyMessage } = require('ethers');
 const { VALID_ROLES, ROLES } = require('../constants/permissions');
+const logger = require('../utils/logger');
 require('dotenv').config();
 const Redis = require('ioredis');
 
@@ -22,11 +23,11 @@ if (process.env.NODE_ENV !== 'test') {
     });
 
     redis.on('connect', () => {
-    console.log('Redis connected');
+    logger.info('Redis connected');
 });
 
 redis.on('error', (err) => {
-    console.error('Redis error:', err);
+    logger.error('Redis connection error', { error: err.message });
 });
 }
 // Validation Schemas
@@ -134,7 +135,7 @@ const registerUser = async (req, res) => {
         const validationResult = registerSchema.safeParse(req.body);
 
         if (!validationResult.success) {
-            console.error('Validation Error Details:', JSON.stringify(validationResult.error, null, 2));
+            logger.warn('Validation failed', { details: validationResult.error });
             return res.status(400).json({
                 success: false,
                 error: 'Validation failed',
@@ -201,7 +202,7 @@ const loginUser = async (req, res) => {
         const validationResult = loginSchema.safeParse(req.body);
 
         if (!validationResult.success) {
-            console.error('Validation Error Details:', JSON.stringify(validationResult.error, null, 2));
+            logger.warn('Validation failed', { details: validationResult.error });
             return res.status(400).json({
                 success: false,
                 error: 'Validation failed',
@@ -291,7 +292,7 @@ const updateProfile = async (req, res) => {
         );
 
     } catch (error) {
-        console.error('Profile update error:', error);
+        logger.error('Profile update error', { error: error.message, stack: error.stack });
         return res.status(500).json(
             apiResponse.errorResponse('Profile update failed', 'UPDATE_FAILED', 500)
         );
@@ -418,7 +419,7 @@ const walletLogin = async (req, res) => {
         return res.json(response);
 
     } catch (error) {
-        console.error('Wallet login error:', error);
+        logger.error('Wallet login error', { error: error.message, stack: error.stack });
         return res.status(500).json(
             apiResponse.errorResponse('Wallet authentication failed', 'WALLET_LOGIN_FAILED', 500)
         );
@@ -532,7 +533,7 @@ const walletRegister = async (req, res) => {
         return res.status(201).json(response);
 
     } catch (error) {
-        console.error('Wallet registration error:', error);
+        logger.error('Wallet registration error', { error: error.message, stack: error.stack });
         if (error.code === 11000) {
             return res.status(409).json(
                 apiResponse.conflictResponse('User already exists')
@@ -558,7 +559,7 @@ const refreshSession = async (req, res) => {
         const refreshSecret = process.env.JWT_REFRESH_SECRET;
 
         if (!refreshSecret) {
-            console.error('JWT_REFRESH_SECRET is not configured');
+            logger.error('JWT_REFRESH_SECRET is not configured');
 
             return res.status(500).json(
                 apiResponse.errorResponse(
