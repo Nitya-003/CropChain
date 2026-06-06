@@ -36,7 +36,7 @@ const PERMISSIONS = {
     USER_CREATE: 'user:create',
     USER_READ: 'user:read',
     USER_UPDATE: 'user:update',
-    USER_DELETE: 'user delete',
+    USER_DELETE: 'user:delete',
     USER_VERIFY: 'user:verify',
     USER_VIEW_ALL: 'user:view_all',
     
