@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const apiResponse = require('../utils/apiResponse');
 const { isAdminRole } = require('../constants/permissions');
 const STAGES = require('../constants/stages');
+const logger = require('../utils/logger');
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -91,7 +92,7 @@ exports.createBatch = async (req, res) => {
         await session.commitTransaction();
         session.endSession();
 
-        console.log(`[SUCCESS] Batch created: ${batchId} by user ${req.user.id} (${req.user.email}) from IP: ${req.ip}`);
+        logger.info('Batch created', { batchId, userId: req.user.id, ip: req.ip });
 
         const response = apiResponse.successResponse(
             { batch: batch[0] },
@@ -104,7 +105,7 @@ exports.createBatch = async (req, res) => {
         await session.abortTransaction();
         session.endSession();
 
-        console.error('Error creating batch:', error);
+        logger.error('Error creating batch', { error: error.message, stack: error.stack });
         const response = apiResponse.errorResponse(
             'Failed to create batch',
             'BATCH_CREATION_ERROR',
@@ -125,19 +126,19 @@ exports.getBatch = async (req, res) => {
         const batch = await Batch.findOne({ batchId }).lean();
 
         if (!batch) {
-            console.log(`[NOT FOUND] Batch lookup failed: ${batchId} from IP: ${req.ip}`);
+            logger.warn('Batch not found', { batchId, ip: req.ip });
             const response = apiResponse.notFoundResponse('Batch', `ID: ${batchId}`);
             return res.status(404).json(response);
         }
 
         if (batch.isRecalled) {
-            console.log("🚨 ALERT: Recalled batch viewed:", batchId);
+            logger.warn('Recalled batch viewed', { batchId, ip: req.ip });
         }
 
         const response = apiResponse.successResponse({ batch }, 'Batch retrieved successfully');
         res.json(response);
     } catch (error) {
-        console.error('Error fetching batch:', error);
+        logger.error('Error fetching batch', { error: error.message, stack: error.stack });
         const response = apiResponse.errorResponse(
             'Failed to fetch batch',
             'BATCH_FETCH_ERROR',
@@ -194,7 +195,7 @@ exports.updateBatch = async (req, res) => {
 
         await batch.save();
 
-        console.log(`[UPDATE] Batch ${batchId} updated to stage ${normalizedStage} by user ${req.user.id}`);
+        logger.info('Batch updated', { batchId, stage: normalizedStage, userId: req.user.id });
 
         const response = apiResponse.successResponse(
             { batch },
@@ -202,7 +203,7 @@ exports.updateBatch = async (req, res) => {
         );
         res.json(response);
     } catch (error) {
-        console.error('Error updating batch:', error);
+        logger.error('Error updating batch', { error: error.message, stack: error.stack });
         const response = apiResponse.errorResponse(
             'Failed to update batch',
             'BATCH_UPDATE_ERROR',
@@ -248,7 +249,7 @@ exports.recallBatch = async (req, res) => {
         batch.isRecalled = true;
         await batch.save();
 
-        console.log(`🚨 RECALL by admin ${req.user?.email || 'unknown'} for batch ${batchId}`);
+        logger.warn('Batch recalled', { batchId, adminId: req.user?.id, ip: req.ip });
 
         res.json({
             success: true,
@@ -258,7 +259,7 @@ exports.recallBatch = async (req, res) => {
             batch
         });
     } catch (error) {
-        console.error('Error recalling batch:', error);
+        logger.error('Error recalling batch', { error: error.message, stack: error.stack });
         res.status(500).json(
             apiResponse.errorResponse('Failed to recall batch', 'BATCH_RECALL_ERROR', 500)
         );
@@ -423,11 +424,11 @@ exports.updateBatchStatus = async (req, res) => {
             return res.status(404).json({ error: 'Batch not found' });
         }
         
-        console.log(`[ADMIN ACTION] User ${req.user.email} (${req.user.role}) changed status of batch ${batchId} to ${status}`);
+        logger.info('Batch status changed', { batchId, status, userId: req.user.id, role: req.user.role });
         
         res.json(batch);
     } catch (err) {
-        console.error('Error updating batch status:', err);
+        logger.error('Error updating batch status', { error: err.message, stack: err.stack });
         res.status(500).json({ error: 'Server error', details: err.message });
     }
 };
