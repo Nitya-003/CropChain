@@ -99,3 +99,36 @@ export const disconnectSocket = (): void => {
 export const isConnected = (): boolean => {
   return socketInstance?.connected ?? false;
 };
+
+/**
+ * Join a user verification room to receive status updates
+ */
+export const joinVerificationRoom = (userId: string): void => {
+  const socket = getSocket();
+  socket.emit('join-verification-room', userId);
+  console.log(`[SOCKET] Joined verification room for user: ${userId}`);
+};
+
+/**
+ * Leave a user verification room
+ */
+export const leaveVerificationRoom = (userId: string): void => {
+  const socket = getSocket();
+  socket.emit('leave-verification-room', userId);
+  console.log(`[SOCKET] Left verification room for user: ${userId}`);
+};
+
+/**
+ * Listen for verification status update events
+ * @param {(data: any) => void} callback - Callback function for verification updates
+ * @returns {() => void} Cleanup function to remove listener
+ */
+export const onVerificationStatusUpdated = (callback: (data: any) => void): (() => void) => {
+  const socket = getSocket();
+  socket.on('verification.status.updated', callback);
+  
+  // Return cleanup function
+  return () => {
+    socket.off('verification.status.updated', callback);
+  };
+};

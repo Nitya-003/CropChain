@@ -1,6 +1,9 @@
 const didService = require('../services/didService');
 const User = require('../models/User');
 const VerificationEvent = require('../models/VerificationEvent');
+const BulkVerificationJob = require('../models/BulkVerificationJob');
+const bulkVerificationService = require('../services/bulkVerificationService');
+const mongoose = require('mongoose');
 const { z } = require('zod');
 const { validateParams } = require('../utils/validation');
 const {
@@ -56,6 +59,61 @@ const getVerificationEventsSchema = z.object({
     page: z.coerce.number().int().positive().optional(),
     limit: z.coerce.number().int().positive().optional(),
 });
+
+const userQuerySchema = z.object({
+    search: z.string().optional(),
+    fromDate: z.string().optional(),
+    toDate: z.string().optional(),
+    role: z.string().optional(),
+    sortBy: z.string().optional(),
+    sortOrder: z.string().optional(),
+    page: z.coerce.number().int().positive().optional(),
+    limit: z.coerce.number().int().positive().optional(),
+});
+
+const buildUserQueryFilter = (query, isVerified) => {
+    const filter = {
+        'verification.isVerified': isVerified ? true : { $ne: true },
+    };
+
+    if (!isVerified) {
+        filter.role = { $nin: [ROLES.ADMIN, ROLES.SUPER_ADMIN] };
+    }
+
+    if (query.role) {
+        if (!isVerified && [ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(query.role)) {
+            filter.role = { $in: [] };
+        } else {
+            filter.role = query.role;
+        }
+    }
+
+    if (query.search) {
+        const escaped = query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        filter.$or = [
+            { name: { $regex: escaped, $options: 'i' } },
+            { email: { $regex: escaped, $options: 'i' } },
+        ];
+    }
+
+    const dateField = isVerified ? 'verification.verifiedAt' : 'createdAt';
+    if (query.fromDate || query.toDate) {
+        filter[dateField] = {};
+        if (query.fromDate) {
+            filter[dateField].$gte = new Date(query.fromDate);
+        }
+        if (query.toDate) {
+            filter[dateField].$lte = new Date(query.toDate);
+        }
+    }
+
+    const sortBy = query.sortBy || (isVerified ? 'verification.verifiedAt' : 'createdAt');
+    const sortOrder = query.sortOrder?.toLowerCase() === 'asc' ? 1 : -1;
+    const sort = { [sortBy]: sortOrder };
+
+    return { filter, sort };
+};
+
 
 // Internal helpers for logic de-duplication
 const validateOrRespond = (res, schema, body) => {
@@ -257,23 +315,25 @@ const checkVerification = async (req, res) => {
  */
 const getUnverifiedUsers = async (req, res) => {
     try {
-        let page = parseInt(req.query.page, 10) || 1;
-        let limit = parseInt(req.query.limit, 10) || 10;
+        const validatedQuery = validateOrRespond(res, userQuerySchema, req.query);
+        if (!validatedQuery) {
+            return;
+        }
 
+        let page = validatedQuery.page || 1;
+        let limit = validatedQuery.limit || 10;
         if (page < 1) page = 1;
         if (limit < 1) limit = 10;
         if (limit > 100) limit = 100;
 
         const skip = (page - 1) * limit;
-        const filter = {
-            'verification.isVerified': { $ne: true },
-            role: { $nin: [ROLES.ADMIN, ROLES.SUPER_ADMIN] },
-        };
+
+        const { filter, sort } = buildUserQueryFilter(validatedQuery, false);
 
         const count = await User.countDocuments(filter);
         const users = await User.find(filter)
             .select('name email role walletAddress createdAt')
-            .sort({ createdAt: -1 })
+            .sort(sort)
             .skip(skip)
             .limit(limit);
 
@@ -295,23 +355,26 @@ const getUnverifiedUsers = async (req, res) => {
  */
 const getVerifiedUsers = async (req, res) => {
     try {
-        let page = parseInt(req.query.page, 10) || 1;
-        let limit = parseInt(req.query.limit, 10) || 10;
+        const validatedQuery = validateOrRespond(res, userQuerySchema, req.query);
+        if (!validatedQuery) {
+            return;
+        }
 
+        let page = validatedQuery.page || 1;
+        let limit = validatedQuery.limit || 10;
         if (page < 1) page = 1;
         if (limit < 1) limit = 10;
         if (limit > 100) limit = 100;
 
         const skip = (page - 1) * limit;
-        const filter = {
-            'verification.isVerified': true,
-        };
+
+        const { filter, sort } = buildUserQueryFilter(validatedQuery, true);
 
         const count = await User.countDocuments(filter);
         const users = await User.find(filter)
             .select('name email role walletAddress verification.verifiedAt verification.verifiedBy')
             .populate('verification.verifiedBy', 'name email')
-            .sort({ createdAt: -1 })
+            .sort(sort)
             .skip(skip)
             .limit(limit);
 
@@ -327,6 +390,111 @@ const getVerifiedUsers = async (req, res) => {
         });
     }
 };
+
+const escapeCSV = (val) => {
+    if (val === null || val === undefined) return '';
+    const str = String(val);
+    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+        return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+};
+
+/**
+ * Export unverified users as CSV (Admin only)
+ */
+const exportUnverifiedUsers = async (req, res) => {
+    try {
+        const validatedQuery = validateOrRespond(res, userQuerySchema, req.query);
+        if (!validatedQuery) {
+            return;
+        }
+
+        const { filter, sort } = buildUserQueryFilter(validatedQuery, false);
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="unverified_users.csv"');
+
+        res.write('Name,Email,Role,Wallet Address,Created At\n');
+
+        const cursor = User.find(filter)
+            .select('name email role walletAddress createdAt')
+            .sort(sort)
+            .cursor();
+
+        for (let user = await cursor.next(); user != null; user = await cursor.next()) {
+            const line = [
+                escapeCSV(user.name),
+                escapeCSV(user.email),
+                escapeCSV(user.role),
+                escapeCSV(user.walletAddress),
+                escapeCSV(user.createdAt ? user.createdAt.toISOString() : ''),
+            ].join(',') + '\n';
+            res.write(line);
+        }
+
+        res.end();
+    } catch (error) {
+        if (res.headersSent) {
+            res.end();
+            return;
+        }
+        return handleServerError(res, error, {
+            code: 'EXPORT_USERS_ERROR',
+            message: 'Failed to export users',
+        });
+    }
+};
+
+/**
+ * Export verified users as CSV (Admin only)
+ */
+const exportVerifiedUsers = async (req, res) => {
+    try {
+        const validatedQuery = validateOrRespond(res, userQuerySchema, req.query);
+        if (!validatedQuery) {
+            return;
+        }
+
+        const { filter, sort } = buildUserQueryFilter(validatedQuery, true);
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="verified_users.csv"');
+
+        res.write('Name,Email,Role,Wallet Address,Verified At,Verified By Email\n');
+
+        const cursor = User.find(filter)
+            .select('name email role walletAddress verification.verifiedAt verification.verifiedBy')
+            .populate('verification.verifiedBy', 'email')
+            .sort(sort)
+            .cursor();
+
+        for (let user = await cursor.next(); user != null; user = await cursor.next()) {
+            const verifiedByEmail = user.verification?.verifiedBy?.email || '';
+            const line = [
+                escapeCSV(user.name),
+                escapeCSV(user.email),
+                escapeCSV(user.role),
+                escapeCSV(user.walletAddress),
+                escapeCSV(user.verification?.verifiedAt ? user.verification.verifiedAt.toISOString() : ''),
+                escapeCSV(verifiedByEmail),
+            ].join(',') + '\n';
+            res.write(line);
+        }
+
+        res.end();
+    } catch (error) {
+        if (res.headersSent) {
+            res.end();
+            return;
+        }
+        return handleServerError(res, error, {
+            code: 'EXPORT_USERS_ERROR',
+            message: 'Failed to export users',
+        });
+    }
+};
+
 
 /**
  * Get verification audit events (Admin only)
@@ -375,6 +543,87 @@ const getVerificationEvents = async (req, res) => {
     }
 };
 
+/**
+ * Initiate challenges or trigger credential issuances in bulk via CSV (Admin only)
+ */
+const bulkIssueCredentials = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json(apiResponse.validationErrorResponse(['CSV file is required']));
+        }
+
+        const csvText = req.file.buffer.toString('utf8');
+        const records = bulkVerificationService.parseCSV(csvText);
+
+        if (records.length === 0) {
+            return res.status(400).json(apiResponse.validationErrorResponse(['CSV file is empty or invalid']));
+        }
+
+        // Validate records have either email or userId, and walletAddress
+        const invalidRows = [];
+        records.forEach((rec, idx) => {
+            const rowNum = idx + 2;
+            if (!rec.userid && !rec.email) {
+                invalidRows.push(`Row ${rowNum}: Either userId or email is required`);
+            }
+            if (!rec.walletaddress) {
+                invalidRows.push(`Row ${rowNum}: walletAddress is required`);
+            }
+        });
+
+        if (invalidRows.length > 0) {
+            return res.status(400).json(apiResponse.validationErrorResponse(invalidRows));
+        }
+
+        const adminId = req.user.id;
+        const job = await BulkVerificationJob.create({
+            status: 'pending',
+            totalRows: records.length,
+            actorId: adminId,
+        });
+
+        // Background processing
+        bulkVerificationService.processJob(job._id, records, adminId).catch((err) => {
+            console.error(`Error processing bulk verification job ${job._id}:`, err);
+        });
+
+        res.status(202).json(apiResponse.successResponse({
+            jobId: job._id,
+            status: job.status,
+            totalRows: job.totalRows,
+        }, 'Bulk verification job initiated successfully'));
+    } catch (error) {
+        return handleServerError(res, error, {
+            code: 'BULK_VERIFICATION_ERROR',
+            message: 'Failed to initiate bulk verification job',
+        });
+    }
+};
+
+/**
+ * Get bulk job status and results (Admin only)
+ */
+const getBulkJobStatus = async (req, res) => {
+    try {
+        const { jobId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(jobId)) {
+            return res.status(400).json(apiResponse.validationErrorResponse(['Invalid job ID format']));
+        }
+
+        const job = await BulkVerificationJob.findById(jobId);
+        if (!job) {
+            return res.status(404).json(apiResponse.errorResponse('Bulk verification job not found', 404));
+        }
+
+        res.json(apiResponse.successResponse(job, 'Bulk verification job retrieved successfully'));
+    } catch (error) {
+        return handleServerError(res, error, {
+            code: 'BULK_VERIFICATION_STATUS_ERROR',
+            message: 'Failed to retrieve bulk job status',
+        });
+    }
+};
+
 module.exports = {
     generateLinkWalletChallenge,
     generateIssueCredentialChallenge,
@@ -385,4 +634,8 @@ module.exports = {
     getUnverifiedUsers,
     getVerifiedUsers,
     getVerificationEvents,
+    exportUnverifiedUsers,
+    exportVerifiedUsers,
+    bulkIssueCredentials,
+    getBulkJobStatus,
 };

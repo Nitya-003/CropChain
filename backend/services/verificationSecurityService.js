@@ -58,9 +58,11 @@ const parseJsonRecord = (value) => {
 
 const createChallenge = async ({ action, actorId, userId, walletAddress }) => {
     const redis = getRedisConnection();
+    const challengeId = crypto.randomUUID();
     const nonce = crypto.randomBytes(32).toString('hex');
     const expiresAt = Date.now() + (CHALLENGE_TTL_SECONDS * 1000);
     const record = {
+        challengeId,
         action,
         actorId,
         userId,
@@ -82,6 +84,7 @@ const createChallenge = async ({ action, actorId, userId, walletAddress }) => {
             walletAddress: record.walletAddress,
             status: 'success',
             metadata: {
+                challengeId,
                 challengeAction: action,
                 nonce,
                 expiresAt,
@@ -92,6 +95,7 @@ const createChallenge = async ({ action, actorId, userId, walletAddress }) => {
     }
 
     return {
+        challengeId,
         nonce,
         expiresAt,
         action,
@@ -113,22 +117,6 @@ const consumeChallenge = async ({ action, actorId, nonce, userId, walletAddress,
     const storedRecord = parseJsonRecord(rawRecord);
 
     if (!storedRecord) {
-        return null;
-    }
-
-    const normalizedWalletAddress = normalizeWalletAddress(walletAddress);
-
-    if (
-        storedRecord.action !== action ||
-        storedRecord.actorId !== actorId ||
-        storedRecord.userId !== userId ||
-        storedRecord.expiresAt !== expiresAt ||
-        normalizeWalletAddress(storedRecord.walletAddress) !== normalizedWalletAddress
-    ) {
-        return null;
-    }
-
-    if (storedRecord.expiresAt <= Date.now()) {
         return null;
     }
 

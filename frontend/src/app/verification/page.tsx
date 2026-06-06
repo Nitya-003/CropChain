@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Shield, UserCheck, UserX, AlertCircle, RefreshCw } from 'lucide-react';
 import { verificationService, UnverifiedUser, VerifiedUser } from '../../services/verificationService';
 import VerificationBadge from '../../components/VerificationBadge';
@@ -11,6 +11,7 @@ import { Button } from "../../components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert";
 import toast from 'react-hot-toast';
 import ProtectedRoute from '../../components/ProtectedRoute';
+import { useVerificationSocket } from '../../hooks/useVerificationSocket';
 
 const VerificationDashboardComponent: React.FC = () => {
     const { user } = useAuth();
@@ -20,6 +21,9 @@ const VerificationDashboardComponent: React.FC = () => {
     const [error, setError] = useState('');
     const [activeTab, setActiveTab] = useState<'unverified' | 'verified'>('unverified');
     const [processingUserId, setProcessingUserId] = useState<string | null>(null);
+
+    // Dynamic row statuses driven by websocket updates
+    const [rowStatuses, setRowStatuses] = useState<Record<string, 'in_progress' | 'verified' | 'failed' | 'linked' | 'unverified' | null>>({});
 
     useEffect(() => {
         if (user?.role === 'admin') {
@@ -44,13 +48,52 @@ const VerificationDashboardComponent: React.FC = () => {
         }
     };
 
+    // Memoize all active user IDs to join room subscriptions for
+    const allUserIds = useMemo(() => {
+        return [
+            ...unverifiedUsers.map(u => u._id),
+            ...verifiedUsers.map(u => u._id)
+        ];
+    }, [unverifiedUsers, verifiedUsers]);
+
+    // Handle incoming socket status updates
+    const handleVerificationSocketUpdate = useCallback((data: any) => {
+        console.log('[SOCKET EVENT] Verification update:', data);
+        if (data?.userId && data?.newState) {
+            setRowStatuses(prev => ({
+                ...prev,
+                [data.userId]: data.newState
+            }));
+            
+            // On completion states, sync directory database view
+            if (['verified', 'linked', 'unverified'].includes(data.newState)) {
+                fetchUsers();
+                // Retain success badge momentarily, then clear
+                setTimeout(() => {
+                    setRowStatuses(prev => {
+                        const copy = { ...prev };
+                        delete copy[data.userId];
+                        return copy;
+                    });
+                }, 3000);
+            }
+        }
+    }, [unverifiedUsers, verifiedUsers]);
+
+    const { isConnected: socketConnected } = useVerificationSocket({
+        userIds: allUserIds,
+        onVerificationUpdate: handleVerificationSocketUpdate
+    });
+
     const handleVerify = async (userId: string, walletAddress: string) => {
         try {
             setProcessingUserId(userId);
+            setRowStatuses(prev => ({ ...prev, [userId]: 'in_progress' }));
             await verificationService.issueCredential(userId, walletAddress);
             await fetchUsers();
             toast.success('User verified successfully!');
         } catch (err: unknown) {
+            setRowStatuses(prev => ({ ...prev, [userId]: 'failed' }));
             const errorMessage = err instanceof Error ? err.message : 'Failed to verify user';
             toast.error(errorMessage);
         } finally {
@@ -64,10 +107,12 @@ const VerificationDashboardComponent: React.FC = () => {
 
         try {
             setProcessingUserId(userId);
+            setRowStatuses(prev => ({ ...prev, [userId]: 'in_progress' }));
             await verificationService.revokeCredential(userId, reason);
             await fetchUsers();
             toast.success('Credential revoked successfully!');
         } catch (err: unknown) {
+            setRowStatuses(prev => ({ ...prev, [userId]: 'failed' }));
             const errorMessage = err instanceof Error ? err.message : 'Failed to revoke credential';
             toast.error(errorMessage);
         } finally {
@@ -85,7 +130,10 @@ const VerificationDashboardComponent: React.FC = () => {
                     </div>
                     <div className="text-left">
                         <h1 className="text-3xl font-bold tracking-tight text-foreground">Verification Dashboard</h1>
-                        <p className="text-sm text-muted-foreground">Manage user KYC statuses, credentials, and decentralised identities</p>
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                            <span className={`h-2.5 w-2.5 rounded-full ${socketConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                            {socketConnected ? 'Live Connection Active' : 'Connecting to Live Updates...'}
+                        </div>
                     </div>
                 </div>
                 <Button variant="outline" size="sm" onClick={fetchUsers} className="gap-1.5 bg-background/50">
@@ -194,16 +242,26 @@ const VerificationDashboardComponent: React.FC = () => {
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="py-4 px-6">
-                                                    <VerificationBadge isVerified={false} size="sm" />
+                                                    {rowStatuses[item._id] === 'in_progress' ? (
+                                                        <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20 font-semibold animate-pulse">
+                                                            In Progress
+                                                        </Badge>
+                                                    ) : rowStatuses[item._id] === 'failed' ? (
+                                                        <Badge variant="outline" className="bg-rose-500/10 text-rose-500 border-rose-500/20 font-semibold">
+                                                            Failed
+                                                        </Badge>
+                                                    ) : (
+                                                        <VerificationBadge isVerified={false} size="sm" />
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="py-4 px-6 text-right">
                                                     <Button
                                                         onClick={() => handleVerify(item._id, item.walletAddress || '')}
-                                                        disabled={!item.walletAddress || processingUserId === item._id}
+                                                        disabled={!item.walletAddress || processingUserId === item._id || rowStatuses[item._id] === 'in_progress'}
                                                         size="sm"
                                                         className="font-medium"
                                                     >
-                                                        {processingUserId === item._id ? 'Verifying...' : 'Verify User'}
+                                                        {rowStatuses[item._id] === 'in_progress' ? 'Verifying...' : 'Verify User'}
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>
@@ -246,17 +304,27 @@ const VerificationDashboardComponent: React.FC = () => {
                                                     {item.verification?.verifiedBy?.name || 'N/A'}
                                                 </TableCell>
                                                 <TableCell className="py-4 px-6">
-                                                    <VerificationBadge isVerified={true} size="sm" />
+                                                    {rowStatuses[item._id] === 'in_progress' ? (
+                                                        <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20 font-semibold animate-pulse">
+                                                            Revoking...
+                                                        </Badge>
+                                                    ) : rowStatuses[item._id] === 'failed' ? (
+                                                        <Badge variant="outline" className="bg-rose-500/10 text-rose-500 border-rose-500/20 font-semibold">
+                                                            Failed Revoke
+                                                        </Badge>
+                                                    ) : (
+                                                        <VerificationBadge isVerified={true} size="sm" />
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="py-4 px-6 text-right">
                                                     <Button
                                                         onClick={() => handleRevoke(item._id)}
-                                                        disabled={processingUserId === item._id}
+                                                        disabled={processingUserId === item._id || rowStatuses[item._id] === 'in_progress'}
                                                         variant="destructive"
                                                         size="sm"
                                                         className="font-medium"
                                                     >
-                                                        {processingUserId === item._id ? 'Revoking...' : 'Revoke'}
+                                                        {rowStatuses[item._id] === 'in_progress' ? 'Revoking...' : 'Revoke'}
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>

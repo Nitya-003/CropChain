@@ -77,7 +77,7 @@ describe('verification idempotency helper', () => {
         securityService.getIdempotencyRecord.mockResolvedValue(null);
         securityService.consumeChallenge.mockResolvedValue({
             nonce: 'nonce-2',
-            expiresAt: 123456789,
+            expiresAt: 9999999999999,
             action: 'ISSUE_CREDENTIAL',
             actorId: 'verifier-1',
             userId: 'target-1',
@@ -105,14 +105,14 @@ describe('verification idempotency helper', () => {
             walletAddress: '0xabc0000000000000000000000000000000000000',
             signature: '0xdeadbeef',
             nonce: 'nonce-2',
-            expiresAt: 123456789,
+            expiresAt: 9999999999999,
             idempotencyKey: 'idem-2',
             execute,
         });
 
         expect(execute).toHaveBeenCalledWith(expect.objectContaining({
             nonce: 'nonce-2',
-            expiresAt: 123456789,
+            expiresAt: 9999999999999,
         }));
         expect(securityService.storeCompletedIdempotencyRecord).toHaveBeenCalledWith({
             action: 'ISSUE_CREDENTIAL',
@@ -135,7 +135,7 @@ describe('verification idempotency helper', () => {
         securityService.getIdempotencyRecord.mockResolvedValue(null);
         securityService.consumeChallenge.mockResolvedValue({
             nonce: 'nonce-3',
-            expiresAt: 123456789,
+            expiresAt: 9999999999999,
             action: 'LINK_WALLET',
             actorId: 'user-3',
             userId: 'user-3',
@@ -160,7 +160,7 @@ describe('verification idempotency helper', () => {
             walletAddress: '0xabc0000000000000000000000000000000000000',
             signature: '0xdeadbeef',
             nonce: 'nonce-3',
-            expiresAt: 123456789,
+            expiresAt: 9999999999999,
             idempotencyKey: 'idem-3',
             execute,
         })).rejects.toThrow('boom');
@@ -170,5 +170,62 @@ describe('verification idempotency helper', () => {
             actorId: 'user-3',
             key: 'idem-3',
         });
+    });
+
+    test('rejects replay with same signature but different/missing challenge', async () => {
+        securityService.getIdempotencyRecord.mockResolvedValue(null);
+        securityService.consumeChallenge.mockResolvedValue(null);
+
+        const execute = jest.fn();
+        const res = createResponse();
+
+        await handleVerificationWithIdempotency({
+            res,
+            action: 'LINK_WALLET',
+            actorId: 'user-1',
+            userId: 'user-1',
+            walletAddress: '0xabc0000000000000000000000000000000000000',
+            signature: '0xdeadbeef',
+            nonce: 'different-nonce',
+            expiresAt: Date.now() + 60000,
+            idempotencyKey: 'idem-1',
+            execute,
+        });
+
+        expect(res.statusCode).toBe(409);
+        expect(res.body.error).toContain('Nonce is missing, expired, or already used');
+        expect(execute).not.toHaveBeenCalled();
+    });
+
+    test('rejects cross-action reuse of challenge', async () => {
+        securityService.getIdempotencyRecord.mockResolvedValue(null);
+        securityService.consumeChallenge.mockResolvedValue({
+            nonce: 'nonce-1',
+            expiresAt: 123456789,
+            action: 'ISSUE_CREDENTIAL',
+            actorId: 'user-1',
+            userId: 'user-1',
+            walletAddress: '0xabc0000000000000000000000000000000000000',
+        });
+
+        const execute = jest.fn();
+        const res = createResponse();
+
+        await handleVerificationWithIdempotency({
+            res,
+            action: 'LINK_WALLET',
+            actorId: 'user-1',
+            userId: 'user-1',
+            walletAddress: '0xabc0000000000000000000000000000000000000',
+            signature: '0xdeadbeef',
+            nonce: 'nonce-1',
+            expiresAt: 123456789,
+            idempotencyKey: 'idem-1',
+            execute,
+        });
+
+        expect(res.statusCode).toBe(409);
+        expect(res.body.error).toContain('Challenge action mismatch');
+        expect(execute).not.toHaveBeenCalled();
     });
 });
