@@ -3,6 +3,7 @@ const User = require('../models/User');
 const { isAdminRole } = require('../constants/permissions');
 const { buildVerificationMessage, CHALLENGE_ACTIONS } = require('./verificationSecurityService');
 const { NotFoundError } = require('../utils/errorHandler');
+const VerificationEvent = require('../models/VerificationEvent');
 
 /**
  * DID Service for Verifiable Credentials
@@ -52,24 +53,74 @@ class DIDService {
             const verifier = await User.findById(verifierId);
 
             if (!user) {
+                try {
+                    await VerificationEvent.create({
+                        action: 'credential_issued',
+                        actorId: verifierId,
+                        userId,
+                        walletAddress,
+                        status: 'failure',
+                        metadata: { error: 'User not found' }
+                    });
+                } catch (e) { console.error(e); }
                 throw new Error('User not found');
             }
 
             if (!verifier || !isAdminRole(verifier.role)) {
+                try {
+                    await VerificationEvent.create({
+                        action: 'credential_issued',
+                        actorId: verifierId,
+                        userId,
+                        walletAddress,
+                        status: 'failure',
+                        metadata: { error: 'Only Mandi officers (admins) can verify users' }
+                    });
+                } catch (e) { console.error(e); }
                 throw new Error('Only Mandi officers (admins) can verify users');
             }
 
             if (!challenge || challenge.action !== CHALLENGE_ACTIONS.ISSUE_CREDENTIAL) {
+                try {
+                    await VerificationEvent.create({
+                        action: 'credential_issued',
+                        actorId: verifierId,
+                        userId,
+                        walletAddress,
+                        status: 'failure',
+                        metadata: { error: 'A valid issuance challenge is required' }
+                    });
+                } catch (e) { console.error(e); }
                 throw new Error('A valid issuance challenge is required');
             }
 
             if (user.verification?.isVerified) {
+                try {
+                    await VerificationEvent.create({
+                        action: 'credential_issued',
+                        actorId: verifierId,
+                        userId,
+                        walletAddress,
+                        status: 'failure',
+                        metadata: { error: 'User is already verified' }
+                    });
+                } catch (e) { console.error(e); }
                 throw new Error('User is already verified');
             }
 
             const linkedWalletAddress = user.walletAddress;
 
             if (!linkedWalletAddress) {
+                try {
+                    await VerificationEvent.create({
+                        action: 'credential_issued',
+                        actorId: verifierId,
+                        userId,
+                        walletAddress,
+                        status: 'failure',
+                        metadata: { error: 'User does not have a linked wallet address' }
+                    });
+                } catch (e) { console.error(e); }
                 throw new Error('User does not have a linked wallet address');
             }
 
@@ -77,6 +128,16 @@ class DIDService {
                 walletAddress &&
                 walletAddress.toLowerCase() !== linkedWalletAddress.toLowerCase()
             ) {
+                try {
+                    await VerificationEvent.create({
+                        action: 'credential_issued',
+                        actorId: verifierId,
+                        userId,
+                        walletAddress,
+                        status: 'failure',
+                        metadata: { error: 'Provided wallet address does not match linked wallet address' }
+                    });
+                } catch (e) { console.error(e); }
                 throw new Error('Provided wallet address does not match linked wallet address');
             }
 
@@ -99,6 +160,16 @@ class DIDService {
             });
 
             if (!verifier.walletAddress) {
+                try {
+                    await VerificationEvent.create({
+                        action: 'credential_issued',
+                        actorId: verifierId,
+                        userId,
+                        walletAddress,
+                        status: 'failure',
+                        metadata: { error: 'Verifier wallet address not found' }
+                    });
+                } catch (e) { console.error(e); }
                 throw new Error('Verifier wallet address not found');
             }
 
@@ -108,7 +179,29 @@ class DIDService {
                 verifier.walletAddress
             );
 
+            // Log signature validated event
+            try {
+                await VerificationEvent.create({
+                    action: 'signature_validated',
+                    actorId: verifierId,
+                    userId: user._id.toString(),
+                    walletAddress: linkedWalletAddress,
+                    status: isValidSignature ? 'success' : 'failure',
+                    metadata: { message, signature, isValid: isValidSignature }
+                });
+            } catch (e) { console.error(e); }
+
             if (!isValidSignature) {
+                try {
+                    await VerificationEvent.create({
+                        action: 'credential_issued',
+                        actorId: verifierId,
+                        userId: user._id.toString(),
+                        walletAddress: linkedWalletAddress,
+                        status: 'failure',
+                        metadata: { error: 'Invalid verifier signature' }
+                    });
+                } catch (e) { console.error(e); }
                 throw new Error('Invalid verifier signature');
             }
 
@@ -122,6 +215,35 @@ class DIDService {
             };
 
             await user.save();
+
+            // Log success credential_issued and verification_status_changed events
+            try {
+                await VerificationEvent.create({
+                    action: 'credential_issued',
+                    actorId: verifierId,
+                    userId: user._id.toString(),
+                    walletAddress: linkedWalletAddress,
+                    status: 'success',
+                    metadata: {
+                        credentialHash,
+                        signature,
+                        verificationState: user.verification
+                    }
+                });
+
+                await VerificationEvent.create({
+                    action: 'verification_status_changed',
+                    actorId: verifierId,
+                    userId: user._id.toString(),
+                    walletAddress: linkedWalletAddress,
+                    status: 'success',
+                    metadata: {
+                        isVerified: true,
+                        verifiedBy: verifierId,
+                        verifiedAt: user.verification.verifiedAt
+                    }
+                });
+            } catch (e) { console.error(e); }
 
             // Sync user role to blockchain
             const blockchainService = require('./blockchainService');
@@ -140,6 +262,16 @@ class DIDService {
                 isVerified: true,
             };
         } catch (error) {
+            try {
+                await VerificationEvent.create({
+                    action: 'credential_issued',
+                    actorId: verifierId,
+                    userId,
+                    walletAddress,
+                    status: 'failure',
+                    metadata: { error: error.message || error.toString() }
+                });
+            } catch (e) { console.error(e); }
             throw error;
         }
     }
@@ -157,14 +289,43 @@ class DIDService {
             const admin = await User.findById(adminId);
 
             if (!user) {
+                try {
+                    await VerificationEvent.create({
+                        action: 'credential_revoked',
+                        actorId: adminId,
+                        userId,
+                        status: 'failure',
+                        metadata: { error: 'User not found' }
+                    });
+                } catch (e) { console.error(e); }
                 throw new Error('User not found');
             }
 
             if (!admin || !isAdminRole(admin.role)) {
+                try {
+                    await VerificationEvent.create({
+                        action: 'credential_revoked',
+                        actorId: adminId,
+                        userId,
+                        walletAddress: user.walletAddress,
+                        status: 'failure',
+                        metadata: { error: 'Only admins can revoke credentials' }
+                    });
+                } catch (e) { console.error(e); }
                 throw new Error('Only admins can revoke credentials');
             }
 
             if (!user.verification?.isVerified) {
+                try {
+                    await VerificationEvent.create({
+                        action: 'credential_revoked',
+                        actorId: adminId,
+                        userId,
+                        walletAddress: user.walletAddress,
+                        status: 'failure',
+                        metadata: { error: 'User is not verified' }
+                    });
+                } catch (e) { console.error(e); }
                 throw new Error('User is not verified');
             }
 
@@ -173,6 +334,34 @@ class DIDService {
             user.verification.revocationReason = reason;
 
             await user.save();
+
+            // Log success credential_revoked and verification_status_changed events
+            try {
+                await VerificationEvent.create({
+                    action: 'credential_revoked',
+                    actorId: adminId,
+                    userId,
+                    walletAddress: user.walletAddress,
+                    status: 'success',
+                    metadata: {
+                        reason,
+                        verificationState: user.verification
+                    }
+                });
+
+                await VerificationEvent.create({
+                    action: 'verification_status_changed',
+                    actorId: adminId,
+                    userId,
+                    walletAddress: user.walletAddress,
+                    status: 'success',
+                    metadata: {
+                        isVerified: false,
+                        revokedAt: user.verification.revokedAt,
+                        reason
+                    }
+                });
+            } catch (e) { console.error(e); }
 
             // Revoke user role on blockchain (sync to ActorRole.None)
             const blockchainService = require('./blockchainService');
@@ -189,6 +378,15 @@ class DIDService {
                 message: 'Credential revoked successfully',
             };
         } catch (error) {
+            try {
+                await VerificationEvent.create({
+                    action: 'credential_revoked',
+                    actorId: adminId,
+                    userId,
+                    status: 'failure',
+                    metadata: { error: error.message || error.toString() }
+                });
+            } catch (e) { console.error(e); }
             throw error;
         }
     }
@@ -231,10 +429,30 @@ class DIDService {
             const user = await User.findById(userId);
 
             if (!user) {
+                try {
+                    await VerificationEvent.create({
+                        action: 'credential_linked',
+                        actorId: userId,
+                        userId,
+                        walletAddress,
+                        status: 'failure',
+                        metadata: { error: 'User not found' }
+                    });
+                } catch (e) { console.error(e); }
                 throw new Error('User not found');
             }
 
             if (!challenge || challenge.action !== CHALLENGE_ACTIONS.LINK_WALLET) {
+                try {
+                    await VerificationEvent.create({
+                        action: 'credential_linked',
+                        actorId: userId,
+                        userId,
+                        walletAddress,
+                        status: 'failure',
+                        metadata: { error: 'A valid wallet linking challenge is required' }
+                    });
+                } catch (e) { console.error(e); }
                 throw new Error('A valid wallet linking challenge is required');
             }
 
@@ -249,12 +467,49 @@ class DIDService {
             });
             const isValidSignature = this.verifySignature(message, signature, walletAddress);
 
+            // Log signature validation result
+            try {
+                await VerificationEvent.create({
+                    action: 'signature_validated',
+                    actorId: userId,
+                    userId,
+                    walletAddress,
+                    status: isValidSignature ? 'success' : 'failure',
+                    metadata: { message, signature, isValid: isValidSignature }
+                });
+            } catch (e) { console.error(e); }
+
             if (!isValidSignature) {
+                try {
+                    await VerificationEvent.create({
+                        action: 'credential_linked',
+                        actorId: userId,
+                        userId,
+                        walletAddress,
+                        status: 'failure',
+                        metadata: { error: 'Invalid signature' }
+                    });
+                } catch (e) { console.error(e); }
                 throw new Error('Invalid signature');
             }
 
             user.walletAddress = walletAddress;
             await user.save();
+
+            // Log credential linked success
+            try {
+                await VerificationEvent.create({
+                    action: 'credential_linked',
+                    actorId: userId,
+                    userId,
+                    walletAddress,
+                    status: 'success',
+                    metadata: {
+                        walletAddress,
+                        verificationState: user.verification
+                    }
+                });
+            } catch (e) { console.error(e); }
 
             return {
                 success: true,
@@ -262,6 +517,16 @@ class DIDService {
                 walletAddress,
             };
         } catch (error) {
+            try {
+                await VerificationEvent.create({
+                    action: 'credential_linked',
+                    actorId: userId,
+                    userId,
+                    walletAddress,
+                    status: 'failure',
+                    metadata: { error: error.message || error.toString() }
+                });
+            } catch (e) { console.error(e); }
             throw error;
         }
     }

@@ -1,5 +1,6 @@
 const didService = require('../services/didService');
 const User = require('../models/User');
+const VerificationEvent = require('../models/VerificationEvent');
 const { z } = require('zod');
 const { validateParams } = require('../utils/validation');
 const {
@@ -47,6 +48,13 @@ const revokeCredentialSchema = z.object({
 
 const checkVerificationParamsSchema = z.object({
     userId: z.string().regex(/^[a-fA-F0-9]{24}$/),
+});
+
+const getVerificationEventsSchema = z.object({
+    userId: z.string().regex(/^[a-fA-F0-9]{24}$/, 'Invalid User ID format').optional(),
+    action: z.string().optional(),
+    page: z.coerce.number().int().positive().optional(),
+    limit: z.coerce.number().int().positive().optional(),
 });
 
 // Internal helpers for logic de-duplication
@@ -320,6 +328,53 @@ const getVerifiedUsers = async (req, res) => {
     }
 };
 
+/**
+ * Get verification audit events (Admin only)
+ */
+const getVerificationEvents = async (req, res) => {
+    try {
+        const validatedQuery = validateOrRespond(res, getVerificationEventsSchema, req.query);
+        if (!validatedQuery) {
+            return;
+        }
+
+        const { userId, action } = validatedQuery;
+        let page = validatedQuery.page || 1;
+        let limit = validatedQuery.limit || 10;
+
+        if (page < 1) page = 1;
+        if (limit < 1) limit = 10;
+        if (limit > 100) limit = 100;
+
+        const skip = (page - 1) * limit;
+
+        const filter = {};
+        if (userId) {
+            filter.userId = userId;
+        }
+        if (action) {
+            filter.action = action;
+        }
+
+        const count = await VerificationEvent.countDocuments(filter);
+        const events = await VerificationEvent.find(filter)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        const response = apiResponse.successResponse(
+            { count, page, limit, events },
+            'Verification events retrieved successfully'
+        );
+        res.json(response);
+    } catch (error) {
+        return handleServerError(res, error, {
+            code: 'FETCH_EVENTS_ERROR',
+            message: 'Failed to fetch verification events',
+        });
+    }
+};
+
 module.exports = {
     generateLinkWalletChallenge,
     generateIssueCredentialChallenge,
@@ -329,4 +384,5 @@ module.exports = {
     checkVerification,
     getUnverifiedUsers,
     getVerifiedUsers,
+    getVerificationEvents,
 };
