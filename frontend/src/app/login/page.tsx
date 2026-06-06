@@ -17,7 +17,12 @@ const LoginContent = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const redirectPath = searchParams.get('from') || '/';
+  // Validate the redirect path to prevent open redirect attacks.
+  // Only allow relative internal paths (must start with '/' but not '//').
+  // External URLs like 'https://evil.com' or protocol-relative '//evil.com' are rejected.
+  const rawRedirect = searchParams.get('from') || '/';
+  const isInternalPath = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//');
+  const redirectPath = isInternalPath ? rawRedirect : '/';
 
   useEffect(() => {
     if (user) {
