@@ -193,4 +193,46 @@ describe("CropChain Security Refactor", function () {
     expect(await cropChain.twapWindow()).to.equal(7200n);
     expect(await cropChain.maxPriceDeviationBps()).to.equal(1000n);
   });
+
+  it("enforces custody validation on listing creation", async function () {
+    const { cropChain, oracle } = await deployFixture();
+    const [, , , mandi] = await ethers.getSigners();
+
+    const cropType = ethers.keccak256(ethers.toUtf8Bytes("WHEAT"));
+    const batchId = ethers.keccak256(ethers.toUtf8Bytes("BATCH-005"));
+    const unitPrice = ethers.parseEther("1");
+
+    await cropChain.setRole(oracle.address, Roles.Farmer);
+    await cropChain.setRole(mandi.address, Roles.Mandi);
+
+    // 1. Farmer creates the batch (stage = Farmer)
+    await cropChain.connect(oracle).createBatch(
+      batchId,
+      cropType,
+      "ipfs://bafybeigdyrztqz4xq7x4z7m4xq7x4z7m4xq7x4z7m4",
+      50,
+      "farmer",
+      "origin",
+      "notes"
+    );
+
+    // 2. Mandi updates the batch (stage = Mandi)
+    await cropChain.connect(mandi).updateBatch(
+      batchId,
+      1, // Stage.Mandi
+      "mandi-actor",
+      "mandi-location",
+      "received at mandi"
+    );
+
+    // 3. Farmer (oracle) tries to list/sell the batch -> should revert
+    await expect(
+      cropChain.connect(oracle).createListing(batchId, 10, unitPrice)
+    ).to.be.revertedWith("Only current custodian can list");
+
+    // 4. Mandi successfully lists the batch
+    await expect(
+      cropChain.connect(mandi).createListing(batchId, 10, unitPrice)
+    ).to.not.be.reverted;
+  });
 });
