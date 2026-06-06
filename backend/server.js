@@ -17,6 +17,7 @@ const errorHandlerMiddleware = require('./middleware/errorHandler');
 const { createBatchSchema, updateBatchSchema } = require("./validations/batchSchema");
 const { protect, adminOnly, authorizeBatchOwner, authorizeRoles, authorizeStageTransition, authorizeBlockchainTransaction } = require('./middleware/auth');
 const { generalLimiter, authLimiter, batchLimiter, rateLimitWindowMs, rateLimitMaxRequests } = require('./middleware/rateLimiters');
+const { validateEnv } = require('./utils/envValidator');
 const mongoose = require('mongoose');
 const apiResponse = require('./utils/apiResponse');
 const oracleService = require('./services/oracleService');
@@ -262,28 +263,9 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 }));
 
 
-// Blockchain configuration
-const REQUIRED_ENV_VARS = [
-    'INFURA_URL',
-    'CONTRACT_ADDRESS',
-    'PRIVATE_KEY'
-];
-
+// Validate environment variables at startup
 if (process.env.NODE_ENV !== 'test') {
-    REQUIRED_ENV_VARS.forEach((key) => {
-        if (!process.env[key]) {
-            throw new Error(`Missing required environment variable: ${key}`);
-        }
-    });
-
-    let privateKey = process.env.PRIVATE_KEY;
-    if (!/^(0x)?[a-fA-F0-9]{64}$/.test(privateKey)) {
-        throw new Error('Invalid PRIVATE_KEY format. Expected a 64-character hex string (with or without 0x prefix)');
-    }
-    if (!privateKey.startsWith('0x')) {
-        privateKey = '0x' + privateKey;
-    }
-    process.env.PRIVATE_KEY = privateKey;
+    validateEnv();
 }
 
 const PROVIDER_URL = process.env.INFURA_URL;
