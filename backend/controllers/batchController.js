@@ -345,8 +345,9 @@ exports.getBatches = async (req, res) => {
             }
         }
 
-        const pageNumber = parseInt(page, 10);
-        const limitNumber = parseInt(limit, 10);
+        const MAX_LIMIT = 100;
+        const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
+        const limitNumber = Math.min(Math.max(parseInt(limit, 10) || 10, 1), MAX_LIMIT);
         const skip = (pageNumber - 1) * limitNumber;
 
         const sort = {};
