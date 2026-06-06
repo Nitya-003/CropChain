@@ -2,7 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { Leaf, LogOut, Shield, Compass, Sparkles, User, LogIn } from 'lucide-react';
+import { Leaf, LogOut, Shield, Compass, Sparkles, User, LogIn, Menu, Home, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
@@ -10,6 +10,7 @@ import { CurrencyToggle } from "../components/CurrencyToggle";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import Sidebar from "./Sidebar";
 import toast from 'react-hot-toast';
 
 const Header: React.FC = () => {
@@ -19,6 +20,21 @@ const Header: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const { t } = useTranslation();
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
+
+  const navItems = [
+    { path: '/', label: t('nav.home'), icon: Home },
+    { path: '/track-batch', label: t('nav.trackBatch'), icon: Compass },
+    { path: '/crop-recommendation', label: t('nav.smartPlanting'), icon: Sparkles },
+    ...(isAuthenticated && user?.role === 'farmer' ? [{ path: '/farmer', label: 'Dashboard', icon: LayoutDashboard }] : []),
+    ...(isAuthenticated && user?.role === 'mandi' ? [{ path: '/mandi', label: 'Dashboard', icon: LayoutDashboard }] : []),
+    ...(isAuthenticated && user?.role === 'transporter' ? [{ path: '/transporter', label: 'Dashboard', icon: LayoutDashboard }] : []),
+    ...(isAuthenticated && user?.role === 'retailer' ? [{ path: '/retailer', label: 'Dashboard', icon: LayoutDashboard }] : []),
+    ...(isAuthenticated && user?.role === 'admin' ? [
+      { path: '/admin', label: 'Admin', icon: Shield },
+      { path: '/verification', label: 'Verification', icon: Shield }
+    ] : []),
+  ];
 
   const handleLogout = async () => {
     try {
@@ -53,7 +69,14 @@ const Header: React.FC = () => {
         <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 py-3 md:grid md:h-16 md:grid-cols-3 md:flex-nowrap md:gap-0 md:py-0">
           
           {/* Logo Column (Left-aligned) */}
-          <div className="flex min-w-0 flex-1 justify-start md:flex-none">
+          <div className="flex min-w-0 flex-1 items-center justify-start md:flex-none">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="mr-2 p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors md:hidden"
+              aria-label="Open navigation menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
             <Link href="/" className="group flex min-w-0 items-center space-x-2">
               <div className="shrink-0 bg-primary/10 p-2 rounded-xl group-hover:bg-primary/20 transition-colors">
                 <Leaf className="h-5 w-5 text-primary" />
@@ -267,6 +290,7 @@ const Header: React.FC = () => {
 
         </div>
       </div>
+      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} navItems={navItems} />
     </header>
   );
 };
