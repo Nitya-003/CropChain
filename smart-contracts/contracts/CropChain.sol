@@ -309,11 +309,19 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         require(quantity > 0 && quantity <= batch.quantity, "Invalid quantity");
         require(unitPriceWei > 0, "Price=0");
 
-        ActorRole senderRole = roles[msg.sender];
-        require(
-            msg.sender == batch.creator || senderRole == ActorRole.Mandi || senderRole == ActorRole.Admin,
-            "Only creator/mandi/admin"
-        );
+        SupplyChainUpdate[] storage updates = _batchUpdates[batchId];
+        SupplyChainUpdate storage latestUpdate = updates[updates.length - 1];
+
+        // Ensure msg.sender has active custody or is Admin
+        if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) {
+            if (latestUpdate.stage == Stage.Farmer) {
+                require(msg.sender == batch.creator, "Only current custodian can list");
+            } else if (latestUpdate.stage == Stage.Mandi) {
+                require(msg.sender == latestUpdate.updatedBy, "Only current custodian can list");
+            } else {
+                revert("Listing not allowed at this stage");
+            }
+        }
 
         uint256 listingId = nextListingId;
         nextListingId = listingId + 1;
