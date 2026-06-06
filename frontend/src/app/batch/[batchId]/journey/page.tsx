@@ -34,8 +34,8 @@ const JourneyMap: React.FC = () => {
       try {
         const result = await realCropBatchService.getBatch(batchId);
         
-        // Defensively unpack the batch from API envelope
-        const unpackedBatch = result.data?.batch || result.batch || result;
+        // getBatch returns BatchData directly; no need to unwrap
+        const unpackedBatch = result;
         
         if (!unpackedBatch) {
           throw new Error('Invalid batch data received');

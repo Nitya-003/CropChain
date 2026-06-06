@@ -55,8 +55,8 @@ function CompareContent() {
           ids.map(async (id) => {
             try {
               const res = await realCropBatchService.getBatch(id);
-              // Unpack safely
-              const unpacked = res.data?.batch || res.batch || res;
+              // getBatch returns BatchData directly
+              const unpacked = res;
               if (unpacked && unpacked.batchId) {
                 return unpacked as Batch;
               }

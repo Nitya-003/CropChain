@@ -70,7 +70,16 @@ const UpdateBatch: React.FC = () => {
 
     setIsUpdating(true);
     try {
-      const updatedBatch = await realCropBatchService.updateBatch(batch.batchId, updateData);
+      const updatedBatch = await realCropBatchService.updateBatch(batch.batchId, {
+        currentStage: updateData.stage,
+        updates: [{
+          stage: updateData.stage,
+          actor: updateData.actor,
+          location: updateData.location,
+          notes: updateData.notes,
+          timestamp: new Date(updateData.timestamp).toISOString()
+        }]
+      });
       setBatch(updatedBatch);
       toast.success(`Batch updated successfully! New stage: ${updateData.stage}`);
       setUpdateData({
