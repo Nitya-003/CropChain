@@ -1,10 +1,36 @@
+# Security Policy
+
+## Supported Versions
+
+| Version | Supported          |
+| ------- | ------------------ |
+| 1.x     | :white_check_mark: |
+
+## Reporting a Vulnerability
+
+We take the security of CropChain seriously. If you believe you have found a security vulnerability, please follow these steps:
+
+1. **Do NOT** create a public GitHub issue for the vulnerability.
+2. Send details to **security@cropchain.dev**.
+3. Include:
+   - Description of the vulnerability
+   - Steps to reproduce
+   - Potential impact
+   - Any suggested fix (if known)
+4. You will receive an acknowledgment within **48 hours**.
+5. We will work on a fix and notify you when it is deployed.
+
+We appreciate responsible disclosure and will acknowledge your contribution.
+
+---
+
 # Security Guide for CropChain
 
-## 🔐 Private Key Management
+## Private Key Management
 
 This document outlines the security controls used to keep blockchain secrets out of the repository and out of source-controlled config.
 
-### ⚠️ Security Issue Resolved
+### Security Issue Resolved
 
 **Previous Issue**: The `hardhat.config.js` file contained a hardcoded private key:
 
@@ -15,7 +41,7 @@ This is a well-known Hardhat default account that poses significant security ris
 - **Fund Risk**: If real funds are sent to this address, they can be stolen
 - **Reproducibility**: The same key across all environments creates predictable attack vectors
 
-### ✅ Security Solution Implemented
+### Security Solution Implemented
 
 #### 1. Simple, Clean Approach
 - **No Hardcoded Keys**: Eliminated all static private keys from configuration
@@ -33,7 +59,7 @@ accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
 - **External Networks**: Uses `accounts: []` when `PRIVATE_KEY` is not present, so deployments cannot accidentally sign transactions
 - **CI/CD**: Inject `PRIVATE_KEY` and RPC URLs from the platform secret manager at runtime
 
-## 🛡️ Security Features
+## Security Features
 
 ### Clean Implementation
 ```javascript
@@ -52,7 +78,7 @@ mumbai: {
 - **Fail-Safe**: Empty accounts array prevents accidental transactions
 - **Hardhat Compliant**: Follows Hardhat best practices
 
-## 🚀 Setup Instructions
+## Setup Instructions
 
 ### For Local Development
 
@@ -90,7 +116,7 @@ npx hardhat console
 > console.log(wallet.address);
 ```
 
-## 🔍 Security Verification
+## Security Verification
 
 ### Check No Hardcoded Keys
 ```bash
@@ -108,23 +134,23 @@ npx hardhat compile
 PRIVATE_KEY=0x... npx hardhat compile
 ```
 
-## 📋 Security Best Practices
+## Security Best Practices
 
-### ✅ DO
+### DO
 - Use environment variables for all private keys
 - Generate unique keys for each environment
 - Use repository secrets for CI/CD
 - Test on testnets before mainnet deployment
 - Use Hardhat's default accounts for local development
 
-### ❌ DON'T
+### DON'T
 - Commit private keys to version control
 - Use the same key across environments
 - Share private keys in plain text
 - Use testnet keys with real funds
 - Hardcode private keys in configuration files
 
-## 🔧 Configuration Examples
+## Configuration Examples
 
 ### Development Environment (.env)
 ```env
@@ -144,7 +170,7 @@ env:
   INFURA_URL: ${{ secrets.INFURA_URL }}
 ```
 
-## 🚨 Important Notes
+## Important Notes
 
 ### Security Reminders
 - **Never** use real funds with test-generated keys
@@ -158,7 +184,7 @@ env:
 - **External Networks**: Requires explicit private key configuration
 - **Empty Accounts**: Prevents accidental deployments without proper keys
 
-## 📞 Security Contact
+## Security Contact
 
 If you discover any security vulnerabilities:
 
