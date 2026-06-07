@@ -13,7 +13,10 @@ const connectDB = async () => {
         console.log(`MongoDB Connected: ${conn.connection.host}`);
     } catch (error) {
         console.error(`Error: ${error.message}`);
-        console.warn('⚠️ Server is running without a database connection. Mongoose will buffer queries.');
+        if (process.env.NODE_ENV !== 'test') {
+            process.exit(1);
+        }
+        console.warn('Running in development mode - server will continue without database');
     }
 };
 

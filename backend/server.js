@@ -262,9 +262,27 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     customSiteTitle: 'CropChain API Documentation'
 }));
 
+// Blockchain configuration
+const REQUIRED_ENV_VARS = [
+    'INFURA_URL',
+    'CONTRACT_ADDRESS',
+    'PRIVATE_KEY',
+    'JWT_SECRET',
+    'MONGODB_URI'
+];
 
-// Validate environment variables at startup
 if (process.env.NODE_ENV !== 'test') {
+    REQUIRED_ENV_VARS.forEach((key) => {
+        if (!process.env[key]) {
+            throw new Error(`Missing required environment variable: ${key}`);
+        }
+    });
+
+    if (!/^0x[a-fA-F0-9]{64}$/.test(process.env.PRIVATE_KEY)) {
+        throw new Error('Invalid PRIVATE_KEY format');
+    }
+    
+    // Validate environment variables at startup
     validateEnv();
 }
 
