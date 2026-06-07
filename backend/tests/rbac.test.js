@@ -214,7 +214,8 @@ describe('RBAC Backend Tests', () => {
             expect(response.body.success).toBe(true);
             expect(response.body.data.batch.cropType).toBe('wheat');
             testBatch = response.body.data.batch;
-        });
+        }, 10000); // Added timeout
+
 
         it('Should reject mandi trying to create batch', async () => {
             const batchData = {

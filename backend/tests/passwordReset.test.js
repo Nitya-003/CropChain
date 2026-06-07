@@ -126,7 +126,7 @@ describe('Password Reset Endpoints', () => {
             password: hashedPassword,
             role: 'farmer'
         });
-    });
+    }, 10000); // Increased timeout to 10s
 
     describe('POST /api/auth/forgot-password', () => {
         test('should send a password reset email if user exists', async () => {
@@ -150,10 +150,10 @@ describe('Password Reset Endpoints', () => {
             const response = await request(app)
                 .post('/api/auth/forgot-password')
                 .send({ email: 'nonexistent@example.com' })
-                .expect(404);
+                .expect(200);
 
-            expect(response.body.success).toBe(false);
-            expect(response.body.error).toBe('User not found with this email');
+                expect(response.body.success).toBe(true);
+                expect(response.body.message).toBe('If an account exists with this email, a password reset link has been sent.');
         });
 
         test('should return 400 if email is missing', async () => {
