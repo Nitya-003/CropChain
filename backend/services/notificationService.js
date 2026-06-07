@@ -4,6 +4,7 @@
  */
 
 const emailProvider = require('../config/email');
+const User = require('../models/User');
 
 class NotificationService {
     constructor() {
@@ -77,12 +78,22 @@ class NotificationService {
             );
         }
 
-        if (batch.farmerWalletAddress && batch.farmerName) {
-            await this.sendEmail(
-                `${batch.farmerName} <${batch.farmerWalletAddress}>` || batch.farmerWalletAddress,
-                `🚨 RECALL: Batch ${batch.batchId}`,
-                `<h2>Batch Recall Notice - Action Required</h2><p>Your batch <strong>${batch.batchId}</strong> (${batch.cropType}, ${batch.quantity}kg) has been <strong>recalled</strong>.</p><p>Please check the CropChain dashboard for further instructions.</p><p>CropChain Team</p>`
-            );
+        if (batch.farmerId) {
+            const farmer = await User.findById(batch.farmerId);
+            if (farmer && farmer.email) {
+                await this.sendEmail(
+                    `${farmer.name || batch.farmerName} <${farmer.email}>`,
+                    `🚨 RECALL: Batch ${batch.batchId}`,
+                    `<h2>Batch Recall Notice - Action Required</h2><p>Your batch <strong>${batch.batchId}</strong> (${batch.cropType}, ${batch.quantity}kg) has been <strong>recalled</strong>.</p><p>Please check the CropChain dashboard for further instructions.</p><p>CropChain Team</p>`
+                );
+            } else if (batch.farmerWalletAddress && batch.farmerName) {
+                // Fallback to old behavior if user not found, though we should ideally avoid this
+                await this.sendEmail(
+                    `${batch.farmerName} <${batch.farmerWalletAddress}>` || batch.farmerWalletAddress,
+                    `🚨 RECALL: Batch ${batch.batchId}`,
+                    `<h2>Batch Recall Notice - Action Required</h2><p>Your batch <strong>${batch.batchId}</strong> (${batch.cropType}, ${batch.quantity}kg) has been <strong>recalled</strong>.</p><p>Please check the CropChain dashboard for further instructions.</p><p>CropChain Team</p>`
+                );
+            }
         }
     }
 
