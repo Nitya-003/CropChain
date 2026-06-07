@@ -149,13 +149,6 @@ exports.getBatch = async (req, res) => {
 };
 
 /**
- * Get all batches with filtering, pagination, and sorting
- * @route GET /api/batches
- * @access Public
- */
-exports.getAllBatches = exports.getBatches; // Alias for consistency
-
-/**
  * Update a batch
  * @route PUT /api/batches/:batchId
  * @access Private (Batch owner + stage transition authorized)
@@ -387,6 +380,13 @@ exports.getBatches = async (req, res) => {
         res.status(500).json(apiResponse.errorResponse('Failed to fetch batches', 'FETCH_ERROR', 500, err.message));
     }
 };
+
+/**
+ * Get all batches with filtering, pagination, and sorting
+ * @route GET /api/batches
+ * @access Public
+ */
+exports.getAllBatches = exports.getBatches; // Alias for consistency
 
 /**
  * Update the status of a batch (Active/Flagged/Inactive)
