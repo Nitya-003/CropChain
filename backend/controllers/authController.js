@@ -626,8 +626,8 @@ const forgotPassword = async (req, res) => {
 
         const user = await User.findOne({ email: email.toLowerCase() });
         if (!user) {
-            return res.status(404).json(
-                apiResponse.errorResponse('User not found with this email', 'USER_NOT_FOUND', 404)
+            return res.json(
+                apiResponse.successResponse(null, 'If an account exists with this email, a password reset link has been sent.')
             );
         }
 
@@ -658,7 +658,7 @@ const forgotPassword = async (req, res) => {
             const notificationService = require('../services/notificationService');
             await notificationService.sendEmail(user.email, 'Password Reset Request', message);
             return res.json(
-                apiResponse.successResponse(null, 'Password reset email sent successfully')
+                apiResponse.successResponse(null, 'If an account exists with this email, a password reset link has been sent.')
             );
         } catch (emailErr) {
             user.resetPasswordToken = undefined;
