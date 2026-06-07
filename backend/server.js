@@ -177,7 +177,12 @@ const corsOptions = {
             callback(null, true);
         } else {
             console.warn(`[CORS BLOCKED] Origin: ${origin}`);
-            callback(new Error('Not allowed by CORS'));
+            // Temporarily allow all in development for debugging
+            if (process.env.NODE_ENV === 'development') {
+                 callback(null, true);
+            } else {
+                 callback(new Error('Not allowed by CORS'));
+            }
         }
     },
     credentials: true
