@@ -298,6 +298,14 @@ batchSchema.methods.canBeUpdated = function() {
   return !this.isRecalled;
 };
 
+batchSchema.methods.hasPendingApproval = function() {
+  /**
+   * Check if batch has pending blockchain/sync approval
+   * @returns {boolean} True if pending
+   */
+  return this.blockchainJob?.status === 'pending' || this.syncStatus === 'pending';
+};
+
 // Static methods
 batchSchema.statics.findByBatchId = function(batchId) {
   /**
