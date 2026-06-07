@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Shield, Package, Coins, Activity, TrendingUp, Check, Copy } from 'lucide-react';
 import { realCropBatchService } from '../services/realCropBatchService';
 import { usePriceConverter } from '../hooks/usePriceConverter';
+import { AdminStatsSkeleton } from '../components/skeletons';
+import AdminTableSkeleton from '../components/skeletons/AdminTableSkeleton';
+import ChartSkeleton from '../components/skeletons/ChartSkeleton';
 
 const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState({
@@ -52,18 +55,19 @@ const AdminDashboard: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-8 animate-pulse">
         <div className="text-center">
-          <div className="h-12 bg-gray-300 dark:bg-gray-700 rounded w-64 mx-auto mb-4 animate-pulse"></div>
-          <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded w-96 mx-auto animate-pulse"></div>
+          <div className="h-12 bg-gray-300 dark:bg-gray-700 rounded w-64 mx-auto mb-4"></div>
+          <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded w-96 mx-auto"></div>
         </div>
-        <div className="grid md:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl p-6 animate-pulse">
-              <div className="h-20 bg-gray-300 dark:bg-gray-700 rounded mb-4"></div>
-              <div className="h-8 bg-gray-300 dark:bg-gray-700 rounded"></div>
-            </div>
-          ))}
+
+        <AdminStatsSkeleton />
+
+        <AdminTableSkeleton rows={5} />
+
+        <div className="grid md:grid-cols-2 gap-6">
+          <ChartSkeleton />
+          <ChartSkeleton />
         </div>
       </div>
     );

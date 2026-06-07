@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Shield, UserCheck, UserX, AlertCircle } from 'lucide-react';
 import { verificationService, UnverifiedUser, VerifiedUser } from '../services/verificationService';
 import VerificationBadge from '../components/VerificationBadge';
+import { VerificationDashboardSkeleton } from '../components/skeletons';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
@@ -176,10 +177,8 @@ const VerificationDashboard: React.FC = () => {
 
                 {/* Loading */}
                 {loading ? (
-                    <div className="text-center py-12">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-                    </div>
-                ) : (
+                    <VerificationDashboardSkeleton />
+                  ) : (
                     <>
                         {/* Unverified Users */}
                         {activeTab === 'unverified' && (
