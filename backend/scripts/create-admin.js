@@ -50,8 +50,7 @@ async function createAdmin() {
 
         console.log("✅ Admin created successfully");
         console.log(`Email: ${adminRole.email}`);
-        console.log(`Temporary Password: ${plainPassword}`);
-        console.log("⚠️  IMPORTANT: Please change this password immediately after first login.");
+        console.log("⚠️  IMPORTANT: Please change the password immediately after first login.");
 
         if (require.main === module) process.exit(0);
     } catch (error) {
