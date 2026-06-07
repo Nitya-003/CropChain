@@ -111,7 +111,7 @@ class RBACService {
             return { canManage: true, reason: 'Super admin authority' };
         }
         if (manager.role === ROLES.ADMIN) {
-            if (isRoleHigher(manager.role, target.role) || manager.role === target.role) {
+            if (getRoleLevel(target.role) >= getRoleLevel(manager.role)) {
                 return { canManage: false, reason: 'Cannot manage users with equal or higher role' };
             }
             return { canManage: true, reason: 'Admin authority' };
