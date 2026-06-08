@@ -170,8 +170,16 @@ const uniqueAllowedOrigins = [...new Set(allowedOrigins)];
 
 const corsOptions = {
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps, curl requests)
-        if (!origin) return callback(null, true);
+        // Allow requests with no origin in test environment only
+        if (!origin && process.env.NODE_ENV === 'test') {
+            return callback(null, true);
+        }
+
+        // Reject requests missing the Origin header in dev/prod
+        if (!origin) {
+            console.warn('[CORS BLOCKED] Request missing Origin header');
+            return callback(new Error('Not allowed by CORS'));
+        }
 
         if (uniqueAllowedOrigins.includes(origin)) {
             callback(null, true);
