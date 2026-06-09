@@ -136,7 +136,7 @@ describe('Password Reset Endpoints', () => {
                 .expect(200);
 
             expect(response.body.success).toBe(true);
-            expect(response.body.message).toContain('email sent');
+            expect(response.body.message).toContain('password reset link has been sent');
             expect(mockNotificationService.sendEmail).toHaveBeenCalled();
 
             // Verify token was saved in db
@@ -146,14 +146,14 @@ describe('Password Reset Endpoints', () => {
             expect(updatedUser.resetPasswordExpire).toBeGreaterThan(Date.now());
         });
 
-        test('should return 404 if email does not match any user', async () => {
+        test('should return generic success if email does not match any user', async () => {
             const response = await request(app)
                 .post('/api/auth/forgot-password')
                 .send({ email: 'nonexistent@example.com' })
-                .expect(404);
+                .expect(200);
 
-            expect(response.body.success).toBe(false);
-            expect(response.body.error).toBe('User not found with this email');
+            expect(response.body.success).toBe(true);
+            expect(response.body.message).toContain('password reset link has been sent');
         });
 
         test('should return 400 if email is missing', async () => {
