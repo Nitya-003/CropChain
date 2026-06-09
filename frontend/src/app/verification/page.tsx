@@ -14,6 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert";
 import toast from 'react-hot-toast';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import { useVerificationSocket } from '../../hooks/useVerificationSocket';
+import { RevocationModal } from '../../components/RevocationModal';
 
 const VerificationDashboardComponent: React.FC = () => {
     const { user } = useAuth();
@@ -23,6 +24,7 @@ const VerificationDashboardComponent: React.FC = () => {
     const [error, setError] = useState('');
     const [activeTab, setActiveTab] = useState<'unverified' | 'verified'>('unverified');
     const [processingUserId, setProcessingUserId] = useState<string | null>(null);
+    const [revokeTarget, setRevokeTarget] = useState<{ id: string; name: string } | null>(null);
 
     // Dynamic row statuses driven by websocket updates
     const [rowStatuses, setRowStatuses] = useState<Record<string, 'in_progress' | 'verified' | 'failed' | 'linked' | 'unverified' | null>>({});
@@ -103,9 +105,15 @@ const VerificationDashboardComponent: React.FC = () => {
         }
     };
 
-    const handleRevoke = async (userId: string) => {
-        const reason = prompt('Enter revocation reason:');
-        if (!reason) return;
+    const handleRevoke = (userId: string, userName: string) => {
+        setRevokeTarget({ id: userId, name: userName });
+    };
+
+    const handleRevokeConfirm = async (reason: string) => {
+        if (!revokeTarget) return;
+        const { id: userId } = revokeTarget;
+
+        setRevokeTarget(null);
 
         try {
             setProcessingUserId(userId);
@@ -327,7 +335,7 @@ const VerificationDashboardComponent: React.FC = () => {
                                                 </TableCell>
                                                 <TableCell className="py-4 px-6 text-right">
                                                     <Button
-                                                        onClick={() => handleRevoke(item._id)}
+                                                        onClick={() => handleRevoke(item._id, item.name)}
                                                         disabled={processingUserId === item._id || rowStatuses[item._id] === 'in_progress'}
                                                         variant="destructive"
                                                         size="sm"
@@ -350,6 +358,14 @@ const VerificationDashboardComponent: React.FC = () => {
                     </CardContent>
                 </Card>
             )}
+
+            <RevocationModal
+                open={revokeTarget !== null}
+                onOpenChange={(open) => { if (!open) setRevokeTarget(null); }}
+                userName={revokeTarget?.name || ''}
+                onConfirm={handleRevokeConfirm}
+                isProcessing={processingUserId === revokeTarget?.id}
+            />
         </div>
     );
 };

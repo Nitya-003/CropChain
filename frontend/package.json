@@ -12,6 +12,7 @@
     "test:ci": "vitest run --reporter=verbose"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.16",
     "@radix-ui/react-slot": "^1.2.4",
     "@tanstack/react-query": "^5.90.20",
     "axios": "^1.16.1",
