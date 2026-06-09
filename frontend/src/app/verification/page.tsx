@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Shield, UserCheck, UserX, AlertCircle, RefreshCw } from 'lucide-react';
+import StatsCardSkeleton from '../../components/skeletons/StatsCardSkeleton';
+import TableSkeleton from '../../components/skeletons/TableSkeleton';
 import { verificationService, UnverifiedUser, VerifiedUser } from '../../services/verificationService';
 import VerificationBadge from '../../components/VerificationBadge';
 import { useAuth } from '../../context/AuthContext';
@@ -200,8 +202,15 @@ const VerificationDashboardComponent: React.FC = () => {
 
             {/* Loading Indicator */}
             {loading ? (
-                <div className="flex justify-center items-center py-20">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <StatsCardSkeleton />
+                        <StatsCardSkeleton />
+                    </div>
+                    <div className="border border-border bg-card rounded-xl p-6">
+                        <div className="h-6 bg-muted rounded w-48 mb-4 animate-pulse"></div>
+                        <TableSkeleton />
+                    </div>
                 </div>
             ) : (
                 <Card className="border border-border bg-card">
