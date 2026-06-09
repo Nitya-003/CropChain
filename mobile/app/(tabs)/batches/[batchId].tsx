@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSync } from '../../../src/contexts/SyncContext';
+import { batchService } from '../../../src/services/batch.service';
+import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
+import { ErrorState } from '../../../src/components/ErrorState';
+import type { Batch } from '../../../src/types';
 
 const stageFlow = ['farmer', 'mandi', 'transport', 'retailer'];
 
@@ -16,24 +20,35 @@ const stageDetails: Record<string, { label: string; icon: string; color: string 
 export default function BatchDetailScreen() {
   const { batchId } = useLocalSearchParams<{ batchId: string }>();
   const { addToQueue } = useSync();
-  const [loading] = useState(false);
-  const [batch] = useState({
-    id: batchId,
-    crop: 'Rice',
-    stage: 'mandi',
-    farmer: 'Rajesh Kumar',
-    location: 'Punjab, India',
-    weight: '500 kg',
-    price: '₹15,000',
-    timestamp: '2024-03-15T10:30:00Z',
-    status: 'active',
-  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [batch, setBatch] = useState<Batch | null>(null);
 
-  const currentStageIndex = stageFlow.indexOf(batch.stage);
+  useEffect(() => {
+    if (!batchId) return;
+
+    const fetchBatch = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await batchService.getBatchById(batchId);
+        setBatch(data);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load batch');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBatch();
+  }, [batchId]);
+
+  const currentStageIndex = batch ? stageFlow.indexOf(batch.stage) : -1;
 
   const handleStageUpdate = async (newStage: string) => {
+    if (!batch?.id) return;
     try {
-      await addToQueue({ batchId: batch.id!, action: 'stage_update', data: { stage: newStage } });
+      await addToQueue({ batchId: batch.id, action: 'stage_update', data: { stage: newStage } });
       alert('Update queued for sync');
     } catch {
       alert('Failed to queue update');
@@ -41,9 +56,13 @@ export default function BatchDetailScreen() {
   };
 
   if (loading) {
+    return <LoadingSpinner message="Loading batch details..." />;
+  }
+
+  if (error) {
     return (
-      <View className="flex-1 bg-gray-50 dark:bg-zinc-900 justify-center items-center">
-        <ActivityIndicator size="large" color="#16a34a" />
+      <View className="flex-1 bg-gray-50 dark:bg-zinc-900">
+        <ErrorState message={error} onRetry={() => { setLoading(true); setError(null); }} />
       </View>
     );
   }
@@ -135,7 +154,7 @@ export default function BatchDetailScreen() {
       </View>
 
       {/* Stage Update */}
-      {currentStageIndex < stageFlow.length - 1 && (
+      {currentStageIndex >= 0 && currentStageIndex < stageFlow.length - 1 && (
         <View className="mx-5 mb-8">
           <Text className="text-base font-bold text-gray-900 dark:text-white mb-3">Update Stage</Text>
           <View className="flex-row gap-2">
