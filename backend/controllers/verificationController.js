@@ -12,6 +12,10 @@ const {
     requireIdempotencyKey,
     handleVerificationWithIdempotency,
 } = require('../utils/verificationControllerHelpers');
+
+const {
+    handleIdempotencyOnly,
+} = require('../utils/verificationIdempotency');
 const apiResponse = require('../utils/apiResponse');
 const { ROLES } = require('../constants/permissions');
 const {
@@ -267,17 +271,30 @@ const issueCredential = async (req, res) => {
 const revokeCredential = async (req, res) => {
     try {
         const validatedData = validateOrRespond(res, revokeCredentialSchema, req.body);
-
-        if (!validatedData) {
-            return;
-        }
+        if (!validatedData) return;
 
         const { userId, reason } = validatedData;
         const adminId = req.user.id;
 
-        const result = await didService.revokeCredential(userId, adminId, reason);
+        const idempotencyKey = requireIdempotencyKey(req, res);
+        if (!idempotencyKey) return;
 
-        res.json(result);
+        return await handleIdempotencyOnly({
+            req,
+            res,
+            action: 'CREDENTIAL_REVOKE',
+            actorId: adminId,
+            userId,
+            walletAddress: undefined,
+            idempotencyKey,
+            execute: async () => {
+                return didService.revokeCredential(userId, adminId, reason);
+            },
+            errorMeta: {
+                code: 'CREDENTIAL_REVOKE_ERROR',
+                message: 'Credential revocation failed',
+            },
+        });
     } catch (error) {
         return handleServerError(res, error, {
             code: 'CREDENTIAL_REVOKE_ERROR',
