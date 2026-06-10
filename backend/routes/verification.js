@@ -29,15 +29,45 @@ const {
 } = require('../middleware/rateLimiters');
 
 // Multer in-memory storage configuration
+// Security: strict content filtering + upload size caps (defense-in-depth)
+const MAX_BULK_CSV_BYTES = parseInt(process.env.MAX_BULK_CSV_BYTES, 10) || 5 * 1024 * 1024; // 5MB
+
 const upload = multer({
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    limits: { fileSize: MAX_BULK_CSV_BYTES },
+    fileFilter: (req, file, cb) => {
+        const originalName = file.originalname || '';
+        const ext = originalName.split('.').pop()?.toLowerCase();
+
+        const allowedMimes = new Set(['text/csv', 'application/vnd.ms-excel', 'application/csv', 'text/plain']);
+        const mimeOk = allowedMimes.has(String(file.mimetype || '').toLowerCase());
+        const extOk = ext === 'csv';
+
+        // Require both mime and extension to reduce spoofing risk.
+        if (!mimeOk || !extOk) {
+            return cb(new Error('Only .csv uploads are allowed'));
+        }
+
+        cb(null, true);
+    },
 });
 
 
+
+
+
+
+
+
+
+
+
+
 // Public route
+
 router.get('/check/:userId', checkVerification);
 
 // Protected routes
+
 // Role-based access:
 // - Wallet linking (challenge + link): ADMIN, SUPER_ADMIN, MANDI
 // - Credential issuance (challenge + issue): MANDI, ADMIN, SUPER_ADMIN

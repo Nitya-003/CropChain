@@ -570,37 +570,57 @@ const bulkIssueCredentials = async (req, res) => {
         }
 
         const csvText = req.file.buffer.toString('utf8');
-        const records = bulkVerificationService.parseCSV(csvText);
 
-        if (records.length === 0) {
+        // Defense-in-depth: limit parsed input size (in bytes) independent of multer.
+        const MAX_BULK_CSV_TEXT_BYTES = parseInt(process.env.MAX_BULK_CSV_TEXT_BYTES, 10) || (5 * 1024 * 1024);
+        if (Buffer.byteLength(csvText, 'utf8') > MAX_BULK_CSV_TEXT_BYTES) {
+            return res.status(400).json(
+                apiResponse.validationErrorResponse([`CSV file too large. Max allowed is ${MAX_BULK_CSV_TEXT_BYTES} bytes`])
+            );
+        }
+
+        const maxRowsPerJob = parseInt(process.env.MAX_BULK_ROWS_PER_JOB, 10) || 5000;
+
+        const { validateHeadersExact, safeHeaderKey } = require('../utils/bulkCsvValidation');
+
+        // Strict parse + header validation.
+        const recordsRaw = bulkVerificationService.parseCSV(csvText);
+        if (!Array.isArray(recordsRaw) || recordsRaw.length === 0) {
             return res.status(400).json(apiResponse.validationErrorResponse(['CSV file is empty or invalid']));
         }
 
-        // Validate records have either email or userId, and walletAddress
-        const invalidRows = [];
-        records.forEach((rec, idx) => {
-            const rowNum = idx + 2;
-            if (!rec.userid && !rec.email) {
-                invalidRows.push(`Row ${rowNum}: Either userId or email is required`);
-            }
-            if (!rec.walletaddress) {
-                invalidRows.push(`Row ${rowNum}: walletAddress is required`);
-            }
+        // Header check: parseCSV lowercases header names, so we can infer headers from first record.
+        // We enforce exactly the expected set in order.
+        const headers = Object.keys(recordsRaw[0] || {});
+        const headerValidation = validateHeadersExact(headers);
+        if (!headerValidation.ok) {
+            return res.status(400).json(apiResponse.validationErrorResponse([headerValidation.error]));
+        }
+
+        // Validate + normalize rows (including userid/email rules, formats, action etc.).
+        const { validateAndNormalizeCsvRecords, sanitizeForStorage } = require('../utils/bulkCsvValidation');
+        const { records: normalizedRecords, rowErrors } = validateAndNormalizeCsvRecords({
+            records: recordsRaw,
+            maxRowsPerJob,
         });
 
-        if (invalidRows.length > 0) {
-            return res.status(400).json(apiResponse.validationErrorResponse(invalidRows));
+        if (rowErrors.length > 0) {
+            return res.status(400).json(apiResponse.validationErrorResponse(rowErrors.slice(0, 100))); // avoid huge error responses
+        }
+
+        if (normalizedRecords.length === 0) {
+            return res.status(400).json(apiResponse.validationErrorResponse(['CSV has no valid rows']));
         }
 
         const adminId = req.user.id;
         const job = await BulkVerificationJob.create({
             status: 'pending',
-            totalRows: records.length,
+            totalRows: normalizedRecords.length,
             actorId: adminId,
         });
 
-        // Background processing
-        bulkVerificationService.processJob(job._id, records, adminId).catch((err) => {
+        // Background processing (service re-validates again)
+        bulkVerificationService.processJob(job._id, normalizedRecords, adminId).catch((err) => {
             console.error(`Error processing bulk verification job ${job._id}:`, err);
         });
 
@@ -609,6 +629,7 @@ const bulkIssueCredentials = async (req, res) => {
             status: job.status,
             totalRows: job.totalRows,
         }, 'Bulk verification job initiated successfully'));
+        return;
     } catch (error) {
         return handleServerError(res, error, {
             code: 'BULK_VERIFICATION_ERROR',

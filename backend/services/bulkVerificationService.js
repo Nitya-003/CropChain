@@ -17,6 +17,7 @@ const {
  * @returns {Array<Object>} List of parsed objects mapped to lowercase headers
  */
 const parseCSV = (csvText) => {
+
     const lines = [];
     let currentLine = [];
     let currentField = '';
@@ -277,3 +278,5 @@ module.exports = {
     parseCSV,
     processJob,
 };
+
+
