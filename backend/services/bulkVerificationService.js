@@ -1,8 +1,10 @@
 const crypto = require('crypto');
 const User = require('../models/User');
 const BulkVerificationJob = require('../models/BulkVerificationJob');
-const VerificationEvent = require('../models/VerificationEvent');
+
 const didService = require('./didService');
+const { appendAuditEvent } = require('../utils/auditLogger');
+
 const {
     CHALLENGE_ACTIONS,
     createChallenge,
@@ -17,7 +19,6 @@ const {
  * @returns {Array<Object>} List of parsed objects mapped to lowercase headers
  */
 const parseCSV = (csvText) => {
-
     const lines = [];
     let currentLine = [];
     let currentField = '';
@@ -61,7 +62,7 @@ const parseCSV = (csvText) => {
 
     if (lines.length === 0) return [];
 
-    const headers = lines[0].map(h => h.toLowerCase().trim());
+    const headers = lines[0].map((h) => h.toLowerCase().trim());
     const records = [];
 
     for (let i = 1; i < lines.length; i++) {
@@ -70,6 +71,7 @@ const parseCSV = (csvText) => {
         if (line.length === 0 || (line.length === 1 && line[0] === '')) {
             continue;
         }
+
         const record = {};
         headers.forEach((header, index) => {
             record[header] = line[index] || '';
@@ -93,6 +95,19 @@ const processJob = async (jobId, records, adminId) => {
     job.status = 'processing';
     await job.save();
 
+    // Audit bulk job initiated
+    try {
+        await appendAuditEvent({
+            action: 'bulk_job_initiated',
+            actorId: adminId,
+            status: 'success',
+            metadata: { jobId, totalRows: records?.length || 0 },
+            req: {},
+        });
+    } catch (_) {
+        // best-effort
+    }
+
     let successCount = 0;
     let failureCount = 0;
     const results = [];
@@ -109,7 +124,7 @@ const processJob = async (jobId, records, adminId) => {
         const expiresAtVal = record.expiresat ? parseInt(record.expiresat, 10) : undefined;
 
         let userId = inputUserId;
-        let action = CHALLENGE_ACTIONS[actionStr] || CHALLENGE_ACTIONS.ISSUE_CREDENTIAL;
+        const action = CHALLENGE_ACTIONS[actionStr] || CHALLENGE_ACTIONS.ISSUE_CREDENTIAL;
 
         try {
             // 1. Resolve User
@@ -124,6 +139,11 @@ const processJob = async (jobId, records, adminId) => {
                     userId = user._id.toString();
                 }
             }
+
+            if (!user) {
+                throw new Error('User not found');
+            }
+
 
             if (!user) {
                 throw new Error('User not found');
@@ -153,15 +173,36 @@ const processJob = async (jobId, records, adminId) => {
 
             if (!reservation.reserved) {
                 if (reservation.record && reservation.record.state === 'completed') {
-                    results.push({
-                        rowNumber,
-                        userId,
+                results.push({
+                    rowNumber,
+                    userId,
+
+
                         walletAddress,
                         action,
                         idempotencyKey,
                         status: 'skipped',
-                        details: { message: 'Request already processed (idempotency)', response: reservation.record.response },
+                        details: { message: 'Request already processed (idempotency)' },
                     });
+
+                    // Audit minimal per-row summary (success)
+                    try {
+                        await appendAuditEvent({
+                            action: 'bulk_row_processed',
+                            actorId: adminId,
+                            targetUserId: userId,
+                            walletAddress,
+                            status: 'success',
+                            metadata: {
+                                rowNumber,
+                                bulkStatus: 'skipped',
+                                bulkAction: action,
+                            },
+                            req: {},
+                        });
+                    } catch (_) {
+                        // best-effort
+                    }
                     successCount++;
                     continue;
                 } else {
@@ -174,12 +215,32 @@ const processJob = async (jobId, records, adminId) => {
                 results.push({
                     rowNumber,
                     userId,
+
                     walletAddress,
                     action,
                     idempotencyKey,
                     status: 'skipped',
                     details: { message: 'User is already verified' },
                 });
+
+                try {
+                    await appendAuditEvent({
+                        action: 'bulk_row_processed',
+                        actorId: adminId,
+                        targetUserId: userId,
+                        walletAddress,
+                        status: 'success',
+                        metadata: {
+                            rowNumber,
+                            bulkStatus: 'skipped',
+                            bulkAction: action,
+                        },
+                        req: {},
+                    });
+                } catch (_) {
+                    // best-effort
+                }
+
                 successCount++;
                 await storeCompletedIdempotencyRecord({
                     action,
@@ -260,7 +321,28 @@ const processJob = async (jobId, records, adminId) => {
                 error: error.message || error.toString(),
             });
             failureCount++;
+
+            // Audit minimal per-row summary (failure)
+            try {
+                await appendAuditEvent({
+                    action: 'bulk_row_processed',
+                    actorId: adminId,
+                    targetUserId: userId || undefined,
+                    walletAddress: walletAddress || undefined,
+                    status: 'failure',
+                    metadata: {
+                        rowNumber,
+                        bulkStatus: 'failed',
+                        bulkAction: action,
+                        errorType: error?.name || 'Error',
+                    },
+                    req: {},
+                });
+            } catch (_) {
+                // best-effort
+            }
         }
+
 
         // Update progress after each row
         job.processedRows = i + 1;
@@ -272,7 +354,21 @@ const processJob = async (jobId, records, adminId) => {
     job.failureCount = failureCount;
     job.results = results;
     await job.save();
+
+    // Audit bulk job completed
+    try {
+        await appendAuditEvent({
+            action: 'bulk_job_completed',
+            actorId: adminId,
+            status: 'success',
+            metadata: { jobId, totalRows: records?.length || 0, successCount, failureCount },
+            req: {},
+        });
+    } catch (_) {
+        // best-effort
+    }
 };
+
 
 module.exports = {
     parseCSV,

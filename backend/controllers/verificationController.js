@@ -1,6 +1,8 @@
 const didService = require('../services/didService');
 const User = require('../models/User');
 const VerificationEvent = require('../models/VerificationEvent');
+const { appendAuditEvent } = require('../utils/auditLogger');
+
 const BulkVerificationJob = require('../models/BulkVerificationJob');
 const bulkVerificationService = require('../services/bulkVerificationService');
 const mongoose = require('mongoose');
@@ -288,7 +290,20 @@ const revokeCredential = async (req, res) => {
             walletAddress: undefined,
             idempotencyKey,
             execute: async () => {
-                return didService.revokeCredential(userId, adminId, reason);
+                const result = await didService.revokeCredential(userId, adminId, reason);
+
+                // Audit: credential revoked (success)
+                await appendAuditEvent({
+                    action: 'credential_revoked',
+                    actorId: adminId,
+                    targetUserId: userId,
+                    walletAddress: undefined,
+                    status: 'success',
+                    metadata: { originalAction: 'CREDENTIAL_REVOKE' },
+                    req,
+                });
+
+                return result;
             },
             errorMeta: {
                 code: 'CREDENTIAL_REVOKE_ERROR',

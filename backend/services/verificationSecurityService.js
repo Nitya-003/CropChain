@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const { getRedisConnection } = require('../config/redis');
-const VerificationEvent = require('../models/VerificationEvent');
+
 
 const CHALLENGE_TTL_SECONDS = parseInt(process.env.VERIFICATION_CHALLENGE_TTL_SECONDS, 10) || 180;
 const IDEMPOTENCY_TTL_SECONDS = parseInt(process.env.VERIFICATION_IDEMPOTENCY_TTL_SECONDS, 10) || 24 * 60 * 60;
@@ -56,6 +56,8 @@ const parseJsonRecord = (value) => {
     return JSON.parse(value);
 };
 
+const { appendAuditEvent } = require('../utils/auditLogger');
+
 const createChallenge = async ({ action, actorId, userId, walletAddress }) => {
     const redis = getRedisConnection();
     const challengeId = crypto.randomUUID();
@@ -77,17 +79,16 @@ const createChallenge = async ({ action, actorId, userId, walletAddress }) => {
 
     // Persist audit event
     try {
-        await VerificationEvent.create({
+        await appendAuditEvent({
             action: 'challenge_created',
             actorId,
-            userId,
+            targetUserId: userId,
             walletAddress: record.walletAddress,
             status: 'success',
             metadata: {
                 challengeId,
                 challengeAction: action,
-                nonce,
-                expiresAt,
+                // Privacy: do not persist nonce/expiresAt as-is (avoid correlation).
             },
         });
     } catch (error) {

@@ -1,6 +1,6 @@
 const apiResponse = require('./apiResponse');
 const { mapHttpError } = require('./httpErrorMapper');
-const VerificationEvent = require('../models/VerificationEvent');
+
 const {
     createFingerprint,
     getIdempotencyRecord,
@@ -169,6 +169,8 @@ const reserveOrHandleReservationOutcome = async ({ res, action, actorId, idempot
     };
 };
 
+const { appendAuditEvent } = require('./auditLogger');
+
 const executeAndFinalizeIdempotency = async ({
     res,
     action,
@@ -177,22 +179,27 @@ const executeAndFinalizeIdempotency = async ({
     fingerprint,
     challengeRecord,
     execute,
+    req,
 }) => {
     try {
-        // Log attempt
+        const targetUserId = challengeRecord?.userId;
+        const walletAddress = challengeRecord?.walletAddress;
+
+        // Log attempt (privacy-safe)
         try {
-            await VerificationEvent.create({
+            await appendAuditEvent({
                 action: 'verification_attempt',
                 actorId,
-                userId: challengeRecord?.userId,
-                walletAddress: challengeRecord?.walletAddress,
-                idempotencyKey,
+                targetUserId,
+                walletAddress,
                 status: 'attempt',
-                metadata: { originalAction: action }
+                metadata: { originalAction: action },
+                req,
             });
         } catch (eventErr) {
             console.error('Failed to log verification_attempt event:', eventErr);
         }
+
 
         // Emit socket status in_progress
         const socketService = require('../services/socketService');
@@ -213,18 +220,20 @@ const executeAndFinalizeIdempotency = async ({
 
         // Log success
         try {
-            await VerificationEvent.create({
+            await appendAuditEvent({
                 action: 'verification_success',
                 actorId,
-                userId: challengeRecord?.userId,
-                walletAddress: challengeRecord?.walletAddress,
+                targetUserId,
+                walletAddress,
                 idempotencyKey,
                 status: 'success',
-                metadata: { originalAction: action }
+                metadata: { originalAction: action },
+                req,
             });
         } catch (eventErr) {
             console.error('Failed to log verification_success event:', eventErr);
         }
+
 
         // Emit socket status success (verified or linked)
         if (challengeRecord?.userId) {
@@ -253,18 +262,21 @@ const executeAndFinalizeIdempotency = async ({
     } catch (error) {
         // Log failure
         try {
-            await VerificationEvent.create({
+            await appendAuditEvent({
                 action: 'verification_failure',
                 actorId,
-                userId: challengeRecord?.userId,
-                walletAddress: challengeRecord?.walletAddress,
+                targetUserId,
+                walletAddress,
                 idempotencyKey,
                 status: 'failure',
-                metadata: { originalAction: action, error: error.message || error.toString() }
+                // Privacy: do not persist raw stack/errors. Only store a coarse category.
+                metadata: { originalAction: action, errorType: error?.name || 'Error' },
+                req,
             });
         } catch (eventErr) {
             console.error('Failed to log verification_failure event:', eventErr);
         }
+
 
         // Emit socket status failure
         if (challengeRecord?.userId) {
