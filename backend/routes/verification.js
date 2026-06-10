@@ -16,7 +16,8 @@ const {
     bulkIssueCredentials,
     getBulkJobStatus,
 } = require('../controllers/verificationController');
-const { protect, adminOnly } = require('../middleware/auth');
+const { protect, adminOnly, authorizeRoles } = require('../middleware/auth');
+
 
 // Multer in-memory storage configuration
 const upload = multer({
@@ -27,12 +28,21 @@ const upload = multer({
 router.get('/check/:userId', checkVerification);
 
 // Protected routes
-router.post('/challenge/link-wallet', protect, generateLinkWalletChallenge);
-router.post('/challenge/issue', protect, adminOnly, generateIssueCredentialChallenge);
-router.post('/link-wallet', protect, linkWallet);
+// Role-based access:
+// - Wallet linking (challenge + link): ADMIN, SUPER_ADMIN, MANDI
+// - Credential issuance (challenge + issue): MANDI, ADMIN, SUPER_ADMIN
+router.post(
+    '/challenge/link-wallet',
+    protect,
+    authorizeRoles('admin', 'super_admin', 'mandi'),
+    generateLinkWalletChallenge
+);
+router.post('/challenge/issue', protect, authorizeRoles('mandi', 'admin', 'super_admin'), generateIssueCredentialChallenge);
+router.post('/link-wallet', protect, authorizeRoles('admin', 'super_admin', 'mandi'), linkWallet);
 
 // Admin only routes
-router.post('/issue', protect, adminOnly, issueCredential);
+router.post('/issue', protect, authorizeRoles('admin', 'super_admin', 'mandi'), issueCredential);
+
 router.post('/revoke', protect, adminOnly, revokeCredential);
 router.get('/unverified', protect, adminOnly, getUnverifiedUsers);
 router.get('/verified', protect, adminOnly, getVerifiedUsers);
