@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Shield, AlertTriangle } from 'lucide-react';
+import { Shield, AlertTriangle, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { realCropBatchService } from '../../services/realCropBatchService';
@@ -29,6 +29,7 @@ const AddBatchContent: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [generatedBatch, setGeneratedBatch] = useState<any>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Set crop type from query param if available
   useEffect(() => {
@@ -81,12 +82,36 @@ const AddBatchContent: React.FC = () => {
     );
   }
 
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    if (!formData.farmerName.trim()) errors.farmerName = 'Farmer name is required';
+    if (!formData.farmerAddress.trim()) errors.farmerAddress = 'Farmer address is required';
+    if (!formData.cropType.trim()) errors.cropType = 'Please select a crop type';
+    if (!formData.quantity || Number(formData.quantity) <= 0) errors.quantity = 'Quantity must be greater than 0';
+    if (!formData.harvestDate) errors.harvestDate = 'Harvest date is required';
+    else if (new Date(formData.harvestDate) > new Date()) errors.harvestDate = 'Harvest date cannot be in the future';
+    if (!formData.origin.trim()) errors.origin = 'Origin is required';
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleBlur = (
+    e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name } = e.target;
+    setFieldErrors(prev => {
+      const copy = { ...prev };
+      delete copy[name];
+      return copy;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!formData.cropType.trim()) return;
-    if (Number(formData.quantity) <= 0) return;
-    if (new Date(formData.harvestDate) > new Date()) return;
+    if (!validateForm()) return;
 
     setIsLoading(true);
 
@@ -123,9 +148,14 @@ const AddBatchContent: React.FC = () => {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       [e.target.name]: e.target.value
+    }));
+    setFieldErrors(prev => {
+      const copy = { ...prev };
+      delete copy[e.target.name];
+      return copy;
     });
   };
 
@@ -176,44 +206,67 @@ const AddBatchContent: React.FC = () => {
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">{t('batch.farmerName')}</label>
-              <input type="text" name="farmerName" value={formData.farmerName} onChange={handleChange} className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600" required />
+              <div className="relative">
+                <input type="text" name="farmerName" value={formData.farmerName} onChange={handleChange} onBlur={handleBlur} className={`w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${fieldErrors.farmerName ? 'border-red-500 dark:border-red-400 pr-10' : 'border-gray-300 dark:border-gray-600'}`} />
+                {fieldErrors.farmerName && <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />}
+              </div>
+              {fieldErrors.farmerName && <p className="mt-1 text-xs text-red-500 flex items-center gap-1">{fieldErrors.farmerName}</p>}
             </div>
             <div>
               <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">{t('batch.farmerAddress')}</label>
-              <input type="text" name="farmerAddress" value={formData.farmerAddress} onChange={handleChange} className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600" required />
+              <div className="relative">
+                <input type="text" name="farmerAddress" value={formData.farmerAddress} onChange={handleChange} onBlur={handleBlur} className={`w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${fieldErrors.farmerAddress ? 'border-red-500 dark:border-red-400 pr-10' : 'border-gray-300 dark:border-gray-600'}`} />
+                {fieldErrors.farmerAddress && <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />}
+              </div>
+              {fieldErrors.farmerAddress && <p className="mt-1 text-xs text-red-500 flex items-center gap-1">{fieldErrors.farmerAddress}</p>}
             </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">{t('batch.cropType')}</label>
-              <select name="cropType" value={formData.cropType} onChange={handleChange} className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 capitalize" required>
-                <option value="">{t('batch.selectCropType')}</option>
-                {cropOptions.map(crop => (
-                  <option key={crop} value={crop}>{crop}</option>
-                ))}
-              </select>
+              <div className="relative">
+                <select name="cropType" value={formData.cropType} onChange={handleChange} onBlur={handleBlur} className={`w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 capitalize ${fieldErrors.cropType ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'}`}>
+                  <option value="">{t('batch.selectCropType')}</option>
+                  {cropOptions.map(crop => (
+                    <option key={crop} value={crop}>{crop}</option>
+                  ))}
+                </select>
+              </div>
+              {fieldErrors.cropType && <p className="mt-1 text-xs text-red-500 flex items-center gap-1">{fieldErrors.cropType}</p>}
             </div>
             <div>
               <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">{t('batch.quantity')}</label>
-              <input type="number" name="quantity" value={formData.quantity} onChange={handleChange} min={1} className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600" required />
+              <div className="relative">
+                <input type="number" name="quantity" value={formData.quantity} onChange={handleChange} onBlur={handleBlur} className={`w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${fieldErrors.quantity ? 'border-red-500 dark:border-red-400 pr-10' : 'border-gray-300 dark:border-gray-600'}`} />
+                {fieldErrors.quantity && <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />}
+              </div>
+              {fieldErrors.quantity && <p className="mt-1 text-xs text-red-500 flex items-center gap-1">{fieldErrors.quantity}</p>}
             </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">{t('batch.harvestDate')}</label>
-              <input type="date" name="harvestDate" value={formData.harvestDate} onChange={handleChange} max={today} className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600" required />
+              <div className="relative">
+                <input type="date" name="harvestDate" value={formData.harvestDate} onChange={handleChange} onBlur={handleBlur} max={today} className={`w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${fieldErrors.harvestDate ? 'border-red-500 dark:border-red-400 pr-10' : 'border-gray-300 dark:border-gray-600'}`} />
+                {fieldErrors.harvestDate && <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />}
+              </div>
+              {fieldErrors.harvestDate && <p className="mt-1 text-xs text-red-500 flex items-center gap-1">{fieldErrors.harvestDate}</p>}
             </div>
             <div>
               <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">{t('batch.origin')}</label>
-              <input type="text" name="origin" value={formData.origin} onChange={handleChange} className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600" required />
+              <div className="relative">
+                <input type="text" name="origin" value={formData.origin} onChange={handleChange} onBlur={handleBlur} className={`w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${fieldErrors.origin ? 'border-red-500 dark:border-red-400 pr-10' : 'border-gray-300 dark:border-gray-600'}`} />
+                {fieldErrors.origin && <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />}
+              </div>
+              {fieldErrors.origin && <p className="mt-1 text-xs text-red-500 flex items-center gap-1">{fieldErrors.origin}</p>}
             </div>
           </div>
 
           <div>
              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">{t('batch.description')}</label>
-             <textarea name="description" value={formData.description} onChange={handleChange} rows={4} className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600" />
+             <textarea name="description" value={formData.description} onChange={handleChange} onBlur={handleBlur} rows={4} className={`w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${fieldErrors.description ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'}`} />
           </div>
 
           <div className="flex justify-center pt-4">
