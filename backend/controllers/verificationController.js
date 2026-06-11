@@ -1,6 +1,8 @@
 const didService = require('../services/didService');
 const User = require('../models/User');
 const VerificationEvent = require('../models/VerificationEvent');
+const { appendAuditEvent } = require('../utils/auditLogger');
+
 const BulkVerificationJob = require('../models/BulkVerificationJob');
 const bulkVerificationService = require('../services/bulkVerificationService');
 const mongoose = require('mongoose');
@@ -12,6 +14,10 @@ const {
     requireIdempotencyKey,
     handleVerificationWithIdempotency,
 } = require('../utils/verificationControllerHelpers');
+
+const {
+    handleIdempotencyOnly,
+} = require('../utils/verificationIdempotency');
 const apiResponse = require('../utils/apiResponse');
 const { ROLES } = require('../constants/permissions');
 const {
@@ -267,17 +273,43 @@ const issueCredential = async (req, res) => {
 const revokeCredential = async (req, res) => {
     try {
         const validatedData = validateOrRespond(res, revokeCredentialSchema, req.body);
-
-        if (!validatedData) {
-            return;
-        }
+        if (!validatedData) return;
 
         const { userId, reason } = validatedData;
         const adminId = req.user.id;
 
-        const result = await didService.revokeCredential(userId, adminId, reason);
+        const idempotencyKey = requireIdempotencyKey(req, res);
+        if (!idempotencyKey) return;
 
-        res.json(result);
+        return await handleIdempotencyOnly({
+            req,
+            res,
+            action: 'CREDENTIAL_REVOKE',
+            actorId: adminId,
+            userId,
+            walletAddress: undefined,
+            idempotencyKey,
+            execute: async () => {
+                const result = await didService.revokeCredential(userId, adminId, reason);
+
+                // Audit: credential revoked (success)
+                await appendAuditEvent({
+                    action: 'credential_revoked',
+                    actorId: adminId,
+                    targetUserId: userId,
+                    walletAddress: undefined,
+                    status: 'success',
+                    metadata: { originalAction: 'CREDENTIAL_REVOKE' },
+                    req,
+                });
+
+                return result;
+            },
+            errorMeta: {
+                code: 'CREDENTIAL_REVOKE_ERROR',
+                message: 'Credential revocation failed',
+            },
+        });
     } catch (error) {
         return handleServerError(res, error, {
             code: 'CREDENTIAL_REVOKE_ERROR',
@@ -553,37 +585,57 @@ const bulkIssueCredentials = async (req, res) => {
         }
 
         const csvText = req.file.buffer.toString('utf8');
-        const records = bulkVerificationService.parseCSV(csvText);
 
-        if (records.length === 0) {
+        // Defense-in-depth: limit parsed input size (in bytes) independent of multer.
+        const MAX_BULK_CSV_TEXT_BYTES = parseInt(process.env.MAX_BULK_CSV_TEXT_BYTES, 10) || (5 * 1024 * 1024);
+        if (Buffer.byteLength(csvText, 'utf8') > MAX_BULK_CSV_TEXT_BYTES) {
+            return res.status(400).json(
+                apiResponse.validationErrorResponse([`CSV file too large. Max allowed is ${MAX_BULK_CSV_TEXT_BYTES} bytes`])
+            );
+        }
+
+        const maxRowsPerJob = parseInt(process.env.MAX_BULK_ROWS_PER_JOB, 10) || 5000;
+
+        const { validateHeadersExact, safeHeaderKey } = require('../utils/bulkCsvValidation');
+
+        // Strict parse + header validation.
+        const recordsRaw = bulkVerificationService.parseCSV(csvText);
+        if (!Array.isArray(recordsRaw) || recordsRaw.length === 0) {
             return res.status(400).json(apiResponse.validationErrorResponse(['CSV file is empty or invalid']));
         }
 
-        // Validate records have either email or userId, and walletAddress
-        const invalidRows = [];
-        records.forEach((rec, idx) => {
-            const rowNum = idx + 2;
-            if (!rec.userid && !rec.email) {
-                invalidRows.push(`Row ${rowNum}: Either userId or email is required`);
-            }
-            if (!rec.walletaddress) {
-                invalidRows.push(`Row ${rowNum}: walletAddress is required`);
-            }
+        // Header check: parseCSV lowercases header names, so we can infer headers from first record.
+        // We enforce exactly the expected set in order.
+        const headers = Object.keys(recordsRaw[0] || {});
+        const headerValidation = validateHeadersExact(headers);
+        if (!headerValidation.ok) {
+            return res.status(400).json(apiResponse.validationErrorResponse([headerValidation.error]));
+        }
+
+        // Validate + normalize rows (including userid/email rules, formats, action etc.).
+        const { validateAndNormalizeCsvRecords, sanitizeForStorage } = require('../utils/bulkCsvValidation');
+        const { records: normalizedRecords, rowErrors } = validateAndNormalizeCsvRecords({
+            records: recordsRaw,
+            maxRowsPerJob,
         });
 
-        if (invalidRows.length > 0) {
-            return res.status(400).json(apiResponse.validationErrorResponse(invalidRows));
+        if (rowErrors.length > 0) {
+            return res.status(400).json(apiResponse.validationErrorResponse(rowErrors.slice(0, 100))); // avoid huge error responses
+        }
+
+        if (normalizedRecords.length === 0) {
+            return res.status(400).json(apiResponse.validationErrorResponse(['CSV has no valid rows']));
         }
 
         const adminId = req.user.id;
         const job = await BulkVerificationJob.create({
             status: 'pending',
-            totalRows: records.length,
+            totalRows: normalizedRecords.length,
             actorId: adminId,
         });
 
-        // Background processing
-        bulkVerificationService.processJob(job._id, records, adminId).catch((err) => {
+        // Background processing (service re-validates again)
+        bulkVerificationService.processJob(job._id, normalizedRecords, adminId).catch((err) => {
             console.error(`Error processing bulk verification job ${job._id}:`, err);
         });
 
@@ -592,6 +644,7 @@ const bulkIssueCredentials = async (req, res) => {
             status: job.status,
             totalRows: job.totalRows,
         }, 'Bulk verification job initiated successfully'));
+        return;
     } catch (error) {
         return handleServerError(res, error, {
             code: 'BULK_VERIFICATION_ERROR',
