@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Shield, Package, Coins, Activity, TrendingUp, Check, Copy, RefreshCw } from 'lucide-react';
-import StatsCardSkeleton from '../../components/skeletons/StatsCardSkeleton';
-import TableSkeleton from '../../components/skeletons/TableSkeleton';
+import { AdminStatsSkeleton, AdminTableSkeleton } from '../../components/skeletons';
+import ChartSkeleton from '../../components/skeletons/ChartSkeleton';
 import { realCropBatchService } from '../../services/realCropBatchService';
 import { usePriceConverter } from '../../hooks/usePriceConverter';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "../../components/ui/card";
@@ -146,14 +146,14 @@ const AdminDashboardComponent: React.FC = () => {
           <div className="h-10 bg-muted rounded-lg w-64 mx-auto animate-pulse"></div>
           <div className="h-5 bg-muted rounded-lg w-96 mx-auto animate-pulse"></div>
         </div>
-        <div className="grid md:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <StatsCardSkeleton key={i} />
-          ))}
-        </div>
-        <div className="border border-border bg-card rounded-xl p-6">
-          <div className="h-6 bg-muted rounded w-48 mb-6 animate-pulse"></div>
-          <TableSkeleton />
+
+        <AdminStatsSkeleton />
+
+        <AdminTableSkeleton rows={5} />
+
+        <div className="grid md:grid-cols-2 gap-6">
+          <ChartSkeleton />
+          <ChartSkeleton />
         </div>
       </div>
     );
