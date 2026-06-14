@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Batch = require('../models/Batch');
 const { PERMISSIONS, ROLES, isAdminRole } = require('../constants/permissions');
 const RBACService = require('../services/rbacService');
+const logger = require('../utils/logger');
 
 const protect = async (req, res, next) => {
     try {
@@ -110,7 +111,7 @@ const authorizeBatchOwner = async (req, res, next) => {
 
         // Security check: must be owner OR have explicit role permission (deny-by-default)
         if (!isOwner && !hasPermission) {
-            console.log(`[AUTH FAIL] User ${userId} (${req.user.role}) attempted unauthorized ${req.method} on batch ${batchId} owned by ${batch.farmerId}`);
+            logger.warn('Auth fail: unauthorized batch access attempt', { userId, role: req.user.role, method: req.method, batchId, batchOwner: batch.farmerId?.toString() });
             return res.status(403).json({ 
                 success: false, 
                 error: 'Access denied', 
@@ -122,7 +123,7 @@ const authorizeBatchOwner = async (req, res, next) => {
         req.batch = batch;
         return next();
     } catch (error) {
-        console.error('Authorization error:', error);
+        logger.error('Authorization error', { error: error.message, stack: error.stack });
         return res.status(500).json({ error: 'Server Error', message: 'Authorization check failed' });
     }
 };
@@ -131,7 +132,7 @@ const authorizeRoles = (...roles) => {
     return (req, res, next) => {
         if (!req.user) return res.status(401).json({ error: 'Not authorized', message: 'Authentication required' });
         if (!roles.includes(req.user.role)) {
-            console.log(`[RBAC VIOLATION] User ${req.user.email} (${req.user.role}) attempted to access endpoint requiring roles: ${roles.join(', ')}`);
+            logger.warn('RBAC violation', { email: req.user.email, role: req.user.role, requiredRoles: roles });
             return res.status(403).json({ error: 'Access denied', message: `Role '${req.user.role}' is not authorized. Required roles: ${roles.join(', ')}` });
         }
         next();
@@ -155,7 +156,7 @@ const authorizeStageTransition = (req, res, next) => {
 
     const allowedStages = stagePermissions[userRole];
     if (!allowedStages || !allowedStages.includes(stage)) {
-        console.log(`[STAGE VIOLATION] User ${req.user.email} (${userRole}) attempted to update stage '${stage}'`);
+        logger.warn('Stage violation', { email: req.user.email, role: userRole, attemptedStage: stage });
         return res.status(403).json({ error: 'Access denied', message: `Role '${userRole}' is not authorized to update stage '${stage}'` });
     }
     next();
@@ -166,7 +167,7 @@ const authorizeBlockchainTransaction = (req, res, next) => {
     
     const blockchainAllowedRoles = [ROLES.FARMER, ROLES.MANDI, ROLES.TRANSPORTER, ROLES.RETAILER, ROLES.ADMIN, ROLES.SUPER_ADMIN];
     if (!blockchainAllowedRoles.includes(req.user.role)) {
-        console.log(`[BLOCKCHAIN VIOLATION] User ${req.user.email} (${req.user.role}) attempted blockchain transaction`);
+        logger.warn('Blockchain transaction violation', { email: req.user.email, role: req.user.role });
         return res.status(403).json({ error: 'Access denied', message: `Role '${req.user.role}' is not authorized to perform blockchain transactions` });
     }
     next();
@@ -177,7 +178,7 @@ const requirePermissions = (...permissions) => {
     return (req, res, next) => {
         if (!req.user) return res.status(401).json({ error: 'Not authorized', message: 'Authentication required' });
         if (!RBACService.checkAnyPermission(req.user, permissions)) {
-            console.log(`[PERMISSION DENIED] User ${req.user.email} requires: ${permissions.join(', ')}`);
+            logger.warn('Permission denied', { email: req.user.email, requiredPermissions: permissions });
             return res.status(403).json({ error: 'Access denied', message: `Missing required permission: ${permissions.join(' or ')}`, requiredPermissions: permissions });
         }
         next();
@@ -244,7 +245,7 @@ const checkBatchSafetyStatus = async (req, res, next) => {
         req.batch = batch;
         next();
     } catch (error) {
-        console.error('Safety status check error:', error);
+        logger.error('Safety status check error', { error: error.message, stack: error.stack });
         return res.status(500).json({ error: 'Server error', message: 'Failed to check batch status' });
     }
 };
