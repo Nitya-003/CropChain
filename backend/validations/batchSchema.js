@@ -20,7 +20,9 @@ const createBatchSchema = Joi.object({
 
   quantity: Joi.number().min(1).max(1000000).required(),
 
-  harvestDate: Joi.date().iso().max("now").required(),
+  harvestDate: Joi.date().iso().max("now").required().messages({
+    "date.max": "Harvest date cannot be in the future",
+  }),
 
   origin: Joi.string().min(5).max(200).required(),
 
