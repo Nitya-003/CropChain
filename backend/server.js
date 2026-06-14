@@ -7,6 +7,7 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
 const connectDB = require('./config/db');
 require('dotenv').config();
+const logger = require('./utils/logger');
 const mainRoutes = require("./routes/index");
 const oracleRoutes = require("./routes/oracle");
 const validateRequest = require('./middleware/validator');
@@ -38,19 +39,18 @@ const { validateStageMapping } = require('./constants/stages');
 try {
     validateStageMapping();
 } catch (error) {
-    console.error('❌ CRITICAL ERROR:', error.message);
+    logger.error('CRITICAL ERROR: stage mapping validation failed', { error: error.message });
     process.exit(1);
 }
 
 // ==================== GLOBAL EXCEPTION HANDLERS ====================
 
 process.on('unhandledRejection', (reason, promise) => {
-    console.error('🔥 UNHANDLED REJECTION:', reason);
-    console.error('Promise:', promise);
+    logger.error('Unhandled rejection', { reason, promise });
 });
 
 process.on('uncaughtException', (error) => {
-    console.error('🔥 UNCAUGHT EXCEPTION:', error);
+    logger.error('Uncaught exception', { error: error.message, stack: error.stack });
     process.exit(1);
 });
 
@@ -78,7 +78,7 @@ const securityLogger = (req, res, next) => {
     const ip = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent') || 'Unknown';
 
-    console.log(`[${timestamp}] ${req.method} ${req.path} - IP: ${ip} - User-Agent: ${userAgent}`);
+    logger.info('Incoming request', { timestamp, method: req.method, path: req.path, ip, userAgent });
 
     const suspiciousPatterns = [
         /\$where/i, /\$ne/i, /\$gt/i, /\$lt/i, /\$regex/i,
@@ -89,7 +89,7 @@ const securityLogger = (req, res, next) => {
 
     suspiciousPatterns.forEach(pattern => {
         if (pattern.test(requestString)) {
-            console.warn(`[SECURITY WARNING] Suspicious pattern detected from IP ${ip}: ${pattern}`);
+            logger.warn('Suspicious pattern detected', { ip, pattern: pattern.toString(), path: req.path });
             notificationService.notifySecurityEvent('suspicious_pattern', { 
                 ip, 
                 pattern: pattern.toString(),
@@ -176,7 +176,7 @@ const corsOptions = {
         if (uniqueAllowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
-            console.warn(`[CORS BLOCKED] Origin: ${origin}`);
+            logger.warn('CORS blocked', { origin });
             callback(new Error('Not allowed by CORS'));
         }
     },
@@ -205,7 +205,7 @@ if (process.env.NODE_ENV !== 'test') {
     try {
         blockchainService.validateEnvironment();
     } catch (error) {
-        console.error('Blockchain configuration error:', error.message);
+        logger.error('Blockchain configuration error', { error: error.message });
     }
 }
 
@@ -239,7 +239,7 @@ const trustedHosts = (() => {
 app.use((req, res, next) => {
     const host = req.hostname?.toLowerCase();
     if (host && !trustedHosts.has(host)) {
-        console.warn(`[HOST BLOCKED] Unexpected Host header: ${host}`);
+        logger.warn('Host header blocked', { host });
         return res.status(400).json({
             error: 'Invalid request',
             code: 'INVALID_HOST'
@@ -301,9 +301,9 @@ if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY) {
         wallet = new ethers.Wallet(PRIVATE_KEY, provider);
 
         contractInstance = new ethers.Contract(CONTRACT_ADDRESS, blockchainService.getContractABI(), wallet);
-        console.log('✓ Blockchain contract instance initialized');
+        logger.info('Blockchain contract instance initialized');
     } catch (error) {
-        console.error('Failed to initialize blockchain connection:', error.message);
+        logger.error('Failed to initialize blockchain connection', { error: error.message });
         contractInstance = null;
     }
 }
@@ -337,7 +337,7 @@ app.post('/api/batches', batchLimiter, protect, authorizeRoles('farmer'), valida
     try {
         const result = await batchService.createBatch(req.body, req.user);
 
-        console.log(`[SUCCESS] Batch created: ${result.batch.batchId} by user ${req.user.id} (${req.user.email}) from IP: ${req.ip}`);
+        logger.info('Batch created', { batchId: result.batch.batchId, userId: req.user.id, email: req.user.email, ip: req.ip });
 
         // Notify about batch creation
         notificationService.notifyBatchCreated(result.batch.batchId, req.user);
@@ -361,7 +361,7 @@ app.post('/api/batches', batchLimiter, protect, authorizeRoles('farmer'), valida
 
         notificationService.notifyError('batch creation', error);
         
-        console.error('Error creating batch:', error);
+        logger.error('Error creating batch', { error: error.message, stack: error.stack });
         const response = apiResponse.errorResponse(
             'Failed to create batch',
             'BATCH_CREATION_ERROR',
@@ -380,7 +380,7 @@ app.get('/api/batches/:batchId', batchLimiter, protect, async (req, res) => {
         const result = await batchService.getBatch(batchId);
 
         if (!result.success) {
-            console.log(`[NOT FOUND] Batch lookup failed: ${batchId} from IP: ${req.ip}`);
+            logger.warn('Batch not found', { batchId, ip: req.ip });
             const response = apiResponse.notFoundResponse('Batch', `ID: ${batchId}`);
             return res.status(result.statusCode).json(response);
         }
@@ -389,7 +389,7 @@ app.get('/api/batches/:batchId', batchLimiter, protect, async (req, res) => {
         res.json(response);
     } catch (error) {
         notificationService.notifyError('batch fetch', error);
-        console.error('Error fetching batch:', error);
+        logger.error('Error fetching batch', { error: error.message, stack: error.stack });
         const response = apiResponse.errorResponse(
             'Failed to fetch batch',
             'BATCH_FETCH_ERROR',
@@ -419,7 +419,7 @@ app.get('/api/batches/:batchId/pdf', batchLimiter, protect, async (req, res) => 
         res.send(pdfBuffer);
     } catch (error) {
         notificationService.notifyError('batch pdf generation', error);
-        console.error('Error generating batch PDF:', error);
+        logger.error('Error generating batch PDF', { error: error.message, stack: error.stack });
         const response = apiResponse.errorResponse(
             'Failed to generate batch PDF',
             'PDF_GENERATION_ERROR',
@@ -442,7 +442,7 @@ app.put('/api/batches/:batchId', batchLimiter, protect, authorizeBatchOwner, aut
             return res.status(result.statusCode || 404).json(response);
         }
 
-        console.log(`[SUCCESS] Batch updated: ${batchId} to stage ${validatedData.stage} by ${validatedData.actor} from IP: ${req.ip}`);
+        logger.info('Batch updated', { batchId, stage: validatedData.stage, actor: validatedData.actor, ip: req.ip });
 
         // Notify about batch update
         notificationService.notifyBatchUpdated(batchId, validatedData.stage, req.user);
@@ -454,7 +454,7 @@ app.put('/api/batches/:batchId', batchLimiter, protect, authorizeBatchOwner, aut
         res.json(response);
     } catch (error) {
         notificationService.notifyError('batch update', error);
-        console.error('Error updating batch:', error);
+        logger.error('Error updating batch', { error: error.message, stack: error.stack });
         const response = apiResponse.errorResponse(
             'Failed to update batch',
             'BATCH_UPDATE_ERROR',
@@ -490,7 +490,7 @@ app.post(
             });
         } catch (error) {
             notificationService.notifyError('batch recall', error);
-            console.error('Error recalling batch:', error);
+            logger.error('Error recalling batch', { error: error.message, stack: error.stack });
             res.status(500).json({ error: 'Failed to recall batch' });
         }
     }
@@ -515,7 +515,7 @@ app.post('/api/ai/chat', batchLimiter, protect, validateRequest(chatSchema), asy
     try {
         const { message } = req.body;
 
-        console.log(`[AI CHAT] Request from IP: ${req.ip} - Message: "${message.substring(0, 50)}..."`);
+        logger.info('AI chat request', { ip: req.ip, messagePreview: message.substring(0, 50) });
 
         const acceptsEventStream = req.headers.accept?.includes('text/event-stream');
 
@@ -544,13 +544,13 @@ app.post('/api/ai/chat', batchLimiter, protect, validateRequest(chatSchema), asy
             });
 
             res.end();
-            console.log(`[AI CHAT SUCCESS] Streamed response generated for IP: ${req.ip}`);
+            logger.info('AI chat streamed response generated', { ip: req.ip });
             return;
         }
 
         const aiResponse = await aiService.chat(message, batchServiceForAI);
 
-        console.log(`[AI CHAT SUCCESS] Response generated for IP: ${req.ip}`);
+        logger.info('AI chat response generated', { ip: req.ip });
 
         const response = apiResponse.successResponse(
             {
@@ -567,7 +567,7 @@ app.post('/api/ai/chat', batchLimiter, protect, validateRequest(chatSchema), asy
 
     } catch (error) {
         notificationService.notifyError('AI chat', error);
-        console.error('AI Chat error:', error);
+        logger.error('AI chat error', { error: error.message, stack: error.stack });
 
         if (res.headersSent) {
             res.write(`event: error\n`);
@@ -604,7 +604,7 @@ app.get('/api/health', (req, res) => {
 
 // 404 handler
 app.use('*', (req, res) => {
-    console.log(`[404] Route not found: ${req.method} ${req.originalUrl} from IP: ${req.ip}`);
+    logger.warn('Route not found', { method: req.method, url: req.originalUrl, ip: req.ip });
     const response = apiResponse.notFoundResponse('Endpoint', `${req.method} ${req.originalUrl}`);
     res.status(404).json(response);
 });
@@ -619,42 +619,42 @@ const socketService = require('./services/socketService');
 // Initialize Socket.IO on the HTTP server
 socketService.initializeSocketIO(server);
 
-console.log('🔌 Socket.IO integration complete');
+logger.info('Socket.IO integration complete');
 
 // ==================== GRACEFUL SHUTDOWN HANDLING ====================
 
 // Graceful shutdown function (server already defined above)
 const gracefulShutdown = (signal) => {
-    console.log(`\n[${signal}] Received shutdown signal. Starting graceful shutdown...`);
+    logger.info(`Received ${signal} signal, starting graceful shutdown`);
     
     if (server) {
         server.close(async () => {
-            console.log('✓ HTTP server closed - no longer accepting new connections');
+            logger.info('HTTP server closed');
             
             // Close all Socket.IO connections
             const io = socketService.getIO();
             if (io) {
                 await io.close();
-                console.log('✓ Socket.IO server closed');
+                logger.info('Socket.IO server closed');
             }
             
             // Close MongoDB connection
             if (mongoose.connection.readyState === 1) {
                 try {
                     await mongoose.connection.close();
-                    console.log('✓ MongoDB connection closed');
+                    logger.info('MongoDB connection closed');
                 } catch (err) {
-                    console.error('✗ Error closing MongoDB connection:', err.message);
+                    logger.error('Error closing MongoDB connection', { error: err.message });
                 }
             }
             
-            console.log('✓ Graceful shutdown complete');
+            logger.info('Graceful shutdown complete');
             process.exit(0);
         });
         
         // Force exit after 10 seconds if graceful shutdown fails
         setTimeout(() => {
-            console.error('✗ Graceful shutdown timed out, forcing exit');
+            logger.error('Graceful shutdown timed out, forcing exit');
             process.exit(1);
         }, 10000);
     } else {
@@ -678,77 +678,76 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 // Start server
 if (process.env.NODE_ENV !== 'test') {
     server.listen(PORT, async () => {
-        console.log(`🚀 CropChain API server running on port ${PORT}`);
-        console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-        console.log(`🔌 WebSocket endpoint: ws://localhost:${PORT}`);
+        logger.info(`CropChain API server running on port ${PORT}`);
+        logger.info(`Health check: http://localhost:${PORT}/api/health`);
+        logger.info(`WebSocket endpoint: ws://localhost:${PORT}`);
 
         // Create admin user on startup
         await createAdmin();
 
-        console.log(`Admin user created successfully`);
-        console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
-
-        console.log('\n🔒 Security features enabled:');
-        console.log(`  ✓ Rate limiting (${rateLimitMaxRequests} req/window)`);
-        console.log(`  ✓ NoSQL injection protection`);
-        console.log(`  ✓ Input validation with Joi`);
-        console.log(`  ✓ Security headers with Helmet`);
-        console.log(`  ✓ Request logging and monitoring`);
-        console.log(`  ✓ JWT Authentication`);
-        console.log(`  ✓ Admin Role Authorization`);
-        console.log(`  ✓ Real-time WebSocket updates`);
-
-        console.log('\n⚙️  Configuration:');
-        console.log(`  • CORS origins: ${uniqueAllowedOrigins.length > 0 ? uniqueAllowedOrigins.join(', ') : 'None configured'}`);
-        console.log(`  • Max file size: ${Math.round(maxFileSize / 1024 / 1024)}MB`);
-        console.log(`  • Rate limit window: ${Math.ceil(rateLimitWindowMs / 60000)} minutes`);
+        logger.info('Admin user created successfully');
+        logger.info(`Environment: ${process.env.NODE_ENV}`);
+        logger.info('Security features enabled', {
+            rateLimit: `${rateLimitMaxRequests} req/window`,
+            nosqlInjectionProtection: true,
+            inputValidation: true,
+            securityHeaders: true,
+            requestLogging: true,
+            jwtAuth: true,
+            adminRoleAuth: true,
+            websockets: true,
+        });
+        logger.info('Configuration', {
+            corsOrigins: uniqueAllowedOrigins.length > 0 ? uniqueAllowedOrigins : 'None configured',
+            maxFileSizeMB: Math.round(maxFileSize / 1024 / 1024),
+            rateLimitWindowMinutes: Math.ceil(rateLimitWindowMs / 60000),
+        });
 
         if (process.env.NODE_ENV === 'production') {
-            console.log('\n🏭 Production mode warnings:');
             if (!process.env.MONGODB_URI) {
-                console.warn('  ⚠️  MONGODB_URI not set - using in-memory storage');
+                logger.warn('MONGODB_URI not set - using in-memory storage');
             }
             if (!process.env.JWT_SECRET) {
-                console.warn('  ⚠️  JWT_SECRET not set - authentication will not work');
+                logger.warn('JWT_SECRET not set - authentication will not work');
             }
             if (!blockchainService.isAvailable()) {
-                console.warn('  ⚠️  Blockchain configuration incomplete - running in demo mode');
+                logger.warn('Blockchain configuration incomplete - running in demo mode');
             }
         }
 
-        console.log('\n✅ Server startup complete\n');
+        logger.info('Server startup complete');
 
         // Start blockchain event listener
         const contract = blockchainService.getContract();
         if (contract) {
             try {
                 startListener(contract);
-                console.log('🔗 Blockchain event listener started');
+                logger.info('Blockchain event listener started');
             } catch (error) {
-                console.error('❌ Failed to start blockchain listener:', error.message);
+                logger.error('Failed to start blockchain listener', { error: error.message });
             }
         } else {
-            console.log('ℹ️  Skipping blockchain listener (no contract instance available)');
+            logger.info('Skipping blockchain listener: no contract instance available');
         }
 
         // Initialize CCIP dispatch service.
         if (ccipService.initialize()) {
-            console.log('🌉 CCIP service initialized');
+            logger.info('CCIP service initialized');
         } else {
-            console.log('ℹ️  CCIP service not configured - cross-chain dispatch disabled');
+            logger.info('CCIP service not configured - cross-chain dispatch disabled');
         }
 
         // Start Oracle service for IoT data verification if blockchain is active
         if (blockchainService.isAvailable() && process.env.ORACLE_PRIVATE_KEY) {
             try {
                 await oracleService.initialize();
-                console.log('🔮 Oracle service started successfully');
+                logger.info('Oracle service started successfully');
             } catch (error) {
-                console.error('❌ Failed to start Oracle service:', error.message);
-                console.log('⚠️  Continuing without Oracle service...');
+                logger.error('Failed to start Oracle service', { error: error.message });
+                logger.warn('Continuing without Oracle service');
             }
         } else {
-            console.log('ℹ️  Oracle service disabled (blockchain running in demo mode or ORACLE_PRIVATE_KEY missing)');
+            logger.info('Oracle service disabled: blockchain in demo mode or ORACLE_PRIVATE_KEY missing');
         }
     });
 }
