@@ -35,6 +35,11 @@ const batchLimiter = createLimiter(
     'Too many batch operations from this IP, please try again later.'
 );
 
+const aiLimiter = createLimiter(
+    parseInt(process.env.AI_RATE_LIMIT_MAX, 10) || 10,
+    'Too many AI requests from this IP, please try again later.'
+);
+
 // ==================== Sensitive Abuse-Aware Limiters ====================
 // Window configuration (per-route windows)
 const CHALLENGE_WINDOW_MS = parseInt(process.env.CHALLENGE_RATE_LIMIT_WINDOW_MS, 10) || 10 * 60 * 1000; // 10 minutes
@@ -130,6 +135,7 @@ module.exports = {
     generalLimiter,
     authLimiter,
     batchLimiter,
+    aiLimiter,
     rateLimitWindowMs,
     rateLimitMaxRequests,
 

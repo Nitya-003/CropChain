@@ -16,7 +16,7 @@ const aiService = require('./services/aiService');
 const errorHandlerMiddleware = require('./middleware/errorHandler');
 const { createBatchSchema, updateBatchSchema } = require("./validations/batchSchema");
 const { protect, adminOnly, authorizeBatchOwner, authorizeRoles, authorizeStageTransition, authorizeBlockchainTransaction } = require('./middleware/auth');
-const { generalLimiter, authLimiter, batchLimiter, rateLimitWindowMs, rateLimitMaxRequests } = require('./middleware/rateLimiters');
+const { generalLimiter, authLimiter, batchLimiter, aiLimiter, rateLimitWindowMs, rateLimitMaxRequests } = require('./middleware/rateLimiters');
 const { validateEnv } = require('./utils/envValidator');
 const mongoose = require('mongoose');
 const apiResponse = require('./utils/apiResponse');
@@ -321,7 +321,7 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/verification', generalLimiter, verificationRoutes);
 
 // Mount Recommendation Routes
-app.use('/api/recommend', recommendRoutes);
+app.use('/api/recommend', aiLimiter, recommendRoutes);
 
 
 // Mount Approval Routes (Multi-signature for high-stakes actions)
