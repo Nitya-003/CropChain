@@ -1,3 +1,5 @@
+"use client";
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import toast from 'react-hot-toast';
 import { authService, LoginCredentials, RegisterCredentials, User } from '../services/auth.service';
