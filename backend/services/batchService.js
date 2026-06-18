@@ -317,30 +317,46 @@ class BatchService {
      * @param {Array} batches - Array of batch documents
      * @returns {Object} - Calculated statistics
      */
-    calculateStats(batches) {
-        const uniqueFarmers = new Set(batches.map(b => b.farmerName)).size;
-        const totalQuantity = batches.reduce((sum, batch) => sum + batch.quantity, 0);
-
-        const monthAgo = new Date();
-        monthAgo.setDate(monthAgo.getDate() - 30);
-
-        return {
-            totalBatches: batches.length,
-            totalFarmers: uniqueFarmers,
-            totalQuantity,
-            recentBatches: batches.filter(batch => new Date(batch.createdAt) > monthAgo).length
-        };
-    }
-
     /**
      * Get dashboard statistics (for AI service)
+     * Uses MongoDB aggregation to avoid loading entire collection into memory.
      * @returns {Object} - Dashboard statistics
      */
     async getDashboardStats() {
-        const allBatches = await Batch.find();
-        const stats = this.calculateStats(allBatches);
+        const monthAgo = new Date();
+        monthAgo.setDate(monthAgo.getDate() - 30);
 
-        return { stats };
+        const stats = await Batch.aggregate([
+            {
+                $group: {
+                    _id: null,
+                    totalBatches: { $sum: 1 },
+                    totalFarmers: { $addToSet: '$farmerName' },
+                    totalQuantity: { $sum: { $ifNull: ['$quantity', 0] } },
+                    recentBatches: {
+                        $sum: {
+                            $cond: [{ $gte: ['$createdAt', monthAgo] }, 1, 0]
+                        }
+                    }
+                }
+            }
+        ]);
+
+        const result = stats[0] || {
+            totalBatches: 0,
+            totalFarmers: [],
+            totalQuantity: 0,
+            recentBatches: 0
+        };
+
+        return {
+            stats: {
+                totalBatches: result.totalBatches,
+                totalFarmers: result.totalFarmers.length,
+                totalQuantity: result.totalQuantity,
+                recentBatches: result.recentBatches
+            }
+        };
     }
 
     /**
