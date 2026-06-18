@@ -443,9 +443,9 @@ const walletRegisterSchema = z.object({
     signature: z.string()
         .min(1, 'Signature is required'),
     nonce: z.string().optional(),
-    role: z.enum(VALID_ROLES, {
+    role: z.enum(['farmer', 'transporter'], {
         errorMap: () => ({ 
-            message: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}` 
+            message: 'Invalid role. Only farmer and transporter accounts can be created publicly.' 
         })
     }).default(ROLES.FARMER)
 });

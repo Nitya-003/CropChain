@@ -25,7 +25,7 @@ router.post('/reset-password/:token', resetPassword);
 // Wallet authentication routes
 router.get('/nonce', getNonce);
 router.post('/wallet-login', walletLogin);
-router.post('/wallet-register', walletRegister);
+router.post('/wallet-register', validateRegistration, walletRegister);
 router.put('/profile', protect, updateProfile);
 
 module.exports = router;
