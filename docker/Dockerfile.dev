@@ -1,28 +1,30 @@
-# Use Node.js 18 Alpine Linux image
-FROM node:18-alpine
+# Use Node.js 22 Alpine Linux image
+FROM node:22-alpine
 
 # Set working directory
 WORKDIR /usr/src/app
 
-# Copy frontend directory
-COPY frontend/ ./frontend/
+# Copy package files first (cache optimization)
+COPY package*.json ./
 
-# Set working directory to frontend for npm install
-WORKDIR /usr/src/app/frontend
-
-# Install dependencies
+# Install dependencies (including nodemon)
 RUN npm install
+
+# Copy application source
+COPY . .
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nodejs -u 1001
 
-# Change ownership of the app directory
+# Change ownership
 RUN chown -R nodejs:nodejs /usr/src/app
+
+# Switch user
 USER nodejs
 
-# Expose port 5173
-EXPOSE 5173
+# Expose backend port
+EXPOSE 3001
 
-# Default command for development (Vite with host binding for container access)
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Start development server
+CMD ["npm", "run", "dev"]
