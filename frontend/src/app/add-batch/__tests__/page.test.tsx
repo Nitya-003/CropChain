@@ -42,6 +42,8 @@ function renderAddBatch(role: string = 'farmer') {
 }
 
 function fillRequiredFields() {
+  fireEvent.change(document.querySelector('input[name="farmerName"]')!, { target: { name: 'farmerName', value: 'John Farmer' } });
+  fireEvent.change(document.querySelector('input[name="farmerAddress"]')!, { target: { name: 'farmerAddress', value: '0x123' } });
   const cropSelect = screen.getAllByRole('combobox')[0];
   fireEvent.change(cropSelect, { target: { name: 'cropType', value: 'rice' } });
   const quantityInput = screen.getByRole('spinbutton');
@@ -49,6 +51,7 @@ function fillRequiredFields() {
   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
   const harvestDateInput = document.querySelector('input[name="harvestDate"]')!;
   fireEvent.change(harvestDateInput, { target: { name: 'harvestDate', value: yesterday } });
+  fireEvent.change(document.querySelector('input[name="origin"]')!, { target: { name: 'origin', value: 'Farmville' } });
 }
 
 function submitForm() {
