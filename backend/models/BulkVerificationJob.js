@@ -23,13 +23,22 @@ const bulkVerificationJobSchema = new mongoose.Schema({
         type: Number,
         default: 0,
     },
+    mode: {
+        type: String,
+        enum: ['bulk', 'dry-run'],
+        default: 'bulk',
+    },
     results: [{
         rowNumber: { type: Number, required: true },
         userId: { type: String, trim: true },
         walletAddress: { type: String, lowercase: true, trim: true },
         action: { type: String, trim: true },
         idempotencyKey: { type: String, trim: true },
-        status: { type: String, enum: ['success', 'failure', 'skipped'], required: true },
+        status: {
+            type: String,
+            enum: ['success', 'failure', 'skipped', 'dry-run-success', 'dry-run-failure', 'dry-run-skipped'],
+            required: true,
+        },
         error: { type: String },
         details: { type: mongoose.Schema.Types.Mixed, default: {} },
     }],
