@@ -2,15 +2,16 @@
 FROM node:18-alpine
 
 # Set working directory
+WORKDIR /usr/src/app
+
+# Copy frontend directory
+COPY frontend/ ./frontend/
+
+# Set working directory to frontend for npm install
 WORKDIR /usr/src/app/frontend
 
-# Copy package files
-COPY package*.json ../
-RUN cd .. && npm ci
-
-# Copy the rest of the frontend code
-COPY frontend/ .
-COPY package*.json ../
+# Install dependencies
+RUN npm install
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs
