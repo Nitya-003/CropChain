@@ -41,7 +41,14 @@ const bulkVerificationJobSchema = new mongoose.Schema({
         },
         error: { type: String },
         details: { type: mongoose.Schema.Types.Mixed, default: {} },
+        // Minimal normalized record-like input captured during initial processing.
+        // Used for admin retry of failed rows without requiring CSV re-upload.
+        originalInput: {
+            type: mongoose.Schema.Types.Mixed,
+            default: {},
+        },
     }],
+
     actorId: {
         type: String,
         required: true,

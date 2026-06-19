@@ -15,7 +15,9 @@ const {
     exportVerifiedUsers,
     bulkIssueCredentials,
     getBulkJobStatus,
+    retryBulkFailedRows,
 } = require('../controllers/verificationController');
+
 const { protect, adminOnly, authorizeRoles } = require('../middleware/auth');
 const {
     challengeLinkWalletLimiter,
@@ -131,5 +133,7 @@ router.post(
 );
 router.get('/bulk/:jobId', protect, adminOnly, getBulkJobStatus);
 
+router.post('/bulk/:jobId/retry-failed', protect, adminOnly, retryFailedBulkRows);
 
 module.exports = router;
+

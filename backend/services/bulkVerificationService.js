@@ -87,6 +87,24 @@ const statusFor = ({ dryRun, outcomeType }) => {
     return outcomeType;
 };
 
+const reconstructRetryRecords = (failedRows = []) => {
+    return failedRows
+        .map((r) => r?.originalInput)
+        .filter(Boolean)
+        .map((input) => {
+            const records = {
+                userid: input.userid || '',
+                email: input.email || '',
+                walletaddress: input.walletaddress || '',
+                action: (input.action || 'ISSUE_CREDENTIAL').toString(),
+                signature: input.signature || '',
+                nonce: input.nonce || '',
+                expiresat: input.expiresat || '',
+            };
+            return records;
+        });
+};
+
 /**
  * Background processor for bulk verification jobs
  * @param {string} jobId - Database BulkVerificationJob ObjectId
@@ -95,6 +113,7 @@ const statusFor = ({ dryRun, outcomeType }) => {
  */
 const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
     const job = await BulkVerificationJob.findById(jobId);
+
     if (!job) return;
 
     job.status = 'processing';
@@ -128,8 +147,20 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
         const nonce = record.nonce || '';
         const expiresAtVal = record.expiresat ? parseInt(record.expiresat, 10) : undefined;
 
+        // Store minimal retry inputs so admin can re-run failed rows without CSV re-upload.
+        const originalInput = {
+            userid: inputUserId,
+            email,
+            walletaddress: walletAddress,
+            action: actionStr,
+            signature,
+            nonce,
+            expiresat: record.expiresat || '',
+        };
+
         let userId = inputUserId;
         const action = CHALLENGE_ACTIONS[actionStr] || CHALLENGE_ACTIONS.ISSUE_CREDENTIAL;
+
 
         try {
             // Resolve user
@@ -175,9 +206,11 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                         idempotencyKey,
                         status,
                         details: { message: 'Request already processed (idempotency)' },
+                        originalInput,
                     });
                     successCount++;
                     continue;
+
                 }
 
                 // Reserved but not completed
@@ -190,9 +223,11 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                     idempotencyKey,
                     status,
                     details: { message: 'Request already in progress or duplicate idempotency key' },
+                    originalInput,
                 });
                 failureCount += dryRun ? 1 : 1;
                 continue;
+
             }
 
             // Already verified (issue credential only)
@@ -206,8 +241,10 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                     idempotencyKey,
                     status,
                     details: { message: 'User is already verified' },
+                    originalInput,
                 });
                 if (!dryRun) {
+
                     await storeCompletedIdempotencyRecord({
                         action,
                         actorId: adminId,
@@ -240,9 +277,11 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                     idempotencyKey,
                     status: statusFor({ dryRun, outcomeType: 'success' }),
                     details: predictedDetails,
+                    originalInput,
                 });
                 successCount++;
                 continue;
+
             }
 
             // Execute real side effects
@@ -301,8 +340,10 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                 idempotencyKey,
                 status: 'success',
                 details: outcome,
+                originalInput,
             });
             successCount++;
+
         } catch (error) {
             const status = statusFor({ dryRun, outcomeType: 'failure' });
             results.push({
@@ -313,8 +354,10 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                 idempotencyKey: undefined,
                 status,
                 error: error.message || error.toString(),
+                originalInput,
             });
             failureCount++;
+
 
             try {
                 await appendAuditEvent({
@@ -359,8 +402,34 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
     }
 };
 
+const retryJob = async (jobId, failedRows, adminId) => {
+    // Reconstruct records from stored originalInput.
+    const retryRecords = reconstructRetryRecords(failedRows);
+
+    if (!retryRecords.length) {
+        return null;
+    }
+
+    const retryJob = await BulkVerificationJob.create({
+        status: 'pending',
+        mode: 'bulk',
+        totalRows: retryRecords.length,
+        actorId: adminId,
+    });
+
+    processJob(retryJob._id, retryRecords, adminId, { dryRun: false }).catch((err) => {
+        console.error(`Error processing bulk retry job ${retryJob._id}:`, err);
+    });
+
+    return retryJob;
+};
+
+
 module.exports = {
     parseCSV,
     processJob,
+    retryJob,
+    reconstructRetryRecords,
 };
+
 

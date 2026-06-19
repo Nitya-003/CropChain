@@ -680,7 +680,52 @@ const getBulkJobStatus = async (req, res) => {
     }
 };
 
+const retryBulkFailedRows = async (req, res) => {
+    try {
+        const { jobId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(jobId)) {
+            return res.status(400).json(apiResponse.validationErrorResponse(['Invalid job ID format']));
+        }
+
+        const job = await BulkVerificationJob.findById(jobId);
+        if (!job) {
+            return res.status(404).json(apiResponse.errorResponse('Bulk verification job not found', 404));
+        }
+
+        if (job.status !== 'completed') {
+            return res.status(400).json(apiResponse.errorResponse('Bulk verification job must be completed before retry', 400));
+        }
+
+        const adminId = req.user.id;
+        const failedRows = Array.isArray(job.results) ? job.results.filter((r) => r?.status === 'failure') : [];
+
+        if (!failedRows.length) {
+            return res.status(400).json(apiResponse.errorResponse('No failed rows found for this job', 400));
+        }
+
+        const retryJob = await bulkVerificationService.retryJob(jobId, failedRows, adminId);
+        if (!retryJob) {
+            return res.status(400).json(apiResponse.errorResponse('Retry could not be created (missing originalInput)', 400));
+        }
+
+        return res.status(202).json(apiResponse.successResponse({
+            jobId: retryJob._id,
+            status: retryJob.status,
+            mode: retryJob.mode,
+            totalRows: retryJob.totalRows,
+            retriedFromJobId: job._id,
+            failedRowsCount: failedRows.length,
+        }, 'Bulk retry job initiated successfully'));
+    } catch (error) {
+        return handleServerError(res, error, {
+            code: 'BULK_RETRY_FAILED_ROWS_ERROR',
+            message: 'Failed to initiate bulk retry of failed rows',
+        });
+    }
+};
+
 module.exports = {
+
     generateLinkWalletChallenge,
     generateIssueCredentialChallenge,
     linkWallet,
@@ -694,4 +739,7 @@ module.exports = {
     exportVerifiedUsers,
     bulkIssueCredentials,
     getBulkJobStatus,
+    retryBulkFailedRows,
 };
+
+
