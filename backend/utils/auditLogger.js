@@ -68,6 +68,7 @@ const appendAuditEvent = async ({
     targetUserId,
     walletAddress,
     status,
+    idempotencyKey,
     metadata = {},
     req,
 }) => {
@@ -90,6 +91,7 @@ const appendAuditEvent = async ({
         targetUserId,
         walletAddress: normalizeWallet(walletAddress),
         status,
+        idempotencyKey,
         ip,
         userAgent,
         metadata: safeMetadata,

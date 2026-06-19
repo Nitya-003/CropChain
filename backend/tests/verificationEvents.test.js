@@ -14,6 +14,11 @@ const mockVerificationEvent = {
     create: jest.fn().mockResolvedValue({}),
     find: jest.fn(),
     countDocuments: jest.fn(),
+    findOne: jest.fn().mockReturnValue({
+        sort: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValue(null),
+    }),
 };
 
 jest.mock('../models/User', () => mockUser);

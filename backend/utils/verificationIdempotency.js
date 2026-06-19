@@ -7,6 +7,10 @@ const {
     deleteIdempotencyRecord,
 } = require('../services/verificationSecurityService');
 
+const {
+    handleVerificationWithIdempotency,
+} = require('./verificationControllerHelpers');
+
 const handleIdempotencyReplay = (res, record) => {
     return res.status(record.statusCode || 200).json(record.response);
 };
@@ -145,5 +149,6 @@ const requireIdempotencyKey = (req, res) => {
 module.exports = {
     requireIdempotencyKey,
     handleIdempotencyOnly,
+    handleVerificationWithIdempotency,
 };
 

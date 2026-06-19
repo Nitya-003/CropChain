@@ -160,16 +160,12 @@ const validateHeadersExact = (headers) => {
     }
 
     const normalized = safe.map((h) => h.toLowerCase().trim());
+    const validHeaders = new Set(requiredHeaders);
 
-    // Exact match (order-sensitive)
-    const expected = requiredHeaders;
-    if (normalized.length !== expected.length) {
-        return { ok: false, error: buildHeaderError(expected, normalized) };
-    }
-
-    for (let i = 0; i < expected.length; i++) {
-        if (normalized[i] !== expected[i]) {
-            return { ok: false, error: buildHeaderError(expected, normalized) };
+    // Allow any subset of valid headers; reject unknown headers
+    for (const h of normalized) {
+        if (!validHeaders.has(h)) {
+            return { ok: false, error: `Unexpected CSV header: "${h}". Valid headers: ${requiredHeaders.join(', ')}` };
         }
     }
 
