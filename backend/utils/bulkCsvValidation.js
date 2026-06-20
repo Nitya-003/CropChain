@@ -93,35 +93,71 @@ const normalizeRow = (raw) => {
 const validateRecord = ({ row, rowNumber }) => {
     const errors = [];
 
-    const { userid, email, walletaddress, action, signature, nonce, expiresAtVal } = normalizeRow(row) || {};
-    if (!userid && !email) errors.push(`Row ${rowNumber}: Either userid or email is required`);
-
-    if (!walletaddress) {
-        errors.push(`Row ${rowNumber}: walletaddress is required`);
-    } else if (!walletRegex.test(walletaddress)) {
-        errors.push(`Row ${rowNumber}: walletaddress must match /^0x[a-fA-F0-9]{40}$/`);
+    const normalized = normalizeRow(row) || null;
+    if (!normalized) {
+        return [`Row ${rowNumber}: Invalid CSV row`];
     }
 
-    if (userid && !objectIdRegex.test(userid)) {
-        errors.push(`Row ${rowNumber}: userid must be a valid Mongo ObjectId`);
-    }
-
-    if (email && !emailRegex.test(email)) {
-        errors.push(`Row ${rowNumber}: email must be a valid email address`);
-    }
-
-    if (signature) {
-        if (!nonce) errors.push(`Row ${rowNumber}: nonce is required when signature is provided`);
-        if (!expiresAtVal) errors.push(`Row ${rowNumber}: expiresat must be a valid integer timestamp when signature is provided`);
-    }
+    const { userid, email, walletaddress, action, signature, nonce, expiresAtVal } = normalized;
 
     const supportedActions = ['ISSUE_CREDENTIAL', 'LINK_WALLET'];
-    if (action && !supportedActions.includes(action)) {
-        errors.push(`Row ${rowNumber}: action must be one of ${supportedActions.join(', ')}`);
+    if (!action || !supportedActions.includes(action)) {
+        errors.push(`Row ${rowNumber}: column action invalid. Expected one of ${supportedActions.join(', ')}`);
+        // Keep going for more row-level errors.
     }
+
+    // Action-specific rules
+    const needsUserMapping = true; // Both actions operate on a target user.
+    if (needsUserMapping && !userid && !email) {
+        errors.push(`Row ${rowNumber}: column userid/email missing. Expected userid or email`);
+    }
+
+    if (userid) {
+        if (!objectIdRegex.test(userid)) {
+            errors.push(`Row ${rowNumber}: column userid invalid. Expected Mongo ObjectId /^[a-fA-F0-9]{24}$/`);
+        }
+    }
+
+    if (email) {
+        if (!emailRegex.test(email)) {
+            errors.push(`Row ${rowNumber}: column email invalid. Expected email format`);
+        }
+    }
+
+    if (!walletaddress) {
+        errors.push(`Row ${rowNumber}: column walletaddress missing. Expected ${expectedNonEmpty('walletaddress')}`);
+    } else if (!walletRegex.test(walletaddress)) {
+        errors.push(`Row ${rowNumber}: column walletaddress invalid. Expected /^0x[a-fA-F0-9]{40}$/`);
+    }
+
+    const signaturePresent = Boolean(signature);
+
+    if (action === 'ISSUE_CREDENTIAL' || action === 'LINK_WALLET') {
+        // Signed actions: require nonce + expiresat
+        if (signaturePresent) {
+            if (!nonce) {
+                errors.push(`Row ${rowNumber}: column nonce required because column signature is non-empty. Expected non-empty nonce`);
+            }
+            if (!expiresAtVal) {
+                errors.push(
+                    `Row ${rowNumber}: column expiresat invalid. Expected integer timestamp (milliseconds) because signature is non-empty`
+                );
+            }
+        } else {
+            // Unsigned / challenge-only: allowed (do not require nonce/expiresat)
+        }
+
+        // If your system later disallows unsigned challenge-only for some action,
+        // encode it here.
+    }
+
+    // Extra action-specific tightening (optional):
+    // Currently we allow unsigned challenge creation for both actions (existing behavior).
 
     return errors;
 };
+
+
 
 const validateAndNormalizeCsvRecords = ({ records, maxRowsPerJob }) => {
     const rowErrors = [];
