@@ -628,20 +628,23 @@ const bulkIssueCredentials = async (req, res) => {
         }
 
         const adminId = req.user.id;
+        const dryRun = req.query.dryRun === 'true' || req.body?.dryRun === true;
         const job = await BulkVerificationJob.create({
             status: 'pending',
+            mode: dryRun ? 'dry-run' : 'bulk',
             totalRows: normalizedRecords.length,
             actorId: adminId,
         });
 
         // Background processing (service re-validates again)
-        bulkVerificationService.processJob(job._id, normalizedRecords, adminId).catch((err) => {
+        bulkVerificationService.processJob(job._id, normalizedRecords, adminId, { dryRun }).catch((err) => {
             console.error(`Error processing bulk verification job ${job._id}:`, err);
         });
 
         res.status(202).json(apiResponse.successResponse({
             jobId: job._id,
             status: job.status,
+            mode: job.mode,
             totalRows: job.totalRows,
         }, 'Bulk verification job initiated successfully'));
         return;
