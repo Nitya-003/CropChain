@@ -116,6 +116,9 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
 
     if (!job) return;
 
+    const BULK_JOB_CONCURRENCY = parseInt(process.env.BULK_JOB_CONCURRENCY, 10) || 10;
+    const PROGRESS_UPDATE_EVERY = parseInt(process.env.BULK_JOB_PROGRESS_UPDATE_EVERY, 10) || 20;
+
     job.status = 'processing';
     await job.save();
 
@@ -133,9 +136,18 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
 
     let successCount = 0;
     let failureCount = 0;
-    const results = [];
 
-    for (let i = 0; i < records.length; i++) {
+    // Preserve CSV order in results.
+    const results = new Array(records.length);
+
+    // Progress tracking (avoid job.save() per-row).
+    let completedCount = 0;
+    let lastSavedCompletedCount = 0;
+
+    let nextIndex = 0;
+
+    const processRow = async (i) => {
+
         const record = records[i];
         const rowNumber = i + 2;
 
@@ -160,7 +172,6 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
 
         let userId = inputUserId;
         const action = CHALLENGE_ACTIONS[actionStr] || CHALLENGE_ACTIONS.ISSUE_CREDENTIAL;
-
 
         try {
             // Resolve user
@@ -198,7 +209,7 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
             if (!reservation.reserved) {
                 if (reservation.record && reservation.record.state === 'completed') {
                     const status = statusFor({ dryRun, outcomeType: 'skipped' });
-                    results.push({
+                    results[i] = {
                         rowNumber,
                         userId,
                         walletAddress,
@@ -207,15 +218,14 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                         status,
                         details: { message: 'Request already processed (idempotency)' },
                         originalInput,
-                    });
+                    };
                     successCount++;
-                    continue;
-
+                    return;
                 }
 
                 // Reserved but not completed
                 const status = statusFor({ dryRun, outcomeType: 'failure' });
-                results.push({
+                results[i] = {
                     rowNumber,
                     userId,
                     walletAddress,
@@ -224,16 +234,15 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                     status,
                     details: { message: 'Request already in progress or duplicate idempotency key' },
                     originalInput,
-                });
-                failureCount += dryRun ? 1 : 1;
-                continue;
-
+                };
+                failureCount++;
+                return;
             }
 
             // Already verified (issue credential only)
             if (action === CHALLENGE_ACTIONS.ISSUE_CREDENTIAL && user.verification?.isVerified) {
                 const status = statusFor({ dryRun, outcomeType: 'skipped' });
-                results.push({
+                results[i] = {
                     rowNumber,
                     userId,
                     walletAddress,
@@ -242,9 +251,8 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                     status,
                     details: { message: 'User is already verified' },
                     originalInput,
-                });
+                };
                 if (!dryRun) {
-
                     await storeCompletedIdempotencyRecord({
                         action,
                         actorId: adminId,
@@ -254,8 +262,9 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                     });
                 }
                 successCount++;
-                continue;
+                return;
             }
+
 
             if (dryRun) {
                 const predictedDetails = {
@@ -269,7 +278,7 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                     },
                 };
 
-                results.push({
+                results[i] = {
                     rowNumber,
                     userId,
                     walletAddress,
@@ -278,10 +287,9 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                     status: statusFor({ dryRun, outcomeType: 'success' }),
                     details: predictedDetails,
                     originalInput,
-                });
+                };
                 successCount++;
-                continue;
-
+                return;
             }
 
             // Execute real side effects
@@ -332,7 +340,7 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                 response: outcome,
             });
 
-            results.push({
+            results[i] = {
                 rowNumber,
                 userId,
                 walletAddress,
@@ -341,12 +349,11 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                 status: 'success',
                 details: outcome,
                 originalInput,
-            });
+            };
             successCount++;
-
         } catch (error) {
             const status = statusFor({ dryRun, outcomeType: 'failure' });
-            results.push({
+            results[i] = {
                 rowNumber,
                 userId: userId || undefined,
                 walletAddress: walletAddress || undefined,
@@ -355,9 +362,8 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                 status,
                 error: error.message || error.toString(),
                 originalInput,
-            });
+            };
             failureCount++;
-
 
             try {
                 await appendAuditEvent({
@@ -378,15 +384,38 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                 // best-effort
             }
         }
+    };
 
-        job.processedRows = i + 1;
-        await job.save();
-    }
+    const worker = async () => {
+        while (true) {
+            const i = nextIndex;
+            nextIndex += 1;
+            if (i >= records.length) return;
+
+            await processRow(i);
+
+            completedCount += 1;
+            if (
+                completedCount - lastSavedCompletedCount >= PROGRESS_UPDATE_EVERY ||
+                completedCount === records.length
+            ) {
+                lastSavedCompletedCount = completedCount;
+                job.processedRows = completedCount;
+                await job.save();
+            }
+        }
+    };
+
+
+    const concurrency = Math.max(1, Math.min(BULK_JOB_CONCURRENCY, records.length || 1));
+    const workers = Array.from({ length: concurrency }).map(() => worker());
+    await Promise.all(workers);
 
     job.status = 'completed';
     job.successCount = successCount;
     job.failureCount = failureCount;
     job.results = results;
+    job.processedRows = records.length;
     await job.save();
 
     try {
@@ -401,6 +430,7 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
         // best-effort
     }
 };
+
 
 const retryJob = async (jobId, failedRows, adminId) => {
     // Reconstruct records from stored originalInput.
