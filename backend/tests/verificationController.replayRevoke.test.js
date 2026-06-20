@@ -1,3 +1,12 @@
+jest.mock('../models/VerificationEvent', () => ({
+    findOne: jest.fn().mockReturnValue({
+        sort: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValue(null),
+    }),
+    create: jest.fn().mockResolvedValue({}),
+}));
+
 jest.mock('../services/didService', () => ({
     linkWallet: jest.fn(),
     issueCredential: jest.fn(),
@@ -6,7 +15,7 @@ jest.mock('../services/didService', () => ({
 }));
 
 jest.mock('../utils/verificationControllerHelpers', () => ({
-    handleZodValidation: jest.fn(),
+    handleZodValidation: jest.fn().mockReturnValue({ ok: true, data: { userId: 'target-user', reason: 'test-reason' } }),
     handleServerError: jest.fn((res) => res),
     requireIdempotencyKey: jest.fn(),
     handleVerificationWithIdempotency: jest.fn(),
@@ -48,7 +57,10 @@ describe('verification controller replay protection - revokeCredential', () => {
 
     test('requires Idempotency-Key header and calls idempotency helper', async () => {
         controllerHelpers.requireIdempotencyKey.mockReturnValue('idem-1');
-        handleIdempotencyOnly.mockImplementation(async ({ execute }) => execute());
+        handleIdempotencyOnly.mockImplementation(async ({ res, execute }) => {
+            const result = await execute();
+            return res.json(result);
+        });
         didService.revokeCredential.mockResolvedValue({ success: true, message: 'Credential revoked successfully' });
 
         const req = {

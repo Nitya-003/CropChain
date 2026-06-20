@@ -4,7 +4,7 @@ services:
     image: mongo:latest
     container_name: cropchain-mongodb
     ports:
-      - "27017:27017"
+      - '27017:27017'
     volumes:
       - mongodb_data:/data/db
     networks:
@@ -12,14 +12,13 @@ services:
 
   # Hardhat Service
   hardhat:
-    image: node:18-alpine
-    container_name: cropchain-hardhat
+    image: node:22-alpine
     working_dir: /usr/src/app/smart-contracts
     volumes:
       - .:/usr/src/app
-    command: npx hardhat node --hostname 0.0.0.0
+    command: sh -c "npm install && npx hardhat node --hostname 0.0.0.0"
     ports:
-      - "8545:8545"
+      - '8545:8545'
     networks:
       - cropchain-network
     depends_on:
@@ -32,7 +31,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: cropchain-backend
     ports:
-      - "3001:3001"
+      - '3001:3001'
     volumes:
       - ./backend:/usr/src/app
     environment:
@@ -52,9 +51,10 @@ services:
       dockerfile: docker/Dockerfile.dev
     container_name: cropchain-frontend
     ports:
-      - "5173:5173"
+      - '5173:5173'
     volumes:
       - .:/usr/src/app
+      - /usr/src/app/frontend/node_modules
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:3001
     networks:

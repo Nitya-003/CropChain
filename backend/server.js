@@ -22,6 +22,7 @@ const { validateEnv } = require('./utils/envValidator');
 const mongoose = require('mongoose');
 const apiResponse = require('./utils/apiResponse');
 const oracleService = require('./services/oracleService');
+const { ethers } = require("ethers");
 
 // Import Services
 const blockchainService = require('./services/blockchainService');
@@ -90,10 +91,10 @@ const securityLogger = (req, res, next) => {
     suspiciousPatterns.forEach(pattern => {
         if (pattern.test(requestString)) {
             logger.warn('Suspicious pattern detected', { ip, pattern: pattern.toString(), path: req.path });
-            notificationService.notifySecurityEvent('suspicious_pattern', { 
-                ip, 
+            notificationService.notifySecurityEvent('suspicious_pattern', {
+                ip,
                 pattern: pattern.toString(),
-                path: req.path 
+                path: req.path
             });
         }
     });
@@ -281,7 +282,7 @@ if (process.env.NODE_ENV !== 'test') {
     if (!/^0x[a-fA-F0-9]{64}$/.test(process.env.PRIVATE_KEY)) {
         throw new Error('Invalid PRIVATE_KEY format');
     }
-    
+
     // Validate environment variables at startup
     validateEnv();
 }
@@ -360,7 +361,7 @@ app.post('/api/batches', batchLimiter, protect, authorizeRoles('farmer'), valida
         }
 
         notificationService.notifyError('batch creation', error);
-        
+
         logger.error('Error creating batch', { error: error.message, stack: error.stack });
         const response = apiResponse.errorResponse(
             'Failed to create batch',
@@ -375,7 +376,7 @@ app.post('/api/batches', batchLimiter, protect, authorizeRoles('farmer'), valida
 app.get('/api/batches/:batchId', batchLimiter, protect, async (req, res) => {
     try {
         const { batchId } = req.params;
-        
+
 
         const result = await batchService.getBatch(batchId);
 
@@ -626,18 +627,18 @@ logger.info('Socket.IO integration complete');
 // Graceful shutdown function (server already defined above)
 const gracefulShutdown = (signal) => {
     logger.info(`Received ${signal} signal, starting graceful shutdown`);
-    
+
     if (server) {
         server.close(async () => {
             logger.info('HTTP server closed');
-            
+
             // Close all Socket.IO connections
             const io = socketService.getIO();
             if (io) {
                 await io.close();
                 logger.info('Socket.IO server closed');
             }
-            
+
             // Close MongoDB connection
             if (mongoose.connection.readyState === 1) {
                 try {
@@ -647,11 +648,11 @@ const gracefulShutdown = (signal) => {
                     logger.error('Error closing MongoDB connection', { error: err.message });
                 }
             }
-            
+
             logger.info('Graceful shutdown complete');
             process.exit(0);
         });
-        
+
         // Force exit after 10 seconds if graceful shutdown fails
         setTimeout(() => {
             logger.error('Graceful shutdown timed out, forcing exit');

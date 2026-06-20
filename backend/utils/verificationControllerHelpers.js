@@ -181,10 +181,10 @@ const executeAndFinalizeIdempotency = async ({
     execute,
     req,
 }) => {
-    try {
-        const targetUserId = challengeRecord?.userId;
-        const walletAddress = challengeRecord?.walletAddress;
+    const targetUserId = challengeRecord?.userId;
+    const walletAddress = challengeRecord?.walletAddress;
 
+    try {
         // Log attempt (privacy-safe)
         try {
             await appendAuditEvent({
@@ -192,6 +192,7 @@ const executeAndFinalizeIdempotency = async ({
                 actorId,
                 targetUserId,
                 walletAddress,
+                idempotencyKey,
                 status: 'attempt',
                 metadata: { originalAction: action },
                 req,
@@ -269,8 +270,7 @@ const executeAndFinalizeIdempotency = async ({
                 walletAddress,
                 idempotencyKey,
                 status: 'failure',
-                // Privacy: do not persist raw stack/errors. Only store a coarse category.
-                metadata: { originalAction: action, errorType: error?.name || 'Error' },
+                metadata: { originalAction: action, error: error?.message || error?.name || 'Error' },
                 req,
             });
         } catch (eventErr) {
