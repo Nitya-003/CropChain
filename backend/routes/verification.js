@@ -16,7 +16,9 @@ const {
     bulkIssueCredentials,
     getBulkJobStatus,
     retryBulkFailedRows,
+    streamBulkJobEvents,
 } = require('../controllers/verificationController');
+
 
 const { protect, adminOnly, authorizeRoles } = require('../middleware/auth');
 const {
@@ -132,6 +134,8 @@ router.post(
     bulkIssueCredentials
 );
 router.get('/bulk/:jobId', protect, adminOnly, getBulkJobStatus);
+router.get('/bulk/:jobId/events/stream', protect, adminOnly, streamBulkJobEvents);
+
 
 router.post('/bulk/:jobId/retry-failed', protect, adminOnly, retryFailedBulkRows);
 

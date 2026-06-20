@@ -680,7 +680,155 @@ const getBulkJobStatus = async (req, res) => {
     }
 };
 
+const streamBulkJobEvents = async (req, res) => {
+    const { jobId } = req.params;
+
+    const writeEvent = (event, data) => {
+        res.write(`event: ${event}\n`);
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    if (typeof res.flushHeaders === 'function') {
+        res.flushHeaders();
+    }
+
+    // Ensure the stream starts immediately.
+    writeEvent('heartbeat', { ok: true, timestamp: new Date().toISOString() });
+
+    if (!mongoose.Types.ObjectId.isValid(jobId)) {
+        writeEvent('error', { message: 'Invalid job ID format' });
+        res.end();
+        return;
+    }
+
+    let lastProcessedRowsEmitted = 0;
+    let lastJobStatusEmitted = null;
+    let lastRowIndexEmitted = -1; // last rowNumber emitted from results
+
+    const POLL_INTERVAL_MS = parseInt(process.env.BULK_JOB_SSE_POLL_INTERVAL_MS, 10) || 1000;
+    const HEARTBEAT_INTERVAL_MS = parseInt(process.env.BULK_JOB_SSE_HEARTBEAT_INTERVAL_MS, 10) || 15000;
+
+    let lastHeartbeatAt = Date.now();
+
+    const safeClose = () => {
+        try {
+            res.end();
+        } catch (_) {
+            // ignore
+        }
+    };
+
+    // If client disconnects, stop polling.
+    req.on('close', () => {
+        safeClose();
+    });
+
+    try {
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            const jobDoc = await BulkVerificationJob.findById(jobId);
+            const job = jobDoc && typeof jobDoc.lean === 'function' ? await jobDoc.lean() : jobDoc;
+
+            if (!job) {
+                writeEvent('error', { message: 'Bulk verification job not found' });
+                safeClose();
+                return;
+            }
+
+            const jobStatus = job.status;
+            const totalRows = job.totalRows ?? 0;
+            const processedRows = job.processedRows ?? 0;
+            const successCount = job.successCount ?? 0;
+            const failureCount = job.failureCount ?? 0;
+
+            // Emit job status when it changes, or at least after progress changes.
+            if (
+                lastJobStatusEmitted !== jobStatus ||
+                processedRows !== lastProcessedRowsEmitted
+            ) {
+                writeEvent('jobStatus', {
+                    jobId,
+                    status: jobStatus,
+                    totalRows,
+                    processedRows,
+                    successCount,
+                    failureCount,
+                    timestamp: new Date().toISOString(),
+                });
+
+                lastJobStatusEmitted = jobStatus;
+                lastProcessedRowsEmitted = processedRows;
+            }
+
+            // Emit newly available row results derived from `results`.
+            if (Array.isArray(job.results) && processedRows > 0) {
+                // `processedRows` indicates how many rows have been processed so far.
+                const availableCount = Math.min(processedRows, job.results.length);
+
+                // Results array is stored in CSV order, so slice [0..availableCount)
+                for (let i = lastRowIndexEmitted + 1; i < availableCount; i++) {
+                    const row = job.results[i];
+                    if (!row) continue;
+                    if (typeof row.rowNumber === 'number' && row.rowNumber - 2 <= i) {
+                        // emit
+                    }
+                    writeEvent('rowResult', {
+                        jobId,
+                        rowNumber: row.rowNumber,
+                        userId: row.userId,
+                        walletAddress: row.walletAddress,
+                        action: row.action,
+                        status: row.status,
+                        error: row.error,
+                        details: row.details,
+                        timestamp: new Date().toISOString(),
+                    });
+                    lastRowIndexEmitted = i;
+                }
+            }
+
+            // Done?
+            if (jobStatus === 'completed' || jobStatus === 'failed') {
+                writeEvent('done', {
+                    jobId,
+                    status: jobStatus,
+                    totalRows,
+                    processedRows,
+                    successCount,
+                    failureCount,
+                    timestamp: new Date().toISOString(),
+                });
+                safeClose();
+                return;
+            }
+
+            // Heartbeat keep-alive.
+            if (Date.now() - lastHeartbeatAt >= HEARTBEAT_INTERVAL_MS) {
+                writeEvent('heartbeat', { ok: true, timestamp: new Date().toISOString() });
+                lastHeartbeatAt = Date.now();
+            }
+
+            await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+        }
+    } catch (error) {
+        try {
+            if (!res.headersSent) {
+                writeEvent('error', { message: 'SSE stream error', detail: error.message });
+            } else {
+                writeEvent('error', { message: 'SSE stream error', detail: error.message });
+            }
+        } catch (_) {
+            // ignore
+        }
+        safeClose();
+    }
+};
+
 const retryBulkFailedRows = async (req, res) => {
+
     try {
         const { jobId } = req.params;
         if (!mongoose.Types.ObjectId.isValid(jobId)) {
@@ -740,6 +888,8 @@ module.exports = {
     bulkIssueCredentials,
     getBulkJobStatus,
     retryBulkFailedRows,
+    streamBulkJobEvents,
 };
+
 
 
