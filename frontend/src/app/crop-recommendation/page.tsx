@@ -152,17 +152,22 @@ const CropRecommendation: React.FC = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    console.log('handleSubmit invoked');
     e.preventDefault();
     setIsLoading(true);
     try {
+      console.log('calling getCropRecommendation with:', inputs);
       const data = await getCropRecommendation(inputs);
+      console.log('getCropRecommendation returned:', data);
       setResult(data);
       setTimeout(() => {
         window.scrollTo({ top: document.getElementById('result-card')?.offsetTop ?? 0, behavior: 'smooth' });
       }, 100);
     } catch (err: any) {
+      console.error('handleSubmit error:', err);
       toast.error(err?.message ?? 'Failed to get recommendation');
     } finally {
+      console.log('handleSubmit finally');
       setIsLoading(false);
     }
   };
