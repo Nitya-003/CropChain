@@ -137,7 +137,7 @@ router.get('/bulk/:jobId', protect, adminOnly, getBulkJobStatus);
 router.get('/bulk/:jobId/events/stream', protect, adminOnly, streamBulkJobEvents);
 
 
-router.post('/bulk/:jobId/retry-failed', protect, adminOnly, retryFailedBulkRows);
+router.post('/bulk/:jobId/retry-failed', protect, adminOnly, retryBulkFailedRows);
 
 module.exports = router;
 
