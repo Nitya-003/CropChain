@@ -16,6 +16,22 @@ if [ -z "$CLOUDFLARE_TUNNEL_TOKEN" ]; then
     echo ""
 fi
 
+# Load JWT/HMAC secrets or generate them if they are not set
+if [ -z "$JWT_SECRET" ]; then
+    echo "🔑 JWT_SECRET environment variable is not set. Generating a secure random secret..."
+    JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))" 2>/dev/null || openssl rand -hex 32 2>/dev/null || echo "fallback_jwt_secret_must_change_1234567890")
+fi
+
+if [ -z "$JWT_REFRESH_SECRET" ]; then
+    echo "🔑 JWT_REFRESH_SECRET environment variable is not set. Generating a secure random secret..."
+    JWT_REFRESH_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))" 2>/dev/null || openssl rand -hex 32 2>/dev/null || echo "fallback_jwt_refresh_secret_must_change_1234567890")
+fi
+
+if [ -z "$MULTISIG_HMAC_SECRET" ]; then
+    echo "🔑 MULTISIG_HMAC_SECRET environment variable is not set. Generating a secure random secret..."
+    MULTISIG_HMAC_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))" 2>/dev/null || openssl rand -hex 32 2>/dev/null || echo "fallback_multisig_hmac_secret_must_change_1234567890")
+fi
+
 # 1. AWS Account ID & Bucket Name
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 BUCKET_NAME="cropchain-deploy-$ACCOUNT_ID"
@@ -93,6 +109,9 @@ cd CropChain
 cat <<EOT > .env
 ETH_PRIVATE_KEY=$ETH_PRIVATE_KEY
 GEMINI_API_KEY=$GEMINI_API_KEY
+JWT_SECRET=$JWT_SECRET
+JWT_REFRESH_SECRET=$JWT_REFRESH_SECRET
+MULTISIG_HMAC_SECRET=$MULTISIG_HMAC_SECRET
 EOT
 
 # Start the stack using docker-compose
