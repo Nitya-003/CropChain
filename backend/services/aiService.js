@@ -662,8 +662,11 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
     }
 
     // Fallback responses when API is unavailable
+    // Used by server.js to guarantee QR/feature-aware responses even when the LLM path fails.
     getFallbackResponse(message) {
-        const lowerMessage = message.toLowerCase();
+        const safeMessage = typeof message === 'string' ? message : '';
+        const lowerMessage = safeMessage.toLowerCase();
+
         
         if (lowerMessage.includes('batch') && (lowerMessage.includes('track') || lowerMessage.includes('find'))) {
             return {
