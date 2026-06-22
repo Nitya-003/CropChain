@@ -3,6 +3,7 @@ import { io, Socket } from 'socket.io-client';
 const SOCKET_URL = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_SOCKET_URL) || `http://localhost:3001`;
 
 let socketInstance: Socket | null = null;
+let authToken: string | null = null;
 
 /**
  * Initialize and get the Socket.IO client instance (singleton)
@@ -16,6 +17,7 @@ export const getSocket = (): Socket => {
       reconnectionDelay: 1000,
       reconnectionAttempts: 5,
       transports: ['websocket', 'polling'],
+      auth: authToken ? { token: authToken } : undefined,
     });
 
     socketInstance.on('connect', () => {
@@ -32,6 +34,25 @@ export const getSocket = (): Socket => {
   }
 
   return socketInstance;
+};
+
+/**
+ * Set the JWT token for WebSocket authentication.
+ * If the socket is already connected, it will reconnect with the new token.
+ * @param {string} token - JWT token
+ */
+export const setAuthToken = (token: string | null): void => {
+  authToken = token;
+  if (socketInstance) {
+    if (token) {
+      socketInstance.auth = { token };
+    } else {
+      delete socketInstance.auth;
+    }
+    if (socketInstance.connected) {
+      socketInstance.disconnect().connect();
+    }
+  }
 };
 
 /**
@@ -63,7 +84,6 @@ export const onBatchUpdated = (callback: (data: any) => void): (() => void) => {
   const socket = getSocket();
   socket.on('batch-updated', callback);
   
-  // Return cleanup function
   return () => {
     socket.off('batch-updated', callback);
   };
@@ -78,7 +98,6 @@ export const onBatchStageChanged = (callback: (data: any) => void): (() => void)
   const socket = getSocket();
   socket.on('batch-stage-changed', callback);
   
-  // Return cleanup function
   return () => {
     socket.off('batch-stage-changed', callback);
   };
@@ -95,7 +114,6 @@ export const disconnectSocket = (): void => {
   }
 };
 
-// Export connection status helper
 export const isConnected = (): boolean => {
   return socketInstance?.connected ?? false;
 };
@@ -127,7 +145,6 @@ export const onVerificationStatusUpdated = (callback: (data: any) => void): (() 
   const socket = getSocket();
   socket.on('verification.status.updated', callback);
   
-  // Return cleanup function
   return () => {
     socket.off('verification.status.updated', callback);
   };

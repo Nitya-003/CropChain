@@ -5,6 +5,7 @@ const apiResponse = require('../utils/apiResponse');
 const { isAdminRole } = require('../constants/permissions');
 const STAGES = require('../constants/stages');
 const logger = require('../utils/logger');
+const { emitToBatchRoom } = require('../services/socketService');
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -426,7 +427,14 @@ exports.updateBatchStatus = async (req, res) => {
         }
         
         logger.info('Batch status changed', { batchId, status, userId: req.user.id, role: req.user.role });
-        
+
+        emitToBatchRoom(batchId, 'batch:statusChanged', {
+          batchId,
+          status,
+          updatedBy: req.user.email || req.user.name,
+          timestamp: new Date().toISOString()
+        });
+
         res.json(batch);
     } catch (err) {
         logger.error('Error updating batch status', { error: err.message, stack: err.stack });
