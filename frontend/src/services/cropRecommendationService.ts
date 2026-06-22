@@ -1,4 +1,4 @@
-const BASE_URL = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001';
+import { apiClient } from './apiClient';
 
 export interface RecommendationRequest {
   N: number;
@@ -22,21 +22,51 @@ export interface RecommendationResult {
   timestamp: string;
 }
 
+const MAX_RETRIES = 3;
+const BASE_DELAY = 200;
+
+const cache = new Map<string, { data: RecommendationResult; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000;
+
+function cacheKey(params: RecommendationRequest): string {
+  return `${params.N}:${params.P}:${params.K}:${params.pH}:${params.temperature}:${params.humidity}:${params.rainfall}`;
+}
+
+function getCached(key: string): RecommendationResult | null {
+  const entry = cache.get(key);
+  if (entry && Date.now() - entry.timestamp < CACHE_TTL) return entry.data;
+  cache.delete(key);
+  return null;
+}
+
+function setCache(key: string, data: RecommendationResult): void {
+  if (cache.size >= 100) {
+    const oldest = cache.keys().next().value;
+    if (oldest) cache.delete(oldest);
+  }
+  cache.set(key, { data, timestamp: Date.now() });
+}
+
 export async function getCropRecommendation(
   params: RecommendationRequest
 ): Promise<RecommendationResult> {
-  const response = await fetch(`${BASE_URL}/api/recommend`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  });
+  const key = cacheKey(params);
+  const cached = getCached(key);
+  if (cached) return cached;
 
-  const json = await response.json();
-
-  if (!response.ok) {
-    throw new Error(json?.message || json?.error || 'Recommendation request failed');
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const response = await apiClient.post('/recommend', params);
+      const result = (response.data?.data ?? response.data) as RecommendationResult;
+      setCache(key, result);
+      return result;
+    } catch (err: any) {
+      lastError = err;
+      if (attempt < MAX_RETRIES - 1) {
+        await new Promise(r => setTimeout(r, BASE_DELAY * Math.pow(2, attempt)));
+      }
+    }
   }
-
-  // Server wraps in apiResponse.successResponse → { success, data, message }
-  return (json.data ?? json) as RecommendationResult;
+  throw new Error(lastError?.response?.data?.message || lastError?.message || 'Recommendation service unavailable');
 }
