@@ -579,14 +579,29 @@ app.post('/api/ai/chat', batchLimiter, protect, validateRequest(chatSchema), asy
             return;
         }
 
-        const response = apiResponse.errorResponse(
-            "I'm sorry, I'm having trouble processing your request right now. Please try asking about batch tracking, QR codes, or supply chain processes.",
-            'AI_SERVICE_ERROR',
-            500
+        // Always return CropChain-aware fallback on errors (validation/auth/rate-limit/LLM failures).
+        // This prevents the frontend from showing a generic "connection" style error.
+        let fallbackPayload;
+        try {
+            const fallback = aiService?.getFallbackResponse?.(req?.body?.message || '');
+            fallbackPayload = fallback || null;
+        } catch (_) {
+            fallbackPayload = null;
+        }
+
+        const message = fallbackPayload?.message ||
+            "I'm sorry, I'm having trouble processing your request right now. Please try asking about batch tracking, QR codes, or supply chain processes.";
+
+        const response = apiResponse.successResponse(
+            { response: message, timestamp: new Date().toISOString() },
+            'Chat response generated successfully (fallback)'
         );
-        res.status(500).json(response);
+
+        // Use 200 to keep chatbot UX stable and avoid frontend connection-error fallback.
+        res.status(200).json(response);
     }
 });
+
 
 // ==================== HEALTH CHECK ====================
 
