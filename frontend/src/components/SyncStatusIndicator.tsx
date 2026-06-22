@@ -6,6 +6,7 @@ const SyncStatusIndicator: React.FC = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [pendingCount, setPendingCount] = useState({ batches: 0, updates: 0 });
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
@@ -40,8 +41,14 @@ const SyncStatusIndicator: React.FC = () => {
   }, []);
 
   const updatePendingCount = async () => {
-    const counts = await syncManager.getPendingCount();
-    setPendingCount(counts);
+    try {
+      const counts = await syncManager.getPendingCount();
+      setPendingCount(counts);
+    } catch (err) {
+      console.error('Failed to fetch pending count:', err);
+    } finally {
+      setIsInitialLoading(false);
+    }
   };
 
   const handleRetrySync = async () => {
@@ -106,9 +113,15 @@ const SyncStatusIndicator: React.FC = () => {
           `}
           aria-label="Sync status"
         >
-          {getStatusIcon()}
-          <span className="text-sm font-medium">{getStatusText()}</span>
-          {totalPending > 0 && (
+          {isInitialLoading ? (
+            <RefreshCw className="h-4 w-4 animate-spin" />
+          ) : (
+            getStatusIcon()
+          )}
+          <span className="text-sm font-medium">
+            {isInitialLoading ? 'Loading...' : getStatusText()}
+          </span>
+          {!isInitialLoading && totalPending > 0 && (
             <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs">
               {totalPending}
             </span>
