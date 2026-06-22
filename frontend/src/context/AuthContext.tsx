@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import toast from 'react-hot-toast';
 import { authService, LoginCredentials, RegisterCredentials, User } from '../services/auth.service';
+import { sanitizeString } from '../lib/sanitize';
 
 interface AuthContextType {
   user: User | null;
@@ -22,7 +23,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Persist only non-sensitive fields needed for UI rendering.
 // email, walletAddress, and verification are omitted to limit XSS exposure.
 const persistUser = (user: User) => {
-  const safe = { id: user.id, name: user.name, role: user.role };
+  const safe = { id: user.id, name: sanitizeString(user.name), role: user.role };
   localStorage.setItem('user', JSON.stringify(safe));
 };
 
@@ -203,8 +204,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const updateUser = (updatedUser: User) => {
-    setUser(updatedUser);
-    localStorage.setItem('user', JSON.stringify(updatedUser));
+    const sanitized = {
+      ...updatedUser,
+      name: sanitizeString(updatedUser.name),
+      email: sanitizeString(updatedUser.email),
+    };
+    setUser(sanitized);
+    localStorage.setItem('user', JSON.stringify(sanitized));
   };
 
   return (
