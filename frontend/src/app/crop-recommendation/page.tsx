@@ -44,6 +44,29 @@ function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+// ── Validation bounds (mirrors backend and ML service) ───────────────────────
+
+const FIELD_BOUNDS: Record<keyof RecommendationRequest, { min: number; max: number; label: string }> = {
+  N:           { min: 0,   max: 140, label: 'Nitrogen (N)' },
+  P:           { min: 5,   max: 145, label: 'Phosphorus (P)' },
+  K:           { min: 5,   max: 205, label: 'Potassium (K)' },
+  pH:          { min: 3.5, max: 9.5, label: 'Soil pH' },
+  temperature: { min: 0,   max: 50,  label: 'Temperature' },
+  humidity:    { min: 10,  max: 100, label: 'Humidity' },
+  rainfall:    { min: 0,   max: 300, label: 'Rainfall' },
+};
+
+function useValidation(inputs: RecommendationRequest) {
+  const errors: Partial<Record<keyof RecommendationRequest, string>> = {};
+  for (const key of Object.keys(FIELD_BOUNDS) as (keyof RecommendationRequest)[]) {
+    const { min, max, label } = FIELD_BOUNDS[key];
+    const val = inputs[key];
+    if (val < min) errors[key] = `${label} must be at least ${min}`;
+    if (val > max) errors[key] = `${label} must be at most ${max}`;
+  }
+  return errors;
+}
+
 // ── Slider field component ────────────────────────────────────────────────────
 
 interface SliderFieldProps {
@@ -56,11 +79,12 @@ interface SliderFieldProps {
   max: number;
   step: number;
   description: string;
+  error?: string;
   onChange: (name: keyof RecommendationRequest, value: number) => void;
 }
 
 const SliderField: React.FC<SliderFieldProps> = ({
-  label, unit, icon, name, value, min, max, step, description, onChange,
+  label, unit, icon, name, value, min, max, step, description, error, onChange,
 }) => (
   <div className="space-y-2">
     <div className="flex items-center justify-between">
@@ -79,7 +103,9 @@ const SliderField: React.FC<SliderFieldProps> = ({
             const v = parseFloat(e.target.value);
             if (!isNaN(v)) onChange(name, Math.max(min, Math.min(max, v)));
           }}
-          className="w-20 text-right text-sm font-semibold text-gray-800 dark:text-white bg-gray-100 dark:bg-gray-700 rounded-lg px-2 py-1 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-green-400"
+          className={`w-20 text-right text-sm font-semibold text-gray-800 dark:text-white bg-gray-100 dark:bg-gray-700 rounded-lg px-2 py-1 border focus:outline-none focus:ring-2 focus:ring-green-400 ${
+            error ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-200 dark:border-gray-600'
+          }`}
         />
         <span className="text-xs text-gray-500 dark:text-gray-400 w-8">{unit}</span>
       </div>
@@ -93,7 +119,9 @@ const SliderField: React.FC<SliderFieldProps> = ({
       onChange={(e) => onChange(name, parseFloat(e.target.value))}
       className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full appearance-none cursor-pointer accent-primary"
     />
-    <p className="text-xs text-gray-400 dark:text-gray-500">{description}</p>
+    <p className={`text-xs ${error ? 'text-red-500 font-medium' : 'text-gray-400 dark:text-gray-500'}`}>
+      {error || description}
+    </p>
   </div>
 );
 
@@ -141,19 +169,33 @@ const CropRecommendation: React.FC = () => {
   const [inputs, setInputs] = useState<RecommendationRequest>(DEFAULT_INPUTS);
   const [result, setResult] = useState<RecommendationResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const validationErrors = useValidation(inputs);
+  const hasValidationErrors = Object.keys(validationErrors).length > 0;
+
+  const isAtBoundary = (name: keyof RecommendationRequest): boolean => {
+    const val = inputs[name];
+    const { min, max } = FIELD_BOUNDS[name];
+    return val <= min || val >= max;
+  };
 
   const handleChange = (name: keyof RecommendationRequest, value: number) => {
     setInputs((prev) => ({ ...prev, [name]: value }));
+    setError(null);
   };
 
   const handleReset = () => {
     setInputs(DEFAULT_INPUTS);
     setResult(null);
+    setError(null);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (hasValidationErrors) return;
     setIsLoading(true);
+    setError(null);
     try {
       const data = await getCropRecommendation(inputs);
       setResult(data);
@@ -161,7 +203,9 @@ const CropRecommendation: React.FC = () => {
         window.scrollTo({ top: document.getElementById('result-card')?.offsetTop ?? 0, behavior: 'smooth' });
       }, 100);
     } catch (err: any) {
-      toast.error(err?.message ?? 'Failed to get recommendation');
+      const msg = err?.message ?? 'Failed to get recommendation';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -206,18 +250,21 @@ const CropRecommendation: React.FC = () => {
                 label="Nitrogen (N)" unit="kg/ha" icon={<Leaf className="w-3.5 h-3.5" />}
                 name="N" value={inputs.N} min={0} max={140} step={1}
                 description="Primary nutrient for leaf/stem growth"
+                error={validationErrors.N}
                 onChange={handleChange}
               />
               <SliderField
                 label="Phosphorus (P)" unit="kg/ha" icon={<Leaf className="w-3.5 h-3.5" />}
                 name="P" value={inputs.P} min={5} max={145} step={1}
                 description="Supports root development and flowering"
+                error={validationErrors.P}
                 onChange={handleChange}
               />
               <SliderField
                 label="Potassium (K)" unit="kg/ha" icon={<Leaf className="w-3.5 h-3.5" />}
                 name="K" value={inputs.K} min={5} max={205} step={1}
                 description="Improves fruit quality and disease resistance"
+                error={validationErrors.K}
                 onChange={handleChange}
               />
             </div>
@@ -234,6 +281,7 @@ const CropRecommendation: React.FC = () => {
                 label="Soil pH" unit="" icon={<FlaskConical className="w-3.5 h-3.5" />}
                 name="pH" value={inputs.pH} min={3.5} max={9.5} step={0.1}
                 description="Affects nutrient availability (ideal: 6.0–7.5 for most crops)"
+                error={validationErrors.pH}
                 onChange={handleChange}
               />
             </div>
@@ -250,18 +298,21 @@ const CropRecommendation: React.FC = () => {
                 label="Temperature" unit="°C" icon={<Thermometer className="w-3.5 h-3.5" />}
                 name="temperature" value={inputs.temperature} min={0} max={50} step={0.5}
                 description="Average growing-season temperature"
+                error={validationErrors.temperature}
                 onChange={handleChange}
               />
               <SliderField
                 label="Humidity" unit="%" icon={<Droplets className="w-3.5 h-3.5" />}
                 name="humidity" value={inputs.humidity} min={10} max={100} step={1}
                 description="Relative atmospheric humidity"
+                error={validationErrors.humidity}
                 onChange={handleChange}
               />
               <SliderField
                 label="Rainfall" unit="mm" icon={<CloudRain className="w-3.5 h-3.5" />}
                 name="rainfall" value={inputs.rainfall} min={0} max={300} step={1}
                 description="Average annual rainfall"
+                error={validationErrors.rainfall}
                 onChange={handleChange}
               />
             </div>
@@ -300,6 +351,32 @@ const CropRecommendation: React.FC = () => {
           </button>
         </div>
       </form>
+
+      {/* ── Error state ── */}
+      {error && !result && (
+        <div className="rounded-2xl shadow-lg border border-red-200 dark:border-red-900/30 bg-red-50/50 dark:bg-red-950/10 overflow-hidden">
+          <div className="bg-red-500/90 px-6 py-3 flex items-center gap-2">
+            <span className="text-red-50 text-sm font-medium">Recommendation Failed</span>
+          </div>
+          <div className="p-6 sm:p-8 text-center space-y-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/20">
+              <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p className="text-gray-700 dark:text-gray-300 font-medium">Service temporarily unavailable</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">{error}</p>
+            <button
+              onClick={handleSubmit as any}
+              disabled={isLoading}
+              className="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white font-semibold px-6 py-2.5 rounded-xl transition-colors"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Result card ── */}
       {result && meta && (
