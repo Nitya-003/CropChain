@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { AxiosError } from 'axios';
 
 export interface RecommendationRequest {
   N: number;
@@ -68,5 +69,6 @@ export async function getCropRecommendation(
       }
     }
   }
-  throw new Error(lastError?.response?.data?.message || lastError?.message || 'Recommendation service unavailable');
+  const axiosError = lastError as AxiosError<{ message?: string }> | null;
+  throw new Error(axiosError?.response?.data?.message || lastError?.message || 'Recommendation service unavailable');
 }
