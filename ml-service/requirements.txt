@@ -1,4 +1,6 @@
 flask==3.0.3
+flask-cors==5.0.0
+flask-limiter==3.8.0
 numpy==1.26.4
 scikit-learn==1.5.0
 joblib==1.4.2

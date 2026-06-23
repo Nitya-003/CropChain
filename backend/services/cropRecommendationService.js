@@ -3,6 +3,7 @@
 const axios = require('axios');
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:5001';
+const ML_API_KEY = process.env.ML_API_KEY || '';
 
 const MAX_RETRIES = 3;
 const BASE_DELAY = 200;
@@ -39,7 +40,10 @@ async function getCropRecommendation(params) {
     try {
       const response = await axios.post(`${ML_SERVICE_URL}/predict`, params, {
         timeout: 15_000,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': ML_API_KEY,
+        },
       });
       setCache(key, response.data);
       return response.data;
@@ -55,7 +59,10 @@ async function getCropRecommendation(params) {
 
 async function isMlServiceHealthy() {
   try {
-    const { data } = await axios.get(`${ML_SERVICE_URL}/health`, { timeout: 5_000 });
+    const { data } = await axios.get(`${ML_SERVICE_URL}/health`, {
+      timeout: 5_000,
+      headers: { 'X-API-Key': ML_API_KEY },
+    });
     return data.status === 'ok';
   } catch {
     return false;

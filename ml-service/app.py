@@ -5,14 +5,49 @@ Loads (or trains) a RandomForest model and exposes two endpoints:
 
   GET  /health   → liveness probe
   POST /predict  → returns top crop + confidence + alternatives
+
+Security:
+  - API key authentication via X-API-Key header
+  - Rate limiting (100/min default, 10/s on /predict)
+  - CORS restricted to the main backend
+  - Input validation with agronomic bounds
 """
 
 import os
 import numpy as np
 import joblib
+from functools import wraps
 from flask import Flask, request, jsonify
+from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
+
+# ── CORS: only allow the main backend ──────────────────────────────────────
+ALLOWED_ORIGIN = os.environ.get("CORS_ORIGIN", "http://localhost:3001")
+CORS(app, origins=[ALLOWED_ORIGIN])
+
+# ── Rate limiting ──────────────────────────────────────────────────────────
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[os.environ.get("ML_RATE_LIMIT_DEFAULT", "100 per minute")],
+)
+
+# ── API key authentication ─────────────────────────────────────────────────
+API_KEY = os.environ.get("ML_API_KEY", "change-me-in-production")
+
+
+def require_api_key(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        api_key = request.headers.get("X-API-Key")
+        if not api_key or api_key != API_KEY:
+            return jsonify({"error": "Unauthorized"}), 401
+        return f(*args, **kwargs)
+    return decorated
+
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "model.joblib")
 
@@ -39,33 +74,41 @@ BOUNDS = {
 }
 
 
+def validate_input(data):
+    errors = []
+    for field, (lo, hi) in BOUNDS.items():
+        if field not in data:
+            errors.append(f"'{field}' is required")
+            continue
+        try:
+            val = float(data[field])
+        except (TypeError, ValueError):
+            errors.append(f"'{field}' must be a number")
+            continue
+        if not (lo <= val <= hi):
+            errors.append(f"'{field}' must be between {lo} and {hi}, got {val}")
+    return errors
+
+
 @app.route("/health", methods=["GET"])
+@require_api_key
 def health():
     return jsonify({"status": "ok", "crops": list(model.classes_)})
 
 
 @app.route("/predict", methods=["POST"])
+@require_api_key
+@limiter.limit(os.environ.get("ML_RATE_LIMIT_PREDICT", "10 per second"))
 def predict():
     body = request.get_json(silent=True)
     if body is None:
         return jsonify({"error": "Request body must be JSON"}), 400
 
-    # --- parse & validate ---
-    features = []
-    for field in REQUIRED_FIELDS:
-        if field not in body:
-            return jsonify({"error": f"Missing field: '{field}'"}), 400
-        try:
-            val = float(body[field])
-        except (TypeError, ValueError):
-            return jsonify({"error": f"Field '{field}' must be a number"}), 400
+    validation_errors = validate_input(body)
+    if validation_errors:
+        return jsonify({"error": "Validation failed", "details": validation_errors}), 422
 
-        lo, hi = BOUNDS[field]
-        if not (lo <= val <= hi):
-            return jsonify(
-                {"error": f"'{field}' must be between {lo} and {hi}, got {val}"}
-            ), 400
-        features.append(val)
+    features = [float(body[f]) for f in REQUIRED_FIELDS]
 
     # --- predict ---
     X = np.array([features], dtype=np.float32)
