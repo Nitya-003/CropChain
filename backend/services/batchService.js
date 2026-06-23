@@ -9,8 +9,9 @@ const Batch = require('../models/Batch');
 const Counter = require('../models/Counter');
 const blockchainService = require('./blockchainService');
 const notificationService = require('./notificationService');
+const { emitToBatchRoom, emitGlobal } = require('./socketService');
 const apiResponse = require('../utils/apiResponse');
-const { getStageNumber, getStagesString, isValidStage, normalizeStage } = require('../constants/stages');
+const { getStageNumber, getStagesString, isValidStage, normalizeStage, isValidTransition, getNextStage } = require('../constants/stages');
 
 class BatchService {
     /**
@@ -109,6 +110,14 @@ class BatchService {
                 // Try to sync with blockchain (non-blocking)
                 this.syncToBlockchain(createdBatch, 'create');
 
+                emitToBatchRoom(batchId, 'batch:created', {
+                  batchId,
+                  farmerName: createdBatch.farmerName,
+                  cropType: createdBatch.cropType,
+                  quantity: createdBatch.quantity,
+                  timestamp: new Date().toISOString()
+                });
+
                 console.log(`[SUCCESS] Batch created: ${batchId} by user ${user.id} (${user.email || 'N/A'})`);
 
                 return {
@@ -184,6 +193,16 @@ class BatchService {
                 throw new Error(`Invalid stage: ${updateData.stage}. Must be one of: ${getStagesString()}`);
             }
 
+            const previousBatch = await Batch.findOne({ batchId });
+            if (!previousBatch) {
+                return {
+                    success: false,
+                    error: 'Batch not found',
+                    statusCode: 404
+                };
+            }
+
+            const previousStage = previousBatch.currentStage;
             const blockchainHash = blockchainService.simulateHash(updateData);
 
             const batch = await Batch.findOneAndUpdate(
@@ -205,13 +224,13 @@ class BatchService {
                 { new: true }
             );
 
-            if (!batch) {
-                return {
-                    success: false,
-                    error: 'Batch not found',
-                    statusCode: 404
-                };
-            }
+            emitToBatchRoom(batchId, 'batch:stageChanged', {
+              batchId,
+              previousStage,
+              newStage: normalizedStage,
+              actor: updateData.actor,
+              timestamp: new Date().toISOString()
+            });
 
             // Try to sync with blockchain (non-blocking)
             this.syncToBlockchain(batch, 'update');
@@ -257,6 +276,20 @@ class BatchService {
 
             batch.isRecalled = true;
             await batch.save();
+
+            emitGlobal('batch:recalled', {
+              batchId,
+              cropType: batch.cropType,
+              recalledBy: adminUser.email || adminUser.name,
+              recalledAt: new Date().toISOString()
+            });
+
+            emitToBatchRoom(batchId, 'batch:recalled', {
+              batchId,
+              cropType: batch.cropType,
+              recalledBy: adminUser.email || adminUser.name,
+              recalledAt: new Date().toISOString()
+            });
 
             // Send recall notification
             notificationService.sendRecallNotification(batch, adminUser);

@@ -14,6 +14,8 @@ jest.mock('../services/didService', () => ({
     checkVerificationStatus: jest.fn(),
 }));
 
+// Mock auditLogger so appendAuditEvent resolves immediately instead of
+// querying a real MongoDB via VerificationEvent (which hangs in CI).
 jest.mock('../utils/auditLogger', () => ({
     appendAuditEvent: jest.fn().mockResolvedValue({}),
 }));
@@ -83,15 +85,14 @@ const createJob = () => {
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Avoid long sleeps/teardown issues in CI.
-const SHORT_DELAY_MS = 5;
+// Valid 24-char hex MongoDB ObjectId — userid must match this pattern
+// for processRow's ObjectId regex test to call User.findById().
+const VALID_USER_ID = '507f1f77bcf86cd799439011';
 
 describe('bulk verification - concurrency + idempotency', () => {
     jest.setTimeout(60000);
 
     beforeEach(() => {
-
-
         jest.clearAllMocks();
         process.env.BULK_JOB_CONCURRENCY = '2';
         process.env.BULK_JOB_PROGRESS_UPDATE_EVERY = '1';
@@ -102,6 +103,7 @@ describe('bulk verification - concurrency + idempotency', () => {
         // All rows resolve to the same user.
         User.findById.mockResolvedValue({
             _id: '507f1f77bcf86cd799439011',
+            _id: VALID_USER_ID,
             walletAddress: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
             role: 'admin',
             verification: { isVerified: false },
@@ -129,6 +131,7 @@ describe('bulk verification - concurrency + idempotency', () => {
         const records = [
             {
                 userid: '507f1f77bcf86cd799439011',
+                userid: VALID_USER_ID,
                 email: 'a@x.com',
                 walletaddress: walletAddress,
                 action: CHALLENGE_ACTIONS.ISSUE_CREDENTIAL,
@@ -138,6 +141,7 @@ describe('bulk verification - concurrency + idempotency', () => {
             },
             {
                 userid: '507f1f77bcf86cd799439011',
+                userid: VALID_USER_ID,
                 email: 'a@x.com',
                 walletaddress: walletAddress,
                 action: CHALLENGE_ACTIONS.ISSUE_CREDENTIAL,
@@ -147,6 +151,7 @@ describe('bulk verification - concurrency + idempotency', () => {
             },
             {
                 userid: '507f1f77bcf86cd799439011',
+                userid: VALID_USER_ID,
                 email: 'a@x.com',
                 walletaddress: walletAddress,
                 action: CHALLENGE_ACTIONS.ISSUE_CREDENTIAL,
@@ -174,4 +179,3 @@ describe('bulk verification - concurrency + idempotency', () => {
 
     });
 });
-

@@ -227,19 +227,19 @@ class NotificationService {
     }
 
     /**
-     * Broadcast to WebSocket clients (placeholder for future implementation)
+     * Broadcast to WebSocket clients via Socket.IO
      * @param {string} event - Event name
      * @param {Object} data - Data to broadcast
      */
     async broadcast(event, data) {
-        // Placeholder for WebSocket broadcasting
-        console.log(`[WS] Would broadcast ${event}:`, data);
-        
+        try {
+            const { emitGlobal } = require('./socketService');
+            emitGlobal(event, data);
+        } catch (err) {
+            console.warn('[WS] Socket.IO not available for broadcast:', err.message);
+        }
+
         this.log('broadcast', `WebSocket broadcast: ${event}`, { event, data });
-        
-        // Future implementation:
-        // const wss = require('./config/websocket');
-        // wss.clients.forEach(client => client.send(JSON.stringify({ event, data })));
     }
 }
 

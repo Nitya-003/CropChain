@@ -142,8 +142,133 @@ describe("Batch API Endpoints", () => {
     expect(res.body.data.batch).toHaveProperty("batchId");
   });
 
-  // Removed skipped test "should prevent invalid stage transition" as the logic is not implemented in the backend.
-  
+  it("should allow a valid stage transition (farmer -> mandi)", async () => {
+    const farmerBatch = {
+      batchId: 'BATCH000001',
+      currentStage: 'farmer',
+      isRecalled: false,
+      updates: []
+    };
+    mockBatch.findOne.mockResolvedValue(farmerBatch);
+    mockBatch.findOneAndUpdate.mockResolvedValue({
+      ...farmerBatch,
+      currentStage: 'mandi',
+      updates: [{ stage: 'mandi', actor: 'Mandi Worker', location: 'Mandi Center', timestamp: new Date().toISOString(), notes: 'Arrived at mandi' }]
+    });
+
+    const res = await request(app).put('/api/batches/BATCH000001').send({
+      stage: 'mandi',
+      actor: 'Mandi Worker',
+      location: 'Mandi Center',
+      timestamp: new Date().toISOString(),
+      notes: 'Arrived at mandi'
+    });
+
+    expect(res.statusCode).toEqual(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it("should return 400 for skipped stage transition (farmer -> retailer)", async () => {
+    mockBatch.findOne.mockResolvedValue({
+      batchId: 'BATCH000001',
+      currentStage: 'farmer',
+      isRecalled: false
+    });
+
+    const res = await request(app).put('/api/batches/BATCH000001').send({
+      stage: 'retailer',
+      actor: 'Test Actor',
+      location: 'Test Location',
+      timestamp: new Date().toISOString()
+    });
+
+    expect(res.statusCode).toEqual(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('Invalid stage transition');
+  });
+
+  it("should return 400 for backwards stage transition (mandi -> farmer)", async () => {
+    mockBatch.findOne.mockResolvedValue({
+      batchId: 'BATCH000001',
+      currentStage: 'mandi',
+      isRecalled: false
+    });
+
+    const res = await request(app).put('/api/batches/BATCH000001').send({
+      stage: 'farmer',
+      actor: 'Test Actor',
+      location: 'Test Location',
+      timestamp: new Date().toISOString()
+    });
+
+    expect(res.statusCode).toEqual(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('Invalid stage transition');
+  });
+
+  it("should return 400 for same-stage update", async () => {
+    mockBatch.findOne.mockResolvedValue({
+      batchId: 'BATCH000001',
+      currentStage: 'farmer',
+      isRecalled: false
+    });
+
+    const res = await request(app).put('/api/batches/BATCH000001').send({
+      stage: 'farmer',
+      actor: 'Test Actor',
+      location: 'Test Location',
+      timestamp: new Date().toISOString()
+    });
+
+    expect(res.statusCode).toEqual(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('already at stage');
+  });
+
+  it("should return 400 for updating a recalled batch", async () => {
+    mockBatch.findOne.mockResolvedValue({
+      batchId: 'BATCH000001',
+      currentStage: 'farmer',
+      isRecalled: true
+    });
+
+    const res = await request(app).put('/api/batches/BATCH000001').send({
+      stage: 'mandi',
+      actor: 'Test Actor',
+      location: 'Test Location',
+      timestamp: new Date().toISOString()
+    });
+
+    expect(res.statusCode).toEqual(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('recalled');
+  });
+
+  it("should allow transport -> retailer transition", async () => {
+    mockBatch.findOne.mockResolvedValue({
+      batchId: 'BATCH000001',
+      currentStage: 'transport',
+      isRecalled: false,
+      updates: [{ stage: 'farmer' }, { stage: 'mandi' }, { stage: 'transport' }]
+    });
+    mockBatch.findOneAndUpdate.mockResolvedValue({
+      batchId: 'BATCH000001',
+      currentStage: 'retailer',
+      isRecalled: false
+    });
+
+    const res = await request(app).put('/api/batches/BATCH000001').send({
+      stage: 'retailer',
+      actor: 'Retailer Worker',
+      location: 'Retail Store',
+      timestamp: new Date().toISOString(),
+      notes: 'Received at retail'
+    });
+
+    expect(res.statusCode).toEqual(200);
+    expect(res.body.success).toBe(true);
+  });
+
   afterAll(async () => {
     // Cleanup if needed
   });
