@@ -1,51 +1,98 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Truck, Package, RefreshCw, MapPin, Clock, CheckCircle, Navigation, Search, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { realCropBatchService } from '../../services/realCropBatchService';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/table';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import { useAuth } from '../../context/AuthContext';
+import BatchFilters from '../../components/BatchFilters';
+
+const RELEVANT_STAGES = ['mandi', 'transport'];
 
 const TransporterDashboardComponent: React.FC = () => {
   const { user } = useAuth();
   const [batches, setBatches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState({
-    awaitingPickup: 0,
-    inTransit: 0,
-    totalQuantity: 0,
+
+  const [filters, setFilters] = useState({
+    search: '',
+    stage: '',
+    cropType: '',
+    status: '',
+    dateFrom: '',
+    dateTo: '',
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+    page: 1,
+    limit: 100
   });
+
+  const [searchInput, setSearchInput] = useState('');
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+
+  const activeCount = Object.entries(filters).filter(([key, val]) => {
+    if (key === 'sortBy' && val === 'createdAt') return false;
+    if (key === 'sortOrder' && val === 'desc') return false;
+    if (key === 'page' && val === 1) return false;
+    if (key === 'limit' && val === 100) return false;
+    return val !== '';
+  }).length;
 
   useEffect(() => {
     loadBatches();
-  }, []);
+  }, [filters.search, filters.cropType, filters.status, filters.dateFrom, filters.dateTo, filters.sortBy, filters.sortOrder]);
 
   const loadBatches = async () => {
     setIsLoading(true);
     try {
-      const data = await realCropBatchService.getAllBatches();
+      const apiFilters: any = {};
+      Object.entries(filters).forEach(([key, val]) => {
+        if (val !== undefined && val !== '' && key !== 'stage' && key !== 'page' && key !== 'limit') {
+          apiFilters[key] = val;
+        }
+      });
+      apiFilters.limit = 100;
+
+      const data = await realCropBatchService.getAllBatches(apiFilters);
       const allBatches: any[] = data?.batches || [];
 
       // Transporter sees batches at mandi stage (ready for pickup) or transport stage (in transit)
       const relevantBatches = allBatches.filter(
-        (b: any) => b.currentStage === 'mandi' || b.currentStage === 'transport'
+        (b: any) => RELEVANT_STAGES.includes(b.currentStage)
       );
 
       setBatches(relevantBatches);
-      setStats({
-        awaitingPickup: relevantBatches.filter((b: any) => b.currentStage === 'mandi').length,
-        inTransit: relevantBatches.filter((b: any) => b.currentStage === 'transport').length,
-        totalQuantity: relevantBatches.reduce((sum: number, b: any) => sum + (b.quantity || 0), 0),
-      });
     } catch (error) {
       console.error('Failed to load batches:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const paginatedBatches = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return batches.slice(start, start + pageSize);
+  }, [batches, page]);
+
+  const totalPages = Math.max(1, Math.ceil(batches.length / pageSize));
+  const stats = useMemo(() => ({
+    awaitingPickup: batches.filter((b: any) => b.currentStage === 'mandi').length,
+    inTransit: batches.filter((b: any) => b.currentStage === 'transport').length,
+    totalQuantity: batches.reduce((sum: number, b: any) => sum + (b.quantity || 0), 0),
+  }), [batches]);
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setFilters({
+      search: '', stage: '', cropType: '', status: '',
+      dateFrom: '', dateTo: '', sortBy: 'createdAt', sortOrder: 'desc', page: 1, limit: 100
+    });
+    setPage(1);
   };
 
   const getStageColor = (stage: string) => {
@@ -186,6 +233,27 @@ const TransporterDashboardComponent: React.FC = () => {
         </Link>
       </div>
 
+      {/* Filters */}
+      <Card className="border border-border bg-card/60 backdrop-blur-md shadow-sm">
+        <CardContent className="p-6">
+          <BatchFilters
+            filters={filters}
+            onFilterChange={(partial) => {
+              setFilters(f => ({ ...f, ...partial }));
+              setPage(1);
+            }}
+            onSearchSubmit={(search) => {
+              setFilters(f => ({ ...f, search, page: 1 }));
+              setPage(1);
+            }}
+            onClearFilters={clearFilters}
+            searchInput={searchInput}
+            onSearchInputChange={setSearchInput}
+            activeFilterCount={activeCount}
+          />
+        </CardContent>
+      </Card>
+
       {/* Batches Table */}
       <Card className="border border-border bg-card">
         <CardHeader className="pb-3 border-b border-border/40">
@@ -195,14 +263,23 @@ const TransporterDashboardComponent: React.FC = () => {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {batches.length === 0 ? (
+          {isLoading && batches.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
+              <div className="bg-muted p-4 rounded-full">
+                <Truck className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">Loading...</p>
+              </div>
+            </div>
+          ) : batches.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
               <div className="bg-muted p-4 rounded-full">
                 <Truck className="h-8 w-8 text-muted-foreground" />
               </div>
               <div>
                 <p className="font-semibold text-foreground">No active shipments</p>
-                <p className="text-sm text-muted-foreground mt-1">Batches ready for transport will appear here</p>
+                <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters</p>
               </div>
             </div>
           ) : (
@@ -220,7 +297,7 @@ const TransporterDashboardComponent: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {batches.map((batch) => (
+                  {paginatedBatches.map((batch) => (
                     <TableRow key={batch.batchId} className="border-b border-border/40 hover:bg-muted/30 transition-colors text-left">
                       <TableCell className="py-4 px-6">
                         <span className="font-mono text-xs bg-muted text-muted-foreground px-2 py-1 rounded border border-border">
@@ -275,6 +352,36 @@ const TransporterDashboardComponent: React.FC = () => {
             </div>
           )}
         </CardContent>
+        {batches.length > 0 && totalPages > 1 && (
+          <CardFooter className="flex items-center justify-between border-t border-border/40 py-4 px-6">
+            <p className="text-xs text-muted-foreground">
+              Showing {paginatedBatches.length} of {batches.length} results
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage(p => p - 1)}
+                className="h-8 rounded-lg text-xs"
+              >
+                Previous
+              </Button>
+              <span className="text-xs font-semibold text-foreground">
+                Page {page} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => p + 1)}
+                className="h-8 rounded-lg text-xs"
+              >
+                Next
+              </Button>
+            </div>
+          </CardFooter>
+        )}
       </Card>
     </div>
   );

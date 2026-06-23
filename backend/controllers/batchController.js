@@ -331,9 +331,8 @@ exports.getBatches = async (req, res) => {
         if (farmerNameFilter) {
             query.farmerName = farmerNameFilter;
         }
-        const cropTypeFilter = buildSafeSearchFilter(cropType);
-        if (cropTypeFilter) {
-            query.cropType = cropTypeFilter;
+        if (cropType) {
+            query.cropType = cropType.toLowerCase();
         }
         
         if (status) {

@@ -11,6 +11,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from ".
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import ProtectedRoute from '../../components/ProtectedRoute';
+import BatchFilters from '../../components/BatchFilters';
 
 const AdminDashboardComponent: React.FC = () => {
   const [stats, setStats] = useState({
@@ -255,105 +256,16 @@ const AdminDashboardComponent: React.FC = () => {
 
       {/* Filters Section */}
       <Card className="border border-border bg-card/60 backdrop-blur-md shadow-sm">
-        <CardContent className="p-6 space-y-4">
-          <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                placeholder="Search batches by ID, crop type, or farmer..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                className="w-full pl-4 pr-10 py-2.5 border border-border bg-background rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-              />
-              {searchInput && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchInput('');
-                    setFilters(f => ({ ...f, search: '', page: 1 }));
-                  }}
-                  className="absolute right-3 top-3.5 text-muted-foreground hover:text-foreground text-sm"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-            <Button type="submit" size="sm" className="h-[42px] px-6 rounded-xl font-semibold">
-              Search
-            </Button>
-          </form>
-
-          <div className="flex flex-wrap items-center gap-3 pt-2">
-            <div className="flex flex-col gap-1.5 min-w-[140px]">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Stage</label>
-              <select
-                value={filters.stage}
-                onChange={(e) => setFilters(f => ({ ...f, stage: e.target.value, page: 1 }))}
-                className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="">All Stages</option>
-                <option value="farmer">Farmer</option>
-                <option value="mandi">Mandi</option>
-                <option value="transport">Transport</option>
-                <option value="retailer">Retailer</option>
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-1.5 min-w-[140px]">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date From</label>
-              <input
-                type="date"
-                value={filters.dateFrom}
-                onChange={(e) => setFilters(f => ({ ...f, dateFrom: e.target.value, page: 1 }))}
-                className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5 min-w-[140px]">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date To</label>
-              <input
-                type="date"
-                value={filters.dateTo}
-                onChange={(e) => setFilters(f => ({ ...f, dateTo: e.target.value, page: 1 }))}
-                className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5 min-w-[140px]">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Sort By</label>
-              <select
-                value={filters.sortBy}
-                onChange={(e) => setFilters(f => ({ ...f, sortBy: e.target.value, page: 1 }))}
-                className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="createdAt">Date Created</option>
-                <option value="cropType">Crop Type</option>
-                <option value="quantity">Quantity</option>
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-1.5 min-w-[140px]">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Order</label>
-              <select
-                value={filters.sortOrder}
-                onChange={(e) => setFilters(f => ({ ...f, sortOrder: e.target.value, page: 1 }))}
-                className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="desc">Descending</option>
-                <option value="asc">Ascending</option>
-              </select>
-            </div>
-
-            {activeCount > 0 && (
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="text-xs text-rose-500 hover:text-rose-600 hover:underline mt-4 ml-2 font-bold"
-              >
-                Clear Filters ({activeCount})
-              </button>
-            )}
-          </div>
+        <CardContent className="p-6">
+          <BatchFilters
+            filters={filters}
+            onFilterChange={(partial) => setFilters(f => ({ ...f, ...partial }))}
+            onSearchSubmit={(search) => setFilters(f => ({ ...f, search: search, page: 1 }))}
+            onClearFilters={clearFilters}
+            searchInput={searchInput}
+            onSearchInputChange={setSearchInput}
+            activeFilterCount={activeCount}
+          />
         </CardContent>
       </Card>
 
