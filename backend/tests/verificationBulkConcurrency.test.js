@@ -14,6 +14,11 @@ jest.mock('../services/didService', () => ({
     checkVerificationStatus: jest.fn(),
 }));
 
+// Mock auditLogger to prevent appendAuditEvent from querying real MongoDB
+jest.mock('../utils/auditLogger', () => ({
+    appendAuditEvent: jest.fn().mockResolvedValue({}),
+}));
+
 // Mock idempotency reservation to simulate single execution under concurrency.
 jest.mock('../services/verificationSecurityService', () => {
     const CHALLENGE_ACTIONS = {
