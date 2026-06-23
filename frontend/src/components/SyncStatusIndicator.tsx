@@ -40,18 +40,30 @@ const SyncStatusIndicator: React.FC = () => {
   }, []);
 
   const updatePendingCount = async () => {
-    const counts = await syncManager.getPendingCount();
-    setPendingCount(counts);
+    try {
+      const counts = await syncManager.getPendingCount();
+      setPendingCount(counts);
+    } catch (err) {
+      console.error('Failed to fetch pending count:', err);
+    }
   };
 
   const handleRetrySync = async () => {
-    if (isOnline) {
-      await syncManager.triggerSync();
+    try {
+      if (isOnline) {
+        await syncManager.triggerSync();
+      }
+    } catch (err) {
+      console.error('Failed to trigger sync:', err);
     }
   };
 
   const handleRetryFailed = async () => {
-    await syncManager.retryFailed();
+    try {
+      await syncManager.retryFailed();
+    } catch (err) {
+      console.error('Failed to retry sync:', err);
+    }
   };
 
   const totalPending = pendingCount.batches + pendingCount.updates;
