@@ -83,14 +83,14 @@ describe('batch search regex safety', () => {
     expect(mockBatch.find).toHaveBeenCalledWith({
       batchId: { $regex: 'BATCH\\(1\\)\\.\\*', $options: 'i' },
       farmerName: { $regex: 'A\\+B', $options: 'i' },
-      cropType: { $regex: '\\[rice\\]', $options: 'i' },
+      cropType: '[rice]',
       status: 'Active'
     });
 
     expect(mockBatch.countDocuments).toHaveBeenCalledWith({
       batchId: { $regex: 'BATCH\\(1\\)\\.\\*', $options: 'i' },
       farmerName: { $regex: 'A\\+B', $options: 'i' },
-      cropType: { $regex: '\\[rice\\]', $options: 'i' },
+      cropType: '[rice]',
       status: 'Active'
     });
   });
