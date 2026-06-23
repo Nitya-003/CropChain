@@ -11,7 +11,7 @@ const blockchainService = require('./blockchainService');
 const notificationService = require('./notificationService');
 const { emitToBatchRoom, emitGlobal } = require('./socketService');
 const apiResponse = require('../utils/apiResponse');
-const { getStageNumber, getStagesString, isValidStage, normalizeStage } = require('../constants/stages');
+const { getStageNumber, getStagesString, isValidStage, normalizeStage, isValidTransition, getNextStage } = require('../constants/stages');
 
 class BatchService {
     /**

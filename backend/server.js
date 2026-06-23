@@ -439,8 +439,11 @@ app.put('/api/batches/:batchId', batchLimiter, protect, authorizeBatchOwner, aut
         const result = await batchService.updateBatch(batchId, validatedData, req.user);
 
         if (!result.success) {
-            const response = apiResponse.notFoundResponse('Batch', `ID: ${batchId}`);
-            return res.status(result.statusCode || 404).json(response);
+            const statusCode = result.statusCode || 500;
+            const response = statusCode === 404
+                ? apiResponse.notFoundResponse('Batch', `ID: ${batchId}`)
+                : apiResponse.errorResponse(result.error, 'BATCH_UPDATE_ERROR', statusCode);
+            return res.status(statusCode).json(response);
         }
 
         logger.info('Batch updated', { batchId, stage: validatedData.stage, actor: validatedData.actor, ip: req.ip });
