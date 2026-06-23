@@ -16,8 +16,8 @@ const {
 } = require('../utils/verificationControllerHelpers');
 
 const {
-    handleIdempotencyOnly,
-} = require('../utils/verificationIdempotency');
+    handleIdempotencyOnly: handleRevokeIdempotency,
+} = require('../utils/verificationIdempotencyRevoke');
 const apiResponse = require('../utils/apiResponse');
 const { ROLES } = require('../constants/permissions');
 const {
@@ -281,13 +281,13 @@ const revokeCredential = async (req, res) => {
         const idempotencyKey = requireIdempotencyKey(req, res);
         if (!idempotencyKey) return;
 
-        return await handleIdempotencyOnly({
+        return await handleRevokeIdempotency({
             req,
             res,
             action: 'CREDENTIAL_REVOKE',
             actorId: adminId,
             userId,
-            walletAddress: undefined,
+            reason,
             idempotencyKey,
             execute: async () => {
                 const result = await didService.revokeCredential(userId, adminId, reason);
