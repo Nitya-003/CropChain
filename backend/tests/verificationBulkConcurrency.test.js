@@ -14,6 +14,10 @@ jest.mock('../services/didService', () => ({
     checkVerificationStatus: jest.fn(),
 }));
 
+jest.mock('../utils/auditLogger', () => ({
+    appendAuditEvent: jest.fn().mockResolvedValue({}),
+}));
+
 // Mock idempotency reservation to simulate single execution under concurrency.
 jest.mock('../services/verificationSecurityService', () => {
     const CHALLENGE_ACTIONS = {
@@ -97,7 +101,7 @@ describe('bulk verification - concurrency + idempotency', () => {
 
         // All rows resolve to the same user.
         User.findById.mockResolvedValue({
-            _id: 'user-1',
+            _id: '507f1f77bcf86cd799439011',
             walletAddress: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
             role: 'admin',
             verification: { isVerified: false },
@@ -124,7 +128,7 @@ describe('bulk verification - concurrency + idempotency', () => {
 
         const records = [
             {
-                userid: 'user-1',
+                userid: '507f1f77bcf86cd799439011',
                 email: 'a@x.com',
                 walletaddress: walletAddress,
                 action: CHALLENGE_ACTIONS.ISSUE_CREDENTIAL,
@@ -133,7 +137,7 @@ describe('bulk verification - concurrency + idempotency', () => {
                 expiresat: String(Date.now() + 10000),
             },
             {
-                userid: 'user-1',
+                userid: '507f1f77bcf86cd799439011',
                 email: 'a@x.com',
                 walletaddress: walletAddress,
                 action: CHALLENGE_ACTIONS.ISSUE_CREDENTIAL,
@@ -142,7 +146,7 @@ describe('bulk verification - concurrency + idempotency', () => {
                 expiresat: String(Date.now() + 10000),
             },
             {
-                userid: 'user-1',
+                userid: '507f1f77bcf86cd799439011',
                 email: 'a@x.com',
                 walletaddress: walletAddress,
                 action: CHALLENGE_ACTIONS.ISSUE_CREDENTIAL,
