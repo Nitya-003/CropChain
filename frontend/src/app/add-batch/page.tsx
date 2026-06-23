@@ -1,11 +1,12 @@
 "use client";
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Shield, AlertTriangle, AlertCircle } from 'lucide-react';
+import { Shield, AlertTriangle, AlertCircle, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { realCropBatchService } from '../../services/realCropBatchService';
 import { useRbac } from '../../hooks/useRbac';
+import { sanitizeObject } from '../../lib/sanitize';
 
 const AddBatchContent: React.FC = () => {
   const { t } = useTranslation();
@@ -115,7 +116,8 @@ const AddBatchContent: React.FC = () => {
 
     setIsLoading(true);
 
-    const createBatchPromise = realCropBatchService.createBatch(formData);
+    const sanitizedData = sanitizeObject(formData);
+    const createBatchPromise = realCropBatchService.createBatch(sanitizedData);
 
     try {
       const batch = await toast.promise(createBatchPromise, {
@@ -202,7 +204,7 @@ const AddBatchContent: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6 relative">
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">{t('batch.farmerName')}</label>
@@ -274,6 +276,15 @@ const AddBatchContent: React.FC = () => {
               {isLoading ? 'Creating...' : t('batch.createBatch')}
             </button>
           </div>
+
+          {isLoading && (
+            <div className="absolute inset-0 bg-white/60 dark:bg-gray-900/60 rounded-xl flex items-center justify-center z-10">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Submitting to blockchain...</p>
+              </div>
+            </div>
+          )}
         </form>
       </div>
     </div>

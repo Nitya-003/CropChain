@@ -5,6 +5,7 @@ const apiResponse = require('../utils/apiResponse');
 const { isAdminRole } = require('../constants/permissions');
 const STAGES = require('../constants/stages');
 const logger = require('../utils/logger');
+const { emitToBatchRoom } = require('../services/socketService');
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -133,6 +134,15 @@ exports.getBatch = async (req, res) => {
 
         if (batch.isRecalled) {
             logger.warn('Recalled batch viewed', { batchId, ip: req.ip });
+        }
+
+        // Flatten iotData to top-level for frontend compatibility
+        if (batch.iotData) {
+            batch.currentTemperature = batch.iotData.currentTemperature ?? null;
+            batch.currentHumidity = batch.iotData.currentHumidity ?? null;
+            batch.isSpoiled = batch.iotData.isSpoiled ?? false;
+            batch.iotTimestamp = batch.iotData.lastUpdated ?? null;
+            delete batch.iotData;
         }
 
         const response = apiResponse.successResponse({ batch }, 'Batch retrieved successfully');
@@ -354,6 +364,17 @@ exports.getBatches = async (req, res) => {
             .skip(skip)
             .limit(limitNumber);
 
+        // Flatten iotData to top-level for frontend compatibility
+        for (const batch of batches) {
+            if (batch.iotData) {
+                batch.currentTemperature = batch.iotData.currentTemperature ?? null;
+                batch.currentHumidity = batch.iotData.currentHumidity ?? null;
+                batch.isSpoiled = batch.iotData.isSpoiled ?? false;
+                batch.iotTimestamp = batch.iotData.lastUpdated ?? null;
+                delete batch.iotData;
+            }
+        }
+
         const totalItems = await Batch.countDocuments(query);
 
         // Fetch slim batch data for calculating statistics
@@ -426,7 +447,14 @@ exports.updateBatchStatus = async (req, res) => {
         }
         
         logger.info('Batch status changed', { batchId, status, userId: req.user.id, role: req.user.role });
-        
+
+        emitToBatchRoom(batchId, 'batch:statusChanged', {
+          batchId,
+          status,
+          updatedBy: req.user.email || req.user.name,
+          timestamp: new Date().toISOString()
+        });
+
         res.json(batch);
     } catch (err) {
         logger.error('Error updating batch status', { error: err.message, stack: err.stack });
@@ -444,6 +472,14 @@ exports.exportBatch = async (req, res) => {
             return res.status(404).json(
                 apiResponse.errorResponse('Batch not found', 'BATCH_NOT_FOUND', 404)
             );
+        }
+
+        if (batch.iotData) {
+            batch.currentTemperature = batch.iotData.currentTemperature ?? null;
+            batch.currentHumidity = batch.iotData.currentHumidity ?? null;
+            batch.isSpoiled = batch.iotData.isSpoiled ?? false;
+            batch.iotTimestamp = batch.iotData.lastUpdated ?? null;
+            delete batch.iotData;
         }
 
         if (format === 'csv') {
@@ -489,6 +525,96 @@ exports.exportBatch = async (req, res) => {
         console.error('Export failed:', error);
         return res.status(500).json(
             apiResponse.errorResponse('Export failed', 'EXPORT_ERROR', 500)
+        );
+    }
+};
+
+const spoilageDetectionService = require('../services/spoilageDetectionService');
+
+/**
+ * Record IoT sensor data for a batch
+ * @route POST /api/batches/:batchId/iot
+ */
+exports.recordIoTData = async (req, res) => {
+    try {
+        const { batchId } = req.params;
+        const { temperature, humidity } = req.body;
+
+        if (temperature == null) {
+            return res.status(400).json(
+                apiResponse.errorResponse('Temperature is required', 'MISSING_TEMPERATURE', 400)
+            );
+        }
+        if (humidity == null) {
+            return res.status(400).json(
+                apiResponse.errorResponse('Humidity is required', 'MISSING_HUMIDITY', 400)
+            );
+        }
+
+        if (typeof temperature !== 'number' || temperature < -20 || temperature > 140) {
+            return res.status(400).json(
+                apiResponse.errorResponse('Temperature must be a number between -20 and 140', 'INVALID_TEMPERATURE', 400)
+            );
+        }
+
+        if (typeof humidity !== 'number' || humidity < 0 || humidity > 100) {
+            return res.status(400).json(
+                apiResponse.errorResponse('Humidity must be a number between 0 and 100', 'INVALID_HUMIDITY', 400)
+            );
+        }
+
+        const batch = await spoilageDetectionService.recordIoTData(batchId, temperature, humidity);
+
+        res.json(
+            apiResponse.successResponse({
+                batchId: batch.batchId,
+                currentTemperature: batch.iotData.currentTemperature,
+                currentHumidity: batch.iotData.currentHumidity,
+                isSpoiled: batch.iotData.isSpoiled,
+                lastUpdated: batch.iotData.lastUpdated,
+            }, 'IoT data recorded successfully')
+        );
+    } catch (error) {
+        if (error.statusCode === 404) {
+            return res.status(404).json(
+                apiResponse.errorResponse('Batch not found', 'BATCH_NOT_FOUND', 404)
+            );
+        }
+        console.error('Error recording IoT data:', error);
+        res.status(500).json(
+            apiResponse.errorResponse('Failed to record IoT data', 'IOT_RECORD_ERROR', 500)
+        );
+    }
+};
+
+/**
+ * Get IoT sensor data for a batch
+ * @route GET /api/batches/:batchId/iot
+ */
+exports.getIoTData = async (req, res) => {
+    try {
+        const { batchId } = req.params;
+
+        if (!batchId) {
+            return res.status(400).json(
+                apiResponse.errorResponse('Batch ID is required', 'MISSING_BATCH_ID', 400)
+            );
+        }
+
+        const data = await spoilageDetectionService.getIoTData(batchId);
+
+        res.json(
+            apiResponse.successResponse(data, 'IoT data retrieved successfully')
+        );
+    } catch (error) {
+        if (error.statusCode === 404) {
+            return res.status(404).json(
+                apiResponse.errorResponse('Batch not found', 'BATCH_NOT_FOUND', 404)
+            );
+        }
+        console.error('Error getting IoT data:', error);
+        res.status(500).json(
+            apiResponse.errorResponse('Failed to retrieve IoT data', 'IOT_DATA_ERROR', 500)
         );
     }
 };
