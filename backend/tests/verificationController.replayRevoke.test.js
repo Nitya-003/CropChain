@@ -21,14 +21,14 @@ jest.mock('../utils/verificationControllerHelpers', () => ({
     handleVerificationWithIdempotency: jest.fn(),
 }));
 
-jest.mock('../utils/verificationIdempotency', () => ({
+jest.mock('../utils/verificationIdempotencyRevoke', () => ({
     handleIdempotencyOnly: jest.fn(),
     requireIdempotencyKey: jest.fn(),
 }));
 
 const didService = require('../services/didService');
 const controllerHelpers = require('../utils/verificationControllerHelpers');
-const { handleIdempotencyOnly } = require('../utils/verificationIdempotency');
+const { handleIdempotencyOnly } = require('../utils/verificationIdempotencyRevoke');
 
 const { revokeCredential } = require('../controllers/verificationController');
 
