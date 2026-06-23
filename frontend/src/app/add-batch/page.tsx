@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { realCropBatchService } from '../../services/realCropBatchService';
 import { useRbac } from '../../hooks/useRbac';
+import { sanitizeObject } from '../../lib/sanitize';
 
 const AddBatchContent: React.FC = () => {
   const { t } = useTranslation();
@@ -115,7 +116,8 @@ const AddBatchContent: React.FC = () => {
 
     setIsLoading(true);
 
-    const createBatchPromise = realCropBatchService.createBatch(formData);
+    const sanitizedData = sanitizeObject(formData);
+    const createBatchPromise = realCropBatchService.createBatch(sanitizedData);
 
     try {
       const batch = await toast.promise(createBatchPromise, {

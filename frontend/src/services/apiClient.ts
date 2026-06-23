@@ -1,5 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { tokenService } from './token.service';
+import { sanitizeObject } from '../lib/sanitize';
 
 const baseApiUrl = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001';
 export const API_URL = baseApiUrl.endsWith('/api') ? baseApiUrl : `${baseApiUrl.replace(/\/$/, '')}/api`;
@@ -18,6 +19,14 @@ apiClient.interceptors.request.use((config) => {
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  if (config.data && typeof config.data === 'object') {
+    config.data = sanitizeObject(config.data);
+  }
+
+  if (config.params && typeof config.params === 'object') {
+    config.params = sanitizeObject(config.params);
   }
 
   return config;
