@@ -5,6 +5,7 @@ import { MessageCircle, X, Send, Sparkles, Leaf, User, Bot, Minimize2, Maximize2
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { aiChatService, ChatMessage } from '../services/aiChatService';
+import { sanitizeString } from '../lib/sanitize';
 
 const AIChatbot: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -42,7 +43,7 @@ const AIChatbot: React.FC = () => {
     const messageToSend = messageOverride ?? inputMessage;
     if (!messageToSend.trim() || isLoading) return;
 
-    const userMessage = messageToSend.trim();
+    const userMessage = sanitizeString(messageToSend.trim());
     setInputMessage('');
 
     // Add user message

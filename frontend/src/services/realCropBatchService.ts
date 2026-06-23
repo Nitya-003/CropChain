@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { sanitizeString } from '../lib/sanitize';
 
 export interface BatchData {
   batchId: string;
@@ -35,17 +36,20 @@ export const realCropBatchService = {
   },
 
   getBatch: async (batchId: string): Promise<BatchData> => {
-    const response = await apiClient.get(`/batches/${batchId}`);
+    const sanitizedId = sanitizeString(batchId);
+    const response = await apiClient.get(`/batches/${sanitizedId}`);
     return response.data.data.batch;
   },
 
   updateBatch: async (batchId: string, updateData: Partial<BatchData>): Promise<BatchData> => {
-    const response = await apiClient.put(`/batches/${batchId}`, updateData);
+    const sanitizedId = sanitizeString(batchId);
+    const response = await apiClient.put(`/batches/${sanitizedId}`, updateData);
     return response.data.data.batch;
   },
 
   exportBatch: async (batchId: string, format: 'pdf' | 'csv') => {
-    const response = await apiClient.get<Blob>(`/batches/${batchId}/export`, {
+    const sanitizedId = sanitizeString(batchId);
+    const response = await apiClient.get<Blob>(`/batches/${sanitizedId}/export`, {
       params: { format },
       responseType: 'blob'
     });
