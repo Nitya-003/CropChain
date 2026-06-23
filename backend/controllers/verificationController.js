@@ -772,8 +772,8 @@ const streamBulkJobEvents = async (req, res) => {
                 for (let i = lastRowIndexEmitted + 1; i < availableCount; i++) {
                     const row = job.results[i];
                     if (!row) continue;
-                    if (typeof row.rowNumber === 'number' && row.rowNumber - 2 <= i) {
-                        // emit
+                    if (typeof row.rowNumber === 'number' && row.rowNumber - 2 > i) {
+                        continue;
                     }
                     writeEvent('rowResult', {
                         jobId,
