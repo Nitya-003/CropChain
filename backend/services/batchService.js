@@ -10,7 +10,7 @@ const Counter = require('../models/Counter');
 const blockchainService = require('./blockchainService');
 const notificationService = require('./notificationService');
 const apiResponse = require('../utils/apiResponse');
-const { getStageNumber, getStagesString, isValidStage, normalizeStage } = require('../constants/stages');
+const { getStageNumber, getStagesString, isValidStage, normalizeStage, isValidTransition, getNextStage } = require('../constants/stages');
 
 class BatchService {
     /**
@@ -184,6 +184,42 @@ class BatchService {
                 throw new Error(`Invalid stage: ${updateData.stage}. Must be one of: ${getStagesString()}`);
             }
 
+            // Fetch current batch to validate transition
+            const currentBatch = await Batch.findOne({ batchId });
+
+            if (!currentBatch) {
+                return {
+                    success: false,
+                    error: 'Batch not found',
+                    statusCode: 404
+                };
+            }
+
+            if (currentBatch.isRecalled) {
+                return {
+                    success: false,
+                    error: 'Cannot update a recalled batch',
+                    statusCode: 400
+                };
+            }
+
+            if (normalizedStage === currentBatch.currentStage) {
+                return {
+                    success: false,
+                    error: `Batch is already at stage "${normalizedStage}". No transition needed.`,
+                    statusCode: 400
+                };
+            }
+
+            if (!isValidTransition(currentBatch.currentStage, normalizedStage)) {
+                const nextStage = getNextStage(currentBatch.currentStage);
+                return {
+                    success: false,
+                    error: `Invalid stage transition: cannot move from "${currentBatch.currentStage}" to "${normalizedStage}".${nextStage ? ` Valid next stage: "${nextStage}".` : ''}`,
+                    statusCode: 400
+                };
+            }
+
             const blockchainHash = blockchainService.simulateHash(updateData);
 
             const batch = await Batch.findOneAndUpdate(
@@ -204,14 +240,6 @@ class BatchService {
                 },
                 { new: true }
             );
-
-            if (!batch) {
-                return {
-                    success: false,
-                    error: 'Batch not found',
-                    statusCode: 404
-                };
-            }
 
             // Try to sync with blockchain (non-blocking)
             this.syncToBlockchain(batch, 'update');

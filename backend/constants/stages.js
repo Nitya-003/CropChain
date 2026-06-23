@@ -26,6 +26,37 @@
 const STAGES = ['farmer', 'mandi', 'transport', 'retailer'];
 
 /**
+ * Ordered stage flow for supply chain transition validation
+ * A batch must advance sequentially: farmer → mandi → transport → retailer
+ */
+const STAGE_ORDER = ['farmer', 'mandi', 'transport', 'retailer'];
+
+/**
+ * Check whether a stage transition is valid according to supply chain flow
+ * Only forward transitions of exactly one step are allowed (no skips, no reversions, no same-stage updates)
+ * @param {string} currentStage - The batch's current stage
+ * @param {string} newStage - The requested next stage
+ * @returns {boolean} True if the transition is valid
+ */
+const isValidTransition = (currentStage, newStage) => {
+  const currentIndex = STAGE_ORDER.indexOf(currentStage?.toLowerCase());
+  const newIndex = STAGE_ORDER.indexOf(newStage?.toLowerCase());
+  return newIndex === currentIndex + 1;
+};
+
+/**
+ * Return the only valid next stage for a given current stage
+ * @param {string} currentStage
+ * @returns {string|null} The next stage, or null if already at the final stage
+ */
+const getNextStage = (currentStage) => {
+  const currentIndex = STAGE_ORDER.indexOf(currentStage?.toLowerCase());
+  return currentIndex >= 0 && currentIndex < STAGE_ORDER.length - 1
+    ? STAGE_ORDER[currentIndex + 1]
+    : null;
+};
+
+/**
  * Stage to number mapping for blockchain contract compatibility
  * MUST match the order in CropChain.sol Stage enum
  */
@@ -112,9 +143,12 @@ const validateStageMapping = () => {
 
 module.exports = STAGES;
 module.exports.STAGES = STAGES;
+module.exports.STAGE_ORDER = STAGE_ORDER;
 module.exports.STAGE_TO_NUMBER = STAGE_TO_NUMBER;
 module.exports.getStagesString = getStagesString;
 module.exports.isValidStage = isValidStage;
 module.exports.normalizeStage = normalizeStage;
 module.exports.getStageNumber = getStageNumber;
+module.exports.isValidTransition = isValidTransition;
+module.exports.getNextStage = getNextStage;
 module.exports.validateStageMapping = validateStageMapping;
