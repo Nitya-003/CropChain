@@ -83,11 +83,11 @@ describe('CORS Configuration', () => {
         expect(res.status).toBe(200);
     });
 
-    test('should allow requests with no origin', async () => {
+    test('should reject requests with no origin', async () => {
         const res = await request(app)
             .get('/api/status');
 
-        expect(res.status).toBe(200);
+        expect(res.status).not.toBe(200);
     });
 
     test('should block requests from disallowed origins', async () => {
