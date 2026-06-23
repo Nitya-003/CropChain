@@ -2,6 +2,7 @@ const didService = require('../services/didService');
 const User = require('../models/User');
 const VerificationEvent = require('../models/VerificationEvent');
 const { appendAuditEvent } = require('../utils/auditLogger');
+const { emitToVerificationRoom, emitGlobal } = require('../services/socketService');
 
 const BulkVerificationJob = require('../models/BulkVerificationJob');
 const bulkVerificationService = require('../services/bulkVerificationService');
@@ -258,8 +259,24 @@ const issueCredential = async (req, res) => {
         body: req.body,
         action: CHALLENGE_ACTIONS.ISSUE_CREDENTIAL,
         actorIdFromReq: req.user.id,
-        execute: (validatedData, challenge) =>
-            didService.issueCredential(validatedData.userId, req.user.id, validatedData.signature, validatedData.walletAddress, challenge),
+        execute: async (validatedData, challenge) => {
+            const result = await didService.issueCredential(
+                validatedData.userId, req.user.id,
+                validatedData.signature, validatedData.walletAddress, challenge
+            );
+            emitToVerificationRoom(validatedData.userId, 'verification:credentialIssued', {
+                userId: validatedData.userId,
+                issuedBy: req.user.id,
+                walletAddress: validatedData.walletAddress,
+                timestamp: new Date().toISOString()
+            });
+            emitGlobal('verification:credentialIssued', {
+                userId: validatedData.userId,
+                issuedBy: req.user.id,
+                timestamp: new Date().toISOString()
+            });
+            return result;
+        },
         errorMeta: {
             code: 'CREDENTIAL_ISSUE_ERROR',
             message: 'Credential issuing failed',
@@ -301,6 +318,18 @@ const revokeCredential = async (req, res) => {
                     status: 'success',
                     metadata: { originalAction: 'CREDENTIAL_REVOKE' },
                     req,
+                });
+
+                emitToVerificationRoom(userId, 'verification:credentialRevoked', {
+                    userId,
+                    revokedBy: adminId,
+                    reason,
+                    timestamp: new Date().toISOString()
+                });
+                emitGlobal('verification:credentialRevoked', {
+                    userId,
+                    revokedBy: adminId,
+                    timestamp: new Date().toISOString()
                 });
 
                 return result;

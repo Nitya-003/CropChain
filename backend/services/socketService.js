@@ -1,4 +1,5 @@
 const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
 
 let io = null;
 
@@ -16,6 +17,20 @@ function initializeSocketIO(httpServer) {
         credentials: true
       },
       transports: ['websocket', 'polling']
+    });
+
+    io.use((socket, next) => {
+      const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
+      if (!token) {
+        return next(new Error('Authentication required'));
+      }
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        socket.user = decoded;
+        next();
+      } catch (err) {
+        next(new Error('Invalid token'));
+      }
     });
 
     // Set up connection handling
