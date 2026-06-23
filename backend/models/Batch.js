@@ -231,9 +231,45 @@ const batchSchema = new mongoose.Schema({
     enum: ['Active', 'Flagged', 'Inactive'],
     default: 'Active',
     required: true
+  },
+  iotData: {
+    currentTemperature: {
+      type: Number,
+      min: [-20, 'Temperature too low'],
+      max: [140, 'Temperature too high']
+    },
+    currentHumidity: {
+      type: Number,
+      min: [0, 'Humidity cannot be below 0%'],
+      max: [100, 'Humidity cannot exceed 100%']
+    },
+    isSpoiled: {
+      type: Boolean,
+      default: false
+    },
+    lastUpdated: {
+      type: Date
+    },
+    telemetryHistory: [{
+      temperature: Number,
+      humidity: Number,
+      timestamp: { type: Date, default: Date.now }
+    }]
   }
 }, {
-  timestamps: true // Automatically adds createdAt and updatedAt fields
+  timestamps: true, // Automatically adds createdAt and updatedAt fields
+  toJSON: {
+    transform: function(doc, ret) {
+      if (ret.iotData) {
+        ret.currentTemperature = ret.iotData.currentTemperature ?? null;
+        ret.currentHumidity = ret.iotData.currentHumidity ?? null;
+        ret.isSpoiled = ret.iotData.isSpoiled ?? false;
+        ret.iotTimestamp = ret.iotData.lastUpdated ?? null;
+        delete ret.iotData;
+      }
+      return ret;
+    }
+  }
 });
 
 // Add indexes for performance optimization
