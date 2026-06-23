@@ -94,6 +94,11 @@ jest.mock('mongoose', () => {
 jest.mock('../models/Counter', () => mockCounter);
 jest.mock('../models/Batch', () => mockBatch);
 
+// Mock qrcode to prevent real QR generation (slow under concurrent load)
+jest.mock('qrcode', () => ({
+  toDataURL: jest.fn().mockResolvedValue('data:image/png;base64,mockedQRCodeData'),
+}));
+
 // We need to require server.js AFTER mocking mongoose
 const app = require('../server');
 
