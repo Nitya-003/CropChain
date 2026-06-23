@@ -40,6 +40,18 @@ const aiLimiter = createLimiter(
     'Too many AI requests from this IP, please try again later.'
 );
 
+const registerWindowMs = parseInt(process.env.REGISTER_RATE_LIMIT_WINDOW_MS, 10) || 60 * 60 * 1000; // 1 hour
+const registerLimiter = rateLimit({
+    windowMs: registerWindowMs,
+    max: isTestEnv ? 10000 : (parseInt(process.env.REGISTER_RATE_LIMIT_MAX, 10) || 3),
+    message: {
+        error: 'Too many registration attempts from this IP, please try again later.',
+        retryAfter: `${Math.ceil(registerWindowMs / 60000)} minutes`
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 // ==================== Sensitive Abuse-Aware Limiters ====================
 // Window configuration (per-route windows)
 const CHALLENGE_WINDOW_MS = parseInt(process.env.CHALLENGE_RATE_LIMIT_WINDOW_MS, 10) || 10 * 60 * 1000; // 10 minutes
@@ -136,6 +148,7 @@ module.exports = {
     authLimiter,
     batchLimiter,
     aiLimiter,
+    registerLimiter,
     rateLimitWindowMs,
     rateLimitMaxRequests,
 

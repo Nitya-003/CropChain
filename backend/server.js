@@ -17,7 +17,7 @@ const aiService = require('./services/aiService');
 const errorHandlerMiddleware = require('./middleware/errorHandler');
 const { createBatchSchema, updateBatchSchema } = require("./validations/batchSchema");
 const { protect, adminOnly, authorizeBatchOwner, authorizeRoles, authorizeStageTransition, authorizeBlockchainTransaction } = require('./middleware/auth');
-const { generalLimiter, authLimiter, batchLimiter, aiLimiter, rateLimitWindowMs, rateLimitMaxRequests } = require('./middleware/rateLimiters');
+const { generalLimiter, authLimiter, batchLimiter, aiLimiter, registerLimiter, rateLimitWindowMs, rateLimitMaxRequests } = require('./middleware/rateLimiters');
 const { validateEnv } = require('./utils/envValidator');
 const mongoose = require('mongoose');
 const apiResponse = require('./utils/apiResponse');
@@ -315,8 +315,24 @@ const verificationRoutes = require('./routes/verification');
 const approvalRoutes = require('./routes/approvalRoutes');
 const recommendRoutes = require('./routes/recommendRoutes');
 
-// Mount Auth Routes
-app.use('/api/auth', authLimiter, authRoutes);
+// Mount Auth Routes with per-endpoint rate limiting
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', registerLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
+app.use('/api/auth/reset-password/:token', authLimiter);
+app.use('/api/auth', authRoutes);
+
+// Log rate limit violations (reached after a rate limiter sends 429)
+app.use((err, req, res, next) => {
+    if (res.statusCode === 429) {
+        logger.warn('Rate limit exceeded', {
+            ip: req.ip,
+            path: req.path,
+            method: req.method,
+        });
+    }
+    next(err);
+});
 
 // Mount Verification Routes
 app.use('/api/verification', generalLimiter, verificationRoutes);
