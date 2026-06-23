@@ -44,7 +44,7 @@ export const getSocket = (): Socket => {
 export const setAuthToken = (token: string | null): void => {
   authToken = token;
   if (socketInstance) {
-    socketInstance.auth = token ? { token } : undefined;
+    socketInstance.auth = { token: token ?? '' };
     if (socketInstance.connected) {
       socketInstance.disconnect().connect();
     }
