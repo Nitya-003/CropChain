@@ -103,6 +103,22 @@ router.post(
     linkWallet
 );
 
+// Download CSV template for bulk verification
+router.get('/bulk/template', protect, adminOnly, (req, res) => {
+    const headers = ['userid', 'email', 'walletaddress', 'action', 'signature', 'nonce', 'expiresat'];
+    const sampleRow = ['123456789012345678901234', 'john@farm.com', '0x1234567890abcdef1234567890abcdef12345678', 'ISSUE_CREDENTIAL', '', '', ''];
+
+    const csvContent = [
+        headers.join(','),
+        sampleRow.join(','),
+        ''
+    ].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=bulk-verification-template.csv');
+    res.send(csvContent);
+});
+
 // Admin only routes
 router.post(
     '/issue',

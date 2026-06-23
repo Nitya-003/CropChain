@@ -1,8 +1,9 @@
 "use client";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Shield, UserCheck, UserX, AlertCircle, RefreshCw } from 'lucide-react';
+import { Shield, UserCheck, UserX, AlertCircle, RefreshCw, Download, Upload } from 'lucide-react';
 import StatsCardSkeleton from '../../components/skeletons/StatsCardSkeleton';
 import TableSkeleton from '../../components/skeletons/TableSkeleton';
+import { apiClient } from '../../services/apiClient';
 import { verificationService, UnverifiedUser, VerifiedUser } from '../../services/verificationService';
 import VerificationBadge from '../../components/VerificationBadge';
 import { useAuth } from '../../context/AuthContext';
@@ -25,6 +26,74 @@ const VerificationDashboardComponent: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'unverified' | 'verified'>('unverified');
     const [processingUserId, setProcessingUserId] = useState<string | null>(null);
     const [revokeTarget, setRevokeTarget] = useState<{ id: string; name: string } | null>(null);
+
+    // Bulk CSV upload state
+    const [uploadErrors, setUploadErrors] = useState<Array<{ row: number; data: Record<string, string>; errors: string[] }>>([]);
+    const [uploading, setUploading] = useState(false);
+
+    const downloadTemplate = async () => {
+        try {
+            const response = await apiClient.get('/verification/bulk/template', {
+                responseType: 'blob',
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'bulk-verification-template.csv');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            toast.success('Template downloaded');
+        } catch {
+            toast.error('Failed to download template');
+        }
+    };
+
+    const handleBulkUpload = async (file: File) => {
+        try {
+            setUploading(true);
+            setUploadErrors([]);
+            const formData = new FormData();
+            formData.append('file', file);
+            const { data } = await apiClient.post('/verification/bulk/issue-credential', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            if (data.structuredErrors?.length > 0) {
+                setUploadErrors(data.structuredErrors);
+                toast.error(`${data.structuredErrors.length} row(s) have validation errors`);
+            } else {
+                toast.success(`Bulk job initiated! Job ID: ${data.data?.jobId}`);
+            }
+        } catch (err: unknown) {
+            const axiosErr = err as { response?: { data?: { structuredErrors?: Array<{ row: number; data: Record<string, string>; errors: string[] }> } } };
+            if (axiosErr.response?.data?.structuredErrors) {
+                setUploadErrors(axiosErr.response.data.structuredErrors);
+            }
+            const message = err instanceof Error ? err.message : 'Upload failed';
+            toast.error(message);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const downloadErrorCsv = () => {
+        const headers = ['Row', ...Object.keys(uploadErrors[0]?.data || {}), 'Errors'];
+        const rows = uploadErrors.map(e => [
+            String(e.row),
+            ...Object.values(e.data).map(v => `"${String(v).replace(/"/g, '""')}"`),
+            `"${e.errors.join('; ').replace(/"/g, '""')}"`,
+        ].join(','));
+        const csv = [headers.join(','), ...rows, ''].join('\n');
+        const url = window.URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'bulk-verification-errors.csv');
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+    };
 
     // Dynamic row statuses driven by websocket updates
     const [rowStatuses, setRowStatuses] = useState<Record<string, 'in_progress' | 'verified' | 'failed' | 'linked' | 'unverified' | null>>({});
@@ -178,6 +247,81 @@ const VerificationDashboardComponent: React.FC = () => {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Bulk CSV Verification */}
+            <Card className="border border-border bg-card">
+                <CardContent className="p-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <h3 className="text-lg font-semibold text-foreground">Bulk CSV Verification</h3>
+                            <p className="text-sm text-muted-foreground mt-1">Upload a CSV file to issue credentials in bulk</p>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={downloadTemplate} className="gap-1.5">
+                                <Download className="h-3.5 w-3.5" />
+                                Download Template
+                            </Button>
+                            <label className="cursor-pointer">
+                                <Button variant="default" size="sm" className="gap-1.5" asChild disabled={uploading}>
+                                    <span>
+                                        <Upload className="h-3.5 w-3.5" />
+                                        {uploading ? 'Uploading...' : 'Upload CSV'}
+                                    </span>
+                                </Button>
+                                <input
+                                    type="file"
+                                    accept=".csv"
+                                    className="hidden"
+                                    disabled={uploading}
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) handleBulkUpload(file);
+                                        e.target.value = '';
+                                    }}
+                                />
+                            </label>
+                        </div>
+                    </div>
+
+                    {uploadErrors.length > 0 && (
+                        <div className="mt-6 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-sm font-semibold text-rose-500">
+                                    Validation Errors ({uploadErrors.length} row{uploadErrors.length > 1 ? 's' : ''})
+                                </h4>
+                                <Button variant="outline" size="sm" onClick={downloadErrorCsv} className="gap-1.5">
+                                    <Download className="h-3 w-3" />
+                                    Download Error CSV
+                                </Button>
+                            </div>
+                            <div className="overflow-x-auto border border-border/40 rounded-lg">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-muted/40 text-left">
+                                            <TableHead className="py-3 px-4 font-semibold text-foreground">Row</TableHead>
+                                            <TableHead className="py-3 px-4 font-semibold text-foreground">Data</TableHead>
+                                            <TableHead className="py-3 px-4 font-semibold text-foreground">Errors</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {uploadErrors.map((err, i) => (
+                                            <TableRow key={i} className="border-b border-border/40 text-left">
+                                                <TableCell className="py-3 px-4 font-mono text-sm">{err.row}</TableCell>
+                                                <TableCell className="py-3 px-4 text-sm text-muted-foreground max-w-xs truncate">
+                                                    {JSON.stringify(err.data)}
+                                                </TableCell>
+                                                <TableCell className="py-3 px-4 text-sm text-rose-600">
+                                                    {err.errors.join('; ')}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
 
             {/* Tabs & Controls */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-border/40 pb-4">

@@ -161,14 +161,16 @@ const validateRecord = ({ row, rowNumber }) => {
 
 const validateAndNormalizeCsvRecords = ({ records, maxRowsPerJob }) => {
     const rowErrors = [];
+    const structuredErrors = [];
 
     if (!Array.isArray(records)) {
-        return { records: [], rowErrors: ['CSV parse failed'] };
+        return { records: [], rowErrors: ['CSV parse failed'], structuredErrors: [{ row: 0, data: null, errors: ['CSV parse failed'] }] };
     }
 
     if (records.length > maxRowsPerJob) {
         rowErrors.push(`CSV has too many rows. Max allowed is ${maxRowsPerJob}`);
-        return { records: [], rowErrors };
+        structuredErrors.push({ row: 0, data: null, errors: [`CSV has too many rows. Max allowed is ${maxRowsPerJob}`] });
+        return { records: [], rowErrors, structuredErrors };
     }
 
     const normalized = [];
@@ -180,13 +182,14 @@ const validateAndNormalizeCsvRecords = ({ records, maxRowsPerJob }) => {
         const errors = validateRecord({ row, rowNumber });
         if (errors.length) {
             rowErrors.push(...errors);
+            structuredErrors.push({ row: rowNumber, data: row, errors: [...errors] });
             continue;
         }
 
         normalized.push(normalizeRow(row));
     }
 
-    return { records: normalized, rowErrors };
+    return { records: normalized, rowErrors, structuredErrors };
 };
 
 const validateHeadersExact = (headers) => {

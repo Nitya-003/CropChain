@@ -643,13 +643,16 @@ const bulkIssueCredentials = async (req, res) => {
 
         // Validate + normalize rows (including userid/email rules, formats, action etc.).
         const { validateAndNormalizeCsvRecords, sanitizeForStorage } = require('../utils/bulkCsvValidation');
-        const { records: normalizedRecords, rowErrors } = validateAndNormalizeCsvRecords({
+        const { records: normalizedRecords, rowErrors, structuredErrors } = validateAndNormalizeCsvRecords({
             records: recordsRaw,
             maxRowsPerJob,
         });
 
         if (rowErrors.length > 0) {
-            return res.status(400).json(apiResponse.validationErrorResponse(rowErrors.slice(0, 100))); // avoid huge error responses
+            return res.status(400).json({
+                ...apiResponse.validationErrorResponse(rowErrors.slice(0, 100)),
+                structuredErrors: structuredErrors.slice(0, 100),
+            });
         }
 
         if (normalizedRecords.length === 0) {
