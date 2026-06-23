@@ -43,8 +43,10 @@ class BatchService {
      */
     async generateQRCode(batchId) {
         try {
-            return await QRCode.toDataURL(batchId, {
-                width: 200,
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+            const trackingUrl = `${frontendUrl}/track/${encodeURIComponent(batchId)}`;
+            return await QRCode.toDataURL(trackingUrl, {
+                width: 400,
                 margin: 2,
                 color: {
                     dark: '#22c55e',
@@ -202,7 +204,31 @@ class BatchService {
                 };
             }
 
+            if (previousBatch.isRecalled) {
+                return {
+                    success: false,
+                    error: 'Cannot update a recalled batch',
+                    statusCode: 400
+                };
+            }
+
             const previousStage = previousBatch.currentStage;
+
+            if (!isValidTransition(previousStage, normalizedStage)) {
+                if (previousStage === normalizedStage) {
+                    return {
+                        success: false,
+                        error: `Batch is already at stage '${previousStage}'`,
+                        statusCode: 400
+                    };
+                }
+                return {
+                    success: false,
+                    error: 'Invalid stage transition',
+                    statusCode: 400
+                };
+            }
+
             const blockchainHash = blockchainService.simulateHash(updateData);
 
             const batch = await Batch.findOneAndUpdate(
