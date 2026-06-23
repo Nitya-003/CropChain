@@ -134,20 +134,17 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
         // best-effort
     }
 
-    let successCount = 0;
-    let failureCount = 0;
-
     // Preserve CSV order in results.
     const results = new Array(records.length);
 
     // Progress tracking (avoid job.save() per-row).
     let completedCount = 0;
     let lastSavedCompletedCount = 0;
+    let savePromise = Promise.resolve();
 
     let nextIndex = 0;
 
     const processRow = async (i) => {
-
         const record = records[i];
         const rowNumber = i + 2;
 
@@ -219,7 +216,6 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                         details: { message: 'Request already processed (idempotency)' },
                         originalInput,
                     };
-                    successCount++;
                     return;
                 }
 
@@ -235,7 +231,6 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                     details: { message: 'Request already in progress or duplicate idempotency key' },
                     originalInput,
                 };
-                failureCount++;
                 return;
             }
 
@@ -261,7 +256,6 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                         response: { success: true, message: 'User already verified' },
                     });
                 }
-                successCount++;
                 return;
             }
 
@@ -288,7 +282,6 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                     details: predictedDetails,
                     originalInput,
                 };
-                successCount++;
                 return;
             }
 
@@ -350,7 +343,6 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                 details: outcome,
                 originalInput,
             };
-            successCount++;
         } catch (error) {
             const status = statusFor({ dryRun, outcomeType: 'failure' });
             results[i] = {
@@ -363,7 +355,6 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
                 error: error.message || error.toString(),
                 originalInput,
             };
-            failureCount++;
 
             try {
                 await appendAuditEvent({
@@ -395,13 +386,21 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
             await processRow(i);
 
             completedCount += 1;
+            const currentCompleted = completedCount;
             if (
-                completedCount - lastSavedCompletedCount >= PROGRESS_UPDATE_EVERY ||
-                completedCount === records.length
+                currentCompleted - lastSavedCompletedCount >= PROGRESS_UPDATE_EVERY ||
+                currentCompleted === records.length
             ) {
-                lastSavedCompletedCount = completedCount;
-                job.processedRows = completedCount;
-                await job.save();
+                lastSavedCompletedCount = currentCompleted;
+                savePromise = savePromise.then(async () => {
+                    const currentJob = await BulkVerificationJob.findById(jobId);
+                    if (currentJob && currentJob.status === 'processing') {
+                        currentJob.processedRows = currentCompleted;
+                        await currentJob.save();
+                    }
+                }).catch((err) => {
+                    console.error('Failed to save bulk job progress:', err);
+                });
             }
         }
     };
@@ -411,12 +410,26 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
     const workers = Array.from({ length: concurrency }).map(() => worker());
     await Promise.all(workers);
 
-    job.status = 'completed';
-    job.successCount = successCount;
-    job.failureCount = failureCount;
-    job.results = results;
-    job.processedRows = records.length;
-    await job.save();
+    // Wait for any pending intermediate saves to finish.
+    await savePromise;
+
+    const successCount = results.filter(
+        (r) => r && ['success', 'skipped', 'dry-run-success', 'dry-run-skipped'].includes(r.status)
+    ).length;
+    const failureCount = results.filter(
+        (r) => r && ['failure', 'dry-run-failure'].includes(r.status)
+    ).length;
+
+    // Load fresh job document to avoid version conflicts or overwrite issues.
+    const finalJob = await BulkVerificationJob.findById(jobId);
+    if (finalJob) {
+        finalJob.status = 'completed';
+        finalJob.successCount = successCount;
+        finalJob.failureCount = failureCount;
+        finalJob.results = results;
+        finalJob.processedRows = records.length;
+        await finalJob.save();
+    }
 
     try {
         await appendAuditEvent({

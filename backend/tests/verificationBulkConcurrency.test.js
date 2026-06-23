@@ -102,6 +102,7 @@ describe('bulk verification - concurrency + idempotency', () => {
 
         // All rows resolve to the same user.
         User.findById.mockResolvedValue({
+            _id: '507f1f77bcf86cd799439011',
             _id: VALID_USER_ID,
             walletAddress: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
             role: 'admin',
@@ -129,6 +130,7 @@ describe('bulk verification - concurrency + idempotency', () => {
 
         const records = [
             {
+                userid: '507f1f77bcf86cd799439011',
                 userid: VALID_USER_ID,
                 email: 'a@x.com',
                 walletaddress: walletAddress,
@@ -138,6 +140,7 @@ describe('bulk verification - concurrency + idempotency', () => {
                 expiresat: String(Date.now() + 10000),
             },
             {
+                userid: '507f1f77bcf86cd799439011',
                 userid: VALID_USER_ID,
                 email: 'a@x.com',
                 walletaddress: walletAddress,
@@ -147,6 +150,7 @@ describe('bulk verification - concurrency + idempotency', () => {
                 expiresat: String(Date.now() + 10000),
             },
             {
+                userid: '507f1f77bcf86cd799439011',
                 userid: VALID_USER_ID,
                 email: 'a@x.com',
                 walletaddress: walletAddress,
