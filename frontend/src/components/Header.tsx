@@ -34,6 +34,9 @@ const Header: React.FC = () => {
       { path: '/admin', label: 'Admin', icon: Shield },
       { path: '/verification', label: 'Verification', icon: Shield }
     ] : []),
+    ...(isAuthenticated && ['admin', 'quality_inspector'].includes(user?.role) ? [
+      { path: '/incidents', label: 'Incidents', icon: Shield }
+    ] : []),
   ];
 
   const handleLogout = async () => {
@@ -206,6 +209,19 @@ const Header: React.FC = () => {
                     Verification
                   </Link>
                 </>
+              )}
+              {isAuthenticated && ['admin', 'quality_inspector'].includes(user?.role) && (
+                <Link
+                  href="/incidents"
+                  className={`flex items-center gap-1 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
+                    pathname === '/incidents'
+                      ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/10'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Shield className="h-3.5 w-3.5" />
+                  Incidents
+                </Link>
               )}
             </nav>
           </div>
