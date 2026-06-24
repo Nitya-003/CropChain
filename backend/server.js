@@ -616,8 +616,8 @@ app.post('/api/ai/chat', batchLimiter, protect, validateRequest(chatSchema), asy
             'Chat response generated successfully (fallback)'
         );
 
-        // Use 200 to keep chatbot UX stable and avoid frontend connection-error fallback.
-        res.status(200).json(response);
+        // Return 503 so clients can detect AI service degradation programmatically.
+        res.status(503).json(response);
     }
 });
 
