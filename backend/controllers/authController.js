@@ -312,6 +312,9 @@ const updateProfile = async (req, res) => {
  * This ensures role is ALWAYS assigned by backend, never by frontend.
  */
 const walletLoginSchema = z.object({
+  address: z.string().min(1, "Wallet address is required"),
+  signature: z.string().min(1, "Signature is required"),
+  nonce: z.string().min(1, "Nonce is required"),
 });
 
 const getNonce = async (req, res) => {
