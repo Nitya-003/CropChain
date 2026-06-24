@@ -1,14 +1,15 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Leaf, Package, Plus, RefreshCw, TrendingUp, Clock, MapPin, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { realCropBatchService } from '../../services/realCropBatchService';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/table';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import { useAuth } from '../../context/AuthContext';
+import BatchFilters from '../../components/BatchFilters';
 
 const FarmerDashboardComponent: React.FC = () => {
   const { user } = useAuth();
@@ -20,32 +21,93 @@ const FarmerDashboardComponent: React.FC = () => {
     activeBatches: 0,
   });
 
-  useEffect(() => {
-    loadBatches();
-  }, []);
+  const [filters, setFilters] = useState({
+    search: '',
+    stage: '',
+    cropType: '',
+    status: '',
+    dateFrom: '',
+    dateTo: '',
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+    page: 1,
+    limit: 10
+  });
 
-  const loadBatches = async () => {
+  const [pagination, setPagination] = useState({
+    totalItems: 0,
+    currentPage: 1,
+    totalPages: 1,
+    limit: 10
+  });
+
+  const [searchInput, setSearchInput] = useState('');
+
+  const activeCount = Object.entries(filters).filter(([key, val]) => {
+    if (key === 'sortBy' && val === 'createdAt') return false;
+    if (key === 'sortOrder' && val === 'desc') return false;
+    if (key === 'page' && val === 1) return false;
+    if (key === 'limit' && val === 10) return false;
+    return val !== '';
+  }).length;
+
+  const loadBatches = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await realCropBatchService.getAllBatches();
+      const apiFilters: any = {};
+      Object.entries(filters).forEach(([key, val]) => {
+        if (val !== undefined && val !== '') {
+          apiFilters[key] = val;
+        }
+      });
+      if (user?.name) {
+        apiFilters.farmerName = user.name;
+      }
+
+      const data = await realCropBatchService.getAllBatches(apiFilters);
       const allBatches: any[] = data?.batches || [];
 
-      // Filter to only show this farmer's batches
-      const myBatches = allBatches.filter(
-        (b: any) => b.farmerName === user?.name || b.farmerId === user?.id
-      );
-
-      setBatches(myBatches);
+      setBatches(allBatches);
       setStats({
-        totalBatches: myBatches.length,
-        totalQuantity: myBatches.reduce((sum: number, b: any) => sum + (b.quantity || 0), 0),
-        activeBatches: myBatches.filter((b: any) => b.currentStage !== 'retailer').length,
+        totalBatches: allBatches.length,
+        totalQuantity: allBatches.reduce((sum: number, b: any) => sum + (b.quantity || 0), 0),
+        activeBatches: allBatches.filter((b: any) => b.currentStage !== 'retailer').length,
       });
+      if (data?.pagination) {
+        setPagination({
+          totalItems: data.pagination.totalItems || 0,
+          currentPage: data.pagination.currentPage || 1,
+          totalPages: data.pagination.totalPages || 1,
+          limit: data.pagination.limit || 10
+        });
+      }
     } catch (error) {
       console.error('Failed to load batches:', error);
     } finally {
       setIsLoading(false);
     }
+  }, [filters, user?.name]);
+
+  useEffect(() => {
+    if (user?.name) {
+      loadBatches();
+    }
+  }, [loadBatches, user?.name]);
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setFilters({
+      search: '',
+      stage: '',
+      cropType: '',
+      status: '',
+      dateFrom: '',
+      dateTo: '',
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+      page: 1,
+      limit: 10
+    });
   };
 
   const getStageColor = (stage: string) => {
@@ -63,7 +125,7 @@ const FarmerDashboardComponent: React.FC = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading && batches.length === 0) {
     return (
       <div className="max-w-7xl mx-auto space-y-8 animate-pulse py-6">
         <div className="text-center space-y-3">
@@ -121,7 +183,7 @@ const FarmerDashboardComponent: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-1 text-left">
-            <div className="text-3xl font-bold tracking-tight">{stats.totalBatches}</div>
+            <div className="text-3xl font-bold tracking-tight">{isLoading ? <div className="h-9 w-16 bg-muted animate-pulse rounded" /> : stats.totalBatches}</div>
             <p className="text-xs text-muted-foreground">Total batches created</p>
           </CardContent>
         </Card>
@@ -134,7 +196,7 @@ const FarmerDashboardComponent: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-1 text-left">
-            <div className="text-3xl font-bold tracking-tight">{stats.totalQuantity.toLocaleString()} <span className="text-lg font-medium text-muted-foreground">kg</span></div>
+            <div className="text-3xl font-bold tracking-tight">{isLoading ? <div className="h-9 w-24 bg-muted animate-pulse rounded" /> : <>{stats.totalQuantity.toLocaleString()} <span className="text-lg font-medium text-muted-foreground">kg</span></>}</div>
             <p className="text-xs text-muted-foreground">Cumulative crop quantity</p>
           </CardContent>
         </Card>
@@ -147,7 +209,7 @@ const FarmerDashboardComponent: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-1 text-left">
-            <div className="text-3xl font-bold tracking-tight">{stats.activeBatches}</div>
+            <div className="text-3xl font-bold tracking-tight">{isLoading ? <div className="h-9 w-16 bg-muted animate-pulse rounded" /> : stats.activeBatches}</div>
             <p className="text-xs text-muted-foreground">Batches still in supply chain</p>
           </CardContent>
         </Card>
@@ -184,6 +246,21 @@ const FarmerDashboardComponent: React.FC = () => {
         </Link>
       </div>
 
+      {/* Filters */}
+      <Card className="border border-border bg-card/60 backdrop-blur-md shadow-sm">
+        <CardContent className="p-6">
+          <BatchFilters
+            filters={filters}
+            onFilterChange={(partial) => setFilters(f => ({ ...f, ...partial }))}
+            onSearchSubmit={(search) => setFilters(f => ({ ...f, search, page: 1 }))}
+            onClearFilters={clearFilters}
+            searchInput={searchInput}
+            onSearchInputChange={setSearchInput}
+            activeFilterCount={activeCount}
+          />
+        </CardContent>
+      </Card>
+
       {/* My Batches Table */}
       <Card className="border border-border bg-card">
         <CardHeader className="pb-3 border-b border-border/40">
@@ -193,14 +270,23 @@ const FarmerDashboardComponent: React.FC = () => {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {batches.length === 0 ? (
+          {isLoading && batches.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
               <div className="bg-muted p-4 rounded-full">
                 <Package className="h-8 w-8 text-muted-foreground" />
               </div>
               <div>
-                <p className="font-semibold text-foreground">No batches yet</p>
-                <p className="text-sm text-muted-foreground mt-1">Create your first batch to get started</p>
+                <p className="font-semibold text-foreground">Loading...</p>
+              </div>
+            </div>
+          ) : batches.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
+              <div className="bg-muted p-4 rounded-full">
+                <Package className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">No batches found</p>
+                <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters or create a new batch</p>
               </div>
               <Link href="/add-batch">
                 <Button size="sm" className="gap-1.5 mt-2">
@@ -256,6 +342,36 @@ const FarmerDashboardComponent: React.FC = () => {
                   ))}
                 </TableBody>
               </Table>
+              {pagination.totalPages > 1 && (
+                <div className="flex items-center justify-between border-t border-border/40 py-4 px-6">
+                  <p className="text-xs text-muted-foreground">
+                    Showing {batches.length} of {pagination.totalItems} results
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={pagination.currentPage <= 1 || isLoading}
+                      onClick={() => setFilters(f => ({ ...f, page: pagination.currentPage - 1 }))}
+                      className="h-8 rounded-lg text-xs"
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-xs font-semibold text-foreground">
+                      Page {pagination.currentPage} of {pagination.totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={pagination.currentPage >= pagination.totalPages || isLoading}
+                      onClick={() => setFilters(f => ({ ...f, page: pagination.currentPage + 1 }))}
+                      className="h-8 rounded-lg text-xs"
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

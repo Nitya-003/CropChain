@@ -307,6 +307,15 @@ class BlockchainService {
     getContract() {
         return this.contract;
     }
+
+    /**
+     * Get the contract ABI for external use
+     * Used by server.js to initialize its own contract instance
+     * @returns {Array} Contract ABI array
+     */
+    getContractABI() {
+        return blockchainConfig.contractABI;
+    }
 }
 
 // Export singleton instance

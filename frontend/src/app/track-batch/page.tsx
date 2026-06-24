@@ -73,7 +73,7 @@ const TrackBatch: React.FC = () => {
           {t('nav.trackBatch') || 'Track Your Shipment'}
         </h1>
         <p className="text-gray-600 dark:text-gray-300">
-          Enter your Batch ID to see the real-time supply chain journey.
+          {t('batch.trackDescription', 'Enter your Batch ID to see the real-time supply chain journey.')}
         </p>
       </div>
 
@@ -84,7 +84,7 @@ const TrackBatch: React.FC = () => {
             <Search className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Enter Batch ID (e.g., CROP-2024-001)"
+              placeholder={t('batch.enterBatchIdPlaceholder', 'Enter Batch ID (e.g., CROP-2024-001)')}
               value={batchId}
               onChange={(e) => setBatchId(e.target.value)}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-green-500 transition-all"
@@ -95,7 +95,7 @@ const TrackBatch: React.FC = () => {
             disabled={isSearching}
             className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 flex items-center"
           >
-            {isSearching ? 'Searching...' : 'Track'}
+            {isSearching ? t('batch.searching', 'Searching...') : t('batch.track', 'Track')}
             {!isSearching && <ArrowRight className="ml-2 h-5 w-5" />}
           </button>
         </form>
@@ -118,7 +118,7 @@ const TrackBatch: React.FC = () => {
                   <Package className="h-6 w-6 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Batch ID</p>
+                  <p className="text-sm text-gray-500">{t('batch.batchId', 'Batch ID')}</p>
                   <p className="font-mono font-bold text-lg text-gray-800 dark:text-white">
                     {batch.batchId || batch.id}
                   </p>
@@ -127,19 +127,19 @@ const TrackBatch: React.FC = () => {
 
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm text-gray-500">Crop Type</label>
+                  <label className="text-sm text-gray-500">{t('batch.cropType', 'Crop Type')}</label>
                   <p className="font-semibold text-gray-800 dark:text-white capitalize">{batch.cropType}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500">Farmer</label>
+                  <label className="text-sm text-gray-500">{t('actors.farmer', 'Farmer')}</label>
                   <p className="font-semibold text-gray-800 dark:text-white">{batch.farmerName}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500">Quantity</label>
-                  <p className="font-semibold text-gray-800 dark:text-white">{batch.quantity} kg</p>
+                  <label className="text-sm text-gray-500">{t('batch.quantity', 'Quantity')}</label>
+                  <p className="font-semibold text-gray-800 dark:text-white">{batch.quantity} {t('batch.kg', 'kg')}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500">Origin</label>
+                  <label className="text-sm text-gray-500">{t('batch.origin', 'Origin')}</label>
                   <p className="font-semibold text-gray-800 dark:text-white">{batch.origin}</p>
                 </div>
               </div>
@@ -156,11 +156,11 @@ const TrackBatch: React.FC = () => {
 
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
               <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-6 border-b pb-4 flex items-center justify-between">
-                <span>Supply Chain Journey</span>
+                <span>{t('batch.supplyChainJourney', 'Supply Chain Journey')}</span>
                 {socketConnected && (
                   <div className="flex items-center gap-2 text-green-600 dark:text-green-400 animate-pulse">
                     <Wifi className="h-5 w-5" />
-                    <span className="text-xs font-semibold">LIVE</span>
+                    <span className="text-xs font-semibold">{t('batch.live', 'LIVE')}</span>
                   </div>
                 )}
               </h2>
@@ -172,7 +172,7 @@ const TrackBatch: React.FC = () => {
               
               {lastUpdate && (
                 <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 text-right">
-                  Last updated: {lastUpdate.toLocaleTimeString()}
+                  {t('batch.lastUpdatedAt', 'Last updated:')} {lastUpdate.toLocaleTimeString()}
                 </div>
               )}
             </div>
@@ -184,7 +184,7 @@ const TrackBatch: React.FC = () => {
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
                 <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4 flex items-center">
                   <Thermometer className="h-5 w-5 mr-2" />
-                  IoT Sensor Data
+                  {t('batch.iotSensorData', 'IoT Sensor Data')}
                 </h3>
                 
                 {/* Spoilage Alert */}
@@ -194,10 +194,10 @@ const TrackBatch: React.FC = () => {
                       <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
                       <div>
                         <p className="font-semibold text-red-800 dark:text-red-200 text-sm">
-                          ⚠️ WARNING: Cold Chain Breached
+                          {t('batch.coldChainBreached', 'WARNING: Cold Chain Breached')}
                         </p>
                         <p className="text-red-700 dark:text-red-300 text-sm mt-1">
-                          Crop Spoiled. Temperature exceeded safe limits.
+                          {t('batch.spoiledDescription', 'Crop Spoiled. Temperature exceeded safe limits.')}
                         </p>
                       </div>
                     </div>
@@ -208,17 +208,17 @@ const TrackBatch: React.FC = () => {
                       <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
                       <div>
                         <p className="font-semibold text-green-800 dark:text-green-200 text-sm">
-                          ✅ Oracle Verified: Optimal Conditions
+                          {t('batch.oracleVerified', 'Oracle Verified: Optimal Conditions')}
                         </p>
                         <div className="mt-2 space-y-1">
                           <div className="flex justify-between">
-                            <span className="text-green-700 dark:text-green-300 text-sm">Temperature:</span>
+                            <span className="text-green-700 dark:text-green-300 text-sm">{t('journey.temperature', 'Temperature:')}</span>
                             <span className="font-bold text-green-800 dark:text-green-200 text-sm">
                               {batch.currentTemperature ? `${batch.currentTemperature}°F` : 'N/A'}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-green-700 dark:text-green-300 text-sm">Humidity:</span>
+                            <span className="text-green-700 dark:text-green-300 text-sm">{t('journey.humidity', 'Humidity:')}</span>
                             <span className="font-bold text-green-800 dark:text-green-200 text-sm">
                               {batch.currentHumidity !== undefined ? `${batch.currentHumidity}%` : 'N/A'}
                             </span>
@@ -231,21 +231,21 @@ const TrackBatch: React.FC = () => {
                 
                 <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
-                    <label className="text-sm text-gray-500">Last Reading</label>
+                    <label className="text-sm text-gray-500">{t('batch.lastReading', 'Last Reading')}</label>
                     <p className="font-semibold text-gray-800 dark:text-white">
-                      {batch.iotTimestamp ? new Date(batch.iotTimestamp).toLocaleString() : 'No readings yet'}
+                      {batch.iotTimestamp ? new Date(batch.iotTimestamp).toLocaleString() : t('batch.noReadings', 'No readings yet')}
                     </p>
                   </div>
                   <div>
-                    <label className="text-sm text-gray-500">Sensor Status</label>
+                    <label className="text-sm text-gray-500">{t('batch.sensorStatus', 'Sensor Status')}</label>
                     <p className="font-semibold text-gray-800 dark:text-white">
                       {batch.isSpoiled ? (
                         <span className="text-red-600 dark:text-red-400">
-                          ❌ Spoilage Detected
+                          {t('batch.spoilageDetected', 'Spoilage Detected')}
                         </span>
                       ) : (
                         <span className="text-green-600 dark:text-green-400">
-                          ✅ Fresh
+                          {t('batch.fresh', 'Fresh')}
                         </span>
                       )}
                     </p>
@@ -258,10 +258,10 @@ const TrackBatch: React.FC = () => {
           {/* QR Code */}
           {batch.qrCode && (
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 text-center md:col-span-3">
-              <h3 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6">QR Code</h3>
+              <h3 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6">{t('batch.qrCode', 'QR Code')}</h3>
               <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 inline-block">
-                <Image src={batch.qrCode} alt="Batch QR Code" width={192} height={192} className="mx-auto" />
-                <p className="text-gray-600 dark:text-gray-300 mt-4">Share this QR code for instant batch verification</p>
+                <Image src={batch.qrCode} alt={t('batch.qrCode', 'QR Code')} width={192} height={192} className="mx-auto" />
+                <p className="text-gray-600 dark:text-gray-300 mt-4">{t('batch.qrShareDescription', 'Share this QR code for instant batch verification')}</p>
               </div>
             </div>
           )}
@@ -272,7 +272,7 @@ const TrackBatch: React.FC = () => {
       {!batch && !isSearching && errorType === 'not-found' && (
         <EmptyState
           title={t('batch.batchNotFound') || "Batch Not Found"}
-          description={`No batch found with ID: ${batchId}. Please check the ID and try again.`}
+          description={t('batch.notFoundDescription', 'No batch found with the provided ID. Please check and try again.')}
           icon={Search}
           actionLabel={t('batch.tryAgain') || "Try Again"}
           onAction={() => {
@@ -285,7 +285,7 @@ const TrackBatch: React.FC = () => {
 
       {!batch && !isSearching && errorType === 'error' && (
         <ErrorState
-          message="We faced an issue while fetching the batch details. Please try again."
+          message={t('batch.fetchError', 'We faced an issue while fetching the batch details. Please try again.')}
           onRetry={() => handleSearch()}
         />
       )}
