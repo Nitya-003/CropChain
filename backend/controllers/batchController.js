@@ -6,6 +6,7 @@ const { isAdminRole } = require('../constants/permissions');
 const STAGES = require('../constants/stages');
 const logger = require('../utils/logger');
 const { emitToBatchRoom } = require('../services/socketService');
+const QRCode = require('qrcode');
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -39,9 +40,21 @@ const generateBatchId = async (session) => {
  * Generate QR code data for a batch
  */
 const generateQRCode = async (batchId) => {
-    // In production, this would generate actual QR code
-    // For now, return the batch ID as data URI placeholder
-    return `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"><text y="20">${batchId}</text></svg>`;
+    try {
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const trackingUrl = `${frontendUrl}/track/${batchId}`;
+        return await QRCode.toDataURL(trackingUrl, {
+            width: 400,
+            margin: 2,
+            color: {
+                dark: '#22c55e',
+                light: '#ffffff'
+            }
+        });
+    } catch (error) {
+        console.error('Failed to generate QR code:', error);
+        return '';
+    }
 };
 
 /**
