@@ -215,7 +215,7 @@ docker images
 ## Quick Start
 
 ### Prerequisites
-- Node.js (v14+)
+- Node.js (v18.18+)
 - npm or yarn
 - MetaMask wallet
 - Infura/Alchemy account (for blockchain)
