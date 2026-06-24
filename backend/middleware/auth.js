@@ -30,7 +30,13 @@ const protect = async (req, res, next) => {
         }
         next();
     } catch (error) {
-        return res.status(401).json({ error: 'Not authorized', message: 'Invalid token' });
+        if (error.name === 'TokenExpiredError') {
+            return res.status(401).json({ error: 'Not authorized', message: 'Token has expired, please log in again' });
+        }
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({ error: 'Not authorized', message: 'Invalid token' });
+        }
+        return res.status(500).json({ error: 'Server Error', message: 'Authentication check failed' });
     }
 };
 
@@ -264,3 +270,4 @@ module.exports = {
     requireMultisigOrAdmin,
     checkBatchSafetyStatus
 };
+
