@@ -86,6 +86,11 @@ class OracleService {
      * Handle IoT data request event
      */
     async handleIoTRequest(batchId, requester) {
+        // NEVER generate mock data in production — only real IoT data should be written
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error('Mock IoT data generation is disabled in production. Real IoT sensor integration required.');
+        }
+
         try {
             const batchIdStr = ethers.decodeBytes32String(batchId);
             console.log(`📡 IoT Data Requested:`);
@@ -106,21 +111,8 @@ class OracleService {
                 status: 'processing'
             });
             
-            // Generate mock IoT data with realistic variations
-            const iotData = this.generateMockIoTData();
-            
-            console.log(`🌡️ Generated IoT Data:`);
-            console.log(`   Temperature: ${iotData.temperature}°F (${iotData.temperatureRaw})`);
-            console.log(`   Humidity: ${iotData.humidity}%`);
-            console.log(`   Spoiled: ${iotData.isSpoiled}`);
-            
-            // Fulfill the request on blockchain
-            await this.fulfillIoTData(batchId, iotData);
-            
-            // Remove from queue
+            console.log(`❌ No real IoT sensor integration configured. Cannot fulfill IoT data request for batch ${batchIdStr}.`);
             this.requestQueue.delete(batchIdStr);
-            
-            console.log(`✅ IoT data fulfilled for batch ${batchIdStr}`);
             
         } catch (error) {
             console.error(`❌ Failed to handle IoT request for batch ${batchId}:`, error.message);
@@ -129,58 +121,6 @@ class OracleService {
             const batchIdStr = ethers.decodeBytes32String(batchId);
             this.requestQueue.delete(batchIdStr);
         }
-    }
-
-    /**
-     * Generate realistic mock IoT data
-     */
-    generateMockIoTData() {
-        // Generate temperature between 40°F and 90°F (400-900 in hundredths)
-        // Using weighted distribution for more realistic values
-        const tempRanges = [
-            { min: 450, max: 650, weight: 0.6 },  // 45-65°F (60% - normal range)
-            { min: 350, max: 450, weight: 0.2 },  // 35-45°F (20% - cool range)
-            { min: 650, max: 750, weight: 0.15 }, // 65-75°F (15% - warm range)
-            { min: 750, max: 900, weight: 0.05 }  // 75-90°F (5% - hot range)
-        ];
-        
-        const temperatureRaw = this.weightedRandom(tempRanges);
-        const temperature = temperatureRaw / 10; // Convert to Fahrenheit
-        
-        // Generate humidity between 30% and 80%
-        // Correlate with temperature slightly (higher temp = slightly higher humidity)
-        const baseHumidity = 45 + (temperatureRaw - 500) * 0.02;
-        const humidity = Math.max(30, Math.min(80, Math.round(baseHumidity + Math.random() * 20)));
-        
-        // Determine if spoiled based on temperature thresholds
-        // > 80°F or < 32°F = spoiled
-        const isSpoiled = temperature > 80 || temperature < 32;
-        
-        return {
-            temperatureRaw,
-            temperature: Math.round(temperature * 10) / 10, // Round to 1 decimal
-            humidity,
-            isSpoiled,
-            generatedAt: new Date().toISOString()
-        };
-    }
-
-    /**
-     * Weighted random selection based on ranges and weights
-     */
-    weightedRandom(ranges) {
-        const totalWeight = ranges.reduce((sum, range) => sum + range.weight, 0);
-        let random = Math.random() * totalWeight;
-        
-        for (const range of ranges) {
-            random -= range.weight;
-            if (random <= 0) {
-                return Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
-            }
-        }
-        
-        // Fallback to first range
-        return Math.floor(Math.random() * (ranges[0].max - ranges[0].min + 1)) + ranges[0].min;
     }
 
     /**
