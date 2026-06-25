@@ -255,7 +255,19 @@ const batchSchema = new mongoose.Schema({
       humidity: Number,
       timestamp: { type: Date, default: Date.now }
     }]
-  }
+  },
+  pendingApprovalId: {
+    type: String,
+    default: null
+  },
+  approvalHistory: [{
+    requestId: String,
+    actionType: String,
+    status: String,
+    resolvedAt: Date,
+    approvalCount: Number,
+    rejectionCount: Number
+  }]
 }, {
   timestamps: true, // Automatically adds createdAt and updatedAt fields
   toJSON: {
@@ -336,11 +348,57 @@ batchSchema.methods.canBeUpdated = function() {
 
 batchSchema.methods.hasPendingApproval = function() {
   /**
-   * Check if batch has pending blockchain/sync approval
+   * Check if batch has pending blockchain/sync approval or incident approval
    * @returns {boolean} True if pending
    */
-  return this.blockchainJob?.status === 'pending' || this.syncStatus === 'pending';
+  return this.blockchainJob?.status === 'pending' || this.syncStatus === 'pending' || !!this.pendingApprovalId;
 };
+
+batchSchema.methods.executeRecall = function({ recalledBy, reason, approvalRequestId, txHash }) {
+  this.isRecalled = true;
+  this.status = 'Inactive';
+  this.updates.push({
+    stage: this.currentStage,
+    actor: recalledBy,
+    location: 'System',
+    notes: `BATCH RECALLED: ${reason}`
+  });
+};
+
+batchSchema.methods.markContaminated = function({ reportedBy, approvalRequestId, notes, contaminationType, severity }) {
+  this.status = 'Flagged';
+  this.updates.push({
+    stage: this.currentStage,
+    actor: reportedBy,
+    location: 'System',
+    notes: `CONTAMINATION FLAGGED (${severity || 'high'}): ${notes}`
+  });
+};
+
+batchSchema.methods.authorizeDestruction = function({ authorizedBy, approvalRequestId, notes }) {
+  this.status = 'Inactive';
+  this.isRecalled = true;
+  this.updates.push({
+    stage: this.currentStage,
+    actor: authorizedBy,
+    location: 'System',
+    notes: `DESTRUCTION AUTHORIZED: ${notes}`
+  });
+};
+
+batchSchema.methods.setPendingApproval = function(requestId) {
+  this.pendingApprovalId = requestId;
+};
+
+batchSchema.methods.clearPendingApproval = function() {
+  this.pendingApprovalId = null;
+};
+
+batchSchema.methods.addApprovalHistory = function(historyObj) {
+  this.approvalHistory.push(historyObj);
+  this.pendingApprovalId = null;
+};
+
 
 // Static methods
 batchSchema.statics.findByBatchId = function(batchId) {

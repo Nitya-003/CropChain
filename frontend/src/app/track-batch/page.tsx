@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { Search, Package, ArrowRight, Thermometer, AlertTriangle, CheckCircle, Wifi } from 'lucide-react';
+import { Search, Package, ArrowRight, Thermometer, AlertTriangle, CheckCircle, Wifi, AlertOctagon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { realCropBatchService } from '../../services/realCropBatchService';
 import Timeline from '../../components/Timeline';
@@ -109,6 +109,25 @@ const TrackBatch: React.FC = () => {
       {/* Results Section */}
       {batch && (
         <div className="grid md:grid-cols-3 gap-8">
+          
+          {/* Recall / Flagged Warning Banner */}
+          {(batch.isRecalled || batch.status === 'Flagged') && (
+            <div className="md:col-span-3">
+              <div className={`rounded-xl p-6 shadow-lg border-2 flex items-start gap-4 ${batch.isRecalled ? 'bg-red-50 dark:bg-red-900/20 border-red-500' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-500'}`}>
+                <AlertOctagon className={`h-8 w-8 flex-shrink-0 ${batch.isRecalled ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`} />
+                <div>
+                  <h3 className={`text-xl font-bold ${batch.isRecalled ? 'text-red-800 dark:text-red-200' : 'text-amber-800 dark:text-amber-200'}`}>
+                    {batch.isRecalled ? t('batch.recalledTitle', 'CRITICAL INCIDENT: BATCH RECALLED') : t('batch.flaggedTitle', 'WARNING: BATCH FLAGGED')}
+                  </h3>
+                  <p className={`mt-2 ${batch.isRecalled ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'}`}>
+                    {batch.isRecalled 
+                      ? t('batch.recalledMessage', 'This batch has been officially recalled due to a critical incident (e.g., severe contamination, regulatory non-compliance, or catastrophic spoilage). It must NOT be consumed or distributed.')
+                      : t('batch.flaggedMessage', 'This batch has been flagged for review due to an anomaly in the supply chain or environmental data. Proceed with caution.')}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Left Column: Batch Details Card */}
           <div className="md:col-span-1">

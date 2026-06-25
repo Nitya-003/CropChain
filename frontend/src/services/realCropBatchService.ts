@@ -54,5 +54,34 @@ export const realCropBatchService = {
       responseType: 'blob'
     });
     return response.data;
+  },
+
+  // Incident & Approval endpoints
+  getPendingApprovals: async (params?: any) => {
+    const response = await apiClient.get('/approvals', { params });
+    return response.data.data;
+  },
+  
+  getRequestsNeedingSignature: async () => {
+    const response = await apiClient.get('/approvals/pending');
+    return response.data.data;
+  },
+
+  requestRecall: async (batchId: string, justification: string, evidence: any[] = []) => {
+    const sanitizedId = sanitizeString(batchId);
+    const response = await apiClient.post(`/approvals/recall/${sanitizedId}`, { justification, evidence });
+    return response.data.data;
+  },
+
+  approveRequest: async (requestId: string, decision: 'approved' | 'rejected', reason: string = '') => {
+    const sanitizedId = sanitizeString(requestId);
+    const response = await apiClient.post(`/approvals/${sanitizedId}/sign`, { decision, reason });
+    return response.data.data;
+  },
+
+  getApprovalHistory: async (batchId: string) => {
+    const sanitizedId = sanitizeString(batchId);
+    const response = await apiClient.get(`/approvals/batch/${sanitizedId}`);
+    return response.data.data;
   }
 };
