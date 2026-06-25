@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useState } from 'react';
-import { Upload, FileText, X, Image as ImageIcon } from 'lucide-react';
+import { Upload, FileText, X } from 'lucide-react';
 import { realCropBatchService } from '../services/realCropBatchService';
 import toast from 'react-hot-toast';
 
@@ -45,7 +45,7 @@ export default function DocumentUpload({ batchId, onUploadComplete }: DocumentUp
     }
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragOver(false);
     const file = e.dataTransfer.files[0];
