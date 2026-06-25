@@ -494,6 +494,109 @@ Send a message to the AI chatbot for assistance.
 
 ---
 
+### 8. Activity Feed
+
+#### Get Personalized Activity Feed
+
+```
+GET /api/activities/feed
+```
+
+Retrieve a personalized, paginated chronological timeline of supply-chain events for the current user's role.
+
+- **Farmers**: See events for their own batches.
+- **Distributors/Transporters**: See events for shipments they carry or update.
+- **Retailers**: See events for batches they receive.
+- **Admins/Quality Inspectors**: See all activities.
+
+**Query Parameters:**
+- `eventType`: Filter by event type (e.g. `crop_registered`, `harvest_completed`, `ownership_transferred`, `shipment_created`, `shipment_status_updated`, `delivery_confirmed`, `batch_verified`, `batch_recalled`, `iot_data_recorded`)
+- `batchId`: Filter by related batch ID
+- `startDate`: Filter events on or after this date (YYYY-MM-DD)
+- `endDate`: Filter events on or before this date (YYYY-MM-DD)
+- `page`: Page number (default 1)
+- `limit`: Number of items per page (default 10)
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "activities": [
+      {
+        "_id": "607f1f77bcf86cd799439011",
+        "eventType": "crop_registered",
+        "timestamp": "2026-06-25T01:00:00.000Z",
+        "userId": "507f1f77bcf86cd799439011",
+        "userRole": "farmer",
+        "batchId": "CROP-2026-0001",
+        "description": "Crop batch registered: rice (1000 kg)",
+        "metadata": {
+          "farmerName": "John Doe",
+          "origin": "Punjab Farm"
+        }
+      }
+    ],
+    "pagination": {
+      "totalItems": 1,
+      "currentPage": 1,
+      "totalPages": 1,
+      "limit": 10
+    }
+  },
+  "code": "SUCCESS",
+  "message": "Activity feed retrieved successfully"
+}
+```
+
+---
+
+#### Get All Activities (Admin Only)
+
+```
+GET /api/activities
+```
+
+Retrieve a paginated list of all activities across the platform.
+
+**Response (200):** Same format as `/feed`.
+
+**Errors:**
+- **403**: Forbidden - Non-admin users attempting to access.
+
+---
+
+#### Get Activity by ID
+
+```
+GET /api/activities/:id
+```
+
+Retrieve details of a single activity. User must be authorized based on role rules.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "activity": {
+      "_id": "607f1f77bcf86cd799439011",
+      "eventType": "crop_registered",
+      "timestamp": "2026-06-25T01:00:00.000Z",
+      "userId": "507f1f77bcf86cd799439011",
+      "userRole": "farmer",
+      "batchId": "CROP-2026-0001",
+      "description": "Crop batch registered: rice (1000 kg)",
+      "metadata": {}
+    }
+  },
+  "code": "SUCCESS",
+  "message": "Activity retrieved successfully"
+}
+```
+
+---
+
 ## Error Codes Reference
 
 | Code | Status | Meaning |

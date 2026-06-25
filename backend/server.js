@@ -314,6 +314,7 @@ const authRoutes = require('./routes/authRoutes');
 const verificationRoutes = require('./routes/verification');
 const approvalRoutes = require('./routes/approvalRoutes');
 const recommendRoutes = require('./routes/recommendRoutes');
+const activityRoutes = require('./routes/activityRoutes');
 
 // Mount Auth Routes with per-endpoint rate limiting
 app.use('/api/auth/login', authLimiter);
@@ -340,6 +341,8 @@ app.use('/api/verification', generalLimiter, verificationRoutes);
 // Mount Recommendation Routes
 app.use('/api/recommend', aiLimiter, recommendRoutes);
 
+// Mount Activity Routes
+app.use('/api/activities', generalLimiter, activityRoutes);
 
 // Mount Approval Routes (Multi-signature for high-stakes actions)
 app.use('/api/approvals', batchLimiter, approvalRoutes);

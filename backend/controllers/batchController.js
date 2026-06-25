@@ -6,6 +6,7 @@ const { isAdminRole } = require('../constants/permissions');
 const STAGES = require('../constants/stages');
 const logger = require('../utils/logger');
 const { emitToBatchRoom } = require('../services/socketService');
+const activityService = require('../services/activityService');
 const QRCode = require('qrcode');
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -108,6 +109,33 @@ exports.createBatch = async (req, res) => {
 
         logger.info('Batch created', { batchId, userId: req.user.id, ip: req.ip });
 
+        // Log platform activities
+        await activityService.logActivity({
+            userId: req.user.id || req.user._id,
+            userRole: req.user.role,
+            eventType: 'crop_registered',
+            batchId,
+            description: `Crop batch registered: ${validatedData.cropType} (${validatedData.quantity} kg)`,
+            metadata: {
+                farmerName: validatedData.farmerName || req.user.name,
+                origin: validatedData.origin,
+                quantity: validatedData.quantity,
+                cropType: validatedData.cropType
+            }
+        });
+
+        await activityService.logActivity({
+            userId: req.user.id || req.user._id,
+            userRole: req.user.role,
+            eventType: 'harvest_completed',
+            batchId,
+            description: `Harvest completed for ${validatedData.cropType} at ${validatedData.origin}`,
+            metadata: {
+                harvestDate: validatedData.harvestDate,
+                origin: validatedData.origin
+            }
+        });
+
         const response = apiResponse.successResponse(
             { batch: batch[0] },
             'Batch created successfully',
@@ -209,6 +237,39 @@ exports.updateBatch = async (req, res) => {
         if (validatedData.ipfsCID) batch.ipfsCID = validatedData.ipfsCID;
         if (validatedData.blockchainHash) batch.blockchainHash = validatedData.blockchainHash;
 
+        // Determine activity type and log activity
+        let eventType = 'batch_status_updated';
+        let description = `Batch stage updated to ${normalizedStage}`;
+        if (normalizedStage === 'mandi') {
+            eventType = 'ownership_transferred';
+            description = `Batch ownership transferred to Mandi at ${validatedData.location}`;
+        } else if (normalizedStage === 'transport') {
+            if (batch.currentStage === 'transport') {
+                eventType = 'shipment_status_updated';
+                description = `Shipment status updated: batch is at ${validatedData.location}`;
+            } else {
+                eventType = 'shipment_created';
+                description = `Shipment created for transport to ${validatedData.location}`;
+            }
+        } else if (normalizedStage === 'retailer') {
+            eventType = 'delivery_confirmed';
+            description = `Delivery confirmed. Batch received at Retailer in ${validatedData.location}`;
+        }
+
+        await activityService.logActivity({
+            userId: req.user.id || req.user._id,
+            userRole: req.user.role,
+            eventType,
+            batchId,
+            description,
+            metadata: {
+                stage: normalizedStage,
+                actor: validatedData.actorName || req.user.name,
+                location: validatedData.location,
+                notes: validatedData.notes
+            }
+        });
+
         await batch.save();
 
         logger.info('Batch updated', { batchId, stage: normalizedStage, userId: req.user.id });
@@ -266,6 +327,17 @@ exports.recallBatch = async (req, res) => {
         await batch.save();
 
         logger.warn('Batch recalled', { batchId, adminId: req.user?.id, ip: req.ip });
+
+        await activityService.logActivity({
+            userId: req.user.id || req.user._id,
+            userRole: req.user.role,
+            eventType: 'batch_recalled',
+            batchId,
+            description: `Batch recalled by ${req.user.role}`,
+            metadata: {
+                recalledBy: req.user.email || req.user.name
+            }
+        });
 
         res.json({
             success: true,
@@ -460,6 +532,18 @@ exports.updateBatchStatus = async (req, res) => {
         
         logger.info('Batch status changed', { batchId, status, userId: req.user.id, role: req.user.role });
 
+        await activityService.logActivity({
+            userId: req.user.id || req.user._id,
+            userRole: req.user.role,
+            eventType: 'batch_status_updated',
+            batchId,
+            description: `Batch status updated to ${status}`,
+            metadata: {
+                status,
+                updatedBy: req.user.email || req.user.name
+            }
+        });
+
         emitToBatchRoom(batchId, 'batch:statusChanged', {
           batchId,
           status,
@@ -576,6 +660,19 @@ exports.recordIoTData = async (req, res) => {
         }
 
         const batch = await spoilageDetectionService.recordIoTData(batchId, temperature, humidity);
+
+        await activityService.logActivity({
+            userId: req.user.id || req.user._id,
+            userRole: req.user.role,
+            eventType: 'iot_data_recorded',
+            batchId,
+            description: `IoT telemetry recorded: Temp ${temperature}°C, Humidity ${humidity}%`,
+            metadata: {
+                temperature,
+                humidity,
+                isSpoiled: batch.iotData.isSpoiled
+            }
+        });
 
         res.json(
             apiResponse.successResponse({

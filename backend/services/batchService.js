@@ -12,6 +12,7 @@ const notificationService = require('./notificationService');
 const { emitToBatchRoom, emitGlobal } = require('./socketService');
 const apiResponse = require('../utils/apiResponse');
 const { getStageNumber, getStagesString, isValidStage, normalizeStage, isValidTransition, getNextStage } = require('../constants/stages');
+const activityService = require('./activityService');
 
 class BatchService {
     /**
@@ -111,6 +112,33 @@ class BatchService {
 
                 // Try to sync with blockchain (non-blocking)
                 this.syncToBlockchain(createdBatch, 'create');
+
+                // Log platform activities
+                await activityService.logActivity({
+                    userId: user.id || user._id,
+                    userRole: user.role,
+                    eventType: 'crop_registered',
+                    batchId,
+                    description: `Crop batch registered: ${batchData.cropType} (${batchData.quantity} kg)`,
+                    metadata: {
+                        farmerName: batchData.farmerName || user.name,
+                        origin: batchData.origin,
+                        quantity: batchData.quantity,
+                        cropType: batchData.cropType
+                    }
+                });
+
+                await activityService.logActivity({
+                    userId: user.id || user._id,
+                    userRole: user.role,
+                    eventType: 'harvest_completed',
+                    batchId,
+                    description: `Harvest completed for ${batchData.cropType} at ${batchData.origin}`,
+                    metadata: {
+                        harvestDate: batchData.harvestDate,
+                        origin: batchData.origin
+                    }
+                });
 
                 emitToBatchRoom(batchId, 'batch:created', {
                   batchId,
@@ -250,6 +278,39 @@ class BatchService {
                 { new: true }
             );
 
+            // Determine activity type and log activity
+            let eventType = 'batch_status_updated';
+            let description = `Batch stage updated to ${normalizedStage}`;
+            if (normalizedStage === 'mandi') {
+                eventType = 'ownership_transferred';
+                description = `Batch ownership transferred to Mandi at ${updateData.location}`;
+            } else if (normalizedStage === 'transport') {
+                if (previousStage === 'transport') {
+                    eventType = 'shipment_status_updated';
+                    description = `Shipment status updated: batch is at ${updateData.location}`;
+                } else {
+                    eventType = 'shipment_created';
+                    description = `Shipment created for transport to ${updateData.location}`;
+                }
+            } else if (normalizedStage === 'retailer') {
+                eventType = 'delivery_confirmed';
+                description = `Delivery confirmed. Batch received at Retailer in ${updateData.location}`;
+            }
+
+            await activityService.logActivity({
+                userId: user.id || user._id,
+                userRole: user.role,
+                eventType,
+                batchId,
+                description,
+                metadata: {
+                    stage: normalizedStage,
+                    actor: updateData.actor,
+                    location: updateData.location,
+                    notes: updateData.notes
+                }
+            });
+
             emitToBatchRoom(batchId, 'batch:stageChanged', {
               batchId,
               previousStage,
@@ -302,6 +363,17 @@ class BatchService {
 
             batch.isRecalled = true;
             await batch.save();
+
+            await activityService.logActivity({
+                userId: adminUser.id || adminUser._id,
+                userRole: adminUser.role,
+                eventType: 'batch_recalled',
+                batchId,
+                description: `Batch recalled by ${adminUser.role}`,
+                metadata: {
+                    recalledBy: adminUser.email || adminUser.name
+                }
+            });
 
             emitGlobal('batch:recalled', {
               batchId,
