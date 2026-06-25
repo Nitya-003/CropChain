@@ -4,6 +4,8 @@
  * Prevents cryptic runtime errors due to misconfiguration.
  */
 
+const logger = require('./logger');
+
 const REQUIRED_VARS = {
   MONGODB_URI: {
     description: "MongoDB connection string",
@@ -59,46 +61,42 @@ const validateEnv = () => {
   Object.entries(REQUIRED_VARS).forEach(([key, { description, validate, hint }]) => {
     const value = process.env[key];
     if (!value) {
-      errors.push(`  - ${key}: ${description}\n    ${hint}`);
+      errors.push(  - : \n    );
     } else if (typeof validate === "function" && !validate(value)) {
-      errors.push(`  - ${key}: value "${value}" has invalid format\n    ${hint}`);
+      errors.push(  - : value "" has invalid format\n    );
     }
   });
 
   if (process.env.JWT_SECRET && process.env.JWT_REFRESH_SECRET) {
     if (process.env.JWT_SECRET === process.env.JWT_REFRESH_SECRET) {
       errors.push(
-        `  - JWT_SECRET and JWT_REFRESH_SECRET must be different values for security.`
+          - JWT_SECRET and JWT_REFRESH_SECRET must be different values for security.
       );
     }
   }
 
   Object.entries(OPTIONAL_VARS_WARN).forEach(([key, { description, hint }]) => {
     if (!process.env[key]) {
-      warnings.push(`  - ${key} (optional): ${description}\n    ${hint}`);
+      warnings.push(  -  (optional): \n    );
     }
   });
 
   if (errors.length > 0) {
-    console.error("\n============================================");
-    console.error("  ENVIRONMENT VARIABLE VALIDATION FAILED");
-    console.error("============================================");
-    console.error("  The following required variables are missing or invalid:\n");
-    errors.forEach((e) => console.error(e));
-    console.error("\n  Please configure these in your .env file.");
-    console.error("  Refer to backend/.env.example for guidance.\n");
+    logger.error('ENVIRONMENT VARIABLE VALIDATION FAILED');
+    logger.error('The following required variables are missing or invalid:');
+    errors.forEach((e) => logger.error(e));
+    logger.error('Please configure these in your .env file.');
+    logger.error('Refer to backend/.env.example for guidance.');
     process.exit(1);
   }
 
   if (warnings.length > 0) {
-    console.warn("\n--------------------------------------------");
-    console.warn("  ENVIRONMENT VARIABLE WARNINGS");
-    console.warn("--------------------------------------------");
-    console.warn("  The following optional variables are not set:\n");
-    warnings.forEach((w) => console.warn(w));
-    console.warn("\n  Some features may not be available.\n");
+    logger.warn('ENVIRONMENT VARIABLE WARNINGS');
+    logger.warn('The following optional variables are not set:');
+    warnings.forEach((w) => logger.warn(w));
+    logger.warn('Some features may not be available.');
   } else {
-    console.log("[envValidator] All required environment variables are valid.");
+    logger.info('All required environment variables are valid.');
   }
 };
 
