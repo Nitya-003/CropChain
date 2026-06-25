@@ -36,87 +36,81 @@ const AddBatchContent: React.FC = () => {
   // Set crop type from query param if available
   useEffect(() => {
     if (cropTypeQuery) {
-      setFormData(prev => ({
-        ...prev,
-        cropType: cropTypeQuery.toLowerCase()
-      }));
+      setFormData(prev => ({ ...prev, cropType: cropTypeQuery.toLowerCase() }));
     }
   }, [cropTypeQuery]);
 
-  // Get today's date for max date constraint
   const today = new Date().toISOString().split('T')[0];
 
-  // RBAC Protection - Only farmers can create batches
-  if (!permissions.canCreateBatch) {
-    return (
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8">
-          <div className="text-center">
-            <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
-              Access Denied
-            </h2>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Only farmers can create batches. Your current role is: <strong>{getRoleDisplayName()}</strong>
-            </p>
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
-                <div className="text-left">
-                  <p className="text-sm text-yellow-800 dark:text-yellow-200 font-semibold">
-                    Role-based Access Control
-                  </p>
-                  <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                    This action requires the <strong>Farmer</strong> role. Please contact an administrator if you believe this is an error.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <button 
-              onClick={() => router.push('/')}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
-            >
-              Return to Dashboard
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Validate a single field
+  const validateField = useCallback((name: string, value: string): string | undefined => {
+    switch (name) {
+      case 'farmerName':
+        if (!value.trim()) return 'Farmer name is required';
+        break;
+      case 'farmerAddress':
+        if (!value.trim()) return 'Farmer address is required';
+        break;
+      case 'cropType':
+        if (!value.trim()) return 'Please select a crop type';
+        break;
+      case 'quantity':
+        if (!value || Number(value) <= 0) return 'Quantity must be greater than 0';
+        break;
+      case 'harvestDate':
+        if (!value) return 'Harvest date is required';
+        else if (new Date(value) > new Date()) return 'Harvest date cannot be in the future';
+        break;
+      case 'origin':
+        if (!value.trim()) return 'Origin is required';
+        break;
+    }
+    return undefined;
+  }, []);
 
-  const validateForm = (): boolean => {
+  // Validate all fields
+  const validateForm = useCallback((): boolean => {
     const errors: Record<string, string> = {};
-
-    if (!formData.farmerName.trim()) errors.farmerName = 'Farmer name is required';
-    if (!formData.farmerAddress.trim()) errors.farmerAddress = 'Farmer address is required';
-    if (!formData.cropType.trim()) errors.cropType = 'Please select a crop type';
-    if (!formData.quantity || Number(formData.quantity) <= 0) errors.quantity = 'Quantity must be greater than 0';
-    if (!formData.harvestDate) errors.harvestDate = 'Harvest date is required';
-    else if (new Date(formData.harvestDate) > new Date()) errors.harvestDate = 'Harvest date cannot be in the future';
-    if (!formData.origin.trim()) errors.origin = 'Origin is required';
-
+    const fields = ['farmerName', 'farmerAddress', 'cropType', 'quantity', 'harvestDate', 'origin'];
+    for (const name of fields) {
+      const error = validateField(name, formData[name] || '');
+      if (error) errors[name] = error;
+    }
     setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
 
-  const handleBlur = (
-    e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    const { name } = e.target;
-    setFieldErrors(prev => {
-      const copy = { ...prev };
-      delete copy[name];
-      return copy;
+    // Mark all fields as touched
+    Object.keys(formData).forEach(key => {
+      formData[key] = formData[key];
     });
+
+    return Object.keys(errors).length === 0;
+  }, [formData, validateField]);
+
+  // Validate on blur
+  const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    const error = validateField(name, value);
+    setFieldErrors(prev => {
+      const next = { ...prev };
+      if (error) {
+        next[name] = error;
+      } else {
+        delete next[name];
+      }
+      return next;
+    });
+  }, [validateField]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     if (!validateForm()) return;
 
     setIsLoading(true);
-
     const sanitizedData = sanitizeObject(formData);
     const createBatchPromise = realCropBatchService.createBatch(sanitizedData);
 
@@ -126,21 +120,10 @@ const AddBatchContent: React.FC = () => {
         success: (data) => `Batch created! ID: ${data.batchId}`,
         error: (err) => `Creation failed: ${err.message || 'Unknown error'}`
       });
-
       setGeneratedBatch(batch);
       setSuccess(true);
-      
-      setFormData({
-        farmerName: '',
-        farmerAddress: '',
-        cropType: '',
-        quantity: '',
-        harvestDate: '',
-        origin: '',
-        certifications: '',
-        description: ''
-      });
-
+      setFormData({ farmerName: '', farmerAddress: '', cropType: '', quantity: '', harvestDate: '', origin: '', certifications: '', description: '' });
+      setFieldErrors({});
     } catch (error) {
       console.error('Failed to create batch:', error);
     } finally {
@@ -148,30 +131,42 @@ const AddBatchContent: React.FC = () => {
     }
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-    setFieldErrors(prev => {
-      const copy = { ...prev };
-      delete copy[e.target.name];
-      return copy;
-    });
-  };
-
   const handleCreateAnother = () => {
     setSuccess(false);
     setGeneratedBatch(null);
+    setFieldErrors({});
   };
 
-  // Build select crop type options dynamically to accommodate advice
-  const defaultCrops = ['rice', 'wheat', 'corn'];
-  const cropOptions = [...defaultCrops];
-  if (formData.cropType && !cropOptions.includes(formData.cropType.toLowerCase())) {
-    cropOptions.push(formData.cropType.toLowerCase());
+  const inputClassName = (fieldName: string) =>
+    `w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${fieldErrors[fieldName] ? 'border-red-500 dark:border-red-400 pr-10' : 'border-gray-300 dark:border-gray-600'}`;
+
+  // RBAC Protection - Only farmers can create batches
+  if (!permissions.canCreateBatch) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8">
+          <div className="text-center">
+            <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">Access Denied</h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Only farmers can create batches. Your current role is: <strong>{getRoleDisplayName()}</strong>
+            </p>
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+                <div className="text-left">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200 font-semibold">Role-based Access Control</p>
+                  <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                    This action requires the <strong>Farmer</strong> role. Please contact an administrator if you believe this is an error.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <button onClick={() => router.push('/')} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold">Return to Dashboard</button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (success && generatedBatch) {
@@ -179,33 +174,21 @@ const AddBatchContent: React.FC = () => {
       <div className="max-w-2xl mx-auto">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 border-t-4 border-green-500">
           <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-4">
-              {t('batch.batchCreatedSuccess')}
-            </h2>
-            <p className="text-gray-600 dark:text-gray-300 mb-8">
-              {t('batch.batchCreatedMessage')}
-            </p>
+            <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-4">{t('batch.batchCreatedSuccess')}</h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-8">{t('batch.batchCreatedMessage')}</p>
             <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 mb-8">
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{t('batch.batchId')}</p>
-              <p className="text-2xl font-mono font-bold text-green-600 dark:text-green-400">
-                {generatedBatch.batchId}
-              </p>
+              <p className="text-2xl font-mono font-bold text-green-600 dark:text-green-400">{generatedBatch.batchId}</p>
             </div>
-
             <div className="mb-8 text-left">
               <div className="flex items-center gap-2 mb-4">
                 <Upload className="h-5 w-5 text-gray-500" />
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                  {t('batch.uploadDocuments')}
-                </h3>
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">{t('batch.uploadDocuments')}</h3>
               </div>
               <DocumentUpload batchId={generatedBatch.batchId} onUploadComplete={() => {}} />
             </div>
-
             <div className="flex gap-4 justify-center">
-              <button onClick={handleCreateAnother} className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold">
-                {t('batch.createAnother')}
-              </button>
+              <button onClick={handleCreateAnother} className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold">{t('batch.createAnother')}</button>
             </div>
           </div>
         </div>
@@ -219,17 +202,17 @@ const AddBatchContent: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-6 relative">
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">{t('batch.farmerName')}</label>
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">Farmer Name</label>
               <div className="relative">
-                <input type="text" name="farmerName" value={formData.farmerName} onChange={handleChange} onBlur={handleBlur} className={`w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${fieldErrors.farmerName ? 'border-red-500 dark:border-red-400 pr-10' : 'border-gray-300 dark:border-gray-600'}`} />
+                <input type="text" name="farmerName" value={formData.farmerName} onChange={handleChange} onBlur={handleBlur} className={inputClassName('farmerName')} placeholder="Farmer name" />
                 {fieldErrors.farmerName && <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />}
               </div>
               {fieldErrors.farmerName && <p className="mt-1 text-xs text-red-500 flex items-center gap-1">{fieldErrors.farmerName}</p>}
             </div>
             <div>
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">{t('batch.farmerAddress')}</label>
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">Farmer Address</label>
               <div className="relative">
-                <input type="text" name="farmerAddress" value={formData.farmerAddress} onChange={handleChange} onBlur={handleBlur} className={`w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${fieldErrors.farmerAddress ? 'border-red-500 dark:border-red-400 pr-10' : 'border-gray-300 dark:border-gray-600'}`} />
+                <input type="text" name="farmerAddress" value={formData.farmerAddress} onChange={handleChange} onBlur={handleBlur} className={inputClassName('farmerAddress')} placeholder="Farm address" />
                 {fieldErrors.farmerAddress && <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />}
               </div>
               {fieldErrors.farmerAddress && <p className="mt-1 text-xs text-red-500 flex items-center gap-1">{fieldErrors.farmerAddress}</p>}
@@ -238,21 +221,19 @@ const AddBatchContent: React.FC = () => {
 
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">{t('batch.cropType')}</label>
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">Crop Type</label>
               <div className="relative">
-                <select name="cropType" value={formData.cropType} onChange={handleChange} onBlur={handleBlur} className={`w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 capitalize ${fieldErrors.cropType ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'}`}>
-                  <option value="">{t('batch.selectCropType')}</option>
-                  {cropOptions.map(crop => (
-                    <option key={crop} value={crop}>{crop}</option>
-                  ))}
+                <select name="cropType" value={formData.cropType} onChange={handleChange} onBlur={handleBlur} className={inputClassName('cropType')}>
+                  <option value="">Select crop type</option>
+                  {['rice', 'wheat', 'corn', 'tomato'].map(crop => <option key={crop} value={crop}>{crop.charAt(0).toUpperCase() + crop.slice(1)}</option>)}
                 </select>
               </div>
               {fieldErrors.cropType && <p className="mt-1 text-xs text-red-500 flex items-center gap-1">{fieldErrors.cropType}</p>}
             </div>
             <div>
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">{t('batch.quantity')}</label>
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">Quantity (kg)</label>
               <div className="relative">
-                <input type="number" name="quantity" value={formData.quantity} onChange={handleChange} onBlur={handleBlur} className={`w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${fieldErrors.quantity ? 'border-red-500 dark:border-red-400 pr-10' : 'border-gray-300 dark:border-gray-600'}`} />
+                <input type="number" name="quantity" value={formData.quantity} onChange={handleChange} onBlur={handleBlur} className={inputClassName('quantity')} placeholder="1000" />
                 {fieldErrors.quantity && <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />}
               </div>
               {fieldErrors.quantity && <p className="mt-1 text-xs text-red-500 flex items-center gap-1">{fieldErrors.quantity}</p>}
@@ -261,17 +242,17 @@ const AddBatchContent: React.FC = () => {
 
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">{t('batch.harvestDate')}</label>
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">Harvest Date</label>
               <div className="relative">
-                <input type="date" name="harvestDate" value={formData.harvestDate} onChange={handleChange} onBlur={handleBlur} max={today} className={`w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${fieldErrors.harvestDate ? 'border-red-500 dark:border-red-400 pr-10' : 'border-gray-300 dark:border-gray-600'}`} />
+                <input type="date" name="harvestDate" value={formData.harvestDate} onChange={handleChange} onBlur={handleBlur} max={today} className={inputClassName('harvestDate')} />
                 {fieldErrors.harvestDate && <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />}
               </div>
               {fieldErrors.harvestDate && <p className="mt-1 text-xs text-red-500 flex items-center gap-1">{fieldErrors.harvestDate}</p>}
             </div>
             <div>
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">{t('batch.origin')}</label>
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">Origin / Farm Location</label>
               <div className="relative">
-                <input type="text" name="origin" value={formData.origin} onChange={handleChange} onBlur={handleBlur} className={`w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${fieldErrors.origin ? 'border-red-500 dark:border-red-400 pr-10' : 'border-gray-300 dark:border-gray-600'}`} />
+                <input type="text" name="origin" value={formData.origin} onChange={handleChange} onBlur={handleBlur} className={inputClassName('origin')} placeholder="Village, District, State" />
                 {fieldErrors.origin && <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />}
               </div>
               {fieldErrors.origin && <p className="mt-1 text-xs text-red-500 flex items-center gap-1">{fieldErrors.origin}</p>}
@@ -279,13 +260,13 @@ const AddBatchContent: React.FC = () => {
           </div>
 
           <div>
-             <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">{t('batch.description')}</label>
-             <textarea name="description" value={formData.description} onChange={handleChange} onBlur={handleBlur} rows={4} className={`w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${fieldErrors.description ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'}`} />
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">Description</label>
+            <textarea name="description" value={formData.description} onChange={handleChange} onBlur={handleBlur} rows={3} className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600" placeholder="Optional notes about this batch" />
           </div>
 
           <div className="flex justify-center pt-4">
             <button type="submit" disabled={isLoading} className="px-8 py-3.5 bg-green-600 hover:bg-green-700 disabled:bg-green-650 text-white rounded-lg font-semibold shadow-md transition-colors">
-              {isLoading ? 'Creating...' : t('batch.createBatch')}
+              {isLoading ? 'Creating...' : 'Create Batch'}
             </button>
           </div>
 

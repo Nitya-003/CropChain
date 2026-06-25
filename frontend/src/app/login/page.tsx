@@ -16,6 +16,7 @@ const LoginContent = () => {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Validate the redirect path to prevent open redirect attacks.
   // Only allow relative internal paths (must start with '/' but not '//').
@@ -30,9 +31,36 @@ const LoginContent = () => {
     }
   }, [user, router, redirectPath]);
 
+  const validateField = (name: string, value: string): string | undefined => {
+    switch (name) {
+      case 'email':
+        if (!value.trim()) return 'Email is required';
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Please enter a valid email address';
+        break;
+      case 'password':
+        if (!value) return 'Password is required';
+        break;
+    }
+    return undefined;
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    const error = validateField(name, value);
+    setFieldErrors(prev => ({ ...prev, [name]: error || '' }));
+  };
+
   const handleEmailLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
+    const errors: Record<string, string> = {};
+    const emailErr = validateField('email', email);
+    const passErr = validateField('password', password);
+    if (emailErr) errors.email = emailErr;
+    if (passErr) errors.password = passErr;
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
     setIsSubmitting(true);
     try {
       await login({ email, password });
@@ -71,20 +99,22 @@ const LoginContent = () => {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               {t('auth.email')}
             </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Mail className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
-                placeholder="you@example.com"
-              />
-            </div>
-          </div>
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Mail className="h-5 w-5 text-gray-400" />
+        </div>
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onBlur={(e) => handleBlur(e)}
+          className={`block w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors ${fieldErrors.email ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'}`}
+          placeholder="you@example.com"
+        />
+      </div>
+      {fieldErrors.email && <p className="mt-1 text-sm text-red-600 flex items-center gap-1"><AlertCircle className="h-4 w-4" />{fieldErrors.email}</p>}
+    </div>
 
           <div>
             <div className="flex items-center justify-between mb-1">
@@ -95,20 +125,22 @@ const LoginContent = () => {
                 {t('auth.forgotPassword')}
               </Link>
             </div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
-                placeholder="••••••••"
-              />
-            </div>
-          </div>
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Lock className="h-5 w-5 text-gray-400" />
+        </div>
+        <input
+          type="password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onBlur={(e) => handleBlur(e)}
+          className={`block w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors ${fieldErrors.password ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'}`}
+          placeholder="••••••••"
+        />
+      </div>
+      {fieldErrors.password && <p className="mt-1 text-sm text-red-600 flex items-center gap-1"><AlertCircle className="h-4 w-4" />{fieldErrors.password}</p>}
+    </div>
 
           <button
             type="submit"

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 
-import { RefreshCw, Search, Package, Clock, User, MapPin, Shield, Lock, Thermometer } from 'lucide-react';
+import { RefreshCw, Search, Package, Clock, User, MapPin, Shield, Lock, Thermometer, AlertCircle } from 'lucide-react';
 import Timeline from '../../components/Timeline';
 import { realCropBatchService } from '../../services/realCropBatchService';
 import toast from 'react-hot-toast';
@@ -22,6 +22,7 @@ const UpdateBatch: React.FC = () => {
     notes: '',
     timestamp: new Date().toISOString().split('T')[0]
   });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isUpdating, setIsUpdating] = useState(false);
   const [isRequestingIoT, setIsRequestingIoT] = useState(false);
 
@@ -58,9 +59,48 @@ const UpdateBatch: React.FC = () => {
     }
   };
 
+  const validateField = (name: string, value: string): string | undefined => {
+    switch (name) {
+      case 'actor':
+        if (!value.trim()) return 'Actor name is required';
+        if (value.trim().length < 2) return 'Actor name must be at least 2 characters';
+        break;
+      case 'stage':
+        if (!value) return 'Stage is required';
+        break;
+      case 'location':
+        if (!value.trim()) return 'Location is required';
+        if (value.trim().length < 2) return 'Location must be at least 2 characters';
+        break;
+      case 'timestamp':
+        if (!value) return 'Date is required';
+        break;
+    }
+    return undefined;
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    const error = validateField(name, value);
+    setFieldErrors(prev => ({ ...prev, [name]: error || '' }));
+  };
+
   const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!batch) return;
+
+    // Validate all fields
+    const errors: Record<string, string> = {};
+    const actorErr = validateField('actor', updateData.actor);
+    const stageErr = validateField('stage', updateData.stage);
+    const locationErr = validateField('location', updateData.location);
+    const timestampErr = validateField('timestamp', updateData.timestamp);
+    if (actorErr) errors.actor = actorErr;
+    if (stageErr) errors.stage = stageErr;
+    if (locationErr) errors.location = locationErr;
+    if (timestampErr) errors.timestamp = timestampErr;
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
     
     // RBAC Check: Verify user can update to this stage
     if (!canUpdateToStage(updateData.stage)) {
@@ -99,10 +139,9 @@ const UpdateBatch: React.FC = () => {
   };
 
   const handleUpdateChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setUpdateData({
-      ...updateData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    setUpdateData(prev => ({ ...prev, [name]: value }));
+    setFieldErrors(prev => ({ ...prev, [name]: '' }));
   };
 
   const handleRequestIoTVerification = async () => {
@@ -346,10 +385,12 @@ const UpdateBatch: React.FC = () => {
                     name="actor"
                     value={updateData.actor}
                     onChange={handleUpdateChange}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                    onBlur={handleBlur}
+                    className={`w-full px-4 py-3 border rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all ${fieldErrors.actor ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'}`}
                     placeholder="Your name or company"
                     required
                   />
+                  {fieldErrors.actor && <p className="mt-1 text-sm text-red-600 flex items-center gap-1"><AlertCircle className="h-4 w-4" />{fieldErrors.actor}</p>}
                 </div>
 
                 <div>
@@ -360,7 +401,8 @@ const UpdateBatch: React.FC = () => {
                     name="stage"
                     value={updateData.stage}
                     onChange={handleUpdateChange}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                    onBlur={handleBlur}
+                    className={`w-full px-4 py-3 border rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all ${fieldErrors.stage ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'}`}
                     required
                   >
                     <option value="">Select stage</option>
@@ -368,6 +410,7 @@ const UpdateBatch: React.FC = () => {
                       <option key={stage.value} value={stage.value}>{stage.label}</option>
                     ))}
                   </select>
+                  {fieldErrors.stage && <p className="mt-1 text-sm text-red-600 flex items-center gap-1"><AlertCircle className="h-4 w-4" />{fieldErrors.stage}</p>}
                 </div>
               </div>
 
@@ -382,10 +425,12 @@ const UpdateBatch: React.FC = () => {
                     name="location"
                     value={updateData.location}
                     onChange={handleUpdateChange}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                    onBlur={handleBlur}
+                    className={`w-full px-4 py-3 border rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all ${fieldErrors.location ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'}`}
                     placeholder="Current location"
                     required
                   />
+                  {fieldErrors.location && <p className="mt-1 text-sm text-red-600 flex items-center gap-1"><AlertCircle className="h-4 w-4" />{fieldErrors.location}</p>}
                 </div>
 
                 <div>
@@ -398,9 +443,11 @@ const UpdateBatch: React.FC = () => {
                     name="timestamp"
                     value={updateData.timestamp}
                     onChange={handleUpdateChange}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                    onBlur={handleBlur}
+                    className={`w-full px-4 py-3 border rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all ${fieldErrors.timestamp ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'}`}
                     required
                   />
+                  {fieldErrors.timestamp && <p className="mt-1 text-sm text-red-600 flex items-center gap-1"><AlertCircle className="h-4 w-4" />{fieldErrors.timestamp}</p>}
                 </div>
               </div>
 

@@ -12,38 +12,84 @@ const Register: React.FC = () => {
     const [password, setPassword] = useState('');
     const [role, setRole] = useState<'farmer' | 'transporter'>('farmer');
     const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const { t } = useTranslation();
-    const { register } = useAuth();
-    const router = useRouter();
+const { t } = useTranslation();
+const { register } = useAuth();
+const router = useRouter();
 
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        setError('');
+const validateField = useCallback((name: string, value: string): string | undefined => {
+  switch (name) {
+    case 'name':
+      if (!value.trim()) return 'Name is required';
+      if (value.trim().length < 2) return 'Name must be at least 2 characters';
+      break;
+    case 'email':
+      if (!value.trim()) return 'Email is required';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Please enter a valid email address';
+      break;
+    case 'password':
+      if (!value) return 'Password is required';
+      if (value.length < 8) return 'Password must be at least 8 characters';
+      if (!/[A-Z]/.test(value)) return 'Password must contain at least one uppercase letter';
+      if (!/[a-z]/.test(value)) return 'Password must contain at least one lowercase letter';
+      if (!/[0-9]/.test(value)) return 'Password must contain at least one number';
+      if (!/[^A-Za-z0-9]/.test(value)) return 'Password must contain at least one special character';
+      break;
+    case 'role':
+      if (!value) return 'Role is required';
+      break;
+  }
+  return undefined;
+}, []);
 
-        const isMinLength = password.length >= 8;
-        const hasUpper = /[A-Z]/.test(password);
-        const hasLower = /[a-z]/.test(password);
-        const hasNumber = /[0-9]/.test(password);
-        const hasSpecial = /[^A-Za-z0-9]/.test(password);
+const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const { name, value } = e.target;
+  const error = validateField(name, value);
+  setFieldErrors(prev => ({ ...prev, [name]: error || '' }));
+};
 
-        if (!isMinLength || !hasUpper || !hasLower || !hasNumber || !hasSpecial) {
-            setError('Password must meet all complexity requirements listed below.');
-            return;
-        }
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  setError('');
 
-        setIsSubmitting(true);
+  // Validate all fields
+  const errors: Record<string, string> = {};
+  const nameErr = validateField('name', name);
+  const emailErr = validateField('email', email);
+  const passwordErr = validateField('password', password);
+  const roleErr = validateField('role', role);
+  if (nameErr) errors.name = nameErr;
+  if (emailErr) errors.email = emailErr;
+  if (passwordErr) errors.password = passwordErr;
+  if (roleErr) errors.role = roleErr;
+  setFieldErrors(errors);
 
-        try {
-            await register({ name, email, password, role });
-            router.push('/');
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to register. Please check your details.');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+  if (Object.keys(errors).length > 0) return;
+
+  const isMinLength = password.length >= 8;
+  const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecial = /[^A-Za-z0-9]/.test(password);
+
+  if (!isMinLength || !hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+    setError('Password must meet all complexity requirements listed below.');
+    return;
+  }
+
+  setIsSubmitting(true);
+
+  try {
+    await register({ name, email, password, role });
+    router.push('/');
+  } catch (err: any) {
+    setError(err.response?.data?.message || 'Failed to register. Please check your details.');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
     return (
         <div className="max-w-md mx-auto mt-8 px-4 mb-12">
@@ -73,15 +119,21 @@ const Register: React.FC = () => {
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <User className="h-5 w-5 text-gray-400" />
                                 </div>
-                                <input
-                                    type="text"
-                                    required
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
-                                    placeholder="John Doe"
-                                />
+<input
+            type="text"
+            name="name"
+            required
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setFieldErrors(prev => ({ ...prev, name: '' }));
+            }}
+            onBlur={(e) => handleBlur(e)}
+            className={`block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors ${fieldErrors.name ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'}`}
+            placeholder="John Doe"
+        />
                             </div>
+                            {fieldErrors.name && <p className="mt-1 text-sm text-red-600 flex items-center gap-1"><AlertCircle className="h-4 w-4" />{fieldErrors.name}</p>}
                         </div>
 
                         <div>
@@ -94,13 +146,19 @@ const Register: React.FC = () => {
                                 </div>
                                 <input
                                     type="email"
+                                    name="email"
                                     required
                                     value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
+                                    onChange={(e) => {
+                                      setEmail(e.target.value);
+                                      setFieldErrors(prev => ({ ...prev, email: '' }));
+                                    }}
+                                    onBlur={(e) => handleBlur(e)}
+                                    className={`block w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors ${fieldErrors.email ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'}`}
                                     placeholder="you@example.com"
                                 />
                             </div>
+                            {fieldErrors.email && <p className="mt-1 text-sm text-red-600 flex items-center gap-1"><AlertCircle className="h-4 w-4" />{fieldErrors.email}</p>}
                         </div>
 
                         <div>
@@ -113,13 +171,19 @@ const Register: React.FC = () => {
                                 </div>
                                 <input
                                     type="password"
+                                    name="password"
                                     required
                                     value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
+                                    onChange={(e) => {
+                                      setPassword(e.target.value);
+                                      setFieldErrors(prev => ({ ...prev, password: '' }));
+                                    }}
+                                    onBlur={(e) => handleBlur(e)}
+                                    className={`block w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors ${fieldErrors.password ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'}`}
                                     placeholder="Enter secure password"
                                 />
                             </div>
+                            {fieldErrors.password && <p className="mt-1 text-sm text-red-600 flex items-center gap-1"><AlertCircle className="h-4 w-4" />{fieldErrors.password}</p>}
                             
                             {/* Password complexity helper */}
                             <div className="mt-2.5 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-150 dark:border-gray-650 space-y-1.5 text-xs">
@@ -153,14 +217,20 @@ const Register: React.FC = () => {
                                     <Briefcase className="h-5 w-5 text-gray-400" />
                                 </div>
                                 <select
+                                    name="role"
                                     value={role}
-                                    onChange={(e) => setRole(e.target.value as any)}
-                                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
+                                    onChange={(e) => {
+                                      setRole(e.target.value as 'farmer' | 'transporter');
+                                      setFieldErrors(prev => ({ ...prev, role: '' }));
+                                    }}
+                                    onBlur={(e) => handleBlur(e)}
+                                    className={`block w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors ${fieldErrors.role ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'}`}
                                 >
                                     <option value="farmer">{t('auth.farmer')}</option>
                                     <option value="transporter">{t('auth.transporter')}</option>
                                 </select>
                             </div>
+                            {fieldErrors.role && <p className="mt-1 text-sm text-red-600 flex items-center gap-1"><AlertCircle className="h-4 w-4" />{fieldErrors.role}</p>}
                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                 Determines your permissions and dashboard view.
                             </p>

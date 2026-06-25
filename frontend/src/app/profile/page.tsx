@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import toast from 'react-hot-toast';
-import { User as UserIcon, Mail, Lock, Shield, Wallet, Save, Edit2, X } from 'lucide-react';
+import { User as UserIcon, Mail, Lock, Shield, Wallet, Save, Edit2, X, AlertCircle } from 'lucide-react';
 import ProtectedRoute from '../../components/ProtectedRoute';
 
 export default function ProfilePage() {
@@ -22,6 +22,7 @@ export default function ProfilePage() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
 
   // Initialize fields
@@ -42,43 +43,75 @@ export default function ProfilePage() {
     return null;
   };
 
+  const validateField = (name: string, value: string): string | undefined => {
+    switch (name) {
+      case 'name':
+        if (!value.trim()) return 'Name is required';
+        if (value.trim().length < 2) return 'Name must be at least 2 characters';
+        break;
+      case 'email':
+        if (!value.trim()) return 'Email is required';
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Please enter a valid email address';
+        break;
+      case 'currentPassword':
+        if (newPassword && !value) return 'Current password is required to set a new password';
+        break;
+      case 'newPassword':
+        if (value) {
+          if (value.length < 8) return 'Password must be at least 8 characters';
+          if (!/[A-Z]/.test(value)) return 'Password must contain at least one uppercase letter';
+          if (!/[a-z]/.test(value)) return 'Password must contain at least one lowercase letter';
+          if (!/[0-9]/.test(value)) return 'Password must contain at least one number';
+          if (!/[^A-Za-z0-9]/.test(value)) return 'Password must contain at least one special character';
+        }
+        break;
+      case 'confirmPassword':
+        if (newPassword && value !== newPassword) return 'Passwords do not match';
+        break;
+    }
+    return undefined;
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    const error = validateField(name, value);
+    setFieldErrors(prev => ({ ...prev, [name]: error || '' }));
+  };
+
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user) return;
 
+    // Validate all fields
+    const errors: Record<string, string> = {};
+    const nameErr = validateField('name', name);
+    const emailErr = validateField('email', email);
+    if (nameErr) errors.name = nameErr;
+    if (emailErr) errors.email = emailErr;
+
+    if (newPassword) {
+      const currentPwdErr = validateField('currentPassword', currentPassword);
+      const newPwdErr = validateField('newPassword', newPassword);
+      const confirmPwdErr = validateField('confirmPassword', confirmPassword);
+      if (currentPwdErr) errors.currentPassword = currentPwdErr;
+      if (newPwdErr) errors.newPassword = newPwdErr;
+      if (confirmPwdErr) errors.confirmPassword = confirmPwdErr;
+    }
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
     const updates: Record<string, string> = {};
 
     if (name.trim() !== user.name) {
-      if (name.trim().length < 2) {
-        toast.error('Name must be at least 2 characters');
-        return;
-      }
       updates.name = name.trim();
     }
 
     if (email.trim().toLowerCase() !== user.email.toLowerCase()) {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        toast.error('Please enter a valid email address');
-        return;
-      }
       updates.email = email.trim().toLowerCase();
     }
 
     // Handle password change
     if (newPassword) {
-      if (!currentPassword) {
-        toast.error('Current password is required to set a new password');
-        return;
-      }
-      if (newPassword !== confirmPassword) {
-        toast.error('New passwords do not match');
-        return;
-      }
-      const pwdError = validatePassword(newPassword);
-      if (pwdError) {
-        toast.error(pwdError);
-        return;
-      }
       updates.password = newPassword;
     }
 
@@ -247,12 +280,18 @@ export default function ProfilePage() {
                           </label>
                           <input
                             type="text"
+                            name="name"
                             value={name}
-                            onChange={(e) => setName(e.target.value)}
+                            onChange={(e) => {
+                              setName(e.target.value);
+                              setFieldErrors(prev => ({ ...prev, name: '' }));
+                            }}
+                            onBlur={handleBlur}
                             disabled={!isEditing || isSaving}
                             placeholder="Enter your name"
-                            className="w-full px-4 py-2 border border-border bg-background/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                            className={`w-full px-4 py-2 border bg-background/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60 disabled:cursor-not-allowed transition-all ${fieldErrors.name ? 'border-red-500 dark:border-red-400' : 'border-border'}`}
                           />
+                          {fieldErrors.name && <p className="mt-1 text-sm text-red-600 flex items-center gap-1"><AlertCircle className="h-4 w-4" />{fieldErrors.name}</p>}
                         </div>
 
                         {/* Email Input */}
@@ -262,12 +301,18 @@ export default function ProfilePage() {
                           </label>
                           <input
                             type="email"
+                            name="email"
                             value={email}
-                            onChange={(e) => setEmail(e.target.value)}
+                            onChange={(e) => {
+                              setEmail(e.target.value);
+                              setFieldErrors(prev => ({ ...prev, email: '' }));
+                            }}
+                            onBlur={handleBlur}
                             disabled={!isEditing || isSaving}
                             placeholder="Enter your email"
-                            className="w-full px-4 py-2 border border-border bg-background/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                            className={`w-full px-4 py-2 border bg-background/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60 disabled:cursor-not-allowed transition-all ${fieldErrors.email ? 'border-red-500 dark:border-red-400' : 'border-border'}`}
                           />
+                          {fieldErrors.email && <p className="mt-1 text-sm text-red-600 flex items-center gap-1"><AlertCircle className="h-4 w-4" />{fieldErrors.email}</p>}
                         </div>
                       </div>
 
@@ -282,45 +327,63 @@ export default function ProfilePage() {
                               <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                                 <Lock className="h-3.5 w-3.5 text-muted-foreground" /> Current Password
                               </label>
-                              <input
-                                type="password"
-                                value={currentPassword}
-                                onChange={(e) => setCurrentPassword(e.target.value)}
-                                disabled={isSaving}
-                                placeholder="••••••••"
-                                className="w-full px-4 py-2 border border-border bg-background/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
-                              />
-                            </div>
+                  <input
+                    type="password"
+                    name="currentPassword"
+                    value={currentPassword}
+                    onChange={(e) => {
+                      setCurrentPassword(e.target.value);
+                      setFieldErrors(prev => ({ ...prev, currentPassword: '' }));
+                    }}
+                    onBlur={handleBlur}
+                    disabled={isSaving}
+                    placeholder="••••••••"
+                    className={`w-full px-4 py-2 border bg-background/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all ${fieldErrors.currentPassword ? 'border-red-500 dark:border-red-400' : 'border-border'}`}
+                  />
+                  {fieldErrors.currentPassword && <p className="mt-1 text-sm text-red-600 flex items-center gap-1"><AlertCircle className="h-4 w-4" />{fieldErrors.currentPassword}</p>}
+                </div>
 
-                            {/* New Password */}
+                {/* New Password */}
                             <div className="space-y-2">
                               <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                                 <Lock className="h-3.5 w-3.5 text-muted-foreground" /> New Password
                               </label>
-                              <input
-                                type="password"
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                disabled={isSaving}
-                                placeholder="••••••••"
-                                className="w-full px-4 py-2 border border-border bg-background/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
-                              />
-                            </div>
+                  <input
+                    type="password"
+                    name="newPassword"
+                    value={newPassword}
+                    onChange={(e) => {
+                      setNewPassword(e.target.value);
+                      setFieldErrors(prev => ({ ...prev, newPassword: '' }));
+                    }}
+                    onBlur={handleBlur}
+                    disabled={isSaving}
+                    placeholder="••••••••"
+                    className={`w-full px-4 py-2 border bg-background/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all ${fieldErrors.newPassword ? 'border-red-500 dark:border-red-400' : 'border-border'}`}
+                  />
+                  {fieldErrors.newPassword && <p className="mt-1 text-sm text-red-600 flex items-center gap-1"><AlertCircle className="h-4 w-4" />{fieldErrors.newPassword}</p>}
+                </div>
 
-                            {/* Confirm Password */}
+                {/* Confirm Password */}
                             <div className="space-y-2">
                               <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                                 <Lock className="h-3.5 w-3.5 text-muted-foreground" /> Confirm New Password
                               </label>
-                              <input
-                                type="password"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                disabled={isSaving}
-                                placeholder="••••••••"
-                                className="w-full px-4 py-2 border border-border bg-background/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
-                              />
-                            </div>
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      setFieldErrors(prev => ({ ...prev, confirmPassword: '' }));
+                    }}
+                    onBlur={handleBlur}
+                    disabled={isSaving}
+                    placeholder="••••••••"
+                    className={`w-full px-4 py-2 border bg-background/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all ${fieldErrors.confirmPassword ? 'border-red-500 dark:border-red-400' : 'border-border'}`}
+                  />
+                  {fieldErrors.confirmPassword && <p className="mt-1 text-sm text-red-600 flex items-center gap-1"><AlertCircle className="h-4 w-4" />{fieldErrors.confirmPassword}</p>}
+                </div>
                           </div>
                         </div>
                       )}
