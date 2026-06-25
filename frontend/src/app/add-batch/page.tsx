@@ -1,12 +1,13 @@
 "use client";
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Shield, AlertTriangle, AlertCircle, Loader2 } from 'lucide-react';
+import { Shield, AlertTriangle, AlertCircle, Loader2, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { realCropBatchService } from '../../services/realCropBatchService';
 import { useRbac } from '../../hooks/useRbac';
 import { sanitizeObject } from '../../lib/sanitize';
+import DocumentUpload from '../../components/DocumentUpload';
 
 const AddBatchContent: React.FC = () => {
   const { t } = useTranslation();
@@ -190,6 +191,17 @@ const AddBatchContent: React.FC = () => {
                 {generatedBatch.batchId}
               </p>
             </div>
+
+            <div className="mb-8 text-left">
+              <div className="flex items-center gap-2 mb-4">
+                <Upload className="h-5 w-5 text-gray-500" />
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                  {t('batch.uploadDocuments')}
+                </h3>
+              </div>
+              <DocumentUpload batchId={generatedBatch.batchId} onUploadComplete={() => {}} />
+            </div>
+
             <div className="flex gap-4 justify-center">
               <button onClick={handleCreateAnother} className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold">
                 {t('batch.createAnother')}

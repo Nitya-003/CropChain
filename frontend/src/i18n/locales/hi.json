@@ -177,6 +177,7 @@
     "batchUpdatedMessage": "आपूर्ति श्रृंखला जानकारी अपडेट कर दी गई है।",
     "viewBatch": "बैच देखें",
     "createAnother": "एक और बैच बनाएं",
+    "uploadDocuments": "दस्तावेज़ अपलोड करें",
     "crops": {
       "rice": "चावल",
       "wheat": "गेहूं",

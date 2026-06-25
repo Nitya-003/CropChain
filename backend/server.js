@@ -171,8 +171,14 @@ const uniqueAllowedOrigins = [...new Set(allowedOrigins)];
 
 const corsOptions = {
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps, curl requests)
-        if (!origin) return callback(null, true);
+        if (!origin) {
+            // Allow missing Origin in test environment for test compatibility
+            if (process.env.NODE_ENV === 'test') {
+                return callback(null, true);
+            }
+            logger.warn('CORS blocked - missing origin header');
+            return callback(new Error('Not allowed by CORS'));
+        }
 
         if (uniqueAllowedOrigins.includes(origin)) {
             callback(null, true);
@@ -185,6 +191,9 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Body parsing
 const maxFileSize = parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024;
@@ -515,6 +524,76 @@ app.post(
         }
     }
 );
+
+// ==================== DOCUMENT UPLOAD ====================
+
+const upload = require('./config/upload');
+
+// Upload document to a batch
+app.post('/api/batches/:batchId/documents', batchLimiter, protect, authorizeBatchOwner, upload.single('document'), async (req, res) => {
+  try {
+    const { batchId } = req.params;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const batch = await Batch.findOne({ batchId });
+    if (!batch) {
+      return res.status(404).json({ message: 'Batch not found' });
+    }
+
+    const doc = {
+      docId: 'doc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 10),
+      fileName: file.originalname,
+      fileType: file.mimetype,
+      fileSize: file.size,
+      url: '/uploads/' + file.filename,
+      uploadedBy: req.user.id,
+      uploadedAt: new Date(),
+      description: req.body.description || ''
+    };
+
+    batch.documents.push(doc);
+    await batch.save();
+
+    logger.info('Document uploaded', { batchId, docId: doc.docId, fileName: doc.fileName });
+
+    res.status(201).json({ success: true, document: doc });
+  } catch (error) {
+    logger.error('Error uploading document', { error: error.message });
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Delete a document from a batch
+app.delete('/api/batches/:batchId/documents/:docId', batchLimiter, protect, authorizeBatchOwner, async (req, res) => {
+  try {
+    const { batchId, docId } = req.params;
+
+    const batch = await Batch.findOne({ batchId });
+    if (!batch) {
+      return res.status(404).json({ message: 'Batch not found' });
+    }
+
+    const docIndex = batch.documents.findIndex(d => d.docId === docId);
+    if (docIndex === -1) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    const removedDoc = batch.documents[docIndex];
+    batch.documents.splice(docIndex, 1);
+    await batch.save();
+
+    logger.info('Document deleted', { batchId, docId });
+
+    res.json({ success: true, message: 'Document deleted successfully' });
+  } catch (error) {
+    logger.error('Error deleting document', { error: error.message });
+    res.status(500).json({ message: error.message });
+  }
+});
 
 // ==================== AI SERVICE ====================
 

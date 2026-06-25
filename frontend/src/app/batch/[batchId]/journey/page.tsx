@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Compass, ShieldCheck, AlertTriangle, Download } from 'lucide-react';
+import { ArrowLeft, Compass, ShieldCheck, AlertTriangle, Download, FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { realCropBatchService } from '../../../../services/realCropBatchService';
 import { tokenService } from '../../../../services/token.service';
@@ -11,6 +11,8 @@ import { JourneyTimeline } from '../../../../components/journey/JourneyTimeline'
 import { JourneyPathMap } from '../../../../components/journey/JourneyPathMap';
 import { JourneyEnvironmentChart } from '../../../../components/journey/JourneyEnvironmentChart';
 import { TrackBatchSkeleton } from '../../../../components/skeletons';
+import DocumentGallery from '../../../../components/DocumentGallery';
+import toast from 'react-hot-toast';
 import '../../../../styles/JourneyMap.css';
 
 const JourneyMap: React.FC = () => {
@@ -262,6 +264,25 @@ const JourneyMap: React.FC = () => {
 
         </div>
 
+      </div>
+
+      {/* Documents Section */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
+        <div className="flex items-center gap-2 mb-6">
+          <FileText className="h-5 w-5 text-gray-500" />
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white">
+            Documents
+          </h2>
+          {batch.documents && batch.documents.length > 0 && (
+            <span className="text-xs font-semibold px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 rounded-full">
+              {batch.documents.length}
+            </span>
+          )}
+        </div>
+        <DocumentGallery
+          documents={batch.documents || []}
+          batchId={batch.batchId || batchId}
+        />
       </div>
     </motion.div>
   );

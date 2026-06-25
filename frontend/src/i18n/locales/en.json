@@ -177,6 +177,7 @@
     "batchUpdatedMessage": "Supply chain information has been updated.",
     "viewBatch": "View Batch",
     "createAnother": "Create Another Batch",
+    "uploadDocuments": "Upload Documents",
     "crops": {
       "rice": "Rice",
       "wheat": "Wheat",

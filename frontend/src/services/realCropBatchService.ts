@@ -1,6 +1,17 @@
 import { apiClient } from './apiClient';
 import { sanitizeString } from '../lib/sanitize';
 
+export interface DocumentData {
+  docId: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  url: string;
+  uploadedBy?: string;
+  uploadedAt: string;
+  description?: string;
+}
+
 export interface BatchData {
   batchId: string;
   farmerName: string;
@@ -22,6 +33,7 @@ export interface BatchData {
   }>;
   qrCode: string;
   blockchainHash?: string;
+  documents?: DocumentData[];
 }
 
 export const realCropBatchService = {
@@ -54,5 +66,21 @@ export const realCropBatchService = {
       responseType: 'blob'
     });
     return response.data;
+  },
+
+  uploadDocument: async (batchId: string, file: File, description?: string): Promise<DocumentData> => {
+    const sanitizedId = sanitizeString(batchId);
+    const formData = new FormData();
+    formData.append('document', file);
+    if (description) formData.append('description', description);
+    const response = await apiClient.post(`/batches/${sanitizedId}/documents`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data.document;
+  },
+
+  deleteDocument: async (batchId: string, docId: string): Promise<void> => {
+    const sanitizedId = sanitizeString(batchId);
+    await apiClient.delete(`/batches/${sanitizedId}/documents/${docId}`);
   }
 };

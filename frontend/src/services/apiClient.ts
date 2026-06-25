@@ -21,7 +21,7 @@ apiClient.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  if (config.data && typeof config.data === 'object') {
+  if (config.data && typeof config.data === 'object' && !(config.data instanceof FormData)) {
     config.data = sanitizeObject(config.data);
   }
 

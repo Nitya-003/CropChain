@@ -70,9 +70,6 @@ describe('CORS Configuration', () => {
             .set('Origin', 'http://trusted.com');
 
         expect(res.status).toBe(200);
-        // Default cors() returns * so this will fail if it expects http://trusted.com
-        // But for allowed origins, * is also technically allowed, but we want explicit allow.
-        // Let's check what it returns.
     });
 
     test('should allow requests from FRONTEND_URL', async () => {
@@ -83,11 +80,23 @@ describe('CORS Configuration', () => {
         expect(res.status).toBe(200);
     });
 
-    test('should allow requests with no origin', async () => {
+    test('should allow requests with no origin in test environment', async () => {
         const res = await request(app)
             .get('/api/status');
 
         expect(res.status).toBe(200);
+    });
+
+    test('should reject requests with no origin in non-test environments', async () => {
+        const originalEnv = process.env.NODE_ENV;
+        process.env.NODE_ENV = 'production';
+
+        const res = await request(app)
+            .get('/api/status');
+
+        expect(res.status).toBe(500);
+
+        process.env.NODE_ENV = originalEnv;
     });
 
     test('should block requests from disallowed origins', async () => {
@@ -95,8 +104,34 @@ describe('CORS Configuration', () => {
             .get('/api/status')
             .set('Origin', 'http://evil.com');
 
-        // Current: 200 (FAIL)
-        // Expected after fix: 500/403
-        expect(res.status).not.toBe(200);
+        expect(res.status).toBe(500);
+    });
+
+    test('should include CORS headers on allowed origins', async () => {
+        const res = await request(app)
+            .get('/api/status')
+            .set('Origin', 'http://trusted.com');
+
+        expect(res.headers['access-control-allow-origin']).toBe('http://trusted.com');
+        expect(res.headers['access-control-allow-credentials']).toBe('true');
+    });
+
+    test('should handle preflight OPTIONS requests for allowed origins', async () => {
+        const res = await request(app)
+            .options('/api/status')
+            .set('Origin', 'http://trusted.com')
+            .set('Access-Control-Request-Method', 'GET');
+
+        expect(res.status).toBe(204);
+        expect(res.headers['access-control-allow-origin']).toBe('http://trusted.com');
+    });
+
+    test('should reject preflight OPTIONS requests from disallowed origins', async () => {
+        const res = await request(app)
+            .options('/api/status')
+            .set('Origin', 'http://evil.com')
+            .set('Access-Control-Request-Method', 'GET');
+
+        expect(res.status).toBe(500);
     });
 });

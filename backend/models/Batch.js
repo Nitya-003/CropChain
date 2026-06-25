@@ -225,6 +225,16 @@ const batchSchema = new mongoose.Schema({
       default: null
     }
   },
+  documents: [{
+    docId: { type: String, required: true },
+    fileName: { type: String, required: true },
+    fileType: { type: String, required: true },
+    fileSize: { type: Number, required: true },
+    url: { type: String, required: true },
+    uploadedBy: { type: String },
+    uploadedAt: { type: Date, default: Date.now },
+    description: { type: String, default: '' }
+  }],
   updates: [updateSchema],
   status: {
     type: String,
