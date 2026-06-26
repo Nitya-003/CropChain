@@ -14,13 +14,14 @@ const {
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const validateRegistration = require('../middleware/validateRegistration');
+const { authLimiter } = require('../middleware/rateLimiters');
 
 router.post('/register', validateRegistration, registerUser);
 router.post('/login', loginUser);
 router.post('/refresh', refreshSession);
 router.post('/logout', logoutUser);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password/:token', resetPassword);
+router.post('/forgot-password', authLimiter, forgotPassword);
+router.post('/reset-password/:token', authLimiter, resetPassword);
 
 // Wallet authentication routes
 router.get('/nonce', getNonce);
