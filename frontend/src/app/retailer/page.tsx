@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
-import { ShoppingBag, Package, RefreshCw, CheckCircle, Clock, TrendingUp, Search, ArrowRight, Tag } from 'lucide-react';
+import { ShoppingBag, Package, RefreshCw, CheckCircle, Clock, TrendingUp, Search, ArrowRight, Tag, Gavel } from 'lucide-react';
 import Link from 'next/link';
 import { realCropBatchService } from '../../services/realCropBatchService';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../../components/ui/card';
@@ -10,12 +10,14 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '.
 import ProtectedRoute from '../../components/ProtectedRoute';
 import { useAuth } from '../../context/AuthContext';
 import BatchFilters from '../../components/BatchFilters';
+import { auctionService, Auction } from '../../services/auctionService';
 
 const RELEVANT_STAGES = ['transport', 'retailer'];
 
 const RetailerDashboardComponent: React.FC = () => {
   const { user } = useAuth();
   const [batches, setBatches] = useState<any[]>([]);
+  const [activeAuctions, setActiveAuctions] = useState<Auction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [filters, setFilters] = useState({
@@ -60,6 +62,13 @@ const RetailerDashboardComponent: React.FC = () => {
 
       const data = await realCropBatchService.getAllBatches(apiFilters);
       const allBatches: any[] = data?.batches || [];
+
+      try {
+        const auctions = await auctionService.getAllAuctions();
+        setActiveAuctions(auctions);
+      } catch (err) {
+        console.error('Failed to load active auctions:', err);
+      }
 
       // Retailer sees batches in transport (incoming) or at retailer stage (received)
       const relevantBatches = allBatches.filter(
@@ -297,54 +306,80 @@ const RetailerDashboardComponent: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedBatches.map((batch) => (
-                    <TableRow key={batch.batchId} className="border-b border-border/40 hover:bg-muted/30 transition-colors text-left">
-                      <TableCell className="py-4 px-6">
-                        <span className="font-mono text-xs bg-muted text-muted-foreground px-2 py-1 rounded border border-border">
-                          {batch.batchId?.slice(0, 8)}...{batch.batchId?.slice(-4)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="py-4 px-6">
-                        <div>
-                          <p className="font-medium text-foreground text-sm">{batch.farmerName}</p>
-                          <p className="text-xs text-muted-foreground">{batch.origin}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-4 px-6">
-                        <span className="capitalize font-medium text-foreground text-sm">{batch.cropType}</span>
-                      </TableCell>
-                      <TableCell className="py-4 px-6">
-                        <span className="font-medium text-foreground text-sm">{batch.quantity?.toLocaleString()} kg</span>
-                      </TableCell>
-                      <TableCell className="py-4 px-6">
-                        <span className="text-sm text-muted-foreground">
-                          {batch.harvestDate ? new Date(batch.harvestDate).toLocaleDateString() : '—'}
-                        </span>
-                      </TableCell>
-                      <TableCell className="py-4 px-6">
-                        <Badge variant="outline" className={`capitalize font-semibold border ${getStageColor(batch.currentStage)}`}>
-                          {batch.currentStage === 'transport' ? 'In Transit' : 'Received'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="py-4 px-6">
-                        {batch.currentStage === 'transport' ? (
-                          <Link href={`/update-batch?id=${batch.batchId}`}>
-                            <Button variant="default" size="sm" className="gap-1.5 bg-purple-600 hover:bg-purple-700 text-white">
-                              <Tag className="h-3.5 w-3.5" />
-                              Receive
-                            </Button>
-                          </Link>
-                        ) : (
-                          <Link href={`/track-batch?id=${batch.batchId}`}>
-                            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground">
-                              <ArrowRight className="h-3.5 w-3.5" />
-                              View
-                            </Button>
-                          </Link>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {paginatedBatches.map((batch) => {
+                    const activeAuction = activeAuctions.find(
+                      (a) => a.batchId === batch.batchId
+                    );
+                    return (
+                      <TableRow key={batch.batchId} className="border-b border-border/40 hover:bg-muted/30 transition-colors text-left">
+                        <TableCell className="py-4 px-6">
+                          <span className="font-mono text-xs bg-muted text-muted-foreground px-2 py-1 rounded border border-border">
+                            {batch.batchId?.slice(0, 8)}...{batch.batchId?.slice(-4)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-4 px-6">
+                          <div>
+                            <p className="font-medium text-foreground text-sm">{batch.farmerName}</p>
+                            <p className="text-xs text-muted-foreground">{batch.origin}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-4 px-6">
+                          <span className="capitalize font-medium text-foreground text-sm">{batch.cropType}</span>
+                        </TableCell>
+                        <TableCell className="py-4 px-6">
+                          <span className="font-medium text-foreground text-sm">{batch.quantity?.toLocaleString()} kg</span>
+                        </TableCell>
+                        <TableCell className="py-4 px-6">
+                          <span className="text-sm text-muted-foreground">
+                            {batch.harvestDate ? new Date(batch.harvestDate).toLocaleDateString() : '—'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-4 px-6">
+                          <div className="flex flex-col gap-1.5 items-start">
+                            <Badge variant="outline" className={`capitalize font-semibold border ${getStageColor(batch.currentStage)}`}>
+                              {batch.currentStage === 'transport' ? 'In Transit' : 'Received'}
+                            </Badge>
+                            {activeAuction && (
+                              <Badge variant="outline" className={`text-[10px] font-bold uppercase tracking-wide border ${
+                                activeAuction.status === 'active' 
+                                  ? 'bg-amber-500/10 text-amber-600 border-amber-500/30 animate-pulse' 
+                                  : 'bg-slate-100 text-slate-600 border-slate-300/30 dark:bg-slate-800/40 dark:text-slate-400'
+                              }`}>
+                                {activeAuction.status === 'active' ? 'Live Auction' : 'Auction Ended'}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-4 px-6">
+                          <div className="flex items-center gap-1.5">
+                            {batch.currentStage === 'transport' ? (
+                              <Link href={`/update-batch?id=${batch.batchId}`}>
+                                <Button variant="default" size="sm" className="gap-1.5 bg-purple-600 hover:bg-purple-700 text-white h-8 rounded-lg text-xs">
+                                  <Tag className="h-3.5 w-3.5" />
+                                  Receive
+                                </Button>
+                              </Link>
+                            ) : (
+                              <Link href={`/track-batch?id=${batch.batchId}`}>
+                                <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground h-8 rounded-lg text-xs">
+                                  <ArrowRight className="h-3.5 w-3.5" />
+                                  View
+                                </Button>
+                              </Link>
+                            )}
+                            {activeAuction && (
+                              <Link href={`/auctions/${activeAuction._id}`}>
+                                <Button variant="outline" size="sm" className="gap-1.5 text-slate-500 h-8 rounded-lg text-xs">
+                                  <Gavel className="h-3.5 w-3.5" />
+                                  {activeAuction.status === 'active' ? 'Bid Room' : 'Auction'}
+                                </Button>
+                              </Link>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

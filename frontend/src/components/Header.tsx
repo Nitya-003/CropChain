@@ -2,7 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { Leaf, LogOut, Shield, Compass, Sparkles, User, LogIn, Menu, Home, LayoutDashboard } from 'lucide-react';
+import { Leaf, LogOut, Shield, Compass, Sparkles, User, LogIn, Menu, Home, LayoutDashboard, Coins, TrendingUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
@@ -26,6 +26,7 @@ const Header: React.FC = () => {
     { path: '/', label: t('nav.home'), icon: Home },
     { path: '/track-batch', label: t('nav.trackBatch'), icon: Compass },
     { path: '/crop-recommendation', label: t('nav.smartPlanting'), icon: Sparkles },
+    ...(isAuthenticated ? [{ path: '/auctions', label: 'Live Auctions', icon: TrendingUp }] : []),
     ...(isAuthenticated && user?.role === 'farmer' ? [{ path: '/farmer', label: 'Dashboard', icon: LayoutDashboard }] : []),
     ...(isAuthenticated && user?.role === 'mandi' ? [{ path: '/mandi', label: 'Dashboard', icon: LayoutDashboard }] : []),
     ...(isAuthenticated && user?.role === 'transporter' ? [{ path: '/transporter', label: 'Dashboard', icon: LayoutDashboard }] : []),
@@ -127,6 +128,20 @@ const Header: React.FC = () => {
                 <Sparkles className="h-3.5 w-3.5" />
                 {t('nav.smartPlanting')}
               </Link>
+
+              {isAuthenticated && (
+                <Link
+                  href="/auctions"
+                  className={`flex items-center gap-1 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
+                    pathname === '/auctions'
+                      ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/10'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Live Auctions
+                </Link>
+              )}
 
               {isAuthenticated && user?.role === 'farmer' && (
                 <Link
@@ -248,6 +263,10 @@ const Header: React.FC = () => {
             {/* Auth Section */}
             {isAuthenticated && user ? (
               <div className="relative flex shrink-0 items-center gap-2 sm:pl-2">
+                <Badge variant="outline" className="hidden sm:inline-flex bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400 font-bold px-2.5 py-1 text-xs gap-1.5 shrink-0 shadow-sm">
+                  <Coins className="h-3.5 w-3.5" />
+                  <span>{user.balance?.toLocaleString() || 0} cr</span>
+                </Badge>
                 <Badge variant="outline" className={`hidden capitalize font-semibold border sm:inline-flex ${getRoleBadgeColor(user.role)}`}>
                   {user.role}
                 </Badge>

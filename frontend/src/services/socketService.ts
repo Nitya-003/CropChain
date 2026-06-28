@@ -114,9 +114,6 @@ export const isConnected = (): boolean => {
   return socketInstance?.connected ?? false;
 };
 
-/**
- * Join a user verification room to receive status updates
- */
 export const joinVerificationRoom = (userId: string): void => {
   const socket = getSocket();
   socket.emit('join-verification-room', userId);
@@ -143,5 +140,65 @@ export const onVerificationStatusUpdated = (callback: (data: any) => void): (() 
   
   return () => {
     socket.off('verification.status.updated', callback);
+  };
+};
+
+/**
+ * Join an auction-specific room
+ */
+export const joinAuctionRoom = (auctionId: string): void => {
+  const socket = getSocket();
+  socket.emit('join_auction', auctionId);
+  console.log(`[SOCKET] Joined auction room: ${auctionId}`);
+};
+
+/**
+ * Leave an auction-specific room
+ */
+export const leaveAuctionRoom = (auctionId: string): void => {
+  const socket = getSocket();
+  socket.emit('leave_auction', auctionId);
+  console.log(`[SOCKET] Left auction room: ${auctionId}`);
+};
+
+/**
+ * Place a bid in an auction via WebSocket
+ */
+export const placeBid = (auctionId: string, bidAmount: number): void => {
+  const socket = getSocket();
+  socket.emit('place_bid', { auctionId, bidAmount });
+  console.log(`[SOCKET] Emitted place_bid:`, { auctionId, bidAmount });
+};
+
+/**
+ * Listen for live bid updates (when someone bids)
+ */
+export const onAuctionUpdated = (callback: (data: any) => void): (() => void) => {
+  const socket = getSocket();
+  socket.on('auction_update', callback);
+  return () => {
+    socket.off('auction_update', callback);
+  };
+};
+
+/**
+ * Listen for auction end event
+ */
+export const onAuctionEnded = (callback: (data: any) => void): (() => void) => {
+  const socket = getSocket();
+  socket.on('auction_ended', callback);
+  return () => {
+    socket.off('auction_ended', callback);
+  };
+};
+
+/**
+ * Listen for bid errors
+ */
+export const onBidError = (callback: (data: { message: string }) => void): (() => void) => {
+  const socket = getSocket();
+  socket.on('bid_error', callback);
+  return () => {
+    socket.off('bid_error', callback);
   };
 };

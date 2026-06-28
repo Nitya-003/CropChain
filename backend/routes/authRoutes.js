@@ -10,7 +10,8 @@ const {
     refreshSession,
     logoutUser,
     forgotPassword,
-    resetPassword
+    resetPassword,
+    addFunds
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const validateRegistration = require('../middleware/validateRegistration');
@@ -22,6 +23,7 @@ router.post('/refresh', refreshSession);
 router.post('/logout', logoutUser);
 router.post('/forgot-password', authLimiter, forgotPassword);
 router.post('/reset-password/:token', authLimiter, resetPassword);
+router.post('/add-funds', protect, addFunds);
 
 // Wallet authentication routes
 router.get('/nonce', getNonce);
