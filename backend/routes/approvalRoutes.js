@@ -8,6 +8,7 @@ const { protect, adminOnly, inspectorOnly, requirePermissions } = require('../mi
 const { PERMISSIONS, ROLES, isAdminRole } = require('../constants/permissions');
 const MultisigService = require('../services/multisigService');
 const Joi = require('joi');
+const activityService = require('../services/activityService');
 
 const createApprovalSchema = Joi.object({
     batchId: Joi.string().required(),
@@ -33,6 +34,20 @@ router.post('/', protect, requirePermissions(PERMISSIONS.BATCH_RECALL, PERMISSIO
         if (error) return res.status(400).json({ error: 'Validation error', details: error.details[0].message });
         const result = await MultisigService.createApprovalRequest({ ...value, initiatedBy: req.user._id });
         console.log(`[APPROVAL] Created request ${result.requestId} by ${req.user.email}`);
+
+        await activityService.logActivity({
+            userId: req.user._id || req.user.id,
+            userRole: req.user.role,
+            eventType: 'batch_verified',
+            batchId: value.batchId,
+            description: `Verification request initiated: ${value.actionType} for batch ${value.batchId}`,
+            metadata: {
+                actionType: value.actionType,
+                requestId: result.requestId,
+                justification: value.justification
+            }
+        });
+
         res.status(201).json({ success: true, message: 'Approval request created successfully', data: result });
     } catch (error) {
         console.error('[APPROVAL] Create error:', error);
@@ -89,8 +104,27 @@ router.post('/:requestId/sign', protect, inspectorOnly, async (req, res) => {
         const { error, value } = addSignatureSchema.validate(req.body);
         if (error) return res.status(400).json({ error: 'Validation error', details: error.details[0].message });
         const ipAddress = req.ip || req.connection.remoteAddress;
+        
+        // Fetch request details first to get the batchId
+        const approval = await MultisigService.getRequestDetails(req.params.requestId);
+        
         const result = await MultisigService.addSignature(req.params.requestId, req.user, value.decision, value.reason || '', ipAddress);
         console.log(`[APPROVAL] Signature added to ${req.params.requestId} by ${req.user.email}: ${value.decision}`);
+        
+        await activityService.logActivity({
+            userId: req.user._id || req.user.id,
+            userRole: req.user.role,
+            eventType: 'batch_verified',
+            batchId: approval.batchId,
+            description: `Verification signed (${value.decision}) by inspector for batch ${approval.batchId}`,
+            metadata: {
+                requestId: req.params.requestId,
+                decision: value.decision,
+                reason: value.reason,
+                status: result.status
+            }
+        });
+
         res.json({
             success: true,
             message: result.status === 'approved' ? 'Action has been approved and executed' : `Signature recorded. ${result.approvalCount}/${result.requiredApprovals} approvals`,

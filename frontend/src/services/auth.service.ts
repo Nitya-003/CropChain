@@ -12,6 +12,7 @@ export interface User {
         verifiedAt?: string;
         credentialHash?: string;
     };
+    balance?: number;
 }
 
 export interface LoginCredentials {

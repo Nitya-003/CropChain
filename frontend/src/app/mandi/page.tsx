@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
-import { Store, Package, RefreshCw, CheckCircle, Clock, TrendingUp, Search, ArrowRight } from 'lucide-react';
+import { Store, Package, RefreshCw, CheckCircle, Clock, TrendingUp, Search, ArrowRight, Gavel } from 'lucide-react';
 import Link from 'next/link';
 import { realCropBatchService } from '../../services/realCropBatchService';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../../components/ui/card';
@@ -10,12 +10,14 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '.
 import ProtectedRoute from '../../components/ProtectedRoute';
 import { useAuth } from '../../context/AuthContext';
 import BatchFilters from '../../components/BatchFilters';
+import { auctionService, Auction } from '../../services/auctionService';
 
 const RELEVANT_STAGES = ['farmer', 'mandi'];
 
 const MandiDashboardComponent: React.FC = () => {
   const { user } = useAuth();
   const [batches, setBatches] = useState<any[]>([]);
+  const [activeAuctions, setActiveAuctions] = useState<Auction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [filters, setFilters] = useState({
@@ -60,6 +62,13 @@ const MandiDashboardComponent: React.FC = () => {
 
       const data = await realCropBatchService.getAllBatches(apiFilters);
       const allBatches: any[] = data?.batches || [];
+
+      try {
+        const auctions = await auctionService.getAllAuctions();
+        setActiveAuctions(auctions);
+      } catch (err) {
+        console.error('Failed to load active auctions:', err);
+      }
 
       // Mandi sees batches that are at farmer stage (pending arrival) or mandi stage (accepted)
       const relevantBatches = allBatches.filter(
@@ -295,45 +304,79 @@ const MandiDashboardComponent: React.FC = () => {
                     <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
-                  {paginatedBatches.map((batch) => (
-                    <TableRow key={batch.batchId} className="border-b border-border/40 hover:bg-muted/30 transition-colors text-left">
-                      <TableCell className="py-4 px-6">
-                        <span className="font-mono text-xs bg-muted text-muted-foreground px-2 py-1 rounded border border-border">
-                          {batch.batchId?.slice(0, 8)}...{batch.batchId?.slice(-4)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="py-4 px-6">
-                        <div>
-                          <p className="font-medium text-foreground text-sm">{batch.farmerName}</p>
-                          <p className="text-xs text-muted-foreground">{batch.origin}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-4 px-6">
-                        <span className="capitalize font-medium text-foreground text-sm">{batch.cropType}</span>
-                      </TableCell>
-                      <TableCell className="py-4 px-6">
-                        <span className="font-medium text-foreground text-sm">{batch.quantity?.toLocaleString()} kg</span>
-                      </TableCell>
-                      <TableCell className="py-4 px-6">
-                        <Badge variant="outline" className={`capitalize font-semibold border ${getStageColor(batch.currentStage)}`}>
-                          {batch.currentStage === 'farmer' ? 'Pending Arrival' : 'At Market'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="py-4 px-6">
-                        <Link href={`/update-batch?id=${batch.batchId}`}>
-                          <Button
-                            variant={batch.currentStage === 'farmer' ? 'default' : 'ghost'}
-                            size="sm"
-                            className="gap-1.5"
-                          >
-                            <ArrowRight className="h-3.5 w-3.5" />
-                            {batch.currentStage === 'farmer' ? 'Accept' : 'Update'}
-                          </Button>
-                        </Link>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                <TableBody>                  {paginatedBatches.map((batch) => {
+                    const activeAuction = activeAuctions.find(
+                      (a) => a.batchId === batch.batchId
+                    );
+                    return (
+                      <TableRow key={batch.batchId} className="border-b border-border/40 hover:bg-muted/30 transition-colors text-left">
+                        <TableCell className="py-4 px-6">
+                          <span className="font-mono text-xs bg-muted text-muted-foreground px-2 py-1 rounded border border-border">
+                            {batch.batchId?.slice(0, 8)}...{batch.batchId?.slice(-4)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-4 px-6">
+                          <div>
+                            <p className="font-medium text-foreground text-sm">{batch.farmerName}</p>
+                            <p className="text-xs text-muted-foreground">{batch.origin}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-4 px-6">
+                          <span className="capitalize font-medium text-foreground text-sm">{batch.cropType}</span>
+                        </TableCell>
+                        <TableCell className="py-4 px-6">
+                          <span className="font-medium text-foreground text-sm">{batch.quantity?.toLocaleString()} kg</span>
+                        </TableCell>
+                        <TableCell className="py-4 px-6">
+                          <div className="flex flex-col gap-1.5 items-start">
+                            <Badge variant="outline" className={`capitalize font-semibold border ${getStageColor(batch.currentStage)}`}>
+                              {batch.currentStage === 'farmer' ? 'Pending Arrival' : 'At Market'}
+                            </Badge>
+                            {activeAuction && activeAuction.status === 'active' && (
+                              <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 font-bold animate-pulse text-[10px] uppercase tracking-wide">
+                                Live Auction
+                              </Badge>
+                            )}
+                            {activeAuction && activeAuction.status === 'ended' && (
+                              <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-300/30 text-[10px] dark:bg-slate-800/40 dark:text-slate-400 uppercase tracking-wide">
+                                Auction Ended
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-4 px-6">
+                          <div className="flex items-center gap-1.5">
+                            {activeAuction && activeAuction.status === 'active' ? (
+                              <Link href={`/auctions/${activeAuction._id}`}>
+                                <Button size="sm" className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold h-8 rounded-lg text-xs">
+                                  <Gavel className="h-3.5 w-3.5" />
+                                  Bid Live
+                                </Button>
+                              </Link>
+                            ) : activeAuction && activeAuction.status === 'ended' ? (
+                              <Link href={`/auctions/${activeAuction._id}`}>
+                                <Button variant="outline" size="sm" className="gap-1.5 text-slate-500 h-8 rounded-lg text-xs">
+                                  <Gavel className="h-3.5 w-3.5" />
+                                  Results
+                                </Button>
+                              </Link>
+                            ) : (
+                              <Link href={`/update-batch?id=${batch.batchId}`}>
+                                <Button
+                                  variant={batch.currentStage === 'farmer' ? 'default' : 'ghost'}
+                                  size="sm"
+                                  className="gap-1.5 h-8 rounded-lg text-xs"
+                                >
+                                  <ArrowRight className="h-3.5 w-3.5" />
+                                  {batch.currentStage === 'farmer' ? 'Accept' : 'Update'}
+                                </Button>
+                              </Link>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

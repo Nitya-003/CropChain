@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
     password: {
         type: String,
         required: [true, 'Please add a password'],
-        minlength: 6,
+        minlength: 8,
         select: false,
     },
     role: {
@@ -74,6 +74,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['active', 'inactive', 'suspended', 'pending'],
         default: 'pending'
+    },
+    balance: {
+        type: Number,
+        default: 100000
     },
     lastLogin: { type: Date },
     resetPasswordToken: { type: String },

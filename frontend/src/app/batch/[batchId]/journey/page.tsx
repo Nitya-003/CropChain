@@ -11,6 +11,7 @@ import { JourneyTimeline } from '../../../../components/journey/JourneyTimeline'
 import { JourneyPathMap } from '../../../../components/journey/JourneyPathMap';
 import { JourneyEnvironmentChart } from '../../../../components/journey/JourneyEnvironmentChart';
 import { TrackBatchSkeleton } from '../../../../components/skeletons';
+import { CropLifecycleTracker } from '../../../../components/journey/CropLifecycleTracker';
 import '../../../../styles/JourneyMap.css';
 
 const JourneyMap: React.FC = () => {
@@ -187,6 +188,9 @@ const JourneyMap: React.FC = () => {
           </span>
         </div>
       </div>
+
+      {/* Crop Lifecycle Progress Tracker */}
+      <CropLifecycleTracker batchId={batchId} blockchainHash={batch.blockchainHash} />
 
       {/* Main Responsive Grid Panel */}
       <div className="journey-grid-container">

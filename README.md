@@ -502,6 +502,45 @@ npx hardhat run scripts/deploy.js --network polygon
 
 ---
 
+## Crop Lifecycle Progress Tracker
+
+CropChain includes an interactive progress tracker representing the end-to-end journey of a crop batch from registration to final retailer delivery.
+
+### Lifecycle Workflow
+Every crop batch flows sequentially through the following 6 stages:
+1. **Registered**: Initial creation of crop record.
+2. **Growing**: Active cultivation phase in fields.
+3. **Harvested**: Crops harvested and ready for processing.
+4. **Quality Checked**: Certified safe and qualified by inspectors.
+5. **Transported**: Loaded and shipped in cold-chain logistics.
+6. **Delivered**: Received at final retailer destinations.
+
+### State Transition Validation & Rules
+- Transitions are strictly sequential (no skipping stages, no reverting backwards).
+- Prevent duplicate updates and unauthorized role changes:
+  - **Farmer**: Authorized to update stages until `Harvested` (`Growing`, `Harvested`).
+  - **Distributor** (Transporter / Mandi): Authorized to update to `Transported`.
+  - **Retailer**: Authorized to update to `Delivered`.
+  - **Admin**: Full control over all transitions (including `Quality Checked`).
+
+### REST API Documentation
+- **Get Crop Lifecycle Details**: `GET /api/batches/:id/lifecycle`
+  - Returns `currentStage`, `stageHistory`, and `completionPercentage`.
+- **Update Lifecycle Stage**: `PATCH /api/batches/:id/lifecycle`
+  - Body: `{ "stage": "Growing", "notes": "Growing smoothly" }`
+  - Validates role authorizations and transitions.
+
+### Premium Frontend Component
+The tracker renders dynamically as the `CropLifecycleTracker` component:
+- **Desktop**: Interactive horizontal progress bar with customized SVG and framer-motion micro-animations.
+- **Mobile**: Responsive vertical timeline cards with action details.
+- **Smart Features**:
+  - *Delay Alert Detection*: Automatically warns if a batch remains in a stage longer than configurable expectations (e.g. `⚠ Transport pending for 6 days`).
+  - *Relative Timestamps*: Displayed as "3 hours ago", "Yesterday", or "5 days ago".
+  - *Tooltip cards*: Displays complete metadata, blockchain transaction links, and timestamps on hover/focus.
+
+---
+
 ## Roadmap
 
 ### Phase 1 (Current)
