@@ -92,6 +92,7 @@ const sanitizeUser = (user) => ({
     name: user.name,
     email: user.email,
     role: user.role,
+    balance: user.balance || 0,
     createdAt: user.createdAt
 });
 
@@ -739,6 +740,38 @@ const resetPassword = async (req, res) => {
     }
 };
 
+const addFunds = async (req, res) => {
+    try {
+        const { amount } = req.body;
+        if (amount === undefined || typeof amount !== 'number' || amount <= 0) {
+            return res.status(400).json(
+                apiResponse.errorResponse('Please provide a valid positive number for amount', 'INVALID_AMOUNT', 400)
+            );
+        }
+
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json(
+                apiResponse.notFoundResponse('User', req.user.id)
+            );
+        }
+
+        user.balance = (user.balance || 0) + amount;
+        await user.save();
+
+        logger.info('Funds added successfully', { userId: user._id, amount, newBalance: user.balance });
+
+        return res.json(
+            apiResponse.successResponse({ user: sanitizeUser(user) }, 'Funds added successfully')
+        );
+    } catch (error) {
+        logger.error('Error adding funds', { error: error.message });
+        return res.status(500).json(
+            apiResponse.errorResponse('Server error while adding funds', 'SERVER_ERROR', 500)
+        );
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
@@ -749,5 +782,6 @@ module.exports = {
     refreshSession,
     logoutUser,
     forgotPassword,
-    resetPassword
+    resetPassword,
+    addFunds
 };

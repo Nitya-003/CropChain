@@ -61,23 +61,23 @@ const validateEnv = () => {
   Object.entries(REQUIRED_VARS).forEach(([key, { description, validate, hint }]) => {
     const value = process.env[key];
     if (!value) {
-      errors.push(  - : \n    );
+      errors.push(`  - ${key}: ${description}${hint ? `. ${hint}` : ''}\n`);
     } else if (typeof validate === "function" && !validate(value)) {
-      errors.push(  - : value "" has invalid format\n    );
+      errors.push(`  - ${key}: value "${value}" has invalid format\n`);
     }
   });
 
   if (process.env.JWT_SECRET && process.env.JWT_REFRESH_SECRET) {
     if (process.env.JWT_SECRET === process.env.JWT_REFRESH_SECRET) {
       errors.push(
-          - JWT_SECRET and JWT_REFRESH_SECRET must be different values for security.
+          "  - JWT_SECRET and JWT_REFRESH_SECRET must be different values for security."
       );
     }
   }
 
   Object.entries(OPTIONAL_VARS_WARN).forEach(([key, { description, hint }]) => {
     if (!process.env[key]) {
-      warnings.push(  -  (optional): \n    );
+      warnings.push(`  - ${key} (optional): ${description}${hint ? `. ${hint}` : ''}\n`);
     }
   });
 

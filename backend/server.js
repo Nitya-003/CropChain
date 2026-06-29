@@ -315,6 +315,7 @@ const verificationRoutes = require('./routes/verification');
 const approvalRoutes = require('./routes/approvalRoutes');
 const recommendRoutes = require('./routes/recommendRoutes');
 const activityRoutes = require('./routes/activityRoutes');
+const auctionRoutes = require('./routes/auctionRoutes');
 const lifecycleRoutes = require('./routes/lifecycleRoutes');
 
 // Mount Auth Routes with per-endpoint rate limiting
@@ -348,6 +349,8 @@ app.use('/api/activities', generalLimiter, activityRoutes);
 // Mount Approval Routes (Multi-signature for high-stakes actions)
 app.use('/api/approvals', batchLimiter, approvalRoutes);
 
+// Mount Auction Routes
+app.use('/api/auctions', auctionRoutes);
 // Mount Lifecycle Routes
 app.use('/api/batches', generalLimiter, lifecycleRoutes);
 
@@ -712,9 +715,77 @@ const createAdmin = require('./scripts/create-admin');
 // Import blockchain listener
 const startListener = require('./services/blockchainListener');
 
-// Handle termination signals
+// Graceful shutdown handling
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+const settleExpiredAuctions = async () => {
+    try {
+        const Auction = require('./models/Auction');
+        const User = require('./models/User');
+        const Batch = require('./models/Batch');
+        const socketService = require('./services/socketService');
+
+        // Find active auctions that have expired
+        const expiredAuctions = await Auction.find({
+            status: 'active',
+            endTime: { $lte: new Date() }
+        });
+
+        if (expiredAuctions.length === 0) return;
+
+        logger.info(`Found ${expiredAuctions.length} expired auctions to settle`);
+
+        for (const auction of expiredAuctions) {
+            auction.status = 'ended';
+            await auction.save();
+
+            const io = socketService.getIO();
+
+            // If there's a highest bidder, finalize the deal
+            if (auction.highestBidder) {
+                // 1. Credit the farmer's account
+                await User.findByIdAndUpdate(auction.farmerId, {
+                    $inc: { balance: auction.currentHighestBid }
+                });
+
+                // 2. Fetch buyer details
+                const buyer = await User.findById(auction.highestBidder);
+                const buyerName = buyer ? buyer.name : 'Buyer';
+
+                // 3. Update the batch stage to 'mandi' and record history entry
+                const batch = await Batch.findById(auction.cropId);
+                if (batch) {
+                    batch.currentStage = 'mandi';
+                    batch.updates.push({
+                        stage: 'mandi',
+                        actor: buyerName,
+                        location: 'Auction Market',
+                        notes: `Purchased at live auction for ${auction.currentHighestBid} credits`
+                    });
+                    await batch.save();
+
+                    logger.info(`Auction settled: Batch ${batch.batchId} sold to ${buyerName} for ${auction.currentHighestBid} credits`);
+
+                    // Trigger Socket.io real-time update events for batch stage change
+                    if (io) {
+                        io.to(`batch:${batch.batchId}`).emit('batch-updated', batch);
+                        io.emit('batch-stage-changed', { batchId: batch.batchId, stage: 'mandi' });
+                    }
+                }
+            } else {
+                logger.info(`Auction ended without any bids for batch ${auction.batchId}`);
+            }
+
+            // Emit socket notifications to the room
+            if (io) {
+                io.to(`auction:${auction._id}`).emit('auction_ended', auction);
+            }
+        }
+    } catch (error) {
+        logger.error('Error settling expired auctions:', { error: error.message });
+    }
+};
 
 // Start server using HTTP server (with Socket.IO attached)
 // Start server
@@ -758,6 +829,9 @@ if (process.env.NODE_ENV !== 'test') {
         }
 
         logger.info('Server startup complete');
+
+        // Start background auction settlement check
+        setInterval(settleExpiredAuctions, 10000); // Check every 10 seconds
 
         // Start blockchain event listener
         const contract = blockchainService.getContract();

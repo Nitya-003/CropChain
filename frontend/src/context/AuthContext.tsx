@@ -4,6 +4,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import toast from 'react-hot-toast';
 import { authService, LoginCredentials, RegisterCredentials, User } from '../services/auth.service';
 import { sanitizeString } from '../lib/sanitize';
+import { setAuthToken } from '../services/socketService';
+import { apiClient } from '../services/apiClient';
 
 interface AuthContextType {
   user: User | null;
@@ -16,6 +18,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isWalletConnected: boolean;
   updateUser: (updatedUser: User) => void;
+  addFunds: (amount: number) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,7 +26,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Persist only non-sensitive fields needed for UI rendering.
 // email, walletAddress, and verification are omitted to limit XSS exposure.
 const persistUser = (user: User) => {
-  const safe = { id: user.id, name: sanitizeString(user.name), role: user.role };
+  const safe = { id: user.id, name: sanitizeString(user.name), role: user.role, balance: user.balance };
   localStorage.setItem('user', JSON.stringify(safe));
 };
 
@@ -38,8 +41,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const response = await authService.refreshSession();
         setUser(response.user);
         persistUser(response.user);
+        setAuthToken(response.token);
       } catch {
         localStorage.removeItem('user');
+        setAuthToken(null);
         await checkWalletConnected();
       } finally {
         setIsLoading(false);
@@ -60,7 +65,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           name: '',
           email: '',
           role: '', // No role assigned - requires backend authentication
-          walletAddress: ethereum.selectedAddress
+          walletAddress: ethereum.selectedAddress,
+          balance: 0
         });
       }
     } catch (error) {
@@ -74,6 +80,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const response = await authService.login(credentials);
       setUser(response.user);
       persistUser(response.user);
+      setAuthToken(response.token);
       toast.success('Login successful!');
     } catch (error: any) {
       const message = error.response?.data?.message || 'Login failed';
@@ -90,6 +97,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const response = await authService.register(credentials);
       setUser(response.user);
       persistUser(response.user);
+      setAuthToken(response.token);
       toast.success('Registration successful!');
     } catch (error: any) {
       const message = error.response?.data?.message || 'Registration failed';
@@ -180,6 +188,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Step 4: Store JWT and user data
       setUser(response.user);
       persistUser(response.user);
+      setAuthToken(response.token);
 
       toast.success('Wallet authentication successful!');
     } catch (error: any) {
@@ -200,6 +209,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await authService.logout();
     setUser(null);
     setIsWalletConnected(false);
+    setAuthToken(null);
     toast.success("Logged out");
   };
 
@@ -213,6 +223,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.setItem('user', JSON.stringify(sanitized));
   };
 
+  const addFunds = async (amount: number) => {
+    setIsLoading(true);
+    try {
+      const response = await apiClient.post('/auth/add-funds', { amount });
+      const updatedUser = response.data.data.user;
+      setUser(updatedUser);
+      persistUser(updatedUser);
+      toast.success(`${amount.toLocaleString()} credits added to your balance!`);
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Failed to add funds';
+      toast.error(message);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -224,7 +251,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isLoading,
       isAuthenticated: !!user && !!user.role,
       isWalletConnected,
-      updateUser
+      updateUser,
+      addFunds
     }}>
       {children}
     </AuthContext.Provider>
