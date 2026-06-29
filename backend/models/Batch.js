@@ -35,6 +35,36 @@ const updateSchema = new mongoose.Schema({
   }
 }, { _id: true });
 
+const lifecycleHistorySchema = new mongoose.Schema({
+  stage: {
+    type: String,
+    required: true,
+    enum: ['Registered', 'Growing', 'Harvested', 'Quality Checked', 'Transported', 'Delivered']
+  },
+  timestamp: {
+    type: Date,
+    default: Date.now
+  },
+  updatedBy: {
+    type: String,
+    required: true
+  },
+  notes: {
+    type: String,
+    maxlength: 500,
+    default: ''
+  }
+}, { _id: true });
+
+const lifecycleSchema = new mongoose.Schema({
+  currentStage: {
+    type: String,
+    enum: ['Registered', 'Growing', 'Harvested', 'Quality Checked', 'Transported', 'Delivered'],
+    default: 'Registered'
+  },
+  stageHistory: [lifecycleHistorySchema]
+}, { _id: false });
+
 /**
  * @typedef {Object} Batch
  * @property {string} batchId - Unique batch identifier (CROP-YYYY-XXXX)
@@ -226,6 +256,13 @@ const batchSchema = new mongoose.Schema({
     }
   },
   updates: [updateSchema],
+  lifecycle: {
+    type: lifecycleSchema,
+    default: () => ({
+      currentStage: 'Registered',
+      stageHistory: []
+    })
+  },
   status: {
     type: String,
     enum: ['Active', 'Flagged', 'Inactive'],
@@ -289,6 +326,7 @@ batchSchema.index({ batchId: 1 }, { unique: true });
 batchSchema.index({ farmerId: 1 });
 batchSchema.index({ createdAt: -1 });
 batchSchema.index({ currentStage: 1 });
+batchSchema.index({ 'lifecycle.currentStage': 1 });
 batchSchema.index({ syncStatus: 1 });
 batchSchema.index({ isRecalled: 1 });
 

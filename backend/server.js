@@ -316,6 +316,7 @@ const approvalRoutes = require('./routes/approvalRoutes');
 const recommendRoutes = require('./routes/recommendRoutes');
 const activityRoutes = require('./routes/activityRoutes');
 const auctionRoutes = require('./routes/auctionRoutes');
+const lifecycleRoutes = require('./routes/lifecycleRoutes');
 
 // Mount Auth Routes with per-endpoint rate limiting
 app.use('/api/auth/login', authLimiter);
@@ -350,6 +351,8 @@ app.use('/api/approvals', batchLimiter, approvalRoutes);
 
 // Mount Auction Routes
 app.use('/api/auctions', auctionRoutes);
+// Mount Lifecycle Routes
+app.use('/api/batches', generalLimiter, lifecycleRoutes);
 
 // Batch routes - ALL USING MONGODB ONLY
 
