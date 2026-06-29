@@ -2,8 +2,9 @@
 import React from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { Leaf, LogOut, Shield, Compass, Sparkles, User, LogIn, Menu, Home, LayoutDashboard } from 'lucide-react';
+import { Leaf, LogOut, Shield, Compass, Sparkles, User, LogIn, Menu, Home, LayoutDashboard, Bell } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
 import { CurrencyToggle } from "../components/CurrencyToggle";
@@ -15,6 +16,7 @@ import toast from 'react-hot-toast';
 
 const Header: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
+  const { unreadCount } = useNotifications();
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
@@ -248,6 +250,15 @@ const Header: React.FC = () => {
             {/* Auth Section */}
             {isAuthenticated && user ? (
               <div className="relative flex shrink-0 items-center gap-2 sm:pl-2">
+                <Link href="/notifications" className="relative p-2 rounded-lg text-foreground hover:bg-muted border border-transparent hover:border-border/60 transition-colors">
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                    </span>
+                  )}
+                </Link>
                 <Badge variant="outline" className={`hidden capitalize font-semibold border sm:inline-flex ${getRoleBadgeColor(user.role)}`}>
                   {user.role}
                 </Badge>

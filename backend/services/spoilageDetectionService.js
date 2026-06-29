@@ -1,4 +1,5 @@
 const Batch = require('../models/Batch');
+const notificationService = require('./notificationService');
 
 const SPOILAGE_THRESHOLDS = {
   rice:      { maxTemp: 77, maxHumidity: 70 },
@@ -27,7 +28,18 @@ async function recordIoTData(batchId, temperature, humidity) {
     throw err;
   }
 
+  const wasSpoiled = batch.iotData?.isSpoiled;
   const isSpoiled = checkSpoiled(temperature, humidity, batch.cropType);
+
+  if (isSpoiled && !wasSpoiled && batch.farmerId) {
+    notificationService.createInAppNotification(
+      batch.farmerId,
+      'Spoilage Alert!',
+      `Critical thresholds exceeded for batch ${batch.batchId} (${batch.cropType}). Temp: ${temperature}, Humidity: ${humidity}`,
+      'alert',
+      { batchId: batch.batchId, temperature, humidity }
+    ).catch(err => console.error('Failed to send spoilage alert:', err));
+  }
 
   batch.iotData = {
     currentTemperature: temperature,
