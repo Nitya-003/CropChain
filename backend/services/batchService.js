@@ -101,7 +101,16 @@ class BatchService {
                         location: batchData.origin,
                         timestamp: batchData.harvestDate,
                         notes: batchData.description || 'Initial harvest recorded'
-                    }]
+                    }],
+                    lifecycle: {
+                        currentStage: 'Registered',
+                        stageHistory: [{
+                            stage: 'Registered',
+                            timestamp: new Date(),
+                            updatedBy: batchData.farmerName || user.name || 'System',
+                            notes: 'Lifecycle has just started.'
+                        }]
+                    }
                 }], { session });
 
                 const createdBatch = Array.isArray(batch) ? batch[0] : batch;
