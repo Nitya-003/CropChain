@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const logger = require('../utils/logger');
 
 const createTransporter = () => {
   if (
@@ -7,10 +8,9 @@ const createTransporter = () => {
     !process.env.SMTP_USER ||
     !process.env.SMTP_PASS
   ) {
-    console.warn('⚠️ SMTP not configured. Emails will be logged to console instead of sent.');
+    logger.warn('SMTP not configured. Emails will be logged to console instead of sent.');
     return null;
   }
-
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: parseInt(process.env.SMTP_PORT, 10),
@@ -20,7 +20,6 @@ const createTransporter = () => {
       pass: process.env.SMTP_PASS,
     },
   });
-
   return transporter;
 };
 
@@ -31,10 +30,9 @@ const getFromAddress = () =>
 
 const sendEmail = async (to, subject, html) => {
   if (!transporter) {
-    console.log(`[EMAIL][FALLBACK] To: ${to} | Subject: ${subject}`);
+    logger.info(`[EMAIL][FALLBACK] To: ${to} | Subject: ${subject}`);
     return { success: false, fallback: true };
   }
-
   try {
     const info = await transporter.sendMail({
       from: getFromAddress(),
@@ -42,10 +40,10 @@ const sendEmail = async (to, subject, html) => {
       subject,
       html,
     });
-    console.log(`[EMAIL][SENT] To: ${to} | Subject: ${subject} | MessageId: ${info.messageId}`);
+    logger.info(`[EMAIL][SENT] To: ${to} | Subject: ${subject} | MessageId: ${info.messageId}`);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error(`[EMAIL][ERROR] Failed to send to ${to}: ${error.message}`);
+    logger.error(`[EMAIL][ERROR] Failed to send to ${to}: ${error.message}`);
     return { success: false, error: error.message };
   }
 };
