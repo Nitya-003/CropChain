@@ -315,6 +315,7 @@ const verificationRoutes = require('./routes/verification');
 const approvalRoutes = require('./routes/approvalRoutes');
 const recommendRoutes = require('./routes/recommendRoutes');
 const activityRoutes = require('./routes/activityRoutes');
+const lifecycleRoutes = require('./routes/lifecycleRoutes');
 
 // Mount Auth Routes with per-endpoint rate limiting
 app.use('/api/auth/login', authLimiter);
@@ -346,6 +347,9 @@ app.use('/api/activities', generalLimiter, activityRoutes);
 
 // Mount Approval Routes (Multi-signature for high-stakes actions)
 app.use('/api/approvals', batchLimiter, approvalRoutes);
+
+// Mount Lifecycle Routes
+app.use('/api/batches', generalLimiter, lifecycleRoutes);
 
 // Batch routes - ALL USING MONGODB ONLY
 
