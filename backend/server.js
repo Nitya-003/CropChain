@@ -244,6 +244,9 @@ app.use("/api", mainRoutes);
 // Mount Oracle routes
 app.use('/api/oracle', oracleRoutes);
 
+// Mount Notification routes
+app.use('/api/notifications', notificationRoutes);
+
 // Swagger/OpenAPI Documentation
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     customCss: '.swagger-ui .topbar { display: none }',

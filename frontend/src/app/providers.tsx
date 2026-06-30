@@ -6,6 +6,7 @@ import { AuthProvider } from '../context/AuthContext';
 import { ThemeProvider } from '../context/ThemeContext';
 import { CurrencyProvider } from '../context/CurrencyContext';
 import { Toaster } from 'react-hot-toast';
+import { NotificationProvider } from '../context/NotificationContext';
 import '../i18n/config'; // Initialize i18n client-side
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -20,12 +21,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <ThemeProvider>
-          <CurrencyProvider>
-            <Toaster position="top-right" reverseOrder={false} />
-            {children}
-          </CurrencyProvider>
-        </ThemeProvider>
+        <NotificationProvider>
+          <ThemeProvider>
+            <CurrencyProvider>
+              <Toaster position="top-right" reverseOrder={false} />
+              {children}
+            </CurrencyProvider>
+          </ThemeProvider>
+        </NotificationProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

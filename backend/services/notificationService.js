@@ -5,6 +5,7 @@
 
 const emailProvider = require('../config/email');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 
 class NotificationService {
     constructor() {
@@ -49,6 +50,25 @@ class NotificationService {
     }
 
     /**
+     * Create an in-app notification in MongoDB
+     */
+    async createInAppNotification(userId, title, message, type = 'update', data = {}) {
+        try {
+            if (!userId) return null;
+            return await Notification.create({
+                user: userId,
+                title,
+                message,
+                type,
+                data
+            });
+        } catch (error) {
+            console.error('[NotificationService] Failed to create in-app notification:', error.message);
+            return null;
+        }
+    }
+
+    /**
      * Alert about a recalled batch being viewed
      * @param {string} batchId - Batch identifier
      */
@@ -86,14 +106,14 @@ class NotificationService {
                     `🚨 RECALL: Batch ${batch.batchId}`,
                     `<h2>Batch Recall Notice - Action Required</h2><p>Your batch <strong>${batch.batchId}</strong> (${batch.cropType}, ${batch.quantity}kg) has been <strong>recalled</strong>.</p><p>Please check the CropChain dashboard for further instructions.</p><p>CropChain Team</p>`
                 );
-            } else if (batch.farmerWalletAddress && batch.farmerName) {
-                // Fallback to old behavior if user not found, though we should ideally avoid this
-                await this.sendEmail(
-                    `${batch.farmerName} <${batch.farmerWalletAddress}>` || batch.farmerWalletAddress,
-                    `🚨 RECALL: Batch ${batch.batchId}`,
-                    `<h2>Batch Recall Notice - Action Required</h2><p>Your batch <strong>${batch.batchId}</strong> (${batch.cropType}, ${batch.quantity}kg) has been <strong>recalled</strong>.</p><p>Please check the CropChain dashboard for further instructions.</p><p>CropChain Team</p>`
-                );
             }
+            await this.createInAppNotification(
+                batch.farmerId,
+                'BATCH RECALLED',
+                `Batch ${batch.batchId} has been recalled.`,
+                'recall',
+                { batchId: batch.batchId }
+            );
         }
     }
 
@@ -114,6 +134,16 @@ class NotificationService {
                 user.email,
                 `Batch Created: ${batchId}`,
                 `<h2>Batch Created Successfully</h2><p>Your batch <strong>${batchId}</strong> has been created and recorded on the blockchain.</p><p>CropChain Team</p>`
+            );
+        }
+        
+        if (user._id || user.id) {
+            await this.createInAppNotification(
+                user._id || user.id,
+                'Batch Created',
+                `Your new batch ${batchId} has been successfully recorded.`,
+                'update',
+                { batchId }
             );
         }
     }
@@ -137,6 +167,16 @@ class NotificationService {
                 user.email,
                 `Batch Updated: ${batchId}`,
                 `<h2>Batch Stage Updated</h2><p>Batch <strong>${batchId}</strong> has moved to stage <strong>${stage}</strong>.</p><p>CropChain Team</p>`
+            );
+        }
+
+        if (user._id || user.id) {
+            await this.createInAppNotification(
+                user._id || user.id,
+                'Batch Stage Updated',
+                `Batch ${batchId} has moved to stage: ${stage}.`,
+                'update',
+                { batchId, stage }
             );
         }
     }
