@@ -16,6 +16,7 @@ export interface Auction {
     quantity: number;
     farmerName: string;
     origin: string;
+    certifications?: string[];
   };
   farmerName?: string;
   highestBidderName?: string | null;

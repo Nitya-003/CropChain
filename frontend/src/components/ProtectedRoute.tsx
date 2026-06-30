@@ -17,7 +17,7 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps): React.
         if (!isLoading) {
             if (!isAuthenticated) {
                 router.replace(`/login?from=${encodeURIComponent(pathname)}`);
-            } else if (allowedRoles && user && !allowedRoles.includes(user.role as any)) {
+            } else if (allowedRoles && user && !allowedRoles.includes(user.role.toLowerCase() as any)) {
                 router.replace('/access-denied');
             }
         }
@@ -35,7 +35,7 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps): React.
         return null;
     }
 
-    if (allowedRoles && user && !allowedRoles.includes(user.role as any)) {
+    if (allowedRoles && user && !allowedRoles.includes(user.role.toLowerCase() as any)) {
         return null;
     }
 
