@@ -117,7 +117,7 @@ const ActivityFeed: React.FC = () => {
     });
   }, [page, eventType, startDate, endDate]);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setPage(1);
     fetchFeed({
