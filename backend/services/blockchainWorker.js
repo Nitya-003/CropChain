@@ -17,7 +17,9 @@ const { ethers } = require('ethers');
 const { createQueueConnection } = require('../config/redis');
 const { QUEUE_NAMES, JOB_TYPES } = require('./blockchainQueue');
 const Batch = require('../models/Batch');
+const User = require('../models/User');
 const { getStageNumber } = require('../constants/stages');
+const { addEmailJob } = require('./notificationQueue');
 
 // Gas configuration
 const GAS_CONFIG = {
@@ -252,6 +254,28 @@ async function processCreateBatch(job) {
             }
         );
 
+        // Send email notification for blockchain confirmation
+        try {
+            const batchDoc = await Batch.findOne({ batchId }).lean();
+            if (batchDoc) {
+                const farmer = await User.findById(batchDoc.farmerId).lean();
+                if (farmer && farmer.email) {
+                    await addEmailJob(
+                        farmer.email,
+                        `Blockchain Confirmation: Batch ${batchId} Created`,
+                        `<h2>Batch Creation Confirmed</h2>
+                        <p>Hello ${farmer.name},</p>
+                        <p>Your batch <strong>${batchId}</strong> has been successfully recorded on the blockchain.</p>
+                        <p>Transaction Hash: <a href="https://sepolia.etherscan.io/tx/${tx.hash}">${tx.hash}</a></p>
+                        <p>Block Number: ${receipt.blockNumber}</p>
+                        <p>CropChain Team</p>`
+                    );
+                }
+            }
+        } catch (err) {
+            console.error(`[Worker] Failed to queue email for ${batchId}:`, err.message);
+        }
+
         await job.updateProgress(100);
 
         return {
@@ -396,6 +420,28 @@ async function processUpdateBatch(job) {
                 }
             }
         );
+
+        // Send email notification for blockchain update confirmation
+        try {
+            const batchDoc = await Batch.findOne({ batchId }).lean();
+            if (batchDoc) {
+                const farmer = await User.findById(batchDoc.farmerId).lean();
+                if (farmer && farmer.email) {
+                    await addEmailJob(
+                        farmer.email,
+                        `Blockchain Confirmation: Batch ${batchId} Updated`,
+                        `<h2>Batch Update Confirmed</h2>
+                        <p>Hello ${farmer.name},</p>
+                        <p>The update to your batch <strong>${batchId}</strong> has been successfully recorded on the blockchain.</p>
+                        <p>Transaction Hash: <a href="https://sepolia.etherscan.io/tx/${tx.hash}">${tx.hash}</a></p>
+                        <p>Block Number: ${receipt.blockNumber}</p>
+                        <p>CropChain Team</p>`
+                    );
+                }
+            }
+        } catch (err) {
+            console.error(`[Worker] Failed to queue email for update of ${batchId}:`, err.message);
+        }
 
         await job.updateProgress(100);
 
