@@ -30,6 +30,8 @@ const batchService = require('./services/batchService');
 const pdfService = require('./services/pdfService');
 const ccipService = require('./services/ccipService');
 const notificationService = require('./services/notificationService');
+const blockchainQueue = require('./services/blockchainQueue');
+const blockchainWorker = require('./services/blockchainWorker');
 
 // Import MongoDB Models
 const Batch = require('./models/Batch');
@@ -693,6 +695,15 @@ const gracefulShutdown = (signal) => {
                 }
             }
 
+            // Close BullMQ worker and queue
+            try {
+                await blockchainWorker.stopWorker();
+                await blockchainQueue.closeQueue();
+                logger.info('BullMQ worker and queue closed successfully');
+            } catch (err) {
+                logger.error('Error closing BullMQ connections', { error: err.message });
+            }
+
             logger.info('Graceful shutdown complete');
             process.exit(0);
         });
@@ -829,6 +840,15 @@ if (process.env.NODE_ENV !== 'test') {
         }
 
         logger.info('Server startup complete');
+
+        // Initialize BullMQ for blockchain transaction background jobs
+        try {
+            blockchainQueue.initializeQueue();
+            blockchainWorker.initializeWorker();
+            logger.info('BullMQ Queue and Worker initialized for blockchain transactions');
+        } catch (error) {
+            logger.error('Failed to initialize BullMQ for blockchain jobs', { error: error.message });
+        }
 
         // Start background auction settlement check
         setInterval(settleExpiredAuctions, 10000); // Check every 10 seconds
