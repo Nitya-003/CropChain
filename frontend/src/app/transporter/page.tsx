@@ -203,7 +203,7 @@ const TransporterDashboardComponent: React.FC = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid sm:grid-cols-2 gap-4">
+      <div className="grid sm:grid-cols-3 gap-4">
         <Link href="/update-batch">
           <Card className="border border-border bg-card hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer group">
             <CardContent className="flex items-center gap-4 py-5 px-6">
@@ -213,6 +213,20 @@ const TransporterDashboardComponent: React.FC = () => {
               <div className="text-left">
                 <p className="font-semibold text-foreground">Update Transport Stage</p>
                 <p className="text-sm text-muted-foreground">Log pickup and update location for a batch</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/transporter/route-optimizer">
+          <Card className="border border-border bg-card hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-700 transition-all cursor-pointer group">
+            <CardContent className="flex items-center gap-4 py-5 px-6">
+              <div className="bg-indigo-500/10 p-3 rounded-xl group-hover:bg-indigo-500/20 transition-colors">
+                <Truck className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-foreground">Route Optimizer</p>
+                <p className="text-sm text-muted-foreground">Find the most efficient multi-stop path for pickups</p>
               </div>
             </CardContent>
           </Card>
