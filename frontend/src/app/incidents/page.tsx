@@ -203,7 +203,7 @@ function IncidentsDashboard() {
                       <TableCell className="py-4 px-6">{req.approvalCount} / {req.config?.requiredApprovals}</TableCell>
                       <TableCell className="py-4 px-6 max-w-[200px] truncate" title={req.justification}>{req.justification}</TableCell>
                       <TableCell className="py-4 px-6">
-                        {user?.role === 'quality_inspector' && (
+                        {(user?.role as string) === 'quality_inspector' && (
                            <Button 
                              size="sm" 
                              onClick={() => {

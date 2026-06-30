@@ -13,7 +13,16 @@ const mockBatch = {
 };
 
 jest.mock('mongoose', () => {
-  const Schema = jest.fn();
+  const Schema = jest.fn().mockImplementation(() => {
+    return {
+      index: jest.fn(),
+      set: jest.fn(),
+      pre: jest.fn(),
+      post: jest.fn(),
+      methods: {},
+      statics: {}
+    };
+  });
   Schema.Types = {
     ObjectId: 'ObjectId',
     String: 'String',

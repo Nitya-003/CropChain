@@ -142,7 +142,7 @@ export default function AuctionRoomPage() {
     setCustomBid('');
   };
 
-  const handleCustomBidSubmit = (e: React.FormEvent) => {
+  const handleCustomBidSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const amount = Number(customBid);
     if (isNaN(amount) || amount <= 0) {

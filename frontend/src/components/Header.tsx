@@ -35,7 +35,7 @@ const Header: React.FC = () => {
       { path: '/admin', label: 'Admin', icon: Shield },
       { path: '/verification', label: 'Verification', icon: Shield }
     ] : []),
-    ...(isAuthenticated && ['admin', 'quality_inspector'].includes(user?.role) ? [
+    ...(isAuthenticated && ['admin', 'quality_inspector'].includes(user?.role || '') ? [
       { path: '/incidents', label: 'Incidents', icon: Shield }
     ] : []),
   ];
@@ -225,7 +225,7 @@ const Header: React.FC = () => {
                   </Link>
                 </>
               )}
-              {isAuthenticated && ['admin', 'quality_inspector'].includes(user?.role) && (
+              {isAuthenticated && ['admin', 'quality_inspector'].includes(user?.role || '') && (
                 <Link
                   href="/incidents"
                   className={`flex items-center gap-1 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${

@@ -8,6 +8,7 @@ const QRCode = require('qrcode');
 const Batch = require('../models/Batch');
 const Counter = require('../models/Counter');
 const blockchainService = require('./blockchainService');
+const blockchainQueue = require('./blockchainQueue');
 const notificationService = require('./notificationService');
 const { emitToBatchRoom, emitGlobal } = require('./socketService');
 const apiResponse = require('../utils/apiResponse');
@@ -500,40 +501,47 @@ class BatchService {
     }
 
     /**
-     * Sync batch to blockchain (non-blocking)
+     * Sync batch to blockchain using background job queue (BullMQ)
      * @param {Object} batch - Batch document
      * @param {string} action - 'create' or 'update'
      */
     async syncToBlockchain(batch, action) {
         if (!blockchainService.isAvailable()) {
+            console.warn(`[BatchService] Blockchain not available. Skipping queueing for ${batch.batchId}`);
             return;
         }
 
         try {
             if (action === 'create') {
-                await blockchainService.createBatchOnChain(
-                    batch.batchId,
-                    batch.cropType,
-                    batch.blockchainHash || '',
-                    batch.quantity,
-                    batch.farmerName,
-                    batch.origin,
-                    batch.description || ''
-                );
+                const batchData = {
+                    batchId: batch.batchId,
+                    cropType: batch.cropType,
+                    ipfsCID: batch.blockchainHash || '',
+                    quantity: batch.quantity,
+                    farmerName: batch.farmerName,
+                    origin: batch.origin,
+                    description: batch.description || ''
+                };
+                
+                await blockchainQueue.addCreateBatchJob(batchData);
+                console.log(`[BatchService] Queued createBatch job for ${batch.batchId}`);
             } else if (action === 'update') {
-                const stageNum = getStageNumber(batch.currentStage);
-                const lastUpdate = batch.updates[batch.updates.length - 1];
+                const lastUpdate = batch.updates && batch.updates.length > 0 
+                    ? batch.updates[batch.updates.length - 1] 
+                    : {};
+                
+                const updateData = {
+                    stage: batch.currentStage,
+                    actor: lastUpdate.actor || '',
+                    location: lastUpdate.location || '',
+                    notes: lastUpdate.notes || ''
+                };
 
-                await blockchainService.updateBatchOnChain(
-                    batch.batchId,
-                    stageNum,
-                    lastUpdate?.actor || '',
-                    lastUpdate?.location || '',
-                    lastUpdate?.notes || ''
-                );
+                await blockchainQueue.addUpdateBatchJob(batch.batchId, updateData);
+                console.log(`[BatchService] Queued updateBatch job for ${batch.batchId}`);
             }
         } catch (error) {
-            console.error(`Blockchain sync failed for batch ${batch.batchId}:`, error.message);
+            console.error(`Failed to queue blockchain job for batch ${batch.batchId}:`, error.message);
         }
     }
 }
