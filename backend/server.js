@@ -1,13 +1,11 @@
-const express = require('express');
-const path = require('path');
-const cors = require('cors');
-const helmet = require('helmet');
-const jwt = require('jsonwebtoken');
-const swaggerUi = require('swagger-ui-express');
-const swaggerSpec = require('./swagger');
-const connectDB = require('./config/db');
 require('dotenv').config();
+const http = require('http');
+const app = require('./app');
 const logger = require('./utils/logger');
+const socketService = require('./services/socketService');
+const setupErrorHandling = require('./startup/errorHandling');
+const { gracefulShutdown } = require('./utils/shutdown');
+const { runStartupTasks } = require('./startup/bootstrap');
 const mainRoutes = require("./routes/index");
 const oracleRoutes = require("./routes/oracle");
 const validateRequest = require('./middleware/validator');
@@ -47,24 +45,11 @@ try {
 }
 
 // ==================== GLOBAL EXCEPTION HANDLERS ====================
+setupErrorHandling();
 
-process.on('unhandledRejection', (reason, promise) => {
-    logger.error('Unhandled rejection', { reason, promise });
-});
-
-process.on('uncaughtException', (error) => {
-    logger.error('Uncaught exception', { error: error.message, stack: error.stack });
-    process.exit(1);
-});
-
-// Connect to Database
-connectDB();
-
-const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Create HTTP server for Socket.IO
-const http = require('http');
 const server = http.createServer(app);
 
 // ==================== MIDDLEWARE FUNCTIONS ====================
@@ -668,10 +653,11 @@ const socketService = require('./services/socketService');
 
 // Initialize Socket.IO on the HTTP server
 socketService.initializeSocketIO(server);
-
 logger.info('Socket.IO integration complete');
 
 // ==================== GRACEFUL SHUTDOWN HANDLING ====================
+process.on('SIGTERM', () => gracefulShutdown(server, 'SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown(server, 'SIGINT'));
 
 // Graceful shutdown function (server already defined above)
 const gracefulShutdown = (signal) => {
@@ -722,89 +708,9 @@ const gracefulShutdown = (signal) => {
 };
 
 // ==================== SERVER STARTUP ====================
-
-// Import createAdmin script
-const createAdmin = require('./scripts/create-admin');
-
-// Import blockchain listener
-const startListener = require('./services/blockchainListener');
-
-// Graceful shutdown handling
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-const settleExpiredAuctions = async () => {
-    try {
-        const Auction = require('./models/Auction');
-        const User = require('./models/User');
-        const Batch = require('./models/Batch');
-        const socketService = require('./services/socketService');
-
-        // Find active auctions that have expired
-        const expiredAuctions = await Auction.find({
-            status: 'active',
-            endTime: { $lte: new Date() }
-        });
-
-        if (expiredAuctions.length === 0) return;
-
-        logger.info(`Found ${expiredAuctions.length} expired auctions to settle`);
-
-        for (const auction of expiredAuctions) {
-            auction.status = 'ended';
-            await auction.save();
-
-            const io = socketService.getIO();
-
-            // If there's a highest bidder, finalize the deal
-            if (auction.highestBidder) {
-                // 1. Credit the farmer's account
-                await User.findByIdAndUpdate(auction.farmerId, {
-                    $inc: { balance: auction.currentHighestBid }
-                });
-
-                // 2. Fetch buyer details
-                const buyer = await User.findById(auction.highestBidder);
-                const buyerName = buyer ? buyer.name : 'Buyer';
-
-                // 3. Update the batch stage to 'mandi' and record history entry
-                const batch = await Batch.findById(auction.cropId);
-                if (batch) {
-                    batch.currentStage = 'mandi';
-                    batch.updates.push({
-                        stage: 'mandi',
-                        actor: buyerName,
-                        location: 'Auction Market',
-                        notes: `Purchased at live auction for ${auction.currentHighestBid} credits`
-                    });
-                    await batch.save();
-
-                    logger.info(`Auction settled: Batch ${batch.batchId} sold to ${buyerName} for ${auction.currentHighestBid} credits`);
-
-                    // Trigger Socket.io real-time update events for batch stage change
-                    if (io) {
-                        io.to(`batch:${batch.batchId}`).emit('batch-updated', batch);
-                        io.emit('batch-stage-changed', { batchId: batch.batchId, stage: 'mandi' });
-                    }
-                }
-            } else {
-                logger.info(`Auction ended without any bids for batch ${auction.batchId}`);
-            }
-
-            // Emit socket notifications to the room
-            if (io) {
-                io.to(`auction:${auction._id}`).emit('auction_ended', auction);
-            }
-        }
-    } catch (error) {
-        logger.error('Error settling expired auctions:', { error: error.message });
-    }
-};
-
-// Start server using HTTP server (with Socket.IO attached)
-// Start server
 if (process.env.NODE_ENV !== 'test') {
     server.listen(PORT, async () => {
+        await runStartupTasks(PORT);
         logger.info(`CropChain API server running on port ${PORT}`);
         logger.info(`Health check: http://localhost:${PORT}/api/health`);
         logger.info(`WebSocket endpoint: ws://localhost:${PORT}`);
