@@ -49,19 +49,22 @@ class NotificationService {
         return notification;
     }
 
-    /**
-     * Create an in-app notification in MongoDB
-     */
     async createInAppNotification(userId, title, message, type = 'update', data = {}) {
         try {
             if (!userId) return null;
-            return await Notification.create({
+            const notification = await Notification.create({
                 user: userId,
                 title,
                 message,
                 type,
                 data
             });
+            
+            // Emit to connected client via WebSocket
+            const { emitToUser } = require('./socketService');
+            emitToUser(userId.toString(), 'new_notification', notification);
+            
+            return notification;
         } catch (error) {
             console.error('[NotificationService] Failed to create in-app notification:', error.message);
             return null;
@@ -153,8 +156,9 @@ class NotificationService {
      * @param {string} batchId - Batch identifier
      * @param {string} stage - New stage
      * @param {Object} user - User who updated the batch
+     * @param {Object} batch - Optional batch object to identify stakeholders
      */
-    async notifyBatchUpdated(batchId, stage, user) {
+    async notifyBatchUpdated(batchId, stage, user, batch = null) {
         this.log('info', `Batch updated: ${batchId} to stage ${stage}`, {
             batchId,
             stage,
@@ -179,6 +183,25 @@ class NotificationService {
                 { batchId, stage }
             );
         }
+        
+        // Notify stakeholders (farmer) if different from updater
+        if (batch && batch.farmerId && batch.farmerId.toString() !== (user._id || user.id).toString()) {
+            await this.createInAppNotification(
+                batch.farmerId,
+                'Batch Stage Updated',
+                `Your batch ${batchId} has moved to stage: ${stage}.`,
+                'update',
+                { batchId, stage }
+            );
+        }
+
+        // Emit a global event for stakeholders listening on dashboard
+        this.broadcast('batch-stage-changed', {
+            batchId,
+            stage,
+            actor: user.name || user.email,
+            timestamp: new Date().toISOString()
+        });
     }
 
     /**

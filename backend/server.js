@@ -468,7 +468,7 @@ app.put('/api/batches/:batchId', batchLimiter, protect, authorizeBatchOwner, aut
         logger.info('Batch updated', { batchId, stage: validatedData.stage, actor: validatedData.actor, ip: req.ip });
 
         // Notify about batch update
-        notificationService.notifyBatchUpdated(batchId, validatedData.stage, req.user);
+        notificationService.notifyBatchUpdated(batchId, validatedData.stage, req.user, result.batch);
 
         const response = apiResponse.successResponse(
             { batch: result.batch },
