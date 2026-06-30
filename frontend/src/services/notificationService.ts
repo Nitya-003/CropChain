@@ -3,17 +3,17 @@ import { Notification, PaginatedNotifications, UnreadCountResponse } from '../ty
 
 export const notificationService = {
     getNotifications: async (limit: number = 50): Promise<Notification[]> => {
-        const response = await apiClient.get<PaginatedNotifications>(`/notifications?limit=${limit}`);
+        const response = await apiClient.get<{ data: PaginatedNotifications }>(`/notifications?limit=${limit}`);
         return response.data.data.notifications; // Because apiResponse uses { data: { notifications } }
     },
 
     getUnreadCount: async (): Promise<number> => {
-        const response = await apiClient.get<UnreadCountResponse>('/notifications/unread-count');
+        const response = await apiClient.get<{ data: UnreadCountResponse }>('/notifications/unread-count');
         return response.data.data.count;
     },
 
     markAsRead: async (id: string): Promise<Notification> => {
-        const response = await apiClient.put(`/notifications/${id}/read`);
+        const response = await apiClient.put<{ data: { notification: Notification } }>(`/notifications/${id}/read`);
         return response.data.data.notification;
     },
 
