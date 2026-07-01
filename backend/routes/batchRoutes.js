@@ -93,7 +93,7 @@ router.put('/:batchId', batchLimiter, protect, authorizeBatchOwner, authorizeSta
         }
 
         logger.info('Batch updated', { batchId, stage: validatedData.stage, actor: validatedData.actor, ip: req.ip });
-        notificationService.notifyBatchUpdated(batchId, validatedData.stage, req.user);
+        notificationService.notifyBatchUpdated(batchId, validatedData.stage, req.user, result.batch);
 
         const response = apiResponse.successResponse({ batch: result.batch }, 'Batch updated successfully');
         res.json(response);

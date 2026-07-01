@@ -37,6 +37,12 @@ function initializeSocketIO(httpServer) {
     io.on('connection', (socket) => {
       console.log(`[SOCKET] Client connected: ${socket.id}`);
 
+      // Automatically join user-specific room if authenticated
+      if (socket.user && socket.user.id) {
+        socket.join(`user:${socket.user.id}`);
+        console.log(`[SOCKET] Client ${socket.id} joined user room: ${socket.user.id}`);
+      }
+
       // Handle client joining batch-specific rooms
       socket.on('join-batch-room', (batchId) => {
         socket.join(`batch:${batchId}`);
@@ -248,10 +254,26 @@ function emitToVerificationRoom(userId, eventName, data) {
   }
 }
 
+/**
+ * Emit an event to a specific user
+ * @param {string} userId - User ID to emit event to
+ * @param {string} eventName - Event name
+ * @param {any} data - Event data payload
+ */
+function emitToUser(userId, eventName, data) {
+  if (io) {
+    io.to(`user:${userId}`).emit(eventName, data);
+    console.log(`[SOCKET] Emitted "${eventName}" to user ${userId}`);
+  } else {
+    console.warn('[SOCKET WARNING] Cannot emit to user - Socket.IO not initialized');
+  }
+}
+
 module.exports = {
   initializeSocketIO,
   getIO,
   emitToBatchRoom,
   emitGlobal,
-  emitToVerificationRoom
+  emitToVerificationRoom,
+  emitToUser
 };
