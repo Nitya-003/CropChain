@@ -1,9 +1,10 @@
-/**
+﻿/**
  * NotificationService - Handles all notifications and alerts
  * Extracted from server.js to follow Separation of Concerns principle
  */
 
 const emailProvider = require('../config/email');
+const logger = require('../utils/logger');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 
@@ -37,13 +38,13 @@ class NotificationService {
         switch (type) {
             case 'alert':
             case 'recall':
-                console.warn(`[${type.toUpperCase()}] ${message}`, metadata);
+                logger.warn(`[${type.toUpperCase()}] ${message}`, metadata);
                 break;
             case 'error':
-                console.error(`[${type.toUpperCase()}] ${message}`, metadata);
+                logger.error(`[${type.toUpperCase()}] ${message}`, metadata);
                 break;
             default:
-                console.log(`[${type.toUpperCase()}] ${message}`, metadata);
+                logger.info(`[${type.toUpperCase()}] ${message}`, metadata);
         }
 
         return notification;
@@ -66,7 +67,7 @@ class NotificationService {
             
             return notification;
         } catch (error) {
-            console.error('[NotificationService] Failed to create in-app notification:', error.message);
+            logger.error('[NotificationService] Failed to create in-app notification:', error.message);
             return null;
         }
     }
@@ -284,7 +285,7 @@ class NotificationService {
      */
     async sendPushNotification(userId, title, body) {
         // Placeholder for push notifications (e.g., Firebase Cloud Messaging)
-        console.log(`[PUSH] Would send push to user ${userId}: ${title}`);
+        logger.info(`[PUSH] Would send push to user ${userId}: ${title}`);
         
         this.log('push', `Push notification: ${title}`, { userId, title, body });
     }
@@ -299,7 +300,7 @@ class NotificationService {
             const { emitGlobal } = require('./socketService');
             emitGlobal(event, data);
         } catch (err) {
-            console.warn('[WS] Socket.IO not available for broadcast:', err.message);
+            logger.warn('[WS] Socket.IO not available for broadcast:', err.message);
         }
 
         this.log('broadcast', `WebSocket broadcast: ${event}`, { event, data });
@@ -308,3 +309,5 @@ class NotificationService {
 
 // Export singleton instance
 module.exports = new NotificationService();
+
+
