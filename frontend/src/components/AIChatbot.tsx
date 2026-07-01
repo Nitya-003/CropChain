@@ -7,6 +7,41 @@ import remarkGfm from 'remark-gfm';
 import { aiChatService, ChatMessage } from '../services/aiChatService';
 import { sanitizeString } from '../lib/sanitize';
 
+const formatCitations = (text: string): string => {
+  if (!text) return '';
+  
+  let formatted = text;
+  
+  // 1. Replace CropChain batch IDs: CROP-YYYY-XXXX (e.g. CROP-2024-0001)
+  formatted = formatted.replace(/\b(CROP-\d{4}-\d{4})\b/g, (match, p1, offset, string) => {
+    const before = string.substring(Math.max(0, offset - 10), offset);
+    const after = string.substring(offset + match.length, offset + match.length + 10);
+    if (before.includes('[') && after.includes(']')) return match;
+    if (before.includes('(/') || before.includes('(')) return match;
+    return `[${match}](/batch/${match}/journey)`;
+  });
+
+  // 2. Replace generic batch IDs: BATCHXXXXXX (e.g. BATCH000001)
+  formatted = formatted.replace(/\b(BATCH\d{6})\b/g, (match, p1, offset, string) => {
+    const before = string.substring(Math.max(0, offset - 10), offset);
+    const after = string.substring(offset + match.length, offset + match.length + 10);
+    if (before.includes('[') && after.includes(']')) return match;
+    if (before.includes('(/') || before.includes('(')) return match;
+    return `[${match}](/batch/${match}/journey)`;
+  });
+
+  // 3. Replace blockchain transaction hashes: 0x followed by 64 hex characters
+  formatted = formatted.replace(/\b(0x[a-fA-F0-9]{64})\b/g, (match, p1, offset, string) => {
+    const before = string.substring(Math.max(0, offset - 10), offset);
+    const after = string.substring(offset + match.length, offset + match.length + 10);
+    if (before.includes('[') && after.includes(']')) return match;
+    if (before.includes('(/') || before.includes('(')) return match;
+    return `[${match.substring(0, 10)}...](https://sepolia.etherscan.io/tx/${match})`;
+  });
+
+  return formatted;
+};
+
 const AIChatbot: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -140,11 +175,47 @@ const AIChatbot: React.FC = () => {
             ol: ({ children }) => <ol className="my-2 list-decimal space-y-1 pl-5">{children}</ol>,
             li: ({ children }) => <li className="pl-1">{children}</li>,
             strong: ({ children }) => <strong className="font-semibold text-gray-900 dark:text-white">{children}</strong>,
-            a: ({ children, href }) => (
-              <a className="text-green-600 underline dark:text-green-400" href={href} target="_blank" rel="noreferrer">
-                {children}
-              </a>
-            ),
+            a: ({ children, href }) => {
+              const isBatchLink = href?.includes('/batch/') && href?.includes('/journey');
+              const isTxLink = href?.includes('etherscan.io/tx/');
+              
+              if (isBatchLink) {
+                return (
+                  <a 
+                    className="inline-flex items-center gap-1 mx-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700 dark:bg-green-900/40 dark:text-green-300 border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/60 transition-colors shadow-sm cursor-pointer align-middle"
+                    href={href}
+                  >
+                    <Leaf className="h-3 w-3 text-green-500" />
+                    {children}
+                  </a>
+                );
+              }
+
+              if (isTxLink) {
+                return (
+                  <a 
+                    className="inline-flex items-center gap-1 mx-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors shadow-sm cursor-pointer align-middle"
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Sparkles className="h-3 w-3 text-blue-500" />
+                    {children}
+                  </a>
+                );
+              }
+
+              return (
+                <a 
+                  className="text-green-600 underline dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 transition-colors" 
+                  href={href} 
+                  target="_blank" 
+                  rel="noreferrer"
+                >
+                  {children}
+                </a>
+              );
+            },
             table: ({ children }) => (
               <div className="my-2 overflow-x-auto">
                 <table className="min-w-full border-collapse text-xs">{children}</table>
@@ -155,7 +226,7 @@ const AIChatbot: React.FC = () => {
             code: ({ children }) => <code className="rounded bg-gray-100 px-1 py-0.5 text-xs dark:bg-gray-700">{children}</code>
           }}
         >
-          {message.content}
+          {formatCitations(message.content)}
         </ReactMarkdown>
       </div>
     );

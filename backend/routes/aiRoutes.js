@@ -16,6 +16,15 @@ const batchServiceForAI = {
         const result = await batchService.getBatch(batchId);
         return result.success ? result.batch : null;
     },
+    async getBatchByIdOrPartial(id) {
+        return await batchService.getBatchByIdOrPartial(id);
+    },
+    async searchBatches(filters) {
+        return await batchService.searchBatches(filters);
+    },
+    async getLatestBatch(cropType) {
+        return await batchService.getLatestBatch(cropType);
+    },
     async getDashboardStats() {
         return await batchService.getDashboardStats();
     }
