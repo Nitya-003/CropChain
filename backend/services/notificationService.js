@@ -7,6 +7,7 @@ const emailProvider = require('../config/email');
 const logger = require('../utils/logger');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
+const { addEmailJob } = require('./notificationQueue');
 
 class NotificationService {
     constructor() {
@@ -257,23 +258,31 @@ class NotificationService {
     }
 
     /**
-     * Send email notification via SMTP provider
-     * Falls back to console logging if SMTP is not configured
+     * Send email notification via BullMQ queue
      * @param {string} to - Recipient email
      * @param {string} subject - Email subject
      * @param {string} body - Email body (HTML)
      */
     async sendEmail(to, subject, body) {
+        try {
+            const job = await addEmailJob(to, subject, body);
+            if (job) {
+                this.log('email', `Email queued: ${subject}`, { to, subject, jobId: job.id });
+                return { success: true, queued: true, jobId: job.id };
+            }
+        } catch (error) {
+            this.log('error', `Failed to queue email: ${subject}`, { to, subject, error: error.message });
+        }
+        
+        // Fallback to synchronous if queue is unavailable
         const result = await emailProvider.sendEmail(to, subject, body);
-
         if (result.fallback) {
             this.log('email', `Email logged (SMTP not configured): ${subject}`, { to, subject });
         } else if (result.success) {
-            this.log('email', `Email sent: ${subject}`, { to, subject, messageId: result.messageId });
+            this.log('email', `Email sent synchronously: ${subject}`, { to, subject, messageId: result.messageId });
         } else {
             this.log('error', `Email failed: ${subject}`, { to, subject, error: result.error });
         }
-
         return result;
     }
 

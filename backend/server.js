@@ -30,6 +30,8 @@ const ccipService = require('./services/ccipService');
 const notificationService = require('./services/notificationService');
 const blockchainQueue = require('./services/blockchainQueue');
 const blockchainWorker = require('./services/blockchainWorker');
+const notificationQueue = require('./services/notificationQueue');
+const notificationWorker = require('./services/notificationWorker');
 
 // Import MongoDB Models
 const Batch = require('./models/Batch');
@@ -710,6 +712,15 @@ if (process.env.NODE_ENV !== 'test') {
             logger.info('BullMQ Queue and Worker initialized for blockchain transactions');
         } catch (error) {
             logger.error('Failed to initialize BullMQ for blockchain jobs', { error: error.message });
+        }
+
+        // Initialize BullMQ for notification background jobs
+        try {
+            notificationQueue.initializeQueue();
+            notificationWorker.initializeWorker();
+            logger.info('BullMQ Queue and Worker initialized for notifications');
+        } catch (error) {
+            logger.error('Failed to initialize BullMQ for notifications', { error: error.message });
         }
 
         // Start background auction settlement check
