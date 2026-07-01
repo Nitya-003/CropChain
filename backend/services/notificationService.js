@@ -1,11 +1,13 @@
-/**
+﻿/**
  * NotificationService - Handles all notifications and alerts
  * Extracted from server.js to follow Separation of Concerns principle
  */
 
 const emailProvider = require('../config/email');
+const logger = require('../utils/logger');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
+const { addEmailJob } = require('./notificationQueue');
 
 class NotificationService {
     constructor() {
@@ -37,33 +39,36 @@ class NotificationService {
         switch (type) {
             case 'alert':
             case 'recall':
-                console.warn(`[${type.toUpperCase()}] ${message}`, metadata);
+                logger.warn(`[${type.toUpperCase()}] ${message}`, metadata);
                 break;
             case 'error':
-                console.error(`[${type.toUpperCase()}] ${message}`, metadata);
+                logger.error(`[${type.toUpperCase()}] ${message}`, metadata);
                 break;
             default:
-                console.log(`[${type.toUpperCase()}] ${message}`, metadata);
+                logger.info(`[${type.toUpperCase()}] ${message}`, metadata);
         }
 
         return notification;
     }
 
-    /**
-     * Create an in-app notification in MongoDB
-     */
     async createInAppNotification(userId, title, message, type = 'update', data = {}) {
         try {
             if (!userId) return null;
-            return await Notification.create({
+            const notification = await Notification.create({
                 user: userId,
                 title,
                 message,
                 type,
                 data
             });
+            
+            // Emit to connected client via WebSocket
+            const { emitToUser } = require('./socketService');
+            emitToUser(userId.toString(), 'new_notification', notification);
+            
+            return notification;
         } catch (error) {
-            console.error('[NotificationService] Failed to create in-app notification:', error.message);
+            logger.error('[NotificationService] Failed to create in-app notification:', error.message);
             return null;
         }
     }
@@ -93,7 +98,7 @@ class NotificationService {
         if (adminUser.email) {
             await this.sendEmail(
                 adminUser.email,
-                `🚨 RECALL: Batch ${batch.batchId}`,
+                 RECALL: Batch ${batch.batchId}`,
                 `<h2>Batch Recall Notice</h2><p>Batch <strong>${batch.batchId}</strong> (${batch.cropType}, ${batch.quantity}kg) has been <strong>recalled</strong>.</p><p>Recalled by: ${adminUser.email}</p><p>CropChain Team</p>`
             );
         }
@@ -153,8 +158,9 @@ class NotificationService {
      * @param {string} batchId - Batch identifier
      * @param {string} stage - New stage
      * @param {Object} user - User who updated the batch
+     * @param {Object} batch - Optional batch object to identify stakeholders
      */
-    async notifyBatchUpdated(batchId, stage, user) {
+    async notifyBatchUpdated(batchId, stage, user, batch = null) {
         this.log('info', `Batch updated: ${batchId} to stage ${stage}`, {
             batchId,
             stage,
@@ -179,6 +185,25 @@ class NotificationService {
                 { batchId, stage }
             );
         }
+        
+        // Notify stakeholders (farmer) if different from updater
+        if (batch && batch.farmerId && batch.farmerId.toString() !== (user._id || user.id).toString()) {
+            await this.createInAppNotification(
+                batch.farmerId,
+                'Batch Stage Updated',
+                `Your batch ${batchId} has moved to stage: ${stage}.`,
+                'update',
+                { batchId, stage }
+            );
+        }
+
+        // Emit a global event for stakeholders listening on dashboard
+        this.broadcast('batch-stage-changed', {
+            batchId,
+            stage,
+            actor: user.name || user.email,
+            timestamp: new Date().toISOString()
+        });
     }
 
     /**
@@ -233,23 +258,31 @@ class NotificationService {
     }
 
     /**
-     * Send email notification via SMTP provider
-     * Falls back to console logging if SMTP is not configured
+     * Send email notification via BullMQ queue
      * @param {string} to - Recipient email
      * @param {string} subject - Email subject
      * @param {string} body - Email body (HTML)
      */
     async sendEmail(to, subject, body) {
+        try {
+            const job = await addEmailJob(to, subject, body);
+            if (job) {
+                this.log('email', `Email queued: ${subject}`, { to, subject, jobId: job.id });
+                return { success: true, queued: true, jobId: job.id };
+            }
+        } catch (error) {
+            this.log('error', `Failed to queue email: ${subject}`, { to, subject, error: error.message });
+        }
+        
+        // Fallback to synchronous if queue is unavailable
         const result = await emailProvider.sendEmail(to, subject, body);
-
         if (result.fallback) {
             this.log('email', `Email logged (SMTP not configured): ${subject}`, { to, subject });
         } else if (result.success) {
-            this.log('email', `Email sent: ${subject}`, { to, subject, messageId: result.messageId });
+            this.log('email', `Email sent synchronously: ${subject}`, { to, subject, messageId: result.messageId });
         } else {
             this.log('error', `Email failed: ${subject}`, { to, subject, error: result.error });
         }
-
         return result;
     }
 
@@ -261,7 +294,7 @@ class NotificationService {
      */
     async sendPushNotification(userId, title, body) {
         // Placeholder for push notifications (e.g., Firebase Cloud Messaging)
-        console.log(`[PUSH] Would send push to user ${userId}: ${title}`);
+        logger.info(`[PUSH] Would send push to user ${userId}: ${title}`);
         
         this.log('push', `Push notification: ${title}`, { userId, title, body });
     }
@@ -276,7 +309,7 @@ class NotificationService {
             const { emitGlobal } = require('./socketService');
             emitGlobal(event, data);
         } catch (err) {
-            console.warn('[WS] Socket.IO not available for broadcast:', err.message);
+            logger.warn('[WS] Socket.IO not available for broadcast:', err.message);
         }
 
         this.log('broadcast', `WebSocket broadcast: ${event}`, { event, data });
@@ -285,3 +318,4 @@ class NotificationService {
 
 // Export singleton instance
 module.exports = new NotificationService();
+

@@ -1,6 +1,10 @@
 const logger = require('./logger');
 const mongoose = require('mongoose');
 const socketService = require('../services/socketService');
+const blockchainQueue = require('../services/blockchainQueue');
+const blockchainWorker = require('../services/blockchainWorker');
+const notificationQueue = require('../services/notificationQueue');
+const notificationWorker = require('../services/notificationWorker');
 
 const gracefulShutdown = (server, signal) => {
     logger.info(`Received ${signal} signal, starting graceful shutdown`);
@@ -24,6 +28,17 @@ const gracefulShutdown = (server, signal) => {
                 } catch (err) {
                     logger.error('Error closing MongoDB connection', { error: err.message });
                 }
+            }
+
+            // Close BullMQ Queues and Workers
+            try {
+                await blockchainWorker.stopWorker();
+                await blockchainQueue.closeQueue();
+                await notificationWorker.stopWorker();
+                await notificationQueue.closeQueue();
+                logger.info('BullMQ Queues and Workers closed');
+            } catch (err) {
+                logger.error('Error closing BullMQ components', { error: err.message });
             }
 
             logger.info('Graceful shutdown complete');

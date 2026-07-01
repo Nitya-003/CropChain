@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Notification } from '../types/notification';
 import { notificationService } from '../services/notificationService';
+import { onNewNotification } from '../services/socketService';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
 
@@ -67,7 +68,18 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             fetchNotifications();
             // Polling every 60 seconds
             const interval = setInterval(fetchNotifications, 60000);
-            return () => clearInterval(interval);
+            
+            // Listen for real-time notifications via WebSocket
+            const cleanupSocket = onNewNotification((newNotification: Notification) => {
+                setNotifications(prev => [newNotification, ...prev]);
+                setUnreadCount(prev => prev + 1);
+                toast.success(newNotification.title || 'New Notification');
+            });
+
+            return () => {
+                clearInterval(interval);
+                cleanupSocket();
+            };
         } else {
             setNotifications([]);
             setUnreadCount(0);
