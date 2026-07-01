@@ -202,3 +202,15 @@ export const onBidError = (callback: (data: { message: string }) => void): (() =
     socket.off('bid_error', callback);
   };
 };
+
+/**
+ * Listen for new user notifications
+ */
+export const onNewNotification = (callback: (notification: any) => void): (() => void) => {
+  const socket = getSocket();
+  socket.on('new_notification', callback);
+  
+  return () => {
+    socket.off('new_notification', callback);
+  };
+};

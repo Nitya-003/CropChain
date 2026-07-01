@@ -4,6 +4,7 @@
  */
 
 const emailProvider = require('../config/email');
+const logger = require('../utils/logger');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 
@@ -37,33 +38,36 @@ class NotificationService {
         switch (type) {
             case 'alert':
             case 'recall':
-                console.warn(`[${type.toUpperCase()}] ${message}`, metadata);
+                logger.warn(`[${type.toUpperCase()}] ${message}`, metadata);
                 break;
             case 'error':
-                console.error(`[${type.toUpperCase()}] ${message}`, metadata);
+                logger.error(`[${type.toUpperCase()}] ${message}`, metadata);
                 break;
             default:
-                console.log(`[${type.toUpperCase()}] ${message}`, metadata);
+                logger.info(`[${type.toUpperCase()}] ${message}`, metadata);
         }
 
         return notification;
     }
 
-    /**
-     * Create an in-app notification in MongoDB
-     */
     async createInAppNotification(userId, title, message, type = 'update', data = {}) {
         try {
             if (!userId) return null;
-            return await Notification.create({
+            const notification = await Notification.create({
                 user: userId,
                 title,
                 message,
                 type,
                 data
             });
+            
+            // Emit to connected client via WebSocket
+            const { emitToUser } = require('./socketService');
+            emitToUser(userId.toString(), 'new_notification', notification);
+            
+            return notification;
         } catch (error) {
-            console.error('[NotificationService] Failed to create in-app notification:', error.message);
+            logger.error('[NotificationService] Failed to create in-app notification:', error.message);
             return null;
         }
     }
@@ -153,8 +157,9 @@ class NotificationService {
      * @param {string} batchId - Batch identifier
      * @param {string} stage - New stage
      * @param {Object} user - User who updated the batch
+     * @param {Object} batch - Optional batch object to identify stakeholders
      */
-    async notifyBatchUpdated(batchId, stage, user) {
+    async notifyBatchUpdated(batchId, stage, user, batch = null) {
         this.log('info', `Batch updated: ${batchId} to stage ${stage}`, {
             batchId,
             stage,
@@ -179,6 +184,25 @@ class NotificationService {
                 { batchId, stage }
             );
         }
+        
+        // Notify stakeholders (farmer) if different from updater
+        if (batch && batch.farmerId && batch.farmerId.toString() !== (user._id || user.id).toString()) {
+            await this.createInAppNotification(
+                batch.farmerId,
+                'Batch Stage Updated',
+                `Your batch ${batchId} has moved to stage: ${stage}.`,
+                'update',
+                { batchId, stage }
+            );
+        }
+
+        // Emit a global event for stakeholders listening on dashboard
+        this.broadcast('batch-stage-changed', {
+            batchId,
+            stage,
+            actor: user.name || user.email,
+            timestamp: new Date().toISOString()
+        });
     }
 
     /**
@@ -261,7 +285,7 @@ class NotificationService {
      */
     async sendPushNotification(userId, title, body) {
         // Placeholder for push notifications (e.g., Firebase Cloud Messaging)
-        console.log(`[PUSH] Would send push to user ${userId}: ${title}`);
+        logger.info(`[PUSH] Would send push to user ${userId}: ${title}`);
         
         this.log('push', `Push notification: ${title}`, { userId, title, body });
     }
@@ -276,7 +300,7 @@ class NotificationService {
             const { emitGlobal } = require('./socketService');
             emitGlobal(event, data);
         } catch (err) {
-            console.warn('[WS] Socket.IO not available for broadcast:', err.message);
+            logger.warn('[WS] Socket.IO not available for broadcast:', err.message);
         }
 
         this.log('broadcast', `WebSocket broadcast: ${event}`, { event, data });
