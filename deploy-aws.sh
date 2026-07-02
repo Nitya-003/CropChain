@@ -32,6 +32,11 @@ if [ -z "$MULTISIG_HMAC_SECRET" ]; then
     MULTISIG_HMAC_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))" 2>/dev/null || openssl rand -hex 32 2>/dev/null || echo "fallback_multisig_hmac_secret_must_change_1234567890")
 fi
 
+if [ -z "$ML_API_KEY" ]; then
+    echo "🔑 ML_API_KEY environment variable is not set. Generating a secure random secret..."
+    ML_API_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))" 2>/dev/null || openssl rand -hex 32 2>/dev/null || echo "fallback_ml_api_key_must_change_1234567890")
+fi
+
 # 1. AWS Account ID & Bucket Name
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 BUCKET_NAME="cropchain-deploy-$ACCOUNT_ID"
@@ -112,6 +117,7 @@ GEMINI_API_KEY=$GEMINI_API_KEY
 JWT_SECRET=$JWT_SECRET
 JWT_REFRESH_SECRET=$JWT_REFRESH_SECRET
 MULTISIG_HMAC_SECRET=$MULTISIG_HMAC_SECRET
+ML_API_KEY=$ML_API_KEY
 EOT
 
 # Start the stack using docker-compose
@@ -159,3 +165,4 @@ done
 echo "🎉 AWS Backend Service deployed successfully!"
 echo "📡 Access API directly: http://$EC2_PUBLIC_IP:3001"
 echo "📊 Health Check endpoint: http://$EC2_PUBLIC_IP:3001/api/health"
+echo "🤖 ML Service endpoint: http://$EC2_PUBLIC_IP:5001"

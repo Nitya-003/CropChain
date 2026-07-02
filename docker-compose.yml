@@ -62,6 +62,21 @@ services:
     depends_on:
       - backend
 
+  # ML Service
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: cropchain-ml-service
+    ports:
+      - '5001:5001'
+    environment:
+      - PORT=5001
+      - CORS_ORIGIN=http://localhost:3001
+      - ML_API_KEY=development-api-key
+    networks:
+      - cropchain-network
+
 volumes:
   mongodb_data:
     driver: local
