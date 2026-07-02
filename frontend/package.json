@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
@@ -14,6 +14,7 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@ducanh2912/next-pwa": "^10.2.9",
     "@radix-ui/react-dialog": "^1.1.16",
     "@radix-ui/react-slot": "^1.2.4",
     "@tanstack/react-query": "^5.90.20",
@@ -38,7 +39,8 @@
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "socket.io-client": "^4.8.3",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.6.0",
+    "workbox-window": "^7.4.1"
   },
   "devDependencies": {
     "@playwright/browser-chromium": "^1.61.1",
