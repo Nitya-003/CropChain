@@ -1,4 +1,4 @@
-/**
+﻿/**
  * BlockchainService - Handles all blockchain-related operations
  * Extracted from server.js to follow Separation of Concerns principle
  */
@@ -6,6 +6,7 @@
 const { ethers } = require('ethers');
 const crypto = require('crypto');
 const blockchainConfig = require('../config/blockchain');
+const logger = require('../utils/logger');
 
 class BlockchainService {
     constructor() {
@@ -23,12 +24,12 @@ class BlockchainService {
             this.isInitialized = this.contract !== null;
             
             if (this.isInitialized) {
-                console.log('✓ BlockchainService initialized');
+                logger.info('✓ BlockchainService initialized');
             } else {
-                console.log('ℹ️  BlockchainService running in demo mode (no contract)');
+                logger.info('ℹ️  BlockchainService running in demo mode (no contract)');
             }
         } catch (error) {
-            console.error('Failed to initialize BlockchainService:', error.message);
+            logger.error('Failed to initialize BlockchainService:', error.message);
             this.isInitialized = false;
         }
     }
@@ -115,7 +116,7 @@ class BlockchainService {
                 message: 'Batch created on blockchain'
             };
         } catch (error) {
-            console.error('Error creating batch on blockchain:', error.message);
+            logger.error('Error creating batch on blockchain:', error.message);
             return {
                 success: false,
                 error: error.message,
@@ -164,7 +165,7 @@ class BlockchainService {
                 message: 'Batch updated on blockchain'
             };
         } catch (error) {
-            console.error('Error updating batch on blockchain:', error.message);
+            logger.error('Error updating batch on blockchain:', error.message);
             return {
                 success: false,
                 error: error.message,
@@ -205,7 +206,7 @@ class BlockchainService {
                 }
             };
         } catch (error) {
-            console.error('Error fetching batch from blockchain:', error.message);
+            logger.error('Error fetching batch from blockchain:', error.message);
             return {
                 success: false,
                 error: error.message,
@@ -239,7 +240,7 @@ class BlockchainService {
         }
 
         if (!walletAddress || !ethers.isAddress(walletAddress)) {
-            console.error('[BlockchainService] Invalid wallet address for role sync:', walletAddress);
+            logger.error('[BlockchainService] Invalid wallet address for role sync:', walletAddress);
             return {
                 success: false,
                 error: 'Invalid wallet address',
@@ -250,12 +251,12 @@ class BlockchainService {
         try {
             const onChainRole = this.mapRoleToOnChain(roleName);
             
-            console.log(`[BlockchainService] Syncing role for ${walletAddress}: ${roleName} (mapped to on-chain: ${onChainRole})`);
+            logger.info(`[BlockchainService] Syncing role for ${walletAddress}: ${roleName} (mapped to on-chain: ${onChainRole})`);
             
             // Check current on-chain role first to avoid redundant transactions
             const currentOnChainRole = Number(await this.contract.roles(walletAddress));
             if (currentOnChainRole === onChainRole) {
-                console.log(`[BlockchainService] Role for ${walletAddress} is already synced on-chain (${currentOnChainRole})`);
+                logger.info(`[BlockchainService] Role for ${walletAddress} is already synced on-chain (${currentOnChainRole})`);
                 return {
                     success: true,
                     alreadySynced: true,
@@ -266,7 +267,7 @@ class BlockchainService {
             const tx = await this.contract.setRole(walletAddress, onChainRole);
             const receipt = await tx.wait();
 
-            console.log(`[BlockchainService] Role synced on-chain for ${walletAddress}. Tx: ${receipt.hash}`);
+            logger.info(`[BlockchainService] Role synced on-chain for ${walletAddress}. Tx: ${receipt.hash}`);
 
             return {
                 success: true,
@@ -275,7 +276,7 @@ class BlockchainService {
                 message: 'Role synced on blockchain'
             };
         } catch (error) {
-            console.error('[BlockchainService] Error syncing user role on-chain:', error.message);
+            logger.error('[BlockchainService] Error syncing user role on-chain:', error.message);
             return {
                 success: false,
                 error: error.message,
@@ -320,3 +321,5 @@ class BlockchainService {
 
 // Export singleton instance
 module.exports = new BlockchainService();
+
+
