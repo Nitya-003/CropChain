@@ -1,6 +1,10 @@
 require('dotenv').config();
 const http = require('http');
 const app = require('./app');
+const express = require('express');
+const notificationRoutes = require('./routes/notificationRoutes');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./swagger');
 const logger = require('./utils/logger');
 const socketService = require('./services/socketService');
 const setupErrorHandling = require('./startup/errorHandling');
@@ -21,6 +25,8 @@ const mongoose = require('mongoose');
 const apiResponse = require('./utils/apiResponse');
 const oracleService = require('./services/oracleService');
 const { ethers } = require("ethers");
+const helmet = require('helmet');
+const cors = require('cors');
 
 // Import Services
 const blockchainService = require('./services/blockchainService');

@@ -56,9 +56,15 @@ beforeEach(() => {
   mockUseTheme.mockReturnValue({ theme: 'light', toggleTheme: mockToggleTheme });
 });
 
+import { NotificationProvider } from '../../context/NotificationContext';
+
 async function renderHeader() {
   const Header = (await import('../Header')).default;
-  return render(<Header />);
+  return render(
+    <NotificationProvider>
+      <Header />
+    </NotificationProvider>
+  );
 }
 
 describe('Header', () => {

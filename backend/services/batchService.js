@@ -501,6 +501,80 @@ class BatchService {
     }
 
     /**
+     * Retrieve a batch using direct batch ID, or by partial ID match (regex)
+     * @param {string} id - The ID to search for (e.g., CROP-2026-0001, #0001, 1)
+     * @returns {Object|null} - Batch document or null
+     */
+    async getBatchByIdOrPartial(id) {
+        if (!id) return null;
+        const cleanId = id.trim().replace(/^#/, ''); // Remove leading '#' if present
+        
+        // 1. Try exact match first
+        let batch = await Batch.findOne({ batchId: cleanId });
+        if (batch) return batch;
+
+        // 2. Try match with CROP- or BATCH prefix if it's a number
+        if (/^\d+$/.test(cleanId)) {
+            const query = {
+                $or: [
+                    { batchId: cleanId },
+                    { batchId: new RegExp(cleanId + '$', 'i') },
+                    { batchId: new RegExp(cleanId.padStart(4, '0') + '$', 'i') },
+                    { batchId: new RegExp(cleanId.padStart(6, '0') + '$', 'i') }
+                ]
+            };
+            batch = await Batch.findOne(query);
+            if (batch) return batch;
+        }
+
+        // 3. Fallback to case-insensitive regex match on batchId
+        const escRegex = (val) => String(val).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        batch = await Batch.findOne({ batchId: { $regex: escRegex(cleanId), $options: 'i' } });
+        return batch;
+    }
+
+    /**
+     * Search batches based on criteria
+     * @param {Object} filters - Search filters
+     * @returns {Array} - Array of matching batches
+     */
+    async searchBatches(filters = {}) {
+        const query = {};
+        const escRegex = (val) => String(val).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        
+        if (filters.cropType) {
+            query.cropType = filters.cropType.toLowerCase();
+        }
+        if (filters.farmerName) {
+            query.farmerName = { $regex: escRegex(filters.farmerName), $options: 'i' };
+        }
+        if (filters.origin) {
+            query.origin = { $regex: escRegex(filters.origin), $options: 'i' };
+        }
+        if (filters.currentStage) {
+            query.currentStage = filters.currentStage.toLowerCase();
+        }
+        if (filters.status) {
+            query.status = filters.status;
+        }
+
+        return await Batch.find(query).sort({ createdAt: -1 }).limit(10).lean();
+    }
+
+    /**
+     * Get the most recently created batch, optionally filtered by cropType
+     * @param {string} [cropType] - Optional crop type filter
+     * @returns {Object|null} - Latest batch or null
+     */
+    async getLatestBatch(cropType = null) {
+        const query = {};
+        if (cropType) {
+            query.cropType = cropType.toLowerCase();
+        }
+        return await Batch.findOne(query).sort({ createdAt: -1 });
+    }
+
+    /**
      * Sync batch to blockchain using background job queue (BullMQ)
      * @param {Object} batch - Batch document
      * @param {string} action - 'create' or 'update'

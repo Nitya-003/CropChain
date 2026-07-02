@@ -101,13 +101,13 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
                 type: "function",
                 function: {
                     name: 'search_batch',
-                    description: 'Search for a specific crop batch by ID',
+                    description: 'Search for a specific crop batch by ID (supports full ID, partial ID, or ID with hashtag)',
                     parameters: {
                         type: 'object',
                         properties: {
                             batchId: {
                                 type: 'string',
-                                description: 'The batch ID to search for (format: CROP-YYYY-XXXX)'
+                                description: 'The batch ID or partial numeric ID to search for (e.g., CROP-2024-0001, BATCH000001, #1042, 1042)'
                             }
                         },
                         required: ['batchId']
@@ -117,8 +117,56 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
             {
                 type: "function",
                 function: {
+                    name: 'search_batches',
+                    description: 'Search for multiple crop batches matching specific filters (like crop type, farmer name, origin location, current stage, or status)',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            cropType: {
+                                type: 'string',
+                                description: 'Optional crop type filter (e.g. rice, wheat, corn, tomato)'
+                            },
+                            farmerName: {
+                                type: 'string',
+                                description: 'Optional farmer name'
+                            },
+                            origin: {
+                                type: 'string',
+                                description: 'Optional origin location'
+                            },
+                            currentStage: {
+                                type: 'string',
+                                description: 'Optional current stage: farmer, mandi, transport, retailer'
+                            },
+                            status: {
+                                type: 'string',
+                                description: 'Optional status: Active, Flagged, Inactive'
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                type: "function",
+                function: {
+                    name: 'get_latest_batch',
+                    description: 'Retrieve the most recently registered crop batch, optionally filtered by crop type',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            cropType: {
+                                type: 'string',
+                                description: 'Optional crop type to filter the latest batch (e.g. rice, wheat, corn, tomato)'
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                type: "function",
+                function: {
                     name: 'get_batch_stats',
-                    description: 'Get overall statistics about batches in the system',
+                    description: 'Get overall dashboard statistics about batches in the system (total batches, total quantity, total farmers, recent activity)',
                     parameters: {
                         type: 'object',
                         properties: {},
@@ -130,13 +178,13 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
                 type: "function",
                 function: {
                     name: 'explain_process',
-                    description: 'Explain a specific CropChain process or feature',
+                    description: 'Explain a specific CropChain process or feature (e.g., batch creation, QR scanning, blockchain, lifecycle stages, transit tracking)',
                     parameters: {
                         type: 'object',
                         properties: {
                             topic: {
                                 type: 'string',
-                                description: 'The topic to explain (e.g., "batch creation", "QR scanning", "supply chain")'
+                                description: 'The topic to explain'
                             }
                         },
                         required: ['topic']
@@ -181,7 +229,7 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
         try {
             switch (functionName) {
                 case 'search_batch':
-                    const batch = await batchService.getBatch(parameters.batchId);
+                    const batch = await batchService.getBatchByIdOrPartial(parameters.batchId);
                     if (batch) {
                         return {
                             success: true,
@@ -193,13 +241,97 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
                                 currentStage: batch.currentStage,
                                 origin: batch.origin,
                                 harvestDate: batch.harvestDate,
-                                updatesCount: batch.updates.length
+                                certifications: batch.certifications || 'None',
+                                isRecalled: batch.isRecalled,
+                                blockchainHash: batch.blockchainHash,
+                                updates: (batch.updates || []).map(u => ({
+                                    stage: u.stage,
+                                    actor: u.actor,
+                                    location: u.location,
+                                    timestamp: u.timestamp,
+                                    notes: u.notes
+                                })),
+                                lifecycle: batch.lifecycle ? {
+                                    currentStage: batch.lifecycle.currentStage,
+                                    stageHistory: (batch.lifecycle.stageHistory || []).map(h => ({
+                                        stage: h.stage,
+                                        timestamp: h.timestamp,
+                                        updatedBy: h.updatedBy,
+                                        notes: h.notes
+                                    }))
+                                } : null,
+                                iotData: batch.iotData ? {
+                                    currentTemperature: batch.iotData.currentTemperature,
+                                    currentHumidity: batch.iotData.currentHumidity,
+                                    isSpoiled: batch.iotData.isSpoiled
+                                } : null
                             }
                         };
                     } else {
                         return {
                             success: false,
-                            message: `Batch ${parameters.batchId} not found. Please check the batch ID format (CROP-YYYY-XXXX).`
+                            message: `Batch ${parameters.batchId} not found. Please try another search or check the ID format.`
+                        };
+                    }
+
+                case 'search_batches':
+                    const batches = await batchService.searchBatches(parameters);
+                    return {
+                        success: true,
+                        data: (batches || []).map(b => ({
+                            batchId: b.batchId,
+                            cropType: b.cropType,
+                            farmerName: b.farmerName,
+                            origin: b.origin,
+                            currentStage: b.currentStage,
+                            quantity: b.quantity,
+                            createdAt: b.createdAt
+                        }))
+                    };
+
+                case 'get_latest_batch':
+                    const latest = await batchService.getLatestBatch(parameters.cropType);
+                    if (latest) {
+                        return {
+                            success: true,
+                            data: {
+                                batchId: latest.batchId,
+                                cropType: latest.cropType,
+                                farmerName: latest.farmerName,
+                                origin: latest.origin,
+                                currentStage: latest.currentStage,
+                                quantity: latest.quantity,
+                                harvestDate: latest.harvestDate,
+                                certifications: latest.certifications || 'None',
+                                isRecalled: latest.isRecalled,
+                                blockchainHash: latest.blockchainHash,
+                                updates: (latest.updates || []).map(u => ({
+                                    stage: u.stage,
+                                    actor: u.actor,
+                                    location: u.location,
+                                    timestamp: u.timestamp,
+                                    notes: u.notes
+                                })),
+                                lifecycle: latest.lifecycle ? {
+                                    currentStage: latest.lifecycle.currentStage,
+                                    stageHistory: (latest.lifecycle.stageHistory || []).map(h => ({
+                                        stage: h.stage,
+                                        timestamp: h.timestamp,
+                                        updatedBy: h.updatedBy,
+                                        notes: h.notes
+                                    }))
+                                } : null,
+                                iotData: latest.iotData ? {
+                                    currentTemperature: latest.iotData.currentTemperature,
+                                    currentHumidity: latest.iotData.currentHumidity,
+                                    isSpoiled: latest.iotData.isSpoiled
+                                } : null
+                            }
+                        };
+                    } else {
+                        return {
+                            success: false,
+                            message: `No batches found${parameters.cropType ? ' for crop type ' + parameters.cropType : ''}.`
                         };
                     }
 
@@ -267,7 +399,7 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
     // Main chat method
     async chat(message, batchService) {
         if (this.provider === 'fallback') {
-            return this.getFallbackResponse(message);
+            return await this.getSmartFallbackResponse(message, batchService);
         }
 
         if (this.provider === 'gemini') {
@@ -318,7 +450,7 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
                 };
             } catch (error) {
                 console.error('Gemini API error:', error.message);
-                return this.getFallbackResponse(message);
+                return await this.getSmartFallbackResponse(message, batchService);
             }
         }
 
@@ -399,13 +531,13 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
             console.error('OpenAI API error:', error.response?.data || error.message);
             
             // Fallback to local response on API error
-            return this.getFallbackResponse(message);
+            return await this.getSmartFallbackResponse(message, batchService);
         }
     }
 
     async chatStream(message, batchService, onToken) {
         if (this.provider === 'fallback') {
-            const fallback = this.getFallbackResponse(message);
+            const fallback = await this.getSmartFallbackResponse(message, batchService);
             await this.streamText(fallback.message, onToken);
             return fallback;
         }
@@ -477,7 +609,7 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
                 };
             } catch (error) {
                 console.error('Gemini streaming API error:', error.message);
-                const fallback = this.getFallbackResponse(message);
+                const fallback = await this.getSmartFallbackResponse(message, batchService);
                 await this.streamText(fallback.message, onToken);
                 return fallback;
             }
@@ -545,7 +677,7 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
             };
         } catch (error) {
             console.error('OpenAI streaming API error:', error.response?.data || error.message);
-            const fallback = this.getFallbackResponse(message);
+            const fallback = await this.getSmartFallbackResponse(message, batchService);
             await this.streamText(fallback.message, onToken);
             return fallback;
         }
@@ -659,6 +791,148 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
             onToken(word);
             await new Promise((resolve) => setTimeout(resolve, 10));
         }
+    }
+
+    // Smart Fallback responses that query MongoDB data directly when API key is not present
+    async getSmartFallbackResponse(message, batchService) {
+        const safeMessage = typeof message === 'string' ? message : '';
+        const lowerMessage = safeMessage.toLowerCase();
+
+        // 1. Check for batch ID pattern in user query (e.g. CROP-2024-0001, BATCH000001, #1042)
+        const cropMatch = lowerMessage.match(/crop-\d{4}-\d{4}/);
+        const batchMatch = lowerMessage.match(/batch\d{6}/);
+        const numberMatch = lowerMessage.match(/#(\d+)/) || lowerMessage.match(/batch\s+#?(\d+)/) || lowerMessage.match(/#\s*(\d+)/);
+
+        let batchIdSearch = null;
+        if (cropMatch) batchIdSearch = cropMatch[0].toUpperCase();
+        else if (batchMatch) batchIdSearch = batchMatch[0].toUpperCase();
+        else if (numberMatch) batchIdSearch = numberMatch[1];
+
+        if (batchIdSearch && batchService) {
+            try {
+                const batch = await batchService.getBatchByIdOrPartial(batchIdSearch);
+                if (batch) {
+                    // Build a rich, human-readable summary of the crop batch journey
+                    const updatesText = (batch.updates || []).map(u => 
+                        `- **${u.stage.toUpperCase()}**: Handled by *${u.actor}* at *${u.location}* (${new Date(u.timestamp).toLocaleDateString()}) - *${u.notes || 'No notes'}*`
+                    ).join('\n');
+
+                    const lifecycleText = batch.lifecycle && batch.lifecycle.stageHistory && batch.lifecycle.stageHistory.length > 0
+                        ? '\n**Lifecycle History:**\n' + batch.lifecycle.stageHistory.map(h =>
+                            `- **${h.stage}**: Updated by *${h.updatedBy}* (${new Date(h.timestamp).toLocaleDateString()}) - *${h.notes || 'No notes'}*`
+                          ).join('\n')
+                        : '';
+
+                    const spoiledWarning = batch.iotData && batch.iotData.isSpoiled 
+                        ? '\n⚠️ **Warning: Temperature logs indicate potential spoilage!**' 
+                        : '';
+
+                    const recalledWarning = batch.isRecalled 
+                        ? '\n🚨 **CRITICAL: This batch has been recalled!**' 
+                        : '';
+
+                    return {
+                        success: true,
+                        message: `Here is the current status and journey for batch **${batch.batchId}** (${batch.cropType}):
+
+- **Farmer/Origin:** ${batch.farmerName} at ${batch.origin}
+- **Quantity:** ${batch.quantity} kg
+- **Harvest Date:** ${new Date(batch.harvestDate).toLocaleDateString()}
+- **Current Stage:** ${batch.currentStage.toUpperCase()}
+- **Blockchain Tx Hash:** \`${batch.blockchainHash}\`
+${recalledWarning}${spoiledWarning}
+
+**Transit Updates:**
+${updatesText}
+${lifecycleText}
+
+You can view the full interactive journey map here: [View Interactive Journey](/batch/${batch.batchId}/journey)`
+                    };
+                }
+            } catch (error) {
+                console.error('Smart fallback batch query error:', error);
+            }
+        }
+
+        // 2. Check for "latest" and crop type query
+        const cropTypes = ['rice', 'wheat', 'corn', 'tomato'];
+        const foundCropType = cropTypes.find(c => lowerMessage.includes(c));
+
+        if (lowerMessage.includes('latest') && foundCropType && batchService) {
+            try {
+                const batch = await batchService.getLatestBatch(foundCropType);
+                if (batch) {
+                    const qualityPassed = batch.lifecycle && batch.lifecycle.stageHistory && 
+                        batch.lifecycle.stageHistory.some(h => h.stage === 'Quality Checked');
+                    const qualityStatusText = qualityPassed 
+                        ? '✅ Yes, it has passed its quality checks.' 
+                        : '❌ No, it has not passed quality checks yet (or is not at that stage).';
+                    
+                    return {
+                        success: true,
+                        message: `The latest shipment of **${foundCropType}** is batch **${batch.batchId}**.
+- **Current Stage:** ${batch.currentStage.toUpperCase()}
+- **Quality Control Status:** ${qualityStatusText}
+
+You can view the full journey of this batch here: [View Journey](/batch/${batch.batchId}/journey)`
+                    };
+                } else {
+                    return {
+                        success: true,
+                        message: `No batches found for crop type **${foundCropType}**.`
+                    };
+                }
+            } catch (error) {
+                console.error('Smart fallback latest query error:', error);
+            }
+        }
+
+        // 3. Check for search/find crop batches query
+        if ((lowerMessage.includes('search') || lowerMessage.includes('find') || lowerMessage.includes('show')) && foundCropType && batchService) {
+            try {
+                const batches = await batchService.searchBatches({ cropType: foundCropType });
+                if (batches && batches.length > 0) {
+                    const listText = batches.map(b => 
+                        `- **${b.batchId}**: Harvested by *${b.farmerName}* at *${b.origin}* (${b.quantity} kg) - Stage: *${b.currentStage.toUpperCase()}*`
+                    ).join('\n');
+                    
+                    return {
+                        success: true,
+                        message: `Here are the matching batches found for **${foundCropType}**:
+${listText}
+
+Click on any batch ID to trace its journey.`
+                    };
+                } else {
+                    return {
+                        success: true,
+                        message: `No batches found for crop type **${foundCropType}**.`
+                    };
+                }
+            } catch (error) {
+                console.error('Smart fallback search query error:', error);
+            }
+        }
+
+        // 4. Check for statistics query
+        if (lowerMessage.includes('stat') || lowerMessage.includes('dashboard') || lowerMessage.includes('total') || lowerMessage.includes('system statistics')) {
+            try {
+                const stats = await batchService.getDashboardStats();
+                return {
+                    success: true,
+                    message: `Here are the current system statistics:
+- **Total Registered Batches:** ${stats.stats.totalBatches}
+- **Total Unique Farmers:** ${stats.stats.totalFarmers}
+- **Total Crop Quantity:** ${stats.stats.totalQuantity} kg
+- **Batches Added Last 30 Days:** ${stats.stats.recentBatches}`
+                };
+            } catch (error) {
+                console.error('Smart fallback stats query error:', error);
+            }
+        }
+
+        // 5. Fallback to existing static responses
+        return this.getFallbackResponse(message);
     }
 
     // Fallback responses when API is unavailable

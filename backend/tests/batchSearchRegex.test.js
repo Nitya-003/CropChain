@@ -19,6 +19,12 @@ jest.mock('mongoose', () => {
       set: jest.fn(),
       pre: jest.fn(),
       post: jest.fn(),
+      virtual: jest.fn().mockImplementation(() => {
+        return {
+          get: jest.fn().mockReturnThis(),
+          set: jest.fn().mockReturnThis()
+        };
+      }),
       methods: {},
       statics: {}
     };

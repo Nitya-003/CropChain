@@ -1,4 +1,4 @@
-﻿/**
+/**
  * NotificationService - Handles all notifications and alerts
  * Extracted from server.js to follow Separation of Concerns principle
  */
@@ -98,7 +98,7 @@ class NotificationService {
         if (adminUser.email) {
             await this.sendEmail(
                 adminUser.email,
-                 RECALL: Batch ${batch.batchId}`,
+                `🚨 RECALL: Batch ${batch.batchId}`,
                 `<h2>Batch Recall Notice</h2><p>Batch <strong>${batch.batchId}</strong> (${batch.cropType}, ${batch.quantity}kg) has been <strong>recalled</strong>.</p><p>Recalled by: ${adminUser.email}</p><p>CropChain Team</p>`
             );
         }
