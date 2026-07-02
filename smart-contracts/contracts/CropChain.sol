@@ -661,10 +661,11 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         
         // Check if batch is spoiled based on temperature thresholds
         // Temperature is in hundredths of degree: 800 = 80.0°F, 320 = 32.0°F
-        bool isSpoiled = (temperature > 800 || temperature < 320);
-        cropBatches[batchId].isSpoiled = isSpoiled;
+        if (temperature > 800 || temperature < 320) {
+            cropBatches[batchId].isSpoiled = true;
+        }
         
-        emit IoTDataFulfilled(batchId, temperature, humidity, isSpoiled);
+        emit IoTDataFulfilled(batchId, temperature, humidity, cropBatches[batchId].isSpoiled);
     }
 
     /**
