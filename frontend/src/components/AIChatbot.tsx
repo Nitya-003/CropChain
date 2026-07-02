@@ -48,6 +48,7 @@ const AIChatbot: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [fetchingStatus, setFetchingStatus] = useState('CropAssistant is thinking...');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -86,6 +87,7 @@ const AIChatbot: React.FC = () => {
     setMessages(prev => [...prev, userMsg]);
 
     setIsLoading(true);
+    setFetchingStatus('Analyzing query...');
 
     try {
       // Get current context
@@ -94,11 +96,18 @@ const AIChatbot: React.FC = () => {
       setMessages(prev => [...prev, assistantMsg]);
       let streamedContent = '';
       
-      const response = await aiChatService.sendMessageStream(userMessage, context, (token) => {
-        streamedContent += token;
-        aiChatService.updateMessage(assistantMsg.id, streamedContent);
-        setMessages(aiChatService.getMessages());
-      });
+      const response = await aiChatService.sendMessageStreamWithContext(
+        userMessage,
+        context,
+        (token) => {
+          streamedContent += token;
+          aiChatService.updateMessage(assistantMsg.id, streamedContent);
+          setMessages(aiChatService.getMessages());
+        },
+        (status) => {
+          setFetchingStatus(status);
+        }
+      );
 
       aiChatService.updateMessage(
         assistantMsg.id,
@@ -159,7 +168,7 @@ const AIChatbot: React.FC = () => {
             ))}
           </div>
           <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
-            CropAssistant is thinking...
+            {fetchingStatus}
           </span>
         </div>
       );
