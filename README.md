@@ -61,6 +61,13 @@ The system is live and deployed across production services:
 - **Authentication**: JWT-based auth system
 - **AI Integration**: OpenAI GPT-4o mini for intelligent assistance
 
+### ML Service (Python + Flask)
+- **Runtime**: Python 3.11 with Flask framework
+- **Model**: Scikit-learn RandomForest Classifier
+- **Endpoints**: Health and Crop Quality Prediction
+- **Security**: API Key authentication and Rate Limiting
+- **Deployment**: Gunicorn WSGI HTTP Server
+
 ### Smart Contracts (Solidity)
 - **Platform**: Ethereum/Polygon compatible
 - **Language**: Solidity ^0.8.19
@@ -144,6 +151,7 @@ This starts:
 
 * Frontend (React + Vite)
 * Backend (Node.js + Express)
+* ML Service (Python + Flask)
 * MongoDB Database
 * Hardhat Blockchain Node
 
@@ -155,6 +163,7 @@ This starts:
 | ------------ | ------------------------- |
 | Frontend     | http://localhost:3000     |
 | Backend API  | http://localhost:3001     |
+| ML Service   | http://localhost:5001     |
 | Hardhat Node | http://localhost:8545     |
 | MongoDB      | mongodb://localhost:27017 |
 
@@ -291,6 +300,11 @@ graph TD
         ETH[Ethers.js Instance]
     end
 
+    subgraph ML_Layer [ML Service - Python & Flask]
+        MLAPI[Flask API]
+        RF[RandomForest Model]
+    end
+
     subgraph Storage_Layer [Data & Blockchain]
         DB[(MongoDB Metadata)]
         BC{Smart Contracts - Solidity}
@@ -301,6 +315,8 @@ graph TD
     API --> JWT
     API --> DB
     API --> ETH
+    API --> MLAPI
+    MLAPI --> RF
     ETH --> BC
     BC --> Network
 ```
@@ -392,6 +408,9 @@ OPENAI_API_KEY=your_openai_api_key_here
 AI_MODEL=gpt-4o-mini
 AI_MAX_TOKENS=500
 AI_TEMPERATURE=0.7
+
+# ML Service API Key
+ML_API_KEY=your_ml_api_key_here
 ```
 
 **Frontend (.env)**
@@ -487,6 +506,13 @@ npx hardhat run scripts/deploy.js --network polygon
 - QRCode Generation
 - OpenAI API Integration
 - Axios HTTP Client
+
+**Machine Learning**
+- Python 3.11
+- Flask (API framework)
+- Scikit-learn (RandomForest Model)
+- Gunicorn (WSGI server)
+- NumPy & Joblib
 
 **Blockchain**
 - Solidity ^0.8.19
