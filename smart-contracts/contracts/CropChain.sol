@@ -145,13 +145,13 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         // Admin role must be managed exclusively through transferOwnership
         require(role != ActorRole.Admin, "Use transferOwnership to assign Admin");
 
-        // Revoke the previous OZ AccessControl role for this user if one was set
-        ActorRole previousRole = roles[user];
-        if (previousRole == ActorRole.Farmer) _revokeRole(FARMER_ROLE, user);
-        else if (previousRole == ActorRole.Mandi) _revokeRole(MANDI_ROLE, user);
-        else if (previousRole == ActorRole.Transporter) _revokeRole(TRANSPORTER_ROLE, user);
-        else if (previousRole == ActorRole.Retailer) _revokeRole(RETAILER_ROLE, user);
-        else if (previousRole == ActorRole.Oracle) _revokeRole(ORACLE_ROLE, user);
+        // Revoke all possible OZ AccessControl stakeholder roles for this user
+        // to ensure complete revocation even if multiple roles were previously granted
+        _revokeRole(FARMER_ROLE, user);
+        _revokeRole(MANDI_ROLE, user);
+        _revokeRole(TRANSPORTER_ROLE, user);
+        _revokeRole(RETAILER_ROLE, user);
+        _revokeRole(ORACLE_ROLE, user);
 
         roles[user] = role;
 
