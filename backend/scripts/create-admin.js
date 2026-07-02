@@ -30,32 +30,30 @@ async function createAdmin() {
         const adminExists = await User.findOne({ role: "admin" });
 
         if (adminExists) {
-            console.log("❌ Admin already exists");
-            if (require.main === module) process.exit(1);
-            return;
+            console.log("Admin user already exists. Skipping creation.");
+            console.log("IMPORTANT: Please change the password immediately after first login.");
+        } else {
+            const password = generateSecurePassword();
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(password, salt);
+
+            const adminUser = await User.create({
+                name: process.env.ADMIN_NAME || "CropChain Admin",
+                email: process.env.ADMIN_EMAIL || "admin@cropchain.com",
+                password: hashedPassword,
+                role: "admin",
+                status: "active"
+            });
+
+            console.log("Admin user created successfully.");
+            console.log(`Admin Email: ${adminUser.email}`);
+            console.log(`Admin Password: ${password}`);
+            console.log("IMPORTANT: Please change this password immediately after first login.");
         }
-
-        // Generate secure random password
-        const plainPassword = generateSecurePassword(16);
-        const hashedPassword = await bcrypt.hash(plainPassword, 10);
-        const adminRole = { 
-            name: "Admin User", 
-            email: "admin@cropchain.com", 
-            password: hashedPassword, 
-            role: "admin",
-            requirePasswordReset: true // Flag to force password reset on first login
-        };
-
-        await User.create(adminRole);
-
-        console.log("✅ Admin created successfully");
-        console.log(`Email: ${adminRole.email}`);
-        console.log("⚠️  IMPORTANT: Please change the password immediately after first login.");
 
         if (require.main === module) process.exit(0);
     } catch (error) {
         console.error("Error creating admin:", error);
-
         if (require.main === module) process.exit(1);
     }
 }
