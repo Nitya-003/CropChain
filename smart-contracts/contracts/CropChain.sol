@@ -78,6 +78,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     /// @dev Tracks the total quantity currently committed across all active listings for a batch.
     ///      Prevents double-listing and over-allocation beyond the physical batch quantity.
     mapping(bytes32 => uint256) public batchListedQuantity;
+    mapping(bytes32 => address) public nextCustodianApproval;
 
     bytes32[] public allBatchIds;
 
@@ -99,6 +100,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     event TwapConfigUpdated(uint256 twapWindowSeconds, uint256 maxPriceDeviationBps);
     event IoTDataRequested(bytes32 indexed batchId, address requester);
     event IoTDataFulfilled(bytes32 indexed batchId, int256 temperature, int256 humidity, bool isSpoiled);
+    event CustodianApproved(bytes32 indexed batchId, address indexed approver, address indexed nextCustodian);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
@@ -260,6 +262,28 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         emit BatchCreated(batchId, ipfsCID, quantity, msg.sender);
     }
 
+    function approveCustodian(bytes32 batchId, address nextCustodian) external whenNotPaused nonReentrant batchExists(batchId) {
+        SupplyChainUpdate[] storage updates = _batchUpdates[batchId];
+        
+        address currentCustodian;
+        if (updates.length == 0) {
+            currentCustodian = cropBatches[batchId].creator;
+        } else {
+            SupplyChainUpdate storage latestUpdate = updates[updates.length - 1];
+            if (latestUpdate.stage == Stage.Farmer) {
+                currentCustodian = cropBatches[batchId].creator;
+            } else {
+                currentCustodian = latestUpdate.updatedBy;
+            }
+        }
+        
+        require(msg.sender == currentCustodian || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Not authorized to approve");
+        require(nextCustodian != address(0), "Invalid address");
+        
+        nextCustodianApproval[batchId] = nextCustodian;
+        emit CustodianApproved(batchId, msg.sender, nextCustodian);
+    }
+
     function updateBatch(
         bytes32 batchId,
         Stage stage,
@@ -276,6 +300,14 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         require(bytes(actorName).length > 0, "Actor required");
         require(bytes(location).length > 0, "Location required");
         require(_isNextStage(batchId, stage), "Invalid stage transition");
+
+        // Ensure the caller is approved by the current custodian to take over the batch
+        require(
+            nextCustodianApproval[batchId] == msg.sender || hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            "Not approved by current custodian"
+        );
+        // Clear approval after use
+        nextCustodianApproval[batchId] = address(0);
 
         // Dynamic role checks based on stage transition
         require(_canUpdateStage(batchId, stage), "Role not allowed for this stage transition");
