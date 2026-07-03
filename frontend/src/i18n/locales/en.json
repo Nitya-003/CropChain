@@ -211,11 +211,25 @@
     "recentActivity": "Recent Activity"
   },
   "chatbot": {
-    "title": "AI Assistant",
-    "placeholder": "Ask me anything about CropChain...",
+    "title": "CropAssistant",
+    "subtitle": "AI-powered crop tracking helper",
+    "welcomeMessage": "Hi! I'm CropAssistant 🌱 I can help you with batch tracking, QR codes, supply chain processes, and navigating CropChain. What would you like to know?",
+    "thinking": "CropAssistant is thinking...",
+    "placeholder": "Ask about batches, QR codes, or supply chain...",
     "send": "Send",
+    "sendMessage": "Send message",
+    "minimize": "Minimize chat",
+    "maximize": "Maximize chat",
+    "close": "Close chat",
+    "open": "Open AI assistant",
+    "errorMessage": "I'm sorry, I encountered an error. Please try again or contact support if the issue persists.",
     "quickActions": {
-      "trackBatch": "Track a batch",
+      "trackBatch": "Track a Batch",
+      "qrCodeHelp": "Help with QR Code",
+      "contactAdmin": "Contact Admin",
+      "batchCreationHelp": "Batch Creation Help",
+      "trackingHelp": "Tracking Help",
+      "aboutThisBatch": "About This Batch: {{batchId}}",
       "addBatch": "Add new batch",
       "help": "How to use CropChain?"
     }
