@@ -263,19 +263,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     }
 
     function approveCustodian(bytes32 batchId, address nextCustodian) external whenNotPaused nonReentrant batchExists(batchId) {
-        SupplyChainUpdate[] storage updates = _batchUpdates[batchId];
-        
-        address currentCustodian;
-        if (updates.length == 0) {
-            currentCustodian = cropBatches[batchId].creator;
-        } else {
-            SupplyChainUpdate storage latestUpdate = updates[updates.length - 1];
-            if (latestUpdate.stage == Stage.Farmer) {
-                currentCustodian = cropBatches[batchId].creator;
-            } else {
-                currentCustodian = latestUpdate.updatedBy;
-            }
-        }
+        address currentCustodian = _getCurrentCustodian(batchId);
         
         require(msg.sender == currentCustodian || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Not authorized to approve");
         require(nextCustodian != address(0), "Invalid address");
@@ -308,6 +296,9 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         );
         // Clear approval after use
         nextCustodianApproval[batchId] = address(0);
+
+        // Reset batchListedQuantity to invalidate active ghost listings from previous custodian
+        batchListedQuantity[batchId] = 0;
 
         // Dynamic role checks based on stage transition
         require(_canUpdateStage(batchId, stage), "Role not allowed for this stage transition");
@@ -401,6 +392,8 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         CropBatch storage batch = cropBatches[listing.batchId];
         require(batch.exists && !batch.isRecalled, "Batch unavailable");
         require(!batch.isSpoiled, "Batch is spoiled");
+        
+        require(listing.seller == _getCurrentCustodian(listing.batchId), "Seller is no longer the custodian");
 
         uint256 twapPrice = getTwapPrice(batch.cropTypeHash, twapWindow);
         if (twapPrice > 0) {
@@ -435,9 +428,11 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         require(listing.active, "Listing inactive");
         require(msg.sender == listing.seller || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Not allowed");
 
-        // FIX: Restore the listing's remaining available quantity back to the batch's
-        // listed-quantity tracker so those units can be re-listed or sold via a new listing.
-        batchListedQuantity[listing.batchId] -= listing.quantityAvailable;
+        // Restore the listing's remaining available quantity back to the batch's tracker
+        // ONLY if the seller is still the current custodian.
+        if (listing.seller == _getCurrentCustodian(listing.batchId)) {
+            batchListedQuantity[listing.batchId] -= listing.quantityAvailable;
+        }
 
         listing.active = false;
         listing.quantityAvailable = 0;
@@ -584,6 +579,18 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         if (stage == Stage.Transport && role == ActorRole.Transporter) return true;
         if (stage == Stage.Retailer && role == ActorRole.Retailer) return true;
         return false;
+    }
+
+    function _getCurrentCustodian(bytes32 batchId) internal view returns (address) {
+        SupplyChainUpdate[] storage updates = _batchUpdates[batchId];
+        if (updates.length == 0) {
+            return cropBatches[batchId].creator;
+        }
+        SupplyChainUpdate storage latestUpdate = updates[updates.length - 1];
+        if (latestUpdate.stage == Stage.Farmer) {
+            return cropBatches[batchId].creator;
+        }
+        return latestUpdate.updatedBy;
     }
 
     function _canUpdateStage(bytes32 batchId, Stage newStage) internal view returns (bool) {
