@@ -970,11 +970,271 @@ Click on any batch ID to trace its journey.`
             };
         }
         
+    }
+
+    // Calculate transit statistics for a specific crop type based on recent batches
+    calculateTransitStats(batches, cropType) {
+        let farmerToMandi = [];
+        let mandiToTransport = [];
+        let transportToRetailer = [];
+        let totalTransit = [];
+
+        batches.forEach(b => {
+            const updates = b.updates || [];
+            const farmerUpdate = updates.find(u => u.stage === 'farmer');
+            const mandiUpdate = updates.find(u => u.stage === 'mandi');
+            const transportUpdate = updates.find(u => u.stage === 'transport');
+            const retailerUpdate = updates.find(u => u.stage === 'retailer');
+
+            if (farmerUpdate && mandiUpdate) {
+                farmerToMandi.push(new Date(mandiUpdate.timestamp) - new Date(farmerUpdate.timestamp));
+            }
+            if (mandiUpdate && transportUpdate) {
+                mandiToTransport.push(new Date(transportUpdate.timestamp) - new Date(mandiUpdate.timestamp));
+            }
+            if (transportUpdate && retailerUpdate) {
+                transportToRetailer.push(new Date(retailerUpdate.timestamp) - new Date(transportUpdate.timestamp));
+            }
+            if (farmerUpdate && retailerUpdate) {
+                totalTransit.push(new Date(retailerUpdate.timestamp) - new Date(farmerUpdate.timestamp));
+            }
+        });
+
+        const avg = arr => arr.length 
+            ? (arr.reduce((a, b) => a + b, 0) / arr.length / (1000 * 60 * 60 * 24)).toFixed(2) + ' days' 
+            : 'N/A';
+
         return {
-            success: true,
-            message: "I'm CropAssistant! I can help you with batch tracking, QR codes, supply chain processes, and navigating CropChain. What would you like to know?"
+            cropType,
+            sampleSize: batches.length,
+            averageFarmerToMandi: avg(farmerToMandi),
+            averageMandiToTransport: avg(mandiToTransport),
+            averageTransportToRetailer: avg(transportToRetailer),
+            averageTotalTransit: avg(totalTransit)
         };
+    }
+
+    // Sanitize batch metadata to only expose necessary supply chain information
+    sanitizeBatchMetadata(batch) {
+        if (!batch) return null;
+        
+        return {
+            batchId: batch.batchId,
+            cropType: batch.cropType,
+            quantity: batch.quantity,
+            origin: batch.origin,
+            harvestDate: batch.harvestDate,
+            currentStage: batch.currentStage,
+            isRecalled: batch.isRecalled || false,
+            status: batch.status || 'Active',
+            iotData: batch.iotData ? {
+                currentTemperature: batch.iotData.currentTemperature,
+                currentHumidity: batch.iotData.currentHumidity,
+                isSpoiled: batch.iotData.isSpoiled || false
+            } : null,
+            updates: (batch.updates || []).map(u => ({
+                stage: u.stage,
+                actor: u.actor,
+                location: u.location,
+                timestamp: u.timestamp,
+                notes: u.notes
+            })),
+            lifecycle: batch.lifecycle ? {
+                currentStage: batch.lifecycle.currentStage,
+                stageHistory: (batch.lifecycle.stageHistory || []).map(h => ({
+                    stage: h.stage,
+                    timestamp: h.timestamp,
+                    updatedBy: h.updatedBy,
+                    notes: h.notes
+                }))
+            } : null
+        };
+    }
+
+    // Context-aware batch and supply chain metadata LLM query method
+    async chatWithBatchContext(message, requestContext, batchService, onToken = null, onStatus = null) {
+        const lowerMessage = message.toLowerCase();
+        
+        // 1. Check for batch ID patterns
+        const cropMatch = lowerMessage.match(/crop-\d{4}-\d{4}/);
+        const batchMatch = lowerMessage.match(/batch\d{6}/);
+        const numberMatch = lowerMessage.match(/#(\d+)/) || lowerMessage.match(/batch\s+#?(\d+)/) || lowerMessage.match(/#\s*(\d+)/);
+
+        let batchIdSearch = null;
+        if (cropMatch) batchIdSearch = cropMatch[0].toUpperCase();
+        else if (batchMatch) batchIdSearch = batchMatch[0].toUpperCase();
+        else if (numberMatch) batchIdSearch = numberMatch[1];
+
+        if (!batchIdSearch && requestContext && requestContext.batchId) {
+            batchIdSearch = requestContext.batchId;
+        }
+
+        let fetchedBatch = null;
+        if (batchIdSearch && batchService) {
+            onStatus?.('Searching database for batch details...');
+            try {
+                fetchedBatch = await batchService.getBatchByIdOrPartial(batchIdSearch);
+            } catch (error) {
+                console.error('Error fetching batch context:', error);
+            }
+        }
+
+        // 2. Check for crop types to provide transit stats
+        const cropTypes = ['rice', 'wheat', 'corn', 'tomato'];
+        const foundCropType = cropTypes.find(c => lowerMessage.includes(c));
+        let cropTransitStats = null;
+
+        if (foundCropType && batchService) {
+            onStatus?.(`Calculating transit statistics for ${foundCropType}...`);
+            try {
+                const batchesOfCrop = await batchService.searchBatches({ cropType: foundCropType });
+                if (batchesOfCrop && batchesOfCrop.length > 0) {
+                    cropTransitStats = this.calculateTransitStats(batchesOfCrop, foundCropType);
+                }
+            } catch (error) {
+                console.error('Error fetching crop batches for transit stats:', error);
+            }
+        }
+
+        // 3. Assemble Prompt Context
+        let contextText = '';
+        if (fetchedBatch) {
+            const sanitized = this.sanitizeBatchMetadata(fetchedBatch);
+            contextText += `Specific Batch Details:\n${JSON.stringify(sanitized, null, 2)}\n\n`;
+        }
+        if (cropTransitStats) {
+            contextText += `Transit Statistics for ${foundCropType.toUpperCase()}:\n${JSON.stringify(cropTransitStats, null, 2)}\n\n`;
+        }
+
+        if (!fetchedBatch && !cropTransitStats && batchService) {
+            onStatus?.('Fetching general supply chain statistics...');
+            try {
+                const stats = await batchService.getDashboardStats();
+                if (stats && stats.stats) {
+                    contextText += `General System Statistics:\n${JSON.stringify({
+                        totalBatches: stats.stats.totalBatches,
+                        totalFarmers: stats.stats.totalFarmers,
+                        totalQuantity: stats.stats.totalQuantity,
+                        recentBatches: stats.stats.recentBatches
+                    }, null, 2)}\n\n`;
+                }
+            } catch (e) {
+                console.error('Error fetching dashboard stats for context:', e);
+            }
+        }
+
+        // 4. Construct Restricted Prompt
+        const systemPrompt = `You are CropAssistant, a strict context-aware AI supply chain assistant.
+You have been provided with real-time supply chain metadata from the MongoDB database.
+
+Here is the current database context:
+---
+${contextText || "No specific crop or batch metadata found in the database for this query."}
+---
+
+INSTRUCTIONS & CONSTRAINTS:
+1. You must ONLY answer questions based on the provided supply chain metadata context above.
+2. If the user asks a question that cannot be answered using the provided metadata, or asks about batches, crops, or topics not present in the context, you must reply: "I'm sorry, but I can only answer questions related to the supply chain batch data provided in this context. I do not have access to that information."
+3. Do not assume, extrapolate, or hallucinate any details that are not explicitly present in the metadata.
+4. Keep your responses precise, helpful, and professional.
+5. If the context contains warnings (e.g. spoilage or recall), highlight them clearly using alert emojis.`;
+
+        onStatus?.('Generating response...');
+
+        // 5. Execute API/Fallback LLM Request
+        if (this.provider === 'fallback') {
+            const fallback = await this.getSmartFallbackResponse(message, batchService);
+            const mentionsCrop = cropTypes.some(c => lowerMessage.includes(c));
+            const mentionsBatch = lowerMessage.includes('batch') || lowerMessage.includes('#');
+            const mentionsStats = lowerMessage.includes('stat') || lowerMessage.includes('dashboard') || lowerMessage.includes('total') || lowerMessage.includes('system statistics');
+            
+            let finalMessage = fallback.message;
+            if (!mentionsCrop && !mentionsBatch && !mentionsStats) {
+                finalMessage = "I'm sorry, but I can only answer questions related to the supply chain batch data provided in this context. I do not have access to that information.";
+            }
+
+            if (onToken) {
+                await this.streamText(finalMessage, onToken);
+            }
+            return { success: true, message: finalMessage };
+        }
+
+        if (this.provider === 'gemini') {
+            try {
+                const model = this.genAI.getGenerativeModel({
+                    model: this.modelName,
+                    systemInstruction: systemPrompt,
+                    generationConfig: {
+                        maxOutputTokens: this.maxTokens,
+                        temperature: this.temperature
+                    }
+                });
+
+                if (onToken) {
+                    const chat = model.startChat();
+                    const result = await chat.sendMessageStream(message);
+                    let text = '';
+                    for await (const chunk of result.stream) {
+                        const chunkText = chunk.text();
+                        if (chunkText) {
+                            text += chunkText;
+                            onToken(chunkText);
+                        }
+                    }
+                    return { success: true, message: text };
+                } else {
+                    const chat = model.startChat();
+                    const result = await chat.sendMessage(message);
+                    return { success: true, message: result.response.text() };
+                }
+            } catch (error) {
+                console.error('Gemini context query error:', error.message);
+                const fallback = await this.getSmartFallbackResponse(message, batchService);
+                if (onToken) await this.streamText(fallback.message, onToken);
+                return { success: true, message: fallback.message };
+            }
+        }
+
+        // OpenAI Provider
+        try {
+            const messages = [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: message }
+            ];
+
+            if (onToken) {
+                const result = await this.streamOpenAICompletion({
+                    model: this.modelName,
+                    messages,
+                    max_tokens: this.maxTokens,
+                    temperature: this.temperature
+                }, onToken);
+                return { success: true, message: result.message };
+            } else {
+                const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+                    model: this.modelName,
+                    messages,
+                    max_tokens: this.maxTokens,
+                    temperature: this.temperature
+                }, {
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                return {
+                    success: true,
+                    message: response.data.choices[0].message.content
+                };
+            }
+        } catch (error) {
+            console.error('OpenAI context query error:', error.response?.data || error.message);
+            const fallback = await this.getSmartFallbackResponse(message, batchService);
+            if (onToken) await this.streamText(fallback.message, onToken);
+            return { success: true, message: fallback.message };
+        }
     }
 }
 
 module.exports = new AIService();
+

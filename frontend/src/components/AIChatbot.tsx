@@ -43,6 +43,34 @@ const formatCitations = (text: string): string => {
   return formatted;
 };
 
+const getLocalizedStatus = (status: string, t: any): string => {
+  if (!status) return '';
+  if (status === 'CropAssistant is thinking...') {
+    return t('chatbot.thinking');
+  }
+  if (status === 'Analyzing query...') {
+    return t('chatbot.analyzingQuery', 'Analyzing query...');
+  }
+  if (status === 'Generating response...') {
+    return t('chatbot.generatingResponse', 'Generating response...');
+  }
+  if (status === 'Searching database for batch details...') {
+    return t('chatbot.searchingDatabase', 'Searching database for batch details...');
+  }
+  if (status === 'Fetching general supply chain statistics...') {
+    return t('chatbot.fetchingStats', 'Fetching general supply chain statistics...');
+  }
+  
+  const transitMatch = status.match(/^Calculating transit statistics for (\w+)\.\.\.$/);
+  if (transitMatch) {
+    const cropType = transitMatch[1].toLowerCase();
+    const translatedCrop = t(`crops.${cropType}`, transitMatch[1]);
+    return t('chatbot.calculatingStats', 'Calculating transit statistics for {{crop}}...', { crop: translatedCrop });
+  }
+
+  return status;
+};
+
 const AIChatbot: React.FC = () => {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
@@ -50,6 +78,7 @@ const AIChatbot: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [fetchingStatus, setFetchingStatus] = useState('CropAssistant is thinking...');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -88,6 +117,7 @@ const AIChatbot: React.FC = () => {
     setMessages(prev => [...prev, userMsg]);
 
     setIsLoading(true);
+    setFetchingStatus('Analyzing query...');
 
     try {
       // Get current context
@@ -96,11 +126,18 @@ const AIChatbot: React.FC = () => {
       setMessages(prev => [...prev, assistantMsg]);
       let streamedContent = '';
       
-      const response = await aiChatService.sendMessageStream(userMessage, context, (token) => {
-        streamedContent += token;
-        aiChatService.updateMessage(assistantMsg.id, streamedContent);
-        setMessages(aiChatService.getMessages());
-      });
+      const response = await aiChatService.sendMessageStreamWithContext(
+        userMessage,
+        context,
+        (token) => {
+          streamedContent += token;
+          aiChatService.updateMessage(assistantMsg.id, streamedContent);
+          setMessages(aiChatService.getMessages());
+        },
+        (status) => {
+          setFetchingStatus(status);
+        }
+      );
 
       aiChatService.updateMessage(
         assistantMsg.id,
@@ -161,7 +198,7 @@ const AIChatbot: React.FC = () => {
             ))}
           </div>
           <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
-            {t('chatbot.thinking')}
+            {getLocalizedStatus(fetchingStatus, t)}
           </span>
         </div>
       );
