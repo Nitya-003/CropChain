@@ -111,6 +111,7 @@ describe("CropChain", function () {
     );
 
     // Update to Mandi (Stage 1) - only MANDI_ROLE can do this
+    await cropChain.connect(farmer).approveCustodian(batchId, mandi.address);
     await expect(cropChain.connect(mandi).updateBatch(
       batchId,
       1, // Mandi Stage
@@ -121,6 +122,7 @@ describe("CropChain", function () {
       .withArgs(batchId, 1, "Mandi Market", "Iowa Market", mandi.address);
 
     // Update to Transport (Stage 2) - only TRANSPORTER_ROLE can do this
+    await cropChain.connect(mandi).approveCustodian(batchId, transporter.address);
     await expect(cropChain.connect(transporter).updateBatch(
       batchId,
       2, // Transport Stage
@@ -131,6 +133,7 @@ describe("CropChain", function () {
       .withArgs(batchId, 2, "TransCo", "In Transit", transporter.address);
 
     // Update to Retailer (Stage 3) - only RETAILER_ROLE can do this
+    await cropChain.connect(transporter).approveCustodian(batchId, retailer.address);
     await expect(cropChain.connect(retailer).updateBatch(
       batchId,
       3, // Retailer Stage
@@ -168,6 +171,7 @@ describe("CropChain", function () {
     )).to.be.revertedWith("Invalid stage transition");
 
     // Try to have farmer update to Mandi (should fail - only MANDI_ROLE can do this)
+    await cropChain.connect(farmer).approveCustodian(batchId, farmer.address);
     await expect(cropChain.connect(farmer).updateBatch(
       batchId,
       1, // Mandi Stage
@@ -328,6 +332,9 @@ describe("CropChain", function () {
       await cropChain.connect(farmer).createBatch(
         batchId, cropTypeHash, validIpfsCID, 100, "Farmer Joe", "Kansas", "Harvested"
       );
+
+      // Approve mandi as the next custodian
+      await cropChain.connect(farmer).approveCustodian(batchId, mandi.address);
 
       // Grant MANDI_ROLE for testing updates
       await cropChain.grantStakeholderRole(MANDI_ROLE, mandi.address);

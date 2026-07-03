@@ -217,6 +217,7 @@ describe("CropChain Security Refactor", function () {
     );
 
     // 2. Mandi updates the batch (stage = Mandi)
+    await cropChain.connect(oracle).approveCustodian(batchId, mandi.address);
     await cropChain.connect(mandi).updateBatch(
       batchId,
       1, // Stage.Mandi
