@@ -1,4 +1,4 @@
-/**
+﻿/**
  * BatchService - Handles all batch-related business logic
  * Extracted from server.js to follow Separation of Concerns principle
  */
@@ -14,6 +14,7 @@ const { emitToBatchRoom, emitGlobal } = require('./socketService');
 const apiResponse = require('../utils/apiResponse');
 const { getStageNumber, getStagesString, isValidStage, normalizeStage, isValidTransition, getNextStage } = require('../constants/stages');
 const activityService = require('./activityService');
+const logger = require('../utils/logger');
 
 class BatchService {
     /**
@@ -56,7 +57,7 @@ class BatchService {
                 }
             });
         } catch (error) {
-            console.error('Failed to generate QR code:', error);
+            logger.error('Failed to generate QR code:', error);
             return '';
         }
     }
@@ -158,7 +159,7 @@ class BatchService {
                   timestamp: new Date().toISOString()
                 });
 
-                console.log(`[SUCCESS] Batch created: ${batchId} by user ${user.id} (${user.email || 'N/A'})`);
+                logger.info(`[SUCCESS] Batch created: ${batchId} by user ${user.id} (${user.email || 'N/A'})`);
 
                 return {
                     success: true,
@@ -172,15 +173,15 @@ class BatchService {
                 lastError = error;
                 // If duplicate key error, retry up to the limit
                 if (error.code === 11000 && i < attempts - 1) {
-                    console.warn(`[RETRY] Duplicate batch ID detected. Retrying batch creation... (${i + 1}/${attempts})`);
+                    logger.warn(`[RETRY] Duplicate batch ID detected. Retrying batch creation... (${i + 1}/${attempts})`);
                     continue;
                 }
 
-                console.error('Error creating batch:', error);
+                logger.error('Error creating batch:', error);
                 throw error;
             }
         }
-        console.error('Error creating batch: Max retries exceeded', lastError);
+        logger.error('Error creating batch: Max retries exceeded', lastError);
         throw lastError;
     }
 
@@ -212,7 +213,7 @@ class BatchService {
                 message: 'Batch retrieved successfully'
             };
         } catch (error) {
-            console.error('Error fetching batch:', error);
+            logger.error('Error fetching batch:', error);
             throw error;
         }
     }
@@ -332,7 +333,7 @@ class BatchService {
             // Try to sync with blockchain (non-blocking)
             this.syncToBlockchain(batch, 'update');
 
-            console.log(`[SUCCESS] Batch updated: ${batchId} to stage ${normalizedStage} by ${updateData.actor}`);
+            logger.info(`[SUCCESS] Batch updated: ${batchId} to stage ${normalizedStage} by ${updateData.actor}`);
 
             return {
                 success: true,
@@ -340,7 +341,7 @@ class BatchService {
                 message: 'Batch updated successfully'
             };
         } catch (error) {
-            console.error('Error updating batch:', error);
+            logger.error('Error updating batch:', error);
             throw error;
         }
     }
@@ -402,7 +403,7 @@ class BatchService {
             // Send recall notification
             notificationService.sendRecallNotification(batch, adminUser);
 
-            console.log(`🚨 RECALL by admin ${adminUser.email || 'unknown'} for batch ${batchId}`);
+            logger.info(`🚨 RECALL by admin ${adminUser.email || 'unknown'} for batch ${batchId}`);
 
             return {
                 success: true,
@@ -412,7 +413,7 @@ class BatchService {
                 recalledAt: new Date().toISOString()
             };
         } catch (error) {
-            console.error('Error recalling batch:', error);
+            logger.error('Error recalling batch:', error);
             throw error;
         }
     }
@@ -448,7 +449,7 @@ class BatchService {
                 message: 'Batches retrieved successfully'
             };
         } catch (error) {
-            console.error('Error fetching batches:', error);
+            logger.error('Error fetching batches:', error);
             throw error;
         }
     }
@@ -581,7 +582,7 @@ class BatchService {
      */
     async syncToBlockchain(batch, action) {
         if (!blockchainService.isAvailable()) {
-            console.warn(`[BatchService] Blockchain not available. Skipping queueing for ${batch.batchId}`);
+            logger.warn(`[BatchService] Blockchain not available. Skipping queueing for ${batch.batchId}`);
             return;
         }
 
@@ -598,7 +599,7 @@ class BatchService {
                 };
                 
                 await blockchainQueue.addCreateBatchJob(batchData);
-                console.log(`[BatchService] Queued createBatch job for ${batch.batchId}`);
+                logger.info(`[BatchService] Queued createBatch job for ${batch.batchId}`);
             } else if (action === 'update') {
                 const lastUpdate = batch.updates && batch.updates.length > 0 
                     ? batch.updates[batch.updates.length - 1] 
@@ -612,13 +613,15 @@ class BatchService {
                 };
 
                 await blockchainQueue.addUpdateBatchJob(batch.batchId, updateData);
-                console.log(`[BatchService] Queued updateBatch job for ${batch.batchId}`);
+                logger.info(`[BatchService] Queued updateBatch job for ${batch.batchId}`);
             }
         } catch (error) {
-            console.error(`Failed to queue blockchain job for batch ${batch.batchId}:`, error.message);
+            logger.error(`Failed to queue blockchain job for batch ${batch.batchId}:`, error.message);
         }
     }
 }
 
 // Export singleton instance
 module.exports = new BatchService();
+
+
