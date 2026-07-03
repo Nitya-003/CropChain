@@ -201,20 +201,39 @@ class AIChatService {
   }
 
   // Get suggested quick actions based on context
-  getQuickActions(context?: ChatContext): Array<{ label: string; message: string; icon: string }> {
-    const baseActions = [
+  // `labelKey` maps to an i18n translation key (see chatbot.quickActions in locales),
+  // while `label` remains as an English fallback for callers that don't translate.
+  // `message` is the literal query sent to the AI backend and is intentionally kept
+  // in English, since full AI response translation is a future stretch goal.
+  getQuickActions(context?: ChatContext): Array<{
+    label: string;
+    labelKey: string;
+    labelParams?: Record<string, string>;
+    message: string;
+    icon: string;
+  }> {
+    const baseActions: Array<{
+      label: string;
+      labelKey: string;
+      labelParams?: Record<string, string>;
+      message: string;
+      icon: string;
+    }> = [
       {
         label: 'Track a Batch',
+        labelKey: 'chatbot.quickActions.trackBatch',
         message: 'How do I track a batch?',
         icon: ''
       },
       {
         label: 'Help with QR Code',
+        labelKey: 'chatbot.quickActions.qrCodeHelp',
         message: 'How do QR codes work in CropChain?',
         icon: ''
       },
       {
         label: 'Contact Admin',
+        labelKey: 'chatbot.quickActions.contactAdmin',
         message: 'How can I contact an administrator?',
         icon: ''
       }
@@ -224,6 +243,7 @@ class AIChatService {
     if (context?.currentPage === 'add-batch') {
       baseActions.unshift({
         label: 'Batch Creation Help',
+        labelKey: 'chatbot.quickActions.batchCreationHelp',
         message: 'Help me create a new batch',
         icon: ''
       });
@@ -232,6 +252,7 @@ class AIChatService {
     if (context?.currentPage === 'track-batch') {
       baseActions.unshift({
         label: 'Tracking Help',
+        labelKey: 'chatbot.quickActions.trackingHelp',
         message: 'How do I search for a specific batch?',
         icon: ''
       });
@@ -239,7 +260,9 @@ class AIChatService {
 
     if (context?.batchId) {
       baseActions.unshift({
-        label: 'About This Batch',
+        label: `About This Batch: ${context.batchId}`,
+        labelKey: 'chatbot.quickActions.aboutThisBatch',
+        labelParams: { batchId: context.batchId },
         message: `Tell me about batch ${context.batchId}`,
         icon: ''
       });

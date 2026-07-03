@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Sparkles, Leaf, User, Bot, Minimize2, Maximize2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useTranslation } from 'react-i18next';
 import { aiChatService, ChatMessage } from '../services/aiChatService';
 import { sanitizeString } from '../lib/sanitize';
 
@@ -43,6 +44,7 @@ const formatCitations = (text: string): string => {
 };
 
 const AIChatbot: React.FC = () => {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -67,12 +69,12 @@ const AIChatbot: React.FC = () => {
   useEffect(() => {
     if (messages.length === 0) {
       const welcomeMessage = aiChatService.addMessage(
-        "Hi! I'm CropAssistant 🌱 I can help you with batch tracking, QR codes, supply chain processes, and navigating CropChain. What would you like to know?",
+        t('chatbot.welcomeMessage'),
         'assistant'
       );
       setMessages([welcomeMessage]);
     }
-  }, [messages.length]);
+  }, [messages.length, t]);
 
   const handleSendMessage = async (messageOverride?: string) => {
     const messageToSend = messageOverride ?? inputMessage;
@@ -110,7 +112,7 @@ const AIChatbot: React.FC = () => {
       console.error('Chat error:', error);
       
       aiChatService.addMessage(
-        "I'm sorry, I encountered an error. Please try again or contact support if the issue persists.",
+        t('chatbot.errorMessage'),
         'assistant'
       );
       setMessages(aiChatService.getMessages());
@@ -159,7 +161,7 @@ const AIChatbot: React.FC = () => {
             ))}
           </div>
           <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
-            CropAssistant is thinking...
+            {t('chatbot.thinking')}
           </span>
         </div>
       );
@@ -293,7 +295,7 @@ const AIChatbot: React.FC = () => {
             text-white rounded-full p-4 shadow-2xl hover:shadow-green-500/25
             focus:outline-none focus:ring-4 focus:ring-green-500/30
           `}
-          aria-label={isOpen ? 'Close chat' : 'Open AI assistant'}
+          aria-label={isOpen ? t('chatbot.close') : t('chatbot.open')}
         >
           <AnimatePresence mode="wait">
             {isOpen ? (
@@ -370,8 +372,8 @@ const AIChatbot: React.FC = () => {
                       />
                     </motion.div>
                     <div>
-                      <h3 className="font-semibold text-lg">CropAssistant</h3>
-                      <p className="text-green-100 text-sm">AI-powered crop tracking helper</p>
+                      <h3 className="font-semibold text-lg">{t('chatbot.title')}</h3>
+                      <p className="text-green-100 text-sm">{t('chatbot.subtitle')}</p>
                     </div>
                   </div>
                   
@@ -379,6 +381,7 @@ const AIChatbot: React.FC = () => {
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+                    aria-label={isMinimized ? t('chatbot.maximize') : t('chatbot.minimize')}
                   >
                     {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
                   </motion.button>
@@ -480,7 +483,10 @@ const AIChatbot: React.FC = () => {
                               transition={{ delay: 0.7 + index * 0.1 }}
                             >
                               <span className="mr-1">{action.icon}</span>
-                              {action.label}
+                              {(t as (key: string, options?: Record<string, string>) => string)(
+                                action.labelKey,
+                                action.labelParams
+                              )}
                             </motion.button>
                           ))}
                         </div>
@@ -502,7 +508,7 @@ const AIChatbot: React.FC = () => {
                             value={inputMessage}
                             onChange={(e) => setInputMessage(e.target.value)}
                             onKeyPress={handleKeyPress}
-                            placeholder="Ask about batches, QR codes, or supply chain..."
+                            placeholder={t('chatbot.placeholder')}
                             className="w-full px-4 py-3 pr-12 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                             disabled={isLoading}
                             maxLength={1000}
@@ -520,7 +526,7 @@ const AIChatbot: React.FC = () => {
                           onClick={() => handleSendMessage()}
                           disabled={!inputMessage.trim() || isLoading}
                           className="p-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:cursor-not-allowed"
-                          aria-label="Send message"
+                          aria-label={t('chatbot.sendMessage')}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                         >
