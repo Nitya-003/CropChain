@@ -17,6 +17,7 @@ const { mockAiChatService, resetMockMessages } = vi.hoisted(() => {
         return msgs[idx];
       }),
       sendMessageStream: vi.fn().mockResolvedValue({ success: true, response: 'Test reply', timestamp: new Date().toISOString() }),
+      sendMessageStreamWithContext: vi.fn().mockResolvedValue({ success: true, response: 'Test reply', timestamp: new Date().toISOString() }),
       getQuickActions: vi.fn().mockReturnValue([
         { label: 'Track a Batch', labelKey: 'chatbot.quickActions.trackBatch', message: 'How do I track a batch?', icon: '' },
         { label: 'Help with QR Code', labelKey: 'chatbot.quickActions.qrCodeHelp', message: 'How do QR codes work?', icon: '' },
@@ -122,7 +123,7 @@ describe('AIChatbot', () => {
     const input = screen.getByPlaceholderText('chatbot.placeholder');
     await user.type(input, 'Track batch 123{Enter}');
     await waitFor(() => {
-      expect(mockAiChatService.sendMessageStream).toHaveBeenCalled();
+      expect(mockAiChatService.sendMessageStreamWithContext).toHaveBeenCalled();
     });
   });
 
@@ -134,7 +135,7 @@ describe('AIChatbot', () => {
     await user.type(input, 'What is my batch status?');
     await user.click(screen.getByLabelText('chatbot.sendMessage'));
     await waitFor(() => {
-      expect(mockAiChatService.sendMessageStream).toHaveBeenCalled();
+      expect(mockAiChatService.sendMessageStreamWithContext).toHaveBeenCalled();
     });
   });
 
@@ -153,9 +154,10 @@ describe('AIChatbot', () => {
     await user.click(screen.getByLabelText('chatbot.open'));
     await user.click(screen.getByText('chatbot.quickActions.trackBatch'));
     await waitFor(() => {
-      expect(mockAiChatService.sendMessageStream).toHaveBeenCalledWith(
+      expect(mockAiChatService.sendMessageStreamWithContext).toHaveBeenCalledWith(
         'How do I track a batch?',
         expect.any(Object),
+        expect.any(Function),
         expect.any(Function)
       );
     });
