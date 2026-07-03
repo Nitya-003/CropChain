@@ -732,6 +732,15 @@ if (process.env.NODE_ENV !== 'test') {
         // Start background auction settlement check
         setInterval(settleExpiredAuctions, 10000); // Check every 10 seconds
 
+        // Start background AI spoilage risk prediction agent (runs every 60 seconds)
+        try {
+            const { startSpoilageRiskAgent } = require('./jobs/spoilageRiskAgent');
+            startSpoilageRiskAgent(60000);
+            logger.info('Background AI spoilage risk agent initialized successfully');
+        } catch (error) {
+            logger.error('Failed to initialize background AI spoilage risk agent:', { error: error.message });
+        }
+
         // Start blockchain event listener
         const contract = blockchainService.getContract();
         if (contract) {
