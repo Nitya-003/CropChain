@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Compass, ShieldCheck, AlertTriangle, Download } from 'lucide-react';
+import { ArrowLeft, Compass, ShieldCheck, AlertTriangle, Download, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { realCropBatchService } from '../../../../services/realCropBatchService';
 import { tokenService } from '../../../../services/token.service';
@@ -182,6 +182,19 @@ const JourneyMap: React.FC = () => {
               <span>Oracle Secured</span>
             </div>
           )}
+
+          {batch.spoilageRisk && (
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-sm border ${
+              batch.spoilageRisk.riskLevel === 'High'
+                ? 'bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900'
+                : batch.spoilageRisk.riskLevel === 'Medium'
+                  ? 'bg-yellow-50 dark:bg-yellow-950/20 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-900'
+                  : 'bg-green-50 dark:bg-green-950/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-900'
+            }`} title={`AI Spoilage Risk Score: ${batch.spoilageRisk.riskScore}%`}>
+              <Sparkles className="h-4 w-4" />
+              <span>Risk: {batch.spoilageRisk.riskLevel} ({batch.spoilageRisk.riskScore}%)</span>
+            </div>
+          )}
           
           <span className="text-xs bg-gray-100 dark:bg-gray-800 border border-gray-250 dark:border-gray-700 text-gray-600 dark:text-gray-400 font-mono px-3 py-1.5 rounded-full uppercase tracking-wider font-semibold">
             {batch.syncStatus || 'synced'}
@@ -263,6 +276,49 @@ const JourneyMap: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* AI Spoilage Risk Prediction Card */}
+          {batch.spoilageRisk && (
+            <div className="journey-glass-card rounded-2xl p-6 text-left border border-gray-150 dark:border-gray-800">
+              <h3 className="font-bold text-gray-800 dark:text-white mb-3 text-base flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-green-600 dark:text-green-400 animate-pulse" />
+                <span>AI Spoilage Risk Prediction</span>
+              </h3>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <span className="text-xs text-gray-400 dark:text-gray-500 block mb-1">Risk Level</span>
+                  <div className={`text-lg font-bold uppercase tracking-wider ${
+                    batch.spoilageRisk.riskLevel === 'High' ? 'text-red-500 animate-pulse' : batch.spoilageRisk.riskLevel === 'Medium' ? 'text-amber-500' : 'text-green-500'
+                  }`}>
+                    {batch.spoilageRisk.riskLevel}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-gray-400 dark:text-gray-500 block mb-1">Risk Score</span>
+                  <div className="text-xl font-black text-gray-800 dark:text-white">
+                    {batch.spoilageRisk.riskScore}%
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-1 bg-gray-50 dark:bg-gray-800/20 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
+                <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 block mb-1.5">Analysis Factors:</span>
+                {batch.spoilageRisk.factors && batch.spoilageRisk.factors.length > 0 ? (
+                  <ul className="list-disc pl-4 space-y-1">
+                    {batch.spoilageRisk.factors.map((factor: string, idx: number) => (
+                      <li key={idx} className="text-xs text-gray-500 dark:text-gray-400">
+                        {factor}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-gray-505 dark:text-gray-400">Optimal transit conditions detected.</p>
+                )}
+              </div>
+              <div className="mt-4 pt-3 border-t border-gray-150 dark:border-gray-800 text-[10px] text-gray-400 dark:text-gray-500 text-right">
+                Analyzed at: {new Date(batch.spoilageRisk.predictedAt).toLocaleString()}
+              </div>
+            </div>
+          )}
 
         </div>
 

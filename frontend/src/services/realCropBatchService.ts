@@ -22,6 +22,16 @@ export interface BatchData {
   }>;
   qrCode: string;
   blockchainHash?: string;
+  isSpoiled?: boolean;
+  currentTemperature?: number;
+  currentHumidity?: number;
+  iotTimestamp?: string;
+  spoilageRisk?: {
+    riskLevel: 'Low' | 'Medium' | 'High';
+    riskScore: number;
+    factors: string[];
+    predictedAt: string;
+  };
 }
 
 export const realCropBatchService = {

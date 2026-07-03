@@ -293,6 +293,26 @@ const batchSchema = new mongoose.Schema({
       timestamp: { type: Date, default: Date.now }
     }]
   },
+  spoilageRisk: {
+    riskLevel: {
+      type: String,
+      enum: ['Low', 'Medium', 'High'],
+      default: 'Low'
+    },
+    riskScore: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0
+    },
+    factors: [{
+      type: String
+    }],
+    predictedAt: {
+      type: Date,
+      default: null
+    }
+  },
   pendingApprovalId: {
     type: String,
     default: null

@@ -1234,6 +1234,153 @@ INSTRUCTIONS & CONSTRAINTS:
             return { success: true, message: fallback.message };
         }
     }
+
+    async predictSpoilageRisk(batch, transitHours) {
+        const systemPrompt = `You are CropRiskAgent, an autonomous AI agent for CropChain. Your task is to evaluate the spoilage risk of a crop batch currently in transit.
+You must return your analysis strictly as a JSON object with the following schema:
+{
+  "riskLevel": "Low" | "Medium" | "High",
+  "riskScore": number (0 to 100 representing risk probability),
+  "factors": string[] (list of specific reasons for this risk level, such as elapsed transit time, crop perishability, or environmental readings)
+}
+Do not return any markdown wrappers, code block formatting (like \`\`\`json), or extra text. Only return the raw JSON string.`;
+
+        const userPrompt = `Please analyze this crop batch:
+Crop Type: ${batch.cropType}
+Quantity: ${batch.quantity} kg
+Harvest Date: ${batch.harvestDate}
+Time in Transit: ${transitHours.toFixed(1)} hours
+Current Temperature: ${batch.iotData?.currentTemperature ?? batch.currentTemperature ?? 'N/A'} °F
+Current Humidity: ${batch.iotData?.currentHumidity ?? batch.currentHumidity ?? 'N/A'} %
+Perishability Guidelines:
+- Tomato: High perishability (optimal temp 50°F, transit > 72 hours starts high risk)
+- Corn: Medium perishability (optimal temp 82°F max, transit > 96 hours starts medium/high risk)
+- Rice/Wheat: Low perishability (transit risk is generally low unless exposed to high humidity/water or extremely long times of > 30 days)
+
+Return the structured risk assessment JSON.`;
+
+        if (this.provider === 'fallback') {
+            return this.calculateLocalSpoilageRisk(batch, transitHours);
+        }
+
+        if (this.provider === 'gemini') {
+            try {
+                const model = this.genAI.getGenerativeModel({
+                    model: this.modelName,
+                    systemInstruction: systemPrompt,
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        temperature: 0.2
+                    }
+                });
+
+                const result = await model.generateContent(userPrompt);
+                const text = result.response.text();
+                const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                return JSON.parse(cleanJson);
+            } catch (error) {
+                console.error('Gemini spoilage prediction error:', error.message);
+                return this.calculateLocalSpoilageRisk(batch, transitHours);
+            }
+        }
+
+        if (this.provider === 'openai') {
+            try {
+                const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+                    model: this.modelName,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    response_format: { type: "json_object" },
+                    temperature: 0.2
+                }, {
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const content = response.data.choices[0].message.content;
+                return JSON.parse(content);
+            } catch (error) {
+                console.error('OpenAI spoilage prediction error:', error.message);
+                return this.calculateLocalSpoilageRisk(batch, transitHours);
+            }
+        }
+
+        return this.calculateLocalSpoilageRisk(batch, transitHours);
+    }
+
+    calculateLocalSpoilageRisk(batch, transitHours) {
+        let riskLevel = 'Low';
+        let riskScore = 10;
+        const factors = [];
+
+        // Check if there is temperature/humidity spoilage threshold breach
+        const temp = batch.iotData?.currentTemperature ?? batch.currentTemperature;
+        const humidity = batch.iotData?.currentHumidity ?? batch.currentHumidity;
+        const crop = batch.cropType?.toLowerCase();
+
+        const maxTemp = crop === 'tomato' ? 50 : crop === 'wheat' ? 86 : crop === 'rice' ? 77 : crop === 'corn' ? 82 : 85;
+        const maxHumidity = crop === 'tomato' ? 85 : crop === 'wheat' ? 65 : crop === 'rice' ? 70 : crop === 'corn' ? 75 : 80;
+
+        if (temp !== undefined && temp !== null && temp > maxTemp) {
+            factors.push(`Temperature (${temp}°F) exceeded optimal threshold (${maxTemp}°F) for ${crop}`);
+            riskScore = Math.max(riskScore, 75);
+        }
+        if (humidity !== undefined && humidity !== null && humidity > maxHumidity) {
+            factors.push(`Humidity (${humidity}%) exceeded optimal threshold (${maxHumidity}%) for ${crop}`);
+            riskScore = Math.max(riskScore, 65);
+        }
+
+        if (crop === 'tomato') {
+            if (transitHours > 72) {
+                riskScore = Math.max(riskScore, 85);
+                factors.push(`Transit time (${transitHours.toFixed(1)} hrs) exceeds 72 hours for highly perishable tomato`);
+            } else if (transitHours > 36) {
+                riskScore = Math.max(riskScore, 50);
+                factors.push(`Transit time (${transitHours.toFixed(1)} hrs) exceeds 36 hours for tomato`);
+            } else {
+                riskScore = Math.max(riskScore, 15);
+                factors.push(`Transit time (${transitHours.toFixed(1)} hrs) is within safe limits for tomato`);
+            }
+        } else if (crop === 'corn') {
+            if (transitHours > 96) {
+                riskScore = Math.max(riskScore, 80);
+                factors.push(`Transit time (${transitHours.toFixed(1)} hrs) exceeds 96 hours for semi-perishable corn`);
+            } else if (transitHours > 48) {
+                riskScore = Math.max(riskScore, 45);
+                factors.push(`Transit time (${transitHours.toFixed(1)} hrs) exceeds 48 hours for corn`);
+            } else {
+                riskScore = Math.max(riskScore, 10);
+                factors.push(`Transit time (${transitHours.toFixed(1)} hrs) is within safe limits for corn`);
+            }
+        } else {
+            // Rice or Wheat
+            if (transitHours > 720) { // 30 days
+                riskScore = Math.max(riskScore, 70);
+                factors.push(`Transit time (${transitHours.toFixed(1)} hrs) exceeds 30 days for ${crop}`);
+            } else if (transitHours > 360) { // 15 days
+                riskScore = Math.max(riskScore, 30);
+                factors.push(`Transit time (${transitHours.toFixed(1)} hrs) exceeds 15 days for ${crop}`);
+            } else {
+                riskScore = Math.max(riskScore, 5);
+                factors.push(`Transit time (${transitHours.toFixed(1)} hrs) is within safe limits for ${crop}`);
+            }
+        }
+
+        // Adjust risk level based on score
+        if (riskScore >= 70) {
+            riskLevel = 'High';
+        } else if (riskScore >= 40) {
+            riskLevel = 'Medium';
+        } else {
+            riskLevel = 'Low';
+        }
+
+        return { riskLevel, riskScore, factors };
+    }
 }
 
 module.exports = new AIService();

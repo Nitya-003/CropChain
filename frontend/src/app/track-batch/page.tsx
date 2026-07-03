@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { Search, Package, ArrowRight, Thermometer, AlertTriangle, CheckCircle, Wifi, AlertOctagon } from 'lucide-react';
+import { Search, Package, ArrowRight, Thermometer, AlertTriangle, CheckCircle, Wifi, AlertOctagon, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { realCropBatchService } from '../../services/realCropBatchService';
 import Timeline from '../../components/Timeline';
@@ -161,6 +161,24 @@ const TrackBatch: React.FC = () => {
                   <label className="text-sm text-gray-500">{t('batch.origin', 'Origin')}</label>
                   <p className="font-semibold text-gray-800 dark:text-white">{batch.origin}</p>
                 </div>
+                {batch.spoilageRisk && (
+                  <div className="pt-4 border-t border-gray-150 dark:border-gray-700">
+                    <label className="text-sm text-gray-500 flex items-center gap-1.5 font-medium">
+                      <Sparkles className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      <span>{t('batch.spoilageRisk', 'AI Spoilage Risk')}</span>
+                    </label>
+                    <div className="mt-1 flex items-center justify-between">
+                      <span className={`font-bold text-sm uppercase tracking-wider ${
+                        batch.spoilageRisk.riskLevel === 'High' ? 'text-red-500 animate-pulse' : batch.spoilageRisk.riskLevel === 'Medium' ? 'text-amber-500' : 'text-green-500'
+                      }`}>
+                        {batch.spoilageRisk.riskLevel}
+                      </span>
+                      <span className="font-bold text-sm text-gray-800 dark:text-white">
+                        {batch.spoilageRisk.riskScore}%
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
