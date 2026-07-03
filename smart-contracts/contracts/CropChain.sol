@@ -78,6 +78,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     /// @dev Tracks the total quantity currently committed across all active listings for a batch.
     ///      Prevents double-listing and over-allocation beyond the physical batch quantity.
     mapping(bytes32 => uint256) public batchListedQuantity;
+    mapping(bytes32 => address) public nextCustodianApproval;
 
     bytes32[] public allBatchIds;
 
@@ -99,6 +100,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     event TwapConfigUpdated(uint256 twapWindowSeconds, uint256 maxPriceDeviationBps);
     event IoTDataRequested(bytes32 indexed batchId, address requester);
     event IoTDataFulfilled(bytes32 indexed batchId, int256 temperature, int256 humidity, bool isSpoiled);
+    event CustodianApproved(bytes32 indexed batchId, address indexed approver, address indexed nextCustodian);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
@@ -260,6 +262,16 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         emit BatchCreated(batchId, ipfsCID, quantity, msg.sender);
     }
 
+    function approveCustodian(bytes32 batchId, address nextCustodian) external whenNotPaused nonReentrant batchExists(batchId) {
+        address currentCustodian = _getCurrentCustodian(batchId);
+        
+        require(msg.sender == currentCustodian || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Not authorized to approve");
+        require(nextCustodian != address(0), "Invalid address");
+        
+        nextCustodianApproval[batchId] = nextCustodian;
+        emit CustodianApproved(batchId, msg.sender, nextCustodian);
+    }
+
     function updateBatch(
         bytes32 batchId,
         Stage stage,
@@ -276,6 +288,17 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         require(bytes(actorName).length > 0, "Actor required");
         require(bytes(location).length > 0, "Location required");
         require(_isNextStage(batchId, stage), "Invalid stage transition");
+
+        // Ensure the caller is approved by the current custodian to take over the batch
+        require(
+            nextCustodianApproval[batchId] == msg.sender || hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            "Not approved by current custodian"
+        );
+        // Clear approval after use
+        nextCustodianApproval[batchId] = address(0);
+
+        // Reset batchListedQuantity to invalidate active ghost listings from previous custodian
+        batchListedQuantity[batchId] = 0;
 
         // Dynamic role checks based on stage transition
         require(_canUpdateStage(batchId, stage), "Role not allowed for this stage transition");
@@ -369,6 +392,8 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         CropBatch storage batch = cropBatches[listing.batchId];
         require(batch.exists && !batch.isRecalled, "Batch unavailable");
         require(!batch.isSpoiled, "Batch is spoiled");
+        
+        require(listing.seller == _getCurrentCustodian(listing.batchId), "Seller is no longer the custodian");
 
         uint256 twapPrice = getTwapPrice(batch.cropTypeHash, twapWindow);
         if (twapPrice > 0) {
@@ -403,9 +428,11 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         require(listing.active, "Listing inactive");
         require(msg.sender == listing.seller || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Not allowed");
 
-        // FIX: Restore the listing's remaining available quantity back to the batch's
-        // listed-quantity tracker so those units can be re-listed or sold via a new listing.
-        batchListedQuantity[listing.batchId] -= listing.quantityAvailable;
+        // Restore the listing's remaining available quantity back to the batch's tracker
+        // ONLY if the seller is still the current custodian.
+        if (listing.seller == _getCurrentCustodian(listing.batchId)) {
+            batchListedQuantity[listing.batchId] -= listing.quantityAvailable;
+        }
 
         listing.active = false;
         listing.quantityAvailable = 0;
@@ -552,6 +579,18 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         if (stage == Stage.Transport && role == ActorRole.Transporter) return true;
         if (stage == Stage.Retailer && role == ActorRole.Retailer) return true;
         return false;
+    }
+
+    function _getCurrentCustodian(bytes32 batchId) internal view returns (address) {
+        SupplyChainUpdate[] storage updates = _batchUpdates[batchId];
+        if (updates.length == 0) {
+            return cropBatches[batchId].creator;
+        }
+        SupplyChainUpdate storage latestUpdate = updates[updates.length - 1];
+        if (latestUpdate.stage == Stage.Farmer) {
+            return cropBatches[batchId].creator;
+        }
+        return latestUpdate.updatedBy;
     }
 
     function _canUpdateStage(bytes32 batchId, Stage newStage) internal view returns (bool) {
