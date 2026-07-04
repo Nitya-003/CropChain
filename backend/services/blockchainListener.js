@@ -1,5 +1,6 @@
-const Batch = require('../models/Batch');
+﻿const Batch = require('../models/Batch');
 const socketService = require('./socketService');
+const logger = require('../utils/logger');
 
 function startListener(contract) {
 
@@ -19,7 +20,7 @@ function startListener(contract) {
         { upsert: true }
       );
 
-      console.log(`[SYNC] Batch ${id} → ${stageStr} by ${actor}`);
+      logger.info(`[SYNC] Batch ${id} → ${stageStr} by ${actor}`);
 
       // Emit real-time update to all clients watching this batch
       const batchData = await Batch.findOne({ batchId: id }).lean();
@@ -43,10 +44,11 @@ function startListener(contract) {
       }
 
     } catch (err) {
-      console.error('[SYNC ERROR]', err);
+      logger.error('[SYNC ERROR]', err);
     }
   });
 
 }
 
 module.exports = startListener;
+
