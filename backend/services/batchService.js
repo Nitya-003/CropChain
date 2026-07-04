@@ -428,18 +428,32 @@ class BatchService {
             const allBatches = await Batch.find().sort({ createdAt: -1 }).limit(limit).lean();
 
             // Compute stats efficiently without loading full dataset
-            const [totalBatches, recalledBatches, recentBatches] = await Promise.all([
+            const [totalBatches, recalledBatches, recentBatches, batchStats] = await Promise.all([
                 Batch.countDocuments(),
                 Batch.countDocuments({ isRecalled: true }),
-                Batch.countDocuments({ createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } })
+                Batch.countDocuments({ createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } }),
+                Batch.aggregate([
+                    {
+                        $group: {
+                            _id: null,
+                            totalFarmers: { $addToSet: '$farmerId' },
+                            totalQuantity: { $sum: { $ifNull: ['$quantity', 0] } }
+                        }
+                    }
+                ])
             ]);
+
+            const aggregateStats = batchStats[0] || {
+                totalFarmers: [],
+                totalQuantity: 0
+            };
 
             const stats = {
                 totalBatches,
                 recalledBatches,
                 recentBatches,
-                totalFarmers: new Set(allBatches.map(b => b.farmerName)).size,
-                totalQuantity: allBatches.reduce((sum, b) => sum + (b.quantity || 0), 0)
+                totalFarmers: aggregateStats.totalFarmers.length,
+                totalQuantity: aggregateStats.totalQuantity
             };
 
             return {

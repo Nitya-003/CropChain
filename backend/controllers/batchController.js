@@ -459,19 +459,31 @@ exports.getBatches = async (req, res) => {
             }
         }
 
-        const totalItems = await Batch.countDocuments(query);
+        const [totalItems, statsAggregation] = await Promise.all([
+            Batch.countDocuments(query),
+            Batch.aggregate([
+                { $match: query },
+                {
+                    $group: {
+                        _id: null,
+                        totalFarmers: { $addToSet: '$farmerId' },
+                        totalQuantity: { $sum: { $ifNull: ['$quantity', 0] } }
+                    }
+                }
+            ])
+        ]);
 
-        // Fetch slim batch data for calculating statistics
-        const allMatchingBatches = await Batch.find(query).select('farmerName quantity').lean();
-        const totalFarmers = new Set(allMatchingBatches.map(b => b.farmerName)).size;
-        const totalQuantity = allMatchingBatches.reduce((sum, b) => sum + (b.quantity || 0), 0);
+        const aggregateStats = statsAggregation[0] || {
+            totalFarmers: [],
+            totalQuantity: 0
+        };
 
         res.json(apiResponse.successResponse({
             batches,
             stats: {
                 totalBatches: totalItems,
-                totalFarmers,
-                totalQuantity,
+                totalFarmers: aggregateStats.totalFarmers.length,
+                totalQuantity: aggregateStats.totalQuantity,
                 recentBatches: batches.slice(0, 5)
             },
             pagination: {
