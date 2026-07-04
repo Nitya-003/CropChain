@@ -2,7 +2,6 @@ require('dotenv').config();
 const http = require('http');
 const app = require('./app');
 const express = require('express');
-const notificationRoutes = require('./routes/notificationRoutes');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
 const logger = require('./utils/logger');
@@ -252,9 +251,6 @@ app.use("/api", mainRoutes);
 // Mount Oracle routes
 app.use('/api/oracle', oracleRoutes);
 
-// Mount Notification routes
-app.use('/api/notifications', notificationRoutes);
-
 // Swagger/OpenAPI Documentation
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     customCss: '.swagger-ui .topbar { display: none }',
@@ -315,7 +311,6 @@ const recommendRoutes = require('./routes/recommendRoutes');
 const activityRoutes = require('./routes/activityRoutes');
 const auctionRoutes = require('./routes/auctionRoutes');
 const lifecycleRoutes = require('./routes/lifecycleRoutes');
-const logisticsRoutes = require('./routes/logisticsRoutes');
 
 // Mount Auth Routes with per-endpoint rate limiting
 app.use('/api/auth/login', authLimiter);
@@ -352,8 +347,6 @@ app.use('/api/approvals', batchLimiter, approvalRoutes);
 app.use('/api/auctions', auctionRoutes);
 // Mount Lifecycle Routes
 app.use('/api/batches', generalLimiter, lifecycleRoutes);
-// Mount Logistics Routes
-app.use('/api/logistics', generalLimiter, logisticsRoutes);
 
 // Batch routes - ALL USING MONGODB ONLY
 

@@ -67,6 +67,8 @@ const auctionRoutes = require('./routes/auctionRoutes');
 const lifecycleRoutes = require('./routes/lifecycleRoutes');
 const batchRoutes = require('./routes/batchRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const logisticsRoutes = require('./routes/logisticsRoutes');
 const { authLimiter, registerLimiter, generalLimiter, batchLimiter, aiLimiter } = require('./middleware/rateLimiters');
 const apiResponse = require('./utils/apiResponse');
 
@@ -117,6 +119,10 @@ app.use('/api/batches', batchLimiter, batchRoutes);
 
 // AI Chat
 app.use('/api/ai', aiRoutes);
+
+// Notifications & Logistics
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/logistics', generalLimiter, logisticsRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
