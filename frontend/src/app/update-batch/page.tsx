@@ -24,6 +24,9 @@ const UpdateBatch: React.FC = () => {
   });
   const [isUpdating, setIsUpdating] = useState(false);
   const [isRequestingIoT, setIsRequestingIoT] = useState(false);
+  const [transactionStage, setTransactionStage] = useState<
+  'idle' | 'wallet' | 'confirming'
+>('idle');
 
   const stages = [
     { value: 'farmer', label: 'Farmer' },
@@ -120,7 +123,8 @@ const UpdateBatch: React.FC = () => {
       return;
     }
 
-    setIsRequestingIoT(true);
+   setIsRequestingIoT(true);
+setTransactionStage('wallet');
     
     try {
       // Call smart contract to request IoT verification
@@ -139,13 +143,16 @@ const UpdateBatch: React.FC = () => {
         const batchIdBytes32 = ethers.encodeBytes32String(batch.batchId);
         
         const tx = await contract.requestIoTVerification(batchIdBytes32);
-        
-        toast.loading('Requesting IoT verification...');
-        
-        // Wait for transaction confirmation
-        const receipt = await tx.wait();
-        
-        toast.success(`IoT verification requested! Transaction: ${receipt.transactionHash}`);
+        setTransactionStage('confirming');
+        const loadingToast = toast.loading(
+  'Waiting for blockchain confirmation...'
+);
+// Wait for transaction confirmation
+const receipt = await tx.wait();
+toast.dismiss(loadingToast);
+toast.success(
+  `IoT verification requested successfully!\nTX: ${receipt.transactionHash.slice(0, 10)}...`
+);
         
         // Refresh batch data to show updated status
         setTimeout(async () => {
@@ -165,6 +172,7 @@ const UpdateBatch: React.FC = () => {
       toast.error('Failed to request IoT verification. Please try again.');
     } finally {
       setIsRequestingIoT(false);
+      setTransactionStage('idle');
     }
   };
 
@@ -458,15 +466,19 @@ const UpdateBatch: React.FC = () => {
                     >
                       {isRequestingIoT ? (
                         <>
-                          <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                          <span>Requesting...</span>
-                        </>
-                      ) : (
-                        <>
+                        <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                        <span>
+                          {transactionStage === 'wallet'
+                          ? 'Confirm in Wallet...'
+                          : 'Waiting for Confirmation...'}
+                          </span>
+                          </>
+                          ) : (
+                          <>
                           <Thermometer className="h-4 w-4" />
                           <span>Request IoT Verification</span>
-                        </>
-                      )}
+                          </>
+                        )}
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
