@@ -11,6 +11,7 @@ const mockCounter = {
 const mockBatch = {
   create: jest.fn(),
   countDocuments: jest.fn(),
+  aggregate: jest.fn(),
   findOne: jest.fn(),
   findOneAndUpdate: jest.fn(),
   find: jest.fn()
