@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Blockchain Queue Service
  * 
  * This service manages the job queue for blockchain transactions using BullMQ.
@@ -14,6 +14,7 @@
 
 const { Queue, QueueEvents } = require('bullmq');
 const { createQueueConnection } = require('../config/redis');
+const logger = require('../utils/logger');
 
 // Queue names
 const QUEUE_NAMES = {
@@ -81,22 +82,22 @@ function initializeQueue() {
 
     // Log queue events
     queueEvents.on('completed', ({ jobId, returnvalue }) => {
-        console.log(`[Queue] Job ${jobId} completed:`, returnvalue);
+        logger.info(`[Queue] Job ${jobId} completed:`, returnvalue);
     });
 
     queueEvents.on('failed', ({ jobId, failedReason }) => {
-        console.error(`[Queue] Job ${jobId} failed:`, failedReason);
+        logger.error(`[Queue] Job ${jobId} failed:`, failedReason);
     });
 
     queueEvents.on('progress', ({ jobId, data }) => {
-        console.log(`[Queue] Job ${jobId} progress:`, data);
+        logger.info(`[Queue] Job ${jobId} progress:`, data);
     });
 
     queueEvents.on('error', (error) => {
-        console.error('[Queue] Queue event error:', error.message);
+        logger.error('[Queue] Queue event error:', error.message);
     });
 
-    console.log('✓ Blockchain transaction queue initialized');
+    logger.info('✓ Blockchain transaction queue initialized');
     return blockchainQueue;
 }
 
@@ -138,7 +139,7 @@ async function addCreateBatchJob(batchData, options = {}) {
         ...options
     });
 
-    console.log(`[Queue] Added createBatch job ${job.id} for batch ${batchData.batchId}`);
+    logger.info(`[Queue] Added createBatch job ${job.id} for batch ${batchData.batchId}`);
     return job;
 }
 
@@ -165,7 +166,7 @@ async function addUpdateBatchJob(batchId, updateData, options = {}) {
         ...options
     });
 
-    console.log(`[Queue] Added updateBatch job ${job.id} for batch ${batchId}`);
+    logger.info(`[Queue] Added updateBatch job ${job.id} for batch ${batchId}`);
     return job;
 }
 
@@ -190,7 +191,7 @@ async function addRecallBatchJob(batchId, options = {}) {
         ...options
     });
 
-    console.log(`[Queue] Added recallBatch job ${job.id} for batch ${batchId}`);
+    logger.info(`[Queue] Added recallBatch job ${job.id} for batch ${batchId}`);
     return job;
 }
 
@@ -306,7 +307,7 @@ async function retryJob(jobId) {
     }
 
     await job.retry();
-    console.log(`[Queue] Retrying job ${jobId}`);
+    logger.info(`[Queue] Retrying job ${jobId}`);
     return true;
 }
 
@@ -322,7 +323,7 @@ async function closeQueue() {
     if (blockchainQueue) {
         await blockchainQueue.close();
         blockchainQueue = null;
-        console.log('✓ Blockchain queue closed');
+        logger.info('✓ Blockchain queue closed');
     }
 }
 
@@ -334,7 +335,7 @@ async function pauseQueue() {
     if (!queue) return;
 
     await queue.pause();
-    console.log('[Queue] Queue paused');
+    logger.info('[Queue] Queue paused');
 }
 
 /**
@@ -345,7 +346,7 @@ async function resumeQueue() {
     if (!queue) return;
 
     await queue.resume();
-    console.log('[Queue] Queue resumed');
+    logger.info('[Queue] Queue resumed');
 }
 
 module.exports = {
@@ -366,3 +367,5 @@ module.exports = {
     pauseQueue,
     resumeQueue
 };
+
+
