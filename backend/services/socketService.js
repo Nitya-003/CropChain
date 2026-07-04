@@ -1,5 +1,6 @@
-const { Server } = require('socket.io');
+﻿const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
+const logger = require('../utils/logger');
 
 let io = null;
 
@@ -35,48 +36,48 @@ function initializeSocketIO(httpServer) {
 
     // Set up connection handling
     io.on('connection', (socket) => {
-      console.log(`[SOCKET] Client connected: ${socket.id}`);
+      logger.info(`[SOCKET] Client connected: ${socket.id}`);
 
       // Automatically join user-specific room if authenticated
       if (socket.user && socket.user.id) {
         socket.join(`user:${socket.user.id}`);
-        console.log(`[SOCKET] Client ${socket.id} joined user room: ${socket.user.id}`);
+        logger.info(`[SOCKET] Client ${socket.id} joined user room: ${socket.user.id}`);
       }
 
       // Handle client joining batch-specific rooms
       socket.on('join-batch-room', (batchId) => {
         socket.join(`batch:${batchId}`);
-        console.log(`[SOCKET] Client ${socket.id} joined batch room: ${batchId}`);
+        logger.info(`[SOCKET] Client ${socket.id} joined batch room: ${batchId}`);
       });
 
       // Handle client leaving batch rooms
       socket.on('leave-batch-room', (batchId) => {
         socket.leave(`batch:${batchId}`);
-        console.log(`[SOCKET] Client ${socket.id} left batch room: ${batchId}`);
+        logger.info(`[SOCKET] Client ${socket.id} left batch room: ${batchId}`);
       });
 
       // Handle client joining verification-specific rooms
       socket.on('join-verification-room', (userId) => {
         socket.join(`verification:user:${userId}`);
-        console.log(`[SOCKET] Client ${socket.id} joined verification room: ${userId}`);
+        logger.info(`[SOCKET] Client ${socket.id} joined verification room: ${userId}`);
       });
 
       // Handle client leaving verification rooms
       socket.on('leave-verification-room', (userId) => {
         socket.leave(`verification:user:${userId}`);
-        console.log(`[SOCKET] Client ${socket.id} left verification room: ${userId}`);
+        logger.info(`[SOCKET] Client ${socket.id} left verification room: ${userId}`);
       });
 
       // Join auction room
       socket.on('join_auction', (auctionId) => {
         socket.join(`auction:${auctionId}`);
-        console.log(`[SOCKET] Client ${socket.id} joined auction room: ${auctionId}`);
+        logger.info(`[SOCKET] Client ${socket.id} joined auction room: ${auctionId}`);
       });
 
       // Leave auction room
       socket.on('leave_auction', (auctionId) => {
         socket.leave(`auction:${auctionId}`);
-        console.log(`[SOCKET] Client ${socket.id} left auction room: ${auctionId}`);
+        logger.info(`[SOCKET] Client ${socket.id} left auction room: ${auctionId}`);
       });
 
       // Place bid
@@ -166,7 +167,7 @@ function initializeSocketIO(httpServer) {
           });
           await newBid.save();
 
-          console.log(`[SOCKET] Bid placed successfully on auction ${auctionId} by user ${bidderName}: ${bidAmount}`);
+          logger.info(`[SOCKET] Bid placed successfully on auction ${auctionId} by user ${bidderName}: ${bidAmount}`);
 
           // 6. Broadcast auction_update to room
           const populatedBidder = await User.findById(updatedAuction.highestBidder).select('name').lean();
@@ -177,23 +178,23 @@ function initializeSocketIO(httpServer) {
           io.to(`auction:${auctionId}`).emit('auction_update', broadcastPayload);
 
         } catch (error) {
-          console.error('[SOCKET ERROR] error placing bid:', error);
+          logger.error('[SOCKET ERROR] error placing bid:', error);
           socket.emit('bid_error', { message: 'An internal error occurred while placing your bid.' });
         }
       });
 
       // Handle disconnection
       socket.on('disconnect', () => {
-        console.log(`[SOCKET] Client disconnected: ${socket.id}`);
+        logger.info(`[SOCKET] Client disconnected: ${socket.id}`);
       });
 
       // Handle errors
       socket.on('error', (error) => {
-        console.error(`[SOCKET ERROR] Client ${socket.id}:`, error);
+        logger.error(`[SOCKET ERROR] Client ${socket.id}:`, error);
       });
     });
 
-    console.log('[SOCKET] Socket.IO server initialized');
+    logger.info('[SOCKET] Socket.IO server initialized');
   }
 
   return io;
@@ -205,7 +206,7 @@ function initializeSocketIO(httpServer) {
  */
 function getIO() {
   if (!io) {
-    console.warn('[SOCKET WARNING] Socket.IO not initialized. Call initializeSocketIO first.');
+    logger.warn('[SOCKET WARNING] Socket.IO not initialized. Call initializeSocketIO first.');
   }
   return io;
 }
@@ -219,9 +220,9 @@ function getIO() {
 function emitToBatchRoom(batchId, eventName, data) {
   if (io) {
     io.to(`batch:${batchId}`).emit(eventName, data);
-    console.log(`[SOCKET] Emitted "${eventName}" to batch room ${batchId}`);
+    logger.info(`[SOCKET] Emitted "${eventName}" to batch room ${batchId}`);
   } else {
-    console.warn('[SOCKET WARNING] Cannot emit to batch room - Socket.IO not initialized');
+    logger.warn('[SOCKET WARNING] Cannot emit to batch room - Socket.IO not initialized');
   }
 }
 
@@ -233,9 +234,9 @@ function emitToBatchRoom(batchId, eventName, data) {
 function emitGlobal(eventName, data) {
   if (io) {
     io.emit(eventName, data);
-    console.log(`[SOCKET] Emitted global event "${eventName}"`);
+    logger.info(`[SOCKET] Emitted global event "${eventName}"`);
   } else {
-    console.warn('[SOCKET WARNING] Cannot emit global event - Socket.IO not initialized');
+    logger.warn('[SOCKET WARNING] Cannot emit global event - Socket.IO not initialized');
   }
 }
 
@@ -248,9 +249,9 @@ function emitGlobal(eventName, data) {
 function emitToVerificationRoom(userId, eventName, data) {
   if (io) {
     io.to(`verification:user:${userId}`).emit(eventName, data);
-    console.log(`[SOCKET] Emitted "${eventName}" to verification room ${userId}`);
+    logger.info(`[SOCKET] Emitted "${eventName}" to verification room ${userId}`);
   } else {
-    console.warn('[SOCKET WARNING] Cannot emit to verification room - Socket.IO not initialized');
+    logger.warn('[SOCKET WARNING] Cannot emit to verification room - Socket.IO not initialized');
   }
 }
 
@@ -263,9 +264,9 @@ function emitToVerificationRoom(userId, eventName, data) {
 function emitToUser(userId, eventName, data) {
   if (io) {
     io.to(`user:${userId}`).emit(eventName, data);
-    console.log(`[SOCKET] Emitted "${eventName}" to user ${userId}`);
+    logger.info(`[SOCKET] Emitted "${eventName}" to user ${userId}`);
   } else {
-    console.warn('[SOCKET WARNING] Cannot emit to user - Socket.IO not initialized');
+    logger.warn('[SOCKET WARNING] Cannot emit to user - Socket.IO not initialized');
   }
 }
 
@@ -277,3 +278,5 @@ module.exports = {
   emitToVerificationRoom,
   emitToUser
 };
+
+

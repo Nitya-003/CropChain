@@ -35,16 +35,18 @@ async function clearUser(): Promise<void> {
 export const authService = {
   async login(email: string, password: string): Promise<{ user: User; token: string }> {
     const res = await api.post<{ data: { user: User; token: string } }>('/auth/login', { email, password });
-    await setToken(res.data.token);
-    await storeUser(res.data.user);
-    return res.data;
+    const authData = res.data.data;
+    await setToken(authData.token);
+    await storeUser(authData.user);
+    return authData;
   },
 
   async register(name: string, email: string, password: string, role: string): Promise<{ user: User; token: string }> {
     const res = await api.post<{ data: { user: User; token: string } }>('/auth/register', { name, email, password, role });
-    await setToken(res.data.token);
-    await storeUser(res.data.user);
-    return res.data;
+    const authData = res.data.data;
+    await setToken(authData.token);
+    await storeUser(authData.user);
+    return authData;
   },
 
   async logout(): Promise<void> {
@@ -56,9 +58,10 @@ export const authService = {
   async refreshSession(): Promise<User | null> {
     try {
       const res = await api.post<{ data: { user: User; token: string } }>('/auth/refresh');
-      await setToken(res.data.token);
-      await storeUser(res.data.user);
-      return res.data.user;
+      const authData = res.data.data;
+      await setToken(authData.token);
+      await storeUser(authData.user);
+      return authData.user;
     } catch {
       await clearToken();
       await clearUser();

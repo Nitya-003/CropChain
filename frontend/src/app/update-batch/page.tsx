@@ -24,9 +24,11 @@ const UpdateBatch: React.FC = () => {
   });
   const [isUpdating, setIsUpdating] = useState(false);
   const [isRequestingIoT, setIsRequestingIoT] = useState(false);
-  const [transactionStage, setTransactionStage] = useState<
-  'idle' | 'wallet' | 'confirming'
->('idle');
+  const [transactionDetails, setTransactionDetails] = useState<{
+  hash: string;
+  status: 'Confirmed' | 'Pending';
+} | null>(null);
+
 
   const stages = [
     { value: 'farmer', label: 'Farmer' },
@@ -143,16 +145,18 @@ setTransactionStage('wallet');
         const batchIdBytes32 = ethers.encodeBytes32String(batch.batchId);
         
         const tx = await contract.requestIoTVerification(batchIdBytes32);
-        setTransactionStage('confirming');
-        const loadingToast = toast.loading(
-  'Waiting for blockchain confirmation...'
-);
-// Wait for transaction confirmation
-const receipt = await tx.wait();
-toast.dismiss(loadingToast);
-toast.success(
-  `IoT verification requested successfully!\nTX: ${receipt.transactionHash.slice(0, 10)}...`
-);
+        
+        const loadingToast = toast.loading("Requesting IoT verification...");
+        
+        // Wait for transaction confirmation
+        const receipt = await tx.wait();
+        toast.dismiss(loadingToast);
+        setTransactionDetails({
+          hash: receipt.transactionHash,
+          status: 'Confirmed'
+        });
+        
+        toast.success(`IoT verification requested! Transaction: ${receipt.transactionHash}`);
         
         // Refresh batch data to show updated status
         setTimeout(async () => {
@@ -161,6 +165,7 @@ toast.success(
             setBatch(updatedBatch);
           } catch (error) {
             console.error('Error refreshing batch data:', error);
+            toast.dismiss(loadingToast);
           }
         }, 2000);
         
@@ -168,9 +173,11 @@ toast.success(
         toast.error('Please install MetaMask to use this feature');
       }
     } catch (error) {
-      console.error('Error requesting IoT verification:', error);
-      toast.error('Failed to request IoT verification. Please try again.');
-    } finally {
+  toast.dismiss();
+
+  console.error('Error requesting IoT verification:', error);
+  toast.error('Failed to request IoT verification. Please try again.');
+}finally {
       setIsRequestingIoT(false);
       setTransactionStage('idle');
     }
@@ -192,7 +199,16 @@ toast.success(
     const idx = stagesList.indexOf(stage?.toLowerCase());
     return idx >= 0 ? idx : 0;
   };
+const handleCopyTransactionHash = async () => {
+  if (!transactionDetails) return;
 
+  try {
+    await navigator.clipboard.writeText(transactionDetails.hash);
+    toast.success("Transaction hash copied!");
+  } catch {
+    toast.error("Failed to copy transaction hash.");
+  }
+};
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <div className="text-center">
@@ -484,7 +500,49 @@ toast.success(
                   <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
                     Trigger IoT sensors to verify temperature and humidity conditions during transit
                   </p>
-                </div>
+                  {transactionDetails && (
+  <div className="mt-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-5">
+    <h3 className="text-lg font-semibold text-green-700 dark:text-green-300 mb-4">
+      ✅ Transaction Confirmed
+    </h3>
+
+    <div className="flex justify-between items-center">
+  <span className="font-medium">Status</span>
+
+  <span className="px-2 py-1 rounded-full bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs font-semibold">
+    {transactionDetails.status}
+  </span>
+</div>
+
+      <div>
+        <p className="font-medium mb-2">Transaction Hash</p>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-xs break-all">
+            {`${transactionDetails.hash.slice(0, 10)}...${transactionDetails.hash.slice(-8)}`}
+          </code>
+
+          <button
+            onClick={handleCopyTransactionHash}
+            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs"
+          >
+            Copy
+          </button>
+
+          <a
+            href={`https://sepolia.etherscan.io/tx/${transactionDetails.hash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs"
+          >
+            View on Etherscan
+          </a>
+        </div>
+      </div>
+    </div>
+  
+)}
+              </div>               
               )}
             </form>
           </div>
