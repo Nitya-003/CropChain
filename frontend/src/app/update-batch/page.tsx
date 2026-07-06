@@ -1,7 +1,19 @@
 "use client";
 import React, { useState } from 'react';
 
-import { RefreshCw, Search, Package, Clock, User, MapPin, Shield, Lock, Thermometer } from 'lucide-react';
+import {
+  RefreshCw,
+  Search,
+  Package,
+  Clock,
+  User,
+  MapPin,
+  Shield,
+  Lock,
+  Thermometer,
+  Copy,
+  Check
+} from "lucide-react";
 import Timeline from '../../components/Timeline';
 import { realCropBatchService } from '../../services/realCropBatchService';
 import toast from 'react-hot-toast';
@@ -25,9 +37,11 @@ const UpdateBatch: React.FC = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isRequestingIoT, setIsRequestingIoT] = useState(false);
   const [transactionDetails, setTransactionDetails] = useState<{
+    
   hash: string;
   status: 'Confirmed' | 'Pending';
 } | null>(null);
+const [copied, setCopied] = useState(false);
 
 
   const stages = [
@@ -202,7 +216,15 @@ const handleCopyTransactionHash = async () => {
 
   try {
     await navigator.clipboard.writeText(transactionDetails.hash);
+
+    setCopied(true);
+
     toast.success("Transaction hash copied!");
+
+    setTimeout(() => {
+      setCopied(false);
+    }, 2000);
+
   } catch {
     toast.error("Failed to copy transaction hash.");
   }
@@ -517,11 +539,25 @@ const handleCopyTransactionHash = async () => {
           </code>
 
           <button
-            onClick={handleCopyTransactionHash}
-            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs"
-          >
-            Copy
-          </button>
+  onClick={handleCopyTransactionHash}
+  className={`px-3 py-1 rounded text-xs flex items-center gap-1 transition-all ${
+    copied
+      ? "bg-green-600 text-white"
+      : "bg-blue-600 hover:bg-blue-700 text-white"
+  }`}
+>
+  {copied ? (
+    <>
+      <Check className="h-3 w-3" />
+      Copied!
+    </>
+  ) : (
+    <>
+      <Copy className="h-3 w-3" />
+      Copy
+    </>
+  )}
+</button>
 
           <a
             href={`https://sepolia.etherscan.io/tx/${transactionDetails.hash}`}
