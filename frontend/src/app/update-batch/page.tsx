@@ -24,6 +24,7 @@ const UpdateBatch: React.FC = () => {
   });
   const [isUpdating, setIsUpdating] = useState(false);
   const [isRequestingIoT, setIsRequestingIoT] = useState(false);
+  const [transactionLocked, setTransactionLocked] = useState(false);
   const [transactionDetails, setTransactionDetails] = useState<{
   hash: string;
   status: 'Confirmed' | 'Pending';
@@ -65,7 +66,10 @@ const UpdateBatch: React.FC = () => {
 
   const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!batch) return;
+   if (!batch) {
+  setTransactionLocked(false);
+  return;
+}
     
     // RBAC Check: Verify user can update to this stage
     if (!canUpdateToStage(updateData.stage)) {
@@ -111,6 +115,12 @@ const UpdateBatch: React.FC = () => {
   };
 
   const handleRequestIoTVerification = async () => {
+    if (transactionLocked) {
+       toast.error("Transaction already in progress.");
+  return;
+}
+
+setTransactionLocked(true);
     if (!batch || !batch.batchId) {
       toast.error('Please search for a batch first');
       return;
@@ -178,6 +188,7 @@ const UpdateBatch: React.FC = () => {
   toast.error('Failed to request IoT verification. Please try again.');
 }finally {
       setIsRequestingIoT(false);
+      setTransactionLocked(false);
     }
   };
 
@@ -471,7 +482,7 @@ const handleCopyTransactionHash = async () => {
                     <button
                       type="button"
                       onClick={handleRequestIoTVerification}
-                      disabled={isRequestingIoT || !batch.batchId}
+                     disabled={isRequestingIoT || transactionLocked}
                       className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 ${
                         isRequestingIoT || !batch.batchId
                           ? 'bg-gray-400 cursor-not-allowed'
