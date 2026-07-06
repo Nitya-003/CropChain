@@ -461,7 +461,29 @@ const CropRecommendation: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      {/* Save and Compare buttons */}
+<div className="flex gap-4 mt-4">
+  <button
+    onClick={() => {
+      const existing = JSON.parse(localStorage.getItem('savedRecommendations') || '[]');
+      const newList = [...existing, { result, meta }];
+      localStorage.setItem('savedRecommendations', JSON.stringify(newList));
+      toast.success('Result saved for comparison');
+    }}
+    className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg transition-colors"
+  >
+    Save Result
+  </button>
+  <button
+    onClick={() => {
+      router.push('/compare-recommendations');
+    }}
+    className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-4 py-2 rounded-lg transition-colors"
+  >
+    Compare Saved Results
+  </button>
+</div>
+)}}
 
       {/* ── Info callouts ── */}
       <div className="grid sm:grid-cols-3 gap-4 text-sm">
