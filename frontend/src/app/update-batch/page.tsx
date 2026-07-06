@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { RefreshCw, Search, Package, Clock, User, MapPin, Shield, Lock, Thermometer } from 'lucide-react';
 import Timeline from '../../components/Timeline';
@@ -24,6 +24,8 @@ const UpdateBatch: React.FC = () => {
   });
   const [isUpdating, setIsUpdating] = useState(false);
   const [isRequestingIoT, setIsRequestingIoT] = useState(false);
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [walletAddress, setWalletAddress] = useState('');
   const [transactionDetails, setTransactionDetails] = useState<{
   hash: string;
   status: 'Confirmed' | 'Pending';
@@ -207,8 +209,68 @@ const handleCopyTransactionHash = async () => {
     toast.error("Failed to copy transaction hash.");
   }
 };
+
+useEffect(() => {
+  const checkWalletConnection = async () => {
+    const { ethereum } = window as any;
+
+    if (!ethereum) {
+      setWalletConnected(false);
+      setWalletAddress('');
+      return;
+    }
+
+    try {
+      const accounts = await ethereum.request({
+        method: 'eth_accounts',
+      });
+
+      if (accounts.length > 0) {
+        setWalletConnected(true);
+        setWalletAddress(accounts[0]);
+      } else {
+        setWalletConnected(false);
+        setWalletAddress('');
+      }
+    } catch {
+      setWalletConnected(false);
+      setWalletAddress('');
+    }
+  };
+
+  checkWalletConnection();
+
+  const { ethereum } = window as any;
+
+  if (ethereum) {
+    ethereum.on('accountsChanged', checkWalletConnection);
+    ethereum.on('connect', checkWalletConnection);
+
+    return () => {
+      ethereum.removeListener('accountsChanged', checkWalletConnection);
+       ethereum.removeListener('connect', checkWalletConnection);
+    };
+  }
+}, []);
+
   return (
     <div className="max-w-6xl mx-auto space-y-8">
+      <div className="flex justify-end mb-4">
+  {walletConnected ? (
+    <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm font-medium">
+      <span className="w-2 h-2 rounded-full bg-green-500"></span>
+      Connected
+      <span className="font-mono">
+        {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+      </span>
+    </div>
+  ) : (
+    <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-100 text-red-700 text-sm font-medium">
+      <span className="w-2 h-2 rounded-full bg-red-500"></span>
+      Disconnected
+    </div>
+  )}
+</div>
       <div className="text-center">
         <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-4">Update Crop Batch</h1>
         <p className="text-xl text-gray-600 dark:text-gray-300">Add supply chain updates to existing batches</p>
