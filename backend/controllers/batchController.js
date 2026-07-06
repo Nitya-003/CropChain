@@ -221,6 +221,7 @@ exports.updateBatch = async (req, res) => {
         }
 
         // Update batch fields
+        const previousStage = batch.currentStage;
         batch.currentStage = normalizedStage;
         
         // Add update entry
@@ -244,7 +245,7 @@ exports.updateBatch = async (req, res) => {
             eventType = 'ownership_transferred';
             description = `Batch ownership transferred to Mandi at ${validatedData.location}`;
         } else if (normalizedStage === 'transport') {
-            if (batch.currentStage === 'transport') {
+            if (previousStage === 'transport') {
                 eventType = 'shipment_status_updated';
                 description = `Shipment status updated: batch is at ${validatedData.location}`;
             } else {
