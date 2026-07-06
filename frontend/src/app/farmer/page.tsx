@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Leaf, Package, Plus, RefreshCw, TrendingUp, Clock, MapPin, Eye, Gavel } from 'lucide-react';
 import Link from 'next/link';
 import { realCropBatchService } from '../../services/realCropBatchService';
@@ -14,6 +15,7 @@ import { auctionService, Auction } from '../../services/auctionService';
 import toast from 'react-hot-toast';
 
 const FarmerDashboardComponent: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [batches, setBatches] = useState<any[]>([]);
   const [activeAuctions, setActiveAuctions] = useState<Auction[]>([]);
@@ -58,11 +60,11 @@ const FarmerDashboardComponent: React.FC = () => {
     const priceNum = Number(startPrice);
     const durationNum = Number(duration);
     if (isNaN(priceNum) || priceNum <= 0) {
-      toast.error('Starting price must be a valid positive number');
+      toast.error(t('validation.validPositiveNumber'));
       return;
     }
     if (isNaN(durationNum) || durationNum <= 0) {
-      toast.error('Duration must be a valid positive number');
+      toast.error(t('validation.validDuration'));
       return;
     }
     setSubmittingAuction(true);
@@ -196,21 +198,21 @@ const FarmerDashboardComponent: React.FC = () => {
             <Leaf className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
           </div>
           <div className="text-left">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Farmer Dashboard</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('farmer.dashboard')}</h1>
             <p className="text-sm text-muted-foreground">
-              Welcome back, <span className="font-semibold text-foreground">{user?.name || 'Farmer'}</span> — manage your crop batches
+              {t('farmer.welcomeBack', { name: user?.name || t('actors.farmer') })}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={loadBatches} className="gap-1.5 bg-background/50">
             <RefreshCw className="h-3.5 w-3.5" />
-            Refresh
+            {t('farmer.refresh')}
           </Button>
           <Link href="/add-batch">
             <Button size="sm" className="gap-1.5">
               <Plus className="h-3.5 w-3.5" />
-              New Batch
+              {t('farmer.newBatch')}
             </Button>
           </Link>
         </div>
@@ -220,40 +222,40 @@ const FarmerDashboardComponent: React.FC = () => {
       <div className="grid md:grid-cols-3 gap-6">
         <Card className="border border-border bg-card hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <span className="text-sm font-medium text-muted-foreground">My Batches</span>
+            <span className="text-sm font-medium text-muted-foreground">{t('farmer.myBatches')}</span>
             <div className="bg-indigo-500/10 p-2 rounded-xl">
               <Package className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
             </div>
           </CardHeader>
           <CardContent className="space-y-1 text-left">
             <div className="text-3xl font-bold tracking-tight">{isLoading ? <div className="h-9 w-16 bg-muted animate-pulse rounded" /> : stats.totalBatches}</div>
-            <p className="text-xs text-muted-foreground">Total batches created</p>
+            <p className="text-xs text-muted-foreground">{t('farmer.totalBatchesCreated')}</p>
           </CardContent>
         </Card>
 
         <Card className="border border-border bg-card hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <span className="text-sm font-medium text-muted-foreground">Total Quantity</span>
+            <span className="text-sm font-medium text-muted-foreground">{t('farmer.totalQuantity')}</span>
             <div className="bg-emerald-500/10 p-2 rounded-xl">
               <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
           </CardHeader>
           <CardContent className="space-y-1 text-left">
             <div className="text-3xl font-bold tracking-tight">{isLoading ? <div className="h-9 w-24 bg-muted animate-pulse rounded" /> : <>{stats.totalQuantity.toLocaleString()} <span className="text-lg font-medium text-muted-foreground">kg</span></>}</div>
-            <p className="text-xs text-muted-foreground">Cumulative crop quantity</p>
+            <p className="text-xs text-muted-foreground">{t('farmer.cumulativeQuantity')}</p>
           </CardContent>
         </Card>
 
         <Card className="border border-border bg-card hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <span className="text-sm font-medium text-muted-foreground">In Transit</span>
+            <span className="text-sm font-medium text-muted-foreground">{t('farmer.inTransit')}</span>
             <div className="bg-amber-500/10 p-2 rounded-xl">
               <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
           </CardHeader>
           <CardContent className="space-y-1 text-left">
             <div className="text-3xl font-bold tracking-tight">{isLoading ? <div className="h-9 w-16 bg-muted animate-pulse rounded" /> : stats.activeBatches}</div>
-            <p className="text-xs text-muted-foreground">Batches still in supply chain</p>
+            <p className="text-xs text-muted-foreground">{t('farmer.batchesInSupplyChain')}</p>
           </CardContent>
         </Card>
       </div>
@@ -267,8 +269,8 @@ const FarmerDashboardComponent: React.FC = () => {
                 <Plus className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">Create New Batch</p>
-                <p className="text-sm text-muted-foreground">Register a new crop harvest on the blockchain</p>
+                <p className="font-semibold text-foreground">{t('farmer.createNewBatch')}</p>
+                <p className="text-sm text-muted-foreground">{t('farmer.registerOnBlockchain')}</p>
               </div>
             </CardContent>
           </Card>
@@ -281,8 +283,8 @@ const FarmerDashboardComponent: React.FC = () => {
                 <MapPin className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">Track Batch</p>
-                <p className="text-sm text-muted-foreground">Monitor batch journey through the supply chain</p>
+                <p className="font-semibold text-foreground">{t('farmer.trackBatch')}</p>
+                <p className="text-sm text-muted-foreground">{t('farmer.monitorBatchJourney')}</p>
               </div>
             </CardContent>
           </Card>
@@ -309,7 +311,7 @@ const FarmerDashboardComponent: React.FC = () => {
         <CardHeader className="pb-3 border-b border-border/40">
           <div className="flex items-center gap-2">
             <Package className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg font-semibold text-foreground">My Batches</CardTitle>
+            <CardTitle className="text-lg font-semibold text-foreground">{t('farmer.myBatches')}</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -319,7 +321,7 @@ const FarmerDashboardComponent: React.FC = () => {
                 <Package className="h-8 w-8 text-muted-foreground" />
               </div>
               <div>
-                <p className="font-semibold text-foreground">Loading...</p>
+                <p className="font-semibold text-foreground">{t('common.loading')}</p>
               </div>
             </div>
           ) : batches.length === 0 ? (
@@ -328,13 +330,13 @@ const FarmerDashboardComponent: React.FC = () => {
                 <Package className="h-8 w-8 text-muted-foreground" />
               </div>
               <div>
-                <p className="font-semibold text-foreground">No batches found</p>
-                <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters or create a new batch</p>
+                <p className="font-semibold text-foreground">{t('farmer.noBatchesFound')}</p>
+                <p className="text-sm text-muted-foreground mt-1">{t('farmer.adjustFiltersOrCreate')}</p>
               </div>
               <Link href="/add-batch">
                 <Button size="sm" className="gap-1.5 mt-2">
                   <Plus className="h-3.5 w-3.5" />
-                  Create Batch
+                  {t('batch.createBatch')}
                 </Button>
               </Link>
             </div>
@@ -343,12 +345,12 @@ const FarmerDashboardComponent: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40 border-b border-border/40">
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Batch ID</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Crop Type</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Quantity</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Origin</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Current Stage</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Actions</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.batchId')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.cropType')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.quantity')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.origin')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('admin.currentStage', 'Current Stage')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('common.actions', 'Actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -379,12 +381,12 @@ const FarmerDashboardComponent: React.FC = () => {
                             </Badge>
                             {activeAuction && activeAuction.status === 'active' && (
                               <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 font-bold animate-pulse text-[10px] uppercase tracking-wide">
-                                Live Auction
+                                {t('auction.liveAuction')}
                               </Badge>
                             )}
                             {activeAuction && activeAuction.status === 'ended' && (
                               <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-300/30 text-[10px] dark:bg-slate-800/40 dark:text-slate-400 uppercase tracking-wide">
-                                Auction Ended
+                                {t('auction.auctionEnded')}
                               </Badge>
                             )}
                           </div>
@@ -394,21 +396,21 @@ const FarmerDashboardComponent: React.FC = () => {
                             <Link href={`/track-batch?id=${batch.batchId}`}>
                               <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground">
                                 <Eye className="h-3.5 w-3.5" />
-                                View
+                                {t('farmer.view')}
                               </Button>
                             </Link>
                             {activeAuction && activeAuction.status === 'active' ? (
                               <Link href={`/auctions/${activeAuction._id}`}>
                                 <Button size="sm" className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold h-8 rounded-lg text-xs">
                                   <Gavel className="h-3.5 w-3.5" />
-                                  Auction Room
+                                  {t('farmer.auctionRoom')}
                                 </Button>
                               </Link>
                             ) : activeAuction && activeAuction.status === 'ended' ? (
                               <Link href={`/auctions/${activeAuction._id}`}>
                                 <Button variant="outline" size="sm" className="gap-1.5 text-slate-500 h-8 rounded-lg text-xs">
                                   <Gavel className="h-3.5 w-3.5" />
-                                  Results
+                                  {t('farmer.results')}
                                 </Button>
                               </Link>
                             ) : batch.currentStage === 'farmer' ? (
@@ -422,7 +424,7 @@ const FarmerDashboardComponent: React.FC = () => {
                                 className="gap-1.5 text-amber-600 border-amber-500/30 hover:bg-amber-500/10 font-bold h-8 rounded-lg text-xs"
                               >
                                 <Gavel className="h-3.5 w-3.5" />
-                                Start Auction
+                                {t('farmer.startAuction')}
                               </Button>
                             ) : null}
                           </div>
@@ -435,7 +437,7 @@ const FarmerDashboardComponent: React.FC = () => {
               {pagination.totalPages > 1 && (
                 <div className="flex items-center justify-between border-t border-border/40 py-4 px-6">
                   <p className="text-xs text-muted-foreground">
-                    Showing {batches.length} of {pagination.totalItems} results
+                    {t('pagination.showing', { count: batches.length, total: pagination.totalItems })}
                   </p>
                   <div className="flex items-center gap-2">
                     <Button
@@ -445,10 +447,10 @@ const FarmerDashboardComponent: React.FC = () => {
                       onClick={() => setFilters(f => ({ ...f, page: pagination.currentPage - 1 }))}
                       className="h-8 rounded-lg text-xs"
                     >
-                      Previous
+                      {t('pagination.previous')}
                     </Button>
                     <span className="text-xs font-semibold text-foreground">
-                      Page {pagination.currentPage} of {pagination.totalPages}
+                      {t('pagination.page', { current: pagination.currentPage, total: pagination.totalPages })}
                     </span>
                     <Button
                       variant="outline"
@@ -457,7 +459,7 @@ const FarmerDashboardComponent: React.FC = () => {
                       onClick={() => setFilters(f => ({ ...f, page: pagination.currentPage + 1 }))}
                       className="h-8 rounded-lg text-xs"
                     >
-                      Next
+                      {t('pagination.next')}
                     </Button>
                   </div>
                 </div>
@@ -475,14 +477,14 @@ const FarmerDashboardComponent: React.FC = () => {
                   <Gavel className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-foreground">Start Crop Auction</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">Register batch {selectedBatchId} in the live bidding market</p>
+                  <h3 className="text-lg font-bold text-foreground">{t('auction.startCropAuction')}</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t('auction.registerInMarket', { batchId: selectedBatchId })}</p>
                 </div>
               </div>
               
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-muted-foreground uppercase">Starting Price (credits)</label>
+                  <label className="text-xs font-bold text-muted-foreground uppercase">{t('auction.startingPrice')}</label>
                   <input
                     type="number"
                     value={startPrice}
@@ -491,17 +493,17 @@ const FarmerDashboardComponent: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-muted-foreground uppercase">Auction Duration</label>
+                  <label className="text-xs font-bold text-muted-foreground uppercase">{t('auction.auctionDuration')}</label>
                   <select
                     value={duration}
                     onChange={(e) => setDuration(e.target.value)}
                     className="w-full px-3 py-2 text-sm rounded-xl bg-muted/40 border border-border text-foreground h-10 focus:outline-none"
                   >
-                    <option value="2">2 minutes (Quick Test)</option>
-                    <option value="5">5 minutes (Recommended)</option>
-                    <option value="15">15 minutes</option>
-                    <option value="60">1 hour</option>
-                    <option value="1440">24 hours</option>
+                    <option value="2">{t('auction.quickTest')}</option>
+                    <option value="5">{t('auction.recommended')}</option>
+                    <option value="15">{t('auction.fifteenMinutes')}</option>
+                    <option value="60">{t('auction.oneHour')}</option>
+                    <option value="1440">{t('auction.twentyFourHours')}</option>
                   </select>
                 </div>
               </div>
@@ -513,7 +515,7 @@ const FarmerDashboardComponent: React.FC = () => {
                   onClick={() => setIsAuctionModalOpen(false)}
                   className="rounded-xl px-4 h-9"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button 
                   size="sm"
@@ -521,7 +523,7 @@ const FarmerDashboardComponent: React.FC = () => {
                   onClick={handleCreateAuction}
                   className="rounded-xl px-4 h-9 font-semibold"
                 >
-                  {submittingAuction ? 'Creating...' : 'Start Live Bidding'}
+                  {submittingAuction ? t('auction.creating') : t('auction.startLiveBidding')}
                 </Button>
               </div>
             </Card>

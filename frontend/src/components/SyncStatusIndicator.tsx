@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Cloud, Wifi, WifiOff, RefreshCw, AlertCircle, Check } from 'lucide-react';
 import { syncManager, SyncStatus } from '../services/syncManager';
 
 const SyncStatusIndicator: React.FC = () => {
+  const { t } = useTranslation();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [pendingCount, setPendingCount] = useState({ batches: 0, updates: 0 });
@@ -100,11 +102,11 @@ const SyncStatusIndicator: React.FC = () => {
   };
 
   const getStatusText = () => {
-    if (!isOnline) return 'Offline';
-    if (syncStatus === 'syncing') return 'Syncing...';
-    if (syncStatus === 'error') return 'Sync Error';
-    if (totalPending > 0) return `${totalPending} Pending`;
-    return 'Synced';
+    if (!isOnline) return t('offline.youAreOffline', 'Offline');
+    if (syncStatus === 'syncing') return t('sync.syncing');
+    if (syncStatus === 'error') return t('sync.syncFailed', 'Sync Error');
+    if (totalPending > 0) return t('sync.pendingSync', { count: totalPending });
+    return t('sync.synced');
   };
 
   return (
@@ -216,7 +218,7 @@ const SyncStatusIndicator: React.FC = () => {
                     className="flex-1 px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors"
                   >
                     <AlertCircle className="h-4 w-4 inline mr-1" />
-                    Retry Failed
+                    {t('sync.retry', 'Retry Failed')}
                   </button>
                 )}
               </div>

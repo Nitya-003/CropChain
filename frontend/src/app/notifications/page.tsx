@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNotifications } from '../../context/NotificationContext';
 import { Bell, Check, CheckCircle2, AlertTriangle, RefreshCcw, Info, ShieldAlert } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Notification } from '../../types/notification';
 
 export default function NotificationsPage() {
+    const { t } = useTranslation();
     const { notifications, loading, markAsRead, markAllAsRead, fetchNotifications } = useNotifications();
     const [filter, setFilter] = useState<'all' | 'unread' | 'alerts'>('all');
 
@@ -45,7 +47,7 @@ export default function NotificationsPage() {
             <div className="flex h-[50vh] items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
                     <RefreshCcw className="h-8 w-8 animate-spin text-primary" />
-                    <p className="text-muted-foreground font-medium">Loading notifications...</p>
+                    <p className="text-muted-foreground font-medium">{t('notifications.loadingNotifications')}</p>
                 </div>
             </div>
         );
@@ -57,9 +59,9 @@ export default function NotificationsPage() {
                 <div>
                     <h1 className="text-3xl font-bold flex items-center gap-3">
                         <Bell className="h-8 w-8 text-primary" />
-                        Notifications
+                        {t('notifications.title')}
                     </h1>
-                    <p className="text-muted-foreground mt-1">Stay updated with supply chain alerts and events</p>
+                    <p className="text-muted-foreground mt-1">{t('notifications.subtitle')}</p>
                 </div>
                 
                 <div className="flex items-center gap-3">
@@ -71,7 +73,7 @@ export default function NotificationsPage() {
                         disabled={!notifications.some(n => !n.read)}
                     >
                         <Check className="mr-2 h-4 w-4" />
-                        Mark all as read
+                        {t('notifications.markAllAsRead')}
                     </Button>
                     <Button 
                         variant="ghost" 
@@ -92,7 +94,7 @@ export default function NotificationsPage() {
                         : 'bg-muted/50 text-muted-foreground hover:bg-muted'
                     }`}
                 >
-                    All Notifications
+                    {t('notifications.allNotifications')}
                 </button>
                 <button
                     onClick={() => setFilter('unread')}
@@ -102,7 +104,7 @@ export default function NotificationsPage() {
                         : 'bg-muted/50 text-muted-foreground hover:bg-muted'
                     }`}
                 >
-                    Unread
+                    {t('notifications.unread')}
                 </button>
                 <button
                     onClick={() => setFilter('alerts')}
@@ -112,7 +114,7 @@ export default function NotificationsPage() {
                         : 'bg-muted/50 text-muted-foreground hover:bg-muted'
                     }`}
                 >
-                    Critical Alerts
+                    {t('notifications.criticalAlerts')}
                 </button>
             </div>
 
@@ -120,8 +122,8 @@ export default function NotificationsPage() {
                 {filteredNotifications.length === 0 ? (
                     <div className="text-center py-16 px-4 bg-muted/20 rounded-2xl border border-dashed border-border">
                         <Bell className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-                        <h3 className="text-lg font-bold text-foreground">No notifications found</h3>
-                        <p className="text-muted-foreground">You're all caught up! Check back later for updates.</p>
+                        <h3 className="text-lg font-bold text-foreground">{t('notifications.noNotificationsFound')}</h3>
+                        <p className="text-muted-foreground">{t('notifications.allCaughtUp')}</p>
                     </div>
                 ) : (
                     filteredNotifications.map((notification) => (
@@ -152,7 +154,7 @@ export default function NotificationsPage() {
                                             className="text-xs font-bold text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
                                         >
                                             <Check className="h-3.5 w-3.5" />
-                                            Mark as read
+                                            {t('notifications.markAsRead')}
                                         </button>
                                     </div>
                                 )}
