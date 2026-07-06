@@ -28,6 +28,9 @@ const UpdateBatch: React.FC = () => {
   hash: string;
   status: 'Confirmed' | 'Pending';
 } | null>(null);
+const [transactionStage, setTransactionStage] = useState<
+  'idle' | 'wallet' | 'confirming'
+>('idle');
 
 
   const stages = [
@@ -146,7 +149,8 @@ setTransactionStage('wallet');
         
         const tx = await contract.requestIoTVerification(batchIdBytes32);
         
-        const loadingToast = toast.loading("Requesting IoT verification...");
+        setTransactionStage('confirming');
+const loadingToast = toast.loading("Waiting for blockchain confirmation...");
         
         // Wait for transaction confirmation
         const receipt = await tx.wait();
@@ -178,8 +182,8 @@ setTransactionStage('wallet');
   console.error('Error requesting IoT verification:', error);
   toast.error('Failed to request IoT verification. Please try again.');
 }finally {
-      setIsRequestingIoT(false);
-      setTransactionStage('idle');
+     setIsRequestingIoT(false);
+setTransactionStage('idle');
     }
   };
 
