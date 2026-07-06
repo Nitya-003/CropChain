@@ -274,6 +274,15 @@ exports.updateBatch = async (req, res) => {
 
         logger.info('Batch updated', { batchId, stage: normalizedStage, userId: req.user.id });
 
+        // Emit real-time WebSocket updates
+        emitToBatchRoom(batchId, 'batch-updated', batch);
+        emitToBatchRoom(batchId, 'batch-stage-changed', {
+            batchId,
+            stage: normalizedStage,
+            actor: validatedData.actorName || req.user.name,
+            timestamp: validatedData.timestamp || new Date().toISOString()
+        });
+
         const response = apiResponse.successResponse(
             { batch },
             'Batch updated successfully'
