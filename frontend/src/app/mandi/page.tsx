@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Store, Package, RefreshCw, CheckCircle, Clock, TrendingUp, Search, ArrowRight, Gavel } from 'lucide-react';
 import Link from 'next/link';
 import { realCropBatchService } from '../../services/realCropBatchService';
@@ -15,6 +16,7 @@ import { auctionService, Auction } from '../../services/auctionService';
 const RELEVANT_STAGES = ['farmer', 'mandi'];
 
 const MandiDashboardComponent: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [batches, setBatches] = useState<any[]>([]);
   const [activeAuctions, setActiveAuctions] = useState<Auction[]>([]);
@@ -147,21 +149,21 @@ const MandiDashboardComponent: React.FC = () => {
             <Store className="h-8 w-8 text-amber-600 dark:text-amber-400" />
           </div>
           <div className="text-left">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Mandi Dashboard</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('mandi.dashboard')}</h1>
             <p className="text-sm text-muted-foreground">
-              Welcome back, <span className="font-semibold text-foreground">{user?.name || 'Mandi Operator'}</span> — manage incoming crop batches
+              {t('mandi.welcomeBack', { name: user?.name || 'Mandi' })}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={loadBatches} className="gap-1.5 bg-background/50">
             <RefreshCw className="h-3.5 w-3.5" />
-            Refresh
+            {t('farmer.refresh')}
           </Button>
           <Link href="/update-batch">
             <Button size="sm" className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white">
               <ArrowRight className="h-3.5 w-3.5" />
-              Update Batch Stage
+              {t('mandi.updateBatchStage')}
             </Button>
           </Link>
         </div>
@@ -171,33 +173,33 @@ const MandiDashboardComponent: React.FC = () => {
       <div className="grid md:grid-cols-3 gap-6">
         <Card className="border border-border bg-card hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <span className="text-sm font-medium text-muted-foreground">Pending Arrival</span>
+            <span className="text-sm font-medium text-muted-foreground">{t('mandi.pendingArrival')}</span>
             <div className="bg-indigo-500/10 p-2 rounded-xl">
               <Clock className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
             </div>
           </CardHeader>
           <CardContent className="space-y-1 text-left">
             <div className="text-3xl font-bold tracking-tight">{stats.pendingAcceptance}</div>
-            <p className="text-xs text-muted-foreground">Batches awaiting acceptance at mandi</p>
+            <p className="text-xs text-muted-foreground">{t('mandi.batchesAwaitingAcceptance')}</p>
           </CardContent>
         </Card>
 
         <Card className="border border-border bg-card hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <span className="text-sm font-medium text-muted-foreground">Accepted at Mandi</span>
+            <span className="text-sm font-medium text-muted-foreground">{t('mandi.acceptedAtMandi')}</span>
             <div className="bg-amber-500/10 p-2 rounded-xl">
               <CheckCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
           </CardHeader>
           <CardContent className="space-y-1 text-left">
             <div className="text-3xl font-bold tracking-tight">{stats.acceptedTotal}</div>
-            <p className="text-xs text-muted-foreground">Batches currently at market stage</p>
+            <p className="text-xs text-muted-foreground">{t('mandi.batchesAtMarketStage')}</p>
           </CardContent>
         </Card>
 
         <Card className="border border-border bg-card hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <span className="text-sm font-medium text-muted-foreground">Total Volume</span>
+            <span className="text-sm font-medium text-muted-foreground">{t('mandi.totalVolume')}</span>
             <div className="bg-emerald-500/10 p-2 rounded-xl">
               <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
@@ -206,7 +208,7 @@ const MandiDashboardComponent: React.FC = () => {
             <div className="text-3xl font-bold tracking-tight">
               {stats.totalQuantity.toLocaleString()} <span className="text-lg font-medium text-muted-foreground">kg</span>
             </div>
-            <p className="text-xs text-muted-foreground">Combined quantity across all batches</p>
+            <p className="text-xs text-muted-foreground">{t('mandi.combinedQuantity')}</p>
           </CardContent>
         </Card>
       </div>
@@ -220,8 +222,8 @@ const MandiDashboardComponent: React.FC = () => {
                 <ArrowRight className="h-6 w-6 text-amber-600 dark:text-amber-400" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">Accept Batch</p>
-                <p className="text-sm text-muted-foreground">Accept incoming batches and update to market stage</p>
+                <p className="font-semibold text-foreground">{t('mandi.acceptBatch')}</p>
+                <p className="text-sm text-muted-foreground">{t('mandi.acceptIncomingBatches')}</p>
               </div>
             </CardContent>
           </Card>
@@ -234,8 +236,8 @@ const MandiDashboardComponent: React.FC = () => {
                 <Search className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">Track a Batch</p>
-                <p className="text-sm text-muted-foreground">Look up any batch in the supply chain</p>
+                <p className="font-semibold text-foreground">{t('mandi.trackABatch')}</p>
+                <p className="text-sm text-muted-foreground">{t('mandi.lookUpBatch')}</p>
               </div>
             </CardContent>
           </Card>
@@ -268,7 +270,7 @@ const MandiDashboardComponent: React.FC = () => {
         <CardHeader className="pb-3 border-b border-border/40">
           <div className="flex items-center gap-2">
             <Package className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg font-semibold text-foreground">Incoming &amp; Current Batches</CardTitle>
+            <CardTitle className="text-lg font-semibold text-foreground">{t('mandi.incomingAndCurrentBatches')}</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -278,7 +280,7 @@ const MandiDashboardComponent: React.FC = () => {
                 <Package className="h-8 w-8 text-muted-foreground" />
               </div>
               <div>
-                <p className="font-semibold text-foreground">Loading...</p>
+                <p className="font-semibold text-foreground">{t('common.loading')}</p>
               </div>
             </div>
           ) : batches.length === 0 ? (
@@ -287,8 +289,8 @@ const MandiDashboardComponent: React.FC = () => {
                 <Package className="h-8 w-8 text-muted-foreground" />
               </div>
               <div>
-                <p className="font-semibold text-foreground">No batches available</p>
-                <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters</p>
+                <p className="font-semibold text-foreground">{t('mandi.noBatchesAvailable')}</p>
+                <p className="text-sm text-muted-foreground mt-1">{t('mandi.adjustFilters')}</p>
               </div>
             </div>
           ) : (
@@ -296,12 +298,12 @@ const MandiDashboardComponent: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40 border-b border-border/40">
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Batch ID</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Farmer</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Crop Type</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Quantity</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Stage</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Actions</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.batchId')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.farmer')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.cropType')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.quantity')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.status')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('common.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>                  {paginatedBatches.map((batch) => {
@@ -330,16 +332,16 @@ const MandiDashboardComponent: React.FC = () => {
                         <TableCell className="py-4 px-6">
                           <div className="flex flex-col gap-1.5 items-start">
                             <Badge variant="outline" className={`capitalize font-semibold border ${getStageColor(batch.currentStage)}`}>
-                              {batch.currentStage === 'farmer' ? 'Pending Arrival' : 'At Market'}
+                              {batch.currentStage === 'farmer' ? t('mandi.pendingArrivalBadge') : t('mandi.atMarketBadge')}
                             </Badge>
                             {activeAuction && activeAuction.status === 'active' && (
                               <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 font-bold animate-pulse text-[10px] uppercase tracking-wide">
-                                Live Auction
+                                {t('auction.liveAuction')}
                               </Badge>
                             )}
                             {activeAuction && activeAuction.status === 'ended' && (
                               <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-300/30 text-[10px] dark:bg-slate-800/40 dark:text-slate-400 uppercase tracking-wide">
-                                Auction Ended
+                                {t('auction.auctionEnded')}
                               </Badge>
                             )}
                           </div>
@@ -350,14 +352,14 @@ const MandiDashboardComponent: React.FC = () => {
                               <Link href={`/auctions/${activeAuction._id}`}>
                                 <Button size="sm" className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold h-8 rounded-lg text-xs">
                                   <Gavel className="h-3.5 w-3.5" />
-                                  Bid Live
+                                  {t('mandi.bidLive')}
                                 </Button>
                               </Link>
                             ) : activeAuction && activeAuction.status === 'ended' ? (
                               <Link href={`/auctions/${activeAuction._id}`}>
                                 <Button variant="outline" size="sm" className="gap-1.5 text-slate-500 h-8 rounded-lg text-xs">
                                   <Gavel className="h-3.5 w-3.5" />
-                                  Results
+                                  {t('auction.results')}
                                 </Button>
                               </Link>
                             ) : (
@@ -368,7 +370,7 @@ const MandiDashboardComponent: React.FC = () => {
                                   className="gap-1.5 h-8 rounded-lg text-xs"
                                 >
                                   <ArrowRight className="h-3.5 w-3.5" />
-                                  {batch.currentStage === 'farmer' ? 'Accept' : 'Update'}
+                                  {batch.currentStage === 'farmer' ? t('mandi.accept') : t('mandi.update')}
                                 </Button>
                               </Link>
                             )}
@@ -385,7 +387,7 @@ const MandiDashboardComponent: React.FC = () => {
         {batches.length > 0 && totalPages > 1 && (
           <CardFooter className="flex items-center justify-between border-t border-border/40 py-4 px-6">
             <p className="text-xs text-muted-foreground">
-              Showing {paginatedBatches.length} of {batches.length} results
+              {t('pagination.showing', { count: paginatedBatches.length, total: batches.length })}
             </p>
             <div className="flex items-center gap-2">
               <Button
@@ -395,10 +397,10 @@ const MandiDashboardComponent: React.FC = () => {
                 onClick={() => setPage(p => p - 1)}
                 className="h-8 rounded-lg text-xs"
               >
-                Previous
+                {t('pagination.previous')}
               </Button>
               <span className="text-xs font-semibold text-foreground">
-                Page {page} of {totalPages}
+                {t('pagination.page', { current: page, total: totalPages })}
               </span>
               <Button
                 variant="outline"
@@ -407,7 +409,7 @@ const MandiDashboardComponent: React.FC = () => {
                 onClick={() => setPage(p => p + 1)}
                 className="h-8 rounded-lg text-xs"
               >
-                Next
+                {t('pagination.next')}
               </Button>
             </div>
           </CardFooter>

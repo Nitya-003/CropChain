@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Link from 'next/link';
 import { Shield, Package, Coins, Activity, TrendingUp, Check, Copy, RefreshCw } from 'lucide-react';
 import StatsCardSkeleton from '../../components/skeletons/StatsCardSkeleton';
@@ -14,6 +15,7 @@ import ProtectedRoute from '../../components/ProtectedRoute';
 import BatchFilters from '../../components/BatchFilters';
 
 const AdminDashboardComponent: React.FC = () => {
+  const { t } = useTranslation();
   const [stats, setStats] = useState({
     totalBatches: 0,
     totalFarmers: 0,
@@ -173,21 +175,21 @@ const AdminDashboardComponent: React.FC = () => {
             <Shield className="h-8 w-8 text-primary" />
           </div>
           <div className="text-left">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Admin Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Monitor and manage the CropChain supply chain network</p>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('admin.dashboard')}</h1>
+            <p className="text-sm text-muted-foreground">{t('admin.subtitle', 'Monitor and manage the CropChain supply chain network')}</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {selected.length >= 2 && (
             <Link href={`/compare?ids=${selected.join(',')}`}>
               <Button className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5 h-9">
-                Compare {selected.length} batches
+                {t('auction.compareBatches', { count: selected.length })}
               </Button>
             </Link>
           )}
           <Button variant="outline" size="sm" onClick={loadDashboardData} className="gap-1.5 bg-background/50">
             <RefreshCw className="h-3.5 w-3.5" />
-            Refresh Stats
+            {t('auction.refreshStats')}
           </Button>
         </div>
       </div>
@@ -196,7 +198,7 @@ const AdminDashboardComponent: React.FC = () => {
       <div className="grid md:grid-cols-3 gap-6">
         <Card className="border border-border bg-card hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <span className="text-sm font-medium text-muted-foreground">Total Batches</span>
+            <span className="text-sm font-medium text-muted-foreground">{t('admin.totalBatches')}</span>
             <div className="bg-emerald-500/10 p-2 rounded-xl">
               <Package className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
@@ -205,14 +207,14 @@ const AdminDashboardComponent: React.FC = () => {
             <div className="text-3xl font-bold tracking-tight">{stats.totalBatches}</div>
             <div className="flex items-center text-xs text-emerald-600 dark:text-emerald-400 font-medium">
               <TrendingUp className="h-3.5 w-3.5 mr-1" />
-              <span>+12% from last month</span>
+               <span>{t('admin.growthFromLastMonth', '+12% from last month')}</span>
             </div>
           </CardContent>
         </Card>
 
         <Card className="border border-border bg-card hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <span className="text-sm font-medium text-muted-foreground">Total Batch Value</span>
+            <span className="text-sm font-medium text-muted-foreground">{t('admin.totalBatchValue', 'Total Batch Value')}</span>
             <div className="bg-indigo-500/10 p-2 rounded-xl">
               <Coins className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
             </div>
@@ -227,14 +229,14 @@ const AdminDashboardComponent: React.FC = () => {
             </div>
             <div className="flex items-center text-xs text-muted-foreground font-medium">
               <TrendingUp className="h-3.5 w-3.5 mr-1 text-emerald-600 dark:text-emerald-400" />
-              <span>Based on {stats.totalQuantity.toLocaleString()} kg</span>
+               <span>{t('admin.basedOnKg', 'Based on {{quantity}} kg', { quantity: stats.totalQuantity.toLocaleString() })}</span>
             </div>
           </CardContent>
         </Card>
 
         <Card className="border border-border bg-card hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <span className="text-sm font-medium text-muted-foreground">Estimated Gas Fees</span>
+            <span className="text-sm font-medium text-muted-foreground">{t('admin.estimatedGasFees', 'Estimated Gas Fees')}</span>
             <div className="bg-rose-500/10 p-2 rounded-xl">
               <Activity className="h-5 w-5 text-rose-600 dark:text-rose-400" />
             </div>
@@ -248,7 +250,7 @@ const AdminDashboardComponent: React.FC = () => {
               )}
             </div>
             <div className="flex items-center text-xs text-muted-foreground font-medium">
-              <span className="text-rose-600 dark:text-rose-400">Network Average Gas Fee</span>
+               <span className="text-rose-600 dark:text-rose-400">{t('admin.networkAverageGasFee', 'Network Average Gas Fee')}</span>
             </div>
           </CardContent>
         </Card>
@@ -274,7 +276,7 @@ const AdminDashboardComponent: React.FC = () => {
         <CardHeader className="pb-3 border-b border-border/40">
           <div className="flex items-center gap-2">
             <Package className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg font-semibold text-foreground">Recent Batches</CardTitle>
+            <CardTitle className="text-lg font-semibold text-foreground">{t('admin.recentActivity')}</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -282,14 +284,14 @@ const AdminDashboardComponent: React.FC = () => {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-muted/40 border-b border-border/40">
-                  <TableHead className="py-4 px-6 font-semibold text-foreground text-left w-[60px]">Select</TableHead>
-                  <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Batch ID</TableHead>
-                  <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Farmer</TableHead>
-                  <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Crop Type</TableHead>
-                  <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Quantity</TableHead>
-                  <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Current Stage</TableHead>
-                  <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Tx Value</TableHead>
-                  <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Status</TableHead>
+                  <TableHead className="py-4 px-6 font-semibold text-foreground text-left w-[60px]">{t('common.select', 'Select')}</TableHead>
+                  <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.batchId')}</TableHead>
+                  <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.farmer')}</TableHead>
+                  <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.cropType')}</TableHead>
+                  <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.quantity')}</TableHead>
+                  <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('admin.currentStage', 'Current Stage')}</TableHead>
+                  <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('admin.txValue', 'Tx Value')}</TableHead>
+                  <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.status')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -355,7 +357,7 @@ const AdminDashboardComponent: React.FC = () => {
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                         </span>
-                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">Active</span>
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">{t('admin.active', 'Active')}</span>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -366,7 +368,7 @@ const AdminDashboardComponent: React.FC = () => {
         </CardContent>
         <CardFooter className="flex items-center justify-between border-t border-border/40 py-4 px-6">
           <p className="text-xs text-muted-foreground">
-            Showing {batches.length} of {pagination.totalItems} results
+            {t('pagination.showing', { count: batches.length, total: pagination.totalItems })}
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -376,10 +378,10 @@ const AdminDashboardComponent: React.FC = () => {
               onClick={() => setFilters(f => ({ ...f, page: pagination.currentPage - 1 }))}
               className="h-8 rounded-lg text-xs"
             >
-              Previous
+              {t('pagination.previous')}
             </Button>
             <span className="text-xs font-semibold text-foreground">
-              Page {pagination.currentPage} of {pagination.totalPages}
+              {t('pagination.page', { current: pagination.currentPage, total: pagination.totalPages })}
             </span>
             <Button
               variant="outline"
@@ -388,7 +390,7 @@ const AdminDashboardComponent: React.FC = () => {
               onClick={() => setFilters(f => ({ ...f, page: pagination.currentPage + 1 }))}
               className="h-8 rounded-lg text-xs"
             >
-              Next
+              {t('pagination.next')}
             </Button>
           </div>
         </CardFooter>
@@ -398,7 +400,7 @@ const AdminDashboardComponent: React.FC = () => {
       <div className="grid md:grid-cols-2 gap-6 text-left">
         <Card className="border border-border bg-card">
           <CardHeader className="border-b border-border/40 pb-3">
-            <CardTitle className="text-base font-semibold text-foreground">Crop Distribution</CardTitle>
+            <CardTitle className="text-base font-semibold text-foreground">{t('admin.cropDistribution', 'Crop Distribution')}</CardTitle>
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
             {['Rice', 'Wheat', 'Corn', 'Tomato'].map((crop, index) => {
@@ -428,7 +430,7 @@ const AdminDashboardComponent: React.FC = () => {
 
         <Card className="border border-border bg-card">
           <CardHeader className="border-b border-border/40 pb-3">
-            <CardTitle className="text-base font-semibold text-foreground">Monthly Network Activity</CardTitle>
+            <CardTitle className="text-base font-semibold text-foreground">{t('admin.monthlyNetworkActivity', 'Monthly Network Activity')}</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="flex items-end justify-between h-48 px-4 pt-4">
