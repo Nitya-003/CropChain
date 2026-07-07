@@ -36,8 +36,8 @@ const ccipService = require('./services/ccipService');
 const notificationService = require('./services/notificationService');
 const blockchainQueue = require('./services/blockchainQueue');
 const blockchainWorker = require('./services/blockchainWorker');
-const notificationQueue = require('./services/notificationQueue');
-const notificationWorker = require('./services/notificationWorker');
+const notificationQueue = require('./jobs/queue');
+const notificationWorker = require('./jobs/worker');
 
 // Import MongoDB Models
 const Batch = require('./models/Batch');
