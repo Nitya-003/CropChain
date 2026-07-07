@@ -17,6 +17,7 @@ import {
   Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useBatchSocket } from '../../hooks/useBatchSocket';
 
 // Stage Configurations
 const LIFECYCLE_STAGES = [
@@ -137,6 +138,22 @@ export const CropLifecycleTracker: React.FC<CropLifecycleTrackerProps> = ({
       fetchLifecycle();
     }
   }, [batchId]);
+
+  // Listen for real-time WebSocket updates
+  useBatchSocket({
+    batchId,
+    enabled: !!batchId,
+    onBatchUpdate: (updatedBatch) => {
+      console.log('[CropLifecycleTracker] Real-time batch update received:', updatedBatch);
+      fetchLifecycle(); // Refresh data to recalculate stats and history
+      if (onRefresh) onRefresh();
+    },
+    onStageChange: (data) => {
+      console.log('[CropLifecycleTracker] Real-time stage change received:', data);
+      fetchLifecycle();
+      if (onRefresh) onRefresh();
+    }
+  });
 
   // Stage map for quick lookup
   const historyMap = useMemo(() => {
