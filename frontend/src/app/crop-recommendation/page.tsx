@@ -380,110 +380,113 @@ const CropRecommendation: React.FC = () => {
 
       {/* ── Result card ── */}
       {result && meta && (
-        <div id="result-card">
-          <div className={`rounded-2xl shadow-lg border border-border overflow-hidden ${meta.bgColor}`}>
+        <>
+          <div id="result-card">
+            <div className={`rounded-2xl shadow-lg border border-border overflow-hidden ${meta.bgColor}`}>
 
-            {/* Top banner */}
-            <div className="bg-primary/90 px-6 py-3 flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
-              <span className="text-primary-foreground text-sm font-medium">Recommendation Ready</span>
-            </div>
+              {/* Top banner */}
+              <div className="bg-primary/90 px-6 py-3 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                <span className="text-primary-foreground text-sm font-medium">Recommendation Ready</span>
+              </div>
 
-            <div className="p-6 sm:p-8">
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+              <div className="p-6 sm:p-8">
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
 
-                {/* Confidence arc + icon */}
-                <div className="flex flex-col items-center gap-3 shrink-0">
-                  <div className="relative">
-                    <ConfidenceArc value={result.confidence} />
-                    <div className="absolute -bottom-1 -right-1 bg-background dark:bg-card p-2 rounded-full border border-border shadow-sm">
-                      <Sprout className={`h-6 w-6 ${meta.color}`} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Crop info */}
-                <div className="flex-1 text-center sm:text-left space-y-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
-                      Recommended Crop
-                    </p>
-                    <h2 className={`text-4xl font-bold ${meta.color}`}>
-                      {capitalize(result.crop)}
-                    </h2>
-                    <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-                      {result.confidence}% confidence — based on your soil and climate profile
-                    </p>
-                  </div>
-
-                  {/* Alternatives */}
-                  {result.alternatives?.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                        Alternatives
-                      </p>
-                      <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-                        {result.alternatives.map((alt) => {
-                          const altMeta = getCropMeta(alt.crop);
-                          return (
-                            <span
-                              key={alt.crop}
-                              className="inline-flex items-center gap-1.5 bg-background dark:bg-card text-gray-700 dark:text-gray-300 text-sm font-medium px-3 py-1.5 rounded-lg border border-border shadow-sm"
-                            >
-                              <Sprout className={`h-4 w-4 ${altMeta.color}`} />
-                              <span>{capitalize(alt.crop)}</span>
-                              <span className="text-xs text-gray-400 font-normal">{alt.confidence}%</span>
-                            </span>
-                          );
-                        })}
+                  {/* Confidence arc + icon */}
+                  <div className="flex flex-col items-center gap-3 shrink-0">
+                    <div className="relative">
+                      <ConfidenceArc value={result.confidence} />
+                      <div className="absolute -bottom-1 -right-1 bg-background dark:bg-card p-2 rounded-full border border-border shadow-sm">
+                        <Sprout className={`h-6 w-6 ${meta.color}`} />
                       </div>
                     </div>
-                  )}
+                  </div>
 
-                  {/* CTA */}
-                  <button
-                    onClick={handleCreateBatch}
-                    className="inline-flex items-center gap-2 bg-foreground text-background hover:opacity-90 font-semibold px-6 py-2.5 rounded-xl transition-colors mt-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Create Batch with {capitalize(result.crop)}
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+                  {/* Crop info */}
+                  <div className="flex-1 text-center sm:text-left space-y-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                        Recommended Crop
+                      </p>
+                      <h2 className={`text-4xl font-bold ${meta.color}`}>
+                        {capitalize(result.crop)}
+                      </h2>
+                      <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+                        {result.confidence}% confidence — based on your soil and climate profile
+                      </p>
+                    </div>
+
+                    {/* Alternatives */}
+                    {result.alternatives?.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                          Alternatives
+                        </p>
+                        <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                          {result.alternatives.map((alt) => {
+                            const altMeta = getCropMeta(alt.crop);
+                            return (
+                              <span
+                                key={alt.crop}
+                                className="inline-flex items-center gap-1.5 bg-background dark:bg-card text-gray-700 dark:text-gray-300 text-sm font-medium px-3 py-1.5 rounded-lg border border-border shadow-sm"
+                              >
+                                <Sprout className={`h-4 w-4 ${altMeta.color}`} />
+                                <span>{capitalize(alt.crop)}</span>
+                                <span className="text-xs text-gray-400 font-normal">{alt.confidence}%</span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* CTA */}
+                    <button
+                      onClick={handleCreateBatch}
+                      className="inline-flex items-center gap-2 bg-foreground text-background hover:opacity-90 font-semibold px-6 py-2.5 rounded-xl transition-colors mt-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Create Batch with {capitalize(result.crop)}
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Input summary footer */}
-            <div className="bg-background/40 dark:bg-card/40 border-t border-border px-6 py-3">
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                Inputs used — N:{inputs.N} · P:{inputs.P} · K:{inputs.K} · pH:{inputs.pH} · {inputs.temperature}°C · {inputs.humidity}% humidity · {inputs.rainfall}mm rainfall
-              </p>
+              {/* Input summary footer */}
+              <div className="bg-background/40 dark:bg-card/40 border-t border-border px-6 py-3">
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                  Inputs used — N:{inputs.N} · P:{inputs.P} · K:{inputs.K} · pH:{inputs.pH} · {inputs.temperature}°C · {inputs.humidity}% humidity · {inputs.rainfall}mm rainfall
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      {/* Save and Compare buttons */}
-<div className="flex gap-4 mt-4">
-  <button
-    onClick={() => {
-      const existing = JSON.parse(localStorage.getItem('savedRecommendations') || '[]');
-      const newList = [...existing, { result, meta }];
-      localStorage.setItem('savedRecommendations', JSON.stringify(newList));
-      toast.success('Result saved for comparison');
-    }}
-    className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg transition-colors"
-  >
-    Save Result
-  </button>
-  <button
-    onClick={() => {
-      router.push('/compare-recommendations');
-    }}
-    className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-4 py-2 rounded-lg transition-colors"
-  >
-    Compare Saved Results
-  </button>
-</div>
-)}}
+
+          {/* Save and Compare buttons */}
+          <div className="flex gap-4 mt-4">
+            <button
+              onClick={() => {
+                const existing = JSON.parse(localStorage.getItem('savedRecommendations') || '[]');
+                const newList = [...existing, { result, meta }];
+                localStorage.setItem('savedRecommendations', JSON.stringify(newList));
+                toast.success('Result saved for comparison');
+              }}
+              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              Save Result
+            </button>
+            <button
+              onClick={() => {
+                router.push('/compare-recommendations');
+              }}
+              className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              Compare Saved Results
+            </button>
+          </div>
+        </>
+      )}
 
       {/* ── Info callouts ── */}
       <div className="grid sm:grid-cols-3 gap-4 text-sm">

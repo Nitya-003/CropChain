@@ -34,10 +34,16 @@ export interface PendingUpdate {
   batchId: string;
   data: Record<string, unknown>;
   timestamp: number;
-  status: 'pending' | 'syncing' | 'failed' | 'synced';
+  status: 'pending' | 'syncing' | 'failed' | 'synced' | 'conflict';
   retryCount: number;
   error?: string;
   createdAt: string;
+  /** Details returned by the conflict-detection middleware (409 response body) */
+  conflictDetails?: Record<string, unknown>;
+  /** The stage the update targets, surfaced for the conflict list UI */
+  stage?: string;
+  /** Stable ID used by the conflict resolution modal */
+  pendingId?: string;
 }
 
 export interface SyncQueueItem {
@@ -188,6 +194,22 @@ class OfflineStorageService {
   async deletePendingUpdate(id: string): Promise<void> {
     await this.init();
     await this.db!.delete('pendingUpdates', id);
+  }
+
+  /**
+   * Replaces the `data` payload of a pending update in IndexedDB.
+   * Used by the conflict resolution flow so users can edit before resubmitting.
+   */
+  async updatePendingUpdateData(
+    id: string,
+    newData: Record<string, unknown>
+  ): Promise<void> {
+    await this.init();
+    const update = await this.db!.get('pendingUpdates', id);
+    if (update) {
+      update.data = newData;
+      await this.db!.put('pendingUpdates', update);
+    }
   }
 
   // Sync Queue
