@@ -1,6 +1,7 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
 import { Search, Package, ArrowRight, Thermometer, AlertTriangle, CheckCircle, Wifi, AlertOctagon, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { realCropBatchService } from '../../services/realCropBatchService';
@@ -11,13 +12,14 @@ import { TrackBatchSkeleton } from '../../components/skeletons';
 import { useBatchSocket } from '../../hooks/useBatchSocket';
 import { JourneyPreview } from '../../components/journey/JourneyPreview';
 
-const TrackBatch: React.FC = () => {
+const TrackBatchContent: React.FC = () => {
   const [batchId, setBatchId] = useState('');
   const [batch, setBatch] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [errorType, setErrorType] = useState<'not-found' | 'error' | null>(null);
 
   const { t } = useTranslation();
+  const searchParams = useSearchParams();
 
   // WebSocket connection for real-time updates
   const { isConnected: socketConnected, lastUpdate } = useBatchSocket({
@@ -31,16 +33,17 @@ const TrackBatch: React.FC = () => {
     }
   });
 
-  const handleSearch = async (e?: React.FormEvent<HTMLFormElement>) => {
+  const handleSearch = async (e?: React.FormEvent<HTMLFormElement>, overrideId?: string) => {
     if (e) e.preventDefault();
-    if (!batchId.trim()) return;
+    const idToSearch = (overrideId ?? batchId).trim();
+    if (!idToSearch) return;
 
     setIsSearching(true);
     setBatch(null);
     setErrorType(null);
 
     try {
-      const result = await realCropBatchService.getBatch(batchId);
+      const result = await realCropBatchService.getBatch(idToSearch);
       setBatch(result);
     } catch (error: any) {
       console.error('Batch error:', error);
@@ -54,6 +57,18 @@ const TrackBatch: React.FC = () => {
       setIsSearching(false);
     }
   };
+
+  // Auto-search when the page is opened with a ?batchId= query param.
+  // This is how scanned QR codes land here (see backend QR generation),
+  // so we shouldn't require the user to re-type the ID and hit search.
+  useEffect(() => {
+    const idFromQuery = searchParams?.get('batchId');
+    if (idFromQuery) {
+      setBatchId(idFromQuery);
+      handleSearch(undefined, idFromQuery);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const getTimelineEvents = (batchData: any) => {
     if (!batchData || !batchData.updates) return [];
@@ -327,6 +342,15 @@ const TrackBatch: React.FC = () => {
         />
       )}
     </div>
+  );
+};
+
+// useSearchParams requires a Suspense boundary in the Next.js App Router.
+const TrackBatch: React.FC = () => {
+  return (
+    <Suspense fallback={<TrackBatchSkeleton />}>
+      <TrackBatchContent />
+    </Suspense>
   );
 };
 
