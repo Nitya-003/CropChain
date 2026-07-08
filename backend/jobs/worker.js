@@ -1,7 +1,7 @@
 const { Worker } = require('bullmq');
 const { createQueueConnection } = require('../config/redis');
-const { QUEUE_NAMES, JOB_TYPES, addEmailJob } = require('./notificationQueue');
-const { sendEmail } = require('../config/email');
+const { QUEUE_NAMES, JOB_TYPES, addEmailJob } = require('./queue');
+const { sendEmail } = require('../services/emailService');
 const Batch = require('../models/Batch');
 const User = require('../models/User');
 
