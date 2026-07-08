@@ -19,7 +19,7 @@ const { QUEUE_NAMES, JOB_TYPES } = require('./blockchainQueue');
 const Batch = require('../models/Batch');
 const User = require('../models/User');
 const { getStageNumber } = require('../constants/stages');
-const { addEmailJob } = require('./notificationQueue');
+const { addEmailJob } = require('../jobs/queue');
 
 // Gas configuration
 const GAS_CONFIG = {

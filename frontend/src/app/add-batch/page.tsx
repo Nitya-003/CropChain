@@ -83,16 +83,39 @@ const AddBatchContent: React.FC = () => {
     );
   }
 
+  // Single source of truth for field-level validation. Returns an error
+  // message if the given field's value is invalid, or an empty string
+  // if it's valid. Used by both full-form submission and blur checks,
+  // so the two can never disagree with each other.
+  const validateField = (name: string, data: typeof formData): string => {
+    switch (name) {
+      case 'farmerName':
+        return !data.farmerName.trim() ? 'Farmer name is required' : '';
+      case 'farmerAddress':
+        return !data.farmerAddress.trim() ? 'Farmer address is required' : '';
+      case 'cropType':
+        return !data.cropType.trim() ? 'Please select a crop type' : '';
+      case 'quantity':
+        return (!data.quantity || Number(data.quantity) <= 0) ? 'Quantity must be greater than 0' : '';
+      case 'harvestDate':
+        if (!data.harvestDate) return 'Harvest date is required';
+        if (new Date(data.harvestDate) > new Date()) return 'Harvest date cannot be in the future';
+        return '';
+      case 'origin':
+        return !data.origin.trim() ? 'Origin is required' : '';
+      default:
+        return '';
+    }
+  };
+
   const validateForm = (): boolean => {
+    const fieldsToCheck = ['farmerName', 'farmerAddress', 'cropType', 'quantity', 'harvestDate', 'origin'];
     const errors: Record<string, string> = {};
 
-    if (!formData.farmerName.trim()) errors.farmerName = 'Farmer name is required';
-    if (!formData.farmerAddress.trim()) errors.farmerAddress = 'Farmer address is required';
-    if (!formData.cropType.trim()) errors.cropType = 'Please select a crop type';
-    if (!formData.quantity || Number(formData.quantity) <= 0) errors.quantity = 'Quantity must be greater than 0';
-    if (!formData.harvestDate) errors.harvestDate = 'Harvest date is required';
-    else if (new Date(formData.harvestDate) > new Date()) errors.harvestDate = 'Harvest date cannot be in the future';
-    if (!formData.origin.trim()) errors.origin = 'Origin is required';
+    fieldsToCheck.forEach(name => {
+      const message = validateField(name, formData);
+      if (message) errors[name] = message;
+    });
 
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
@@ -102,9 +125,17 @@ const AddBatchContent: React.FC = () => {
     e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name } = e.target;
+    const message = validateField(name, formData);
+
     setFieldErrors(prev => {
       const copy = { ...prev };
-      delete copy[name];
+      if (message) {
+        // Field is still invalid — keep (or update) the error instead
+        // of silently clearing it.
+        copy[name] = message;
+      } else {
+        delete copy[name];
+      }
       return copy;
     });
   };
