@@ -6,7 +6,10 @@ import { ConflictResolutionModal } from './ConflictResolutionModal';
 
 const SyncStatusIndicator: React.FC = () => {
   const { t } = useTranslation();
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  // Safe default for pre-render/SSR environments where `navigator` may not
+  // exist yet. The real value is read in useEffect, which only runs on
+  // the client after mount.
+  const [isOnline, setIsOnline] = useState(true);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [pendingCount, setPendingCount] = useState({ batches: 0, updates: 0 });
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -18,6 +21,12 @@ const SyncStatusIndicator: React.FC = () => {
   const [showConflictModal, setShowConflictModal] = useState(false);
 
   useEffect(() => {
+    // Now that we're safely on the client, sync isOnline with the actual
+    // browser state before wiring up the online/offline listeners.
+    if (typeof navigator !== 'undefined') {
+      setIsOnline(navigator.onLine);
+    }
+
     // Listen for online/offline events
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
