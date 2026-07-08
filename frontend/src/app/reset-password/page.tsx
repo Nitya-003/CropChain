@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowLeft, Check, X } from 'lucide-react';
@@ -19,6 +19,10 @@ const ResetPasswordContent = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  // Holds the id of the pending redirect timeout so it can be cleared
+  // if the component unmounts before the redirect fires.
+  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Password requirements validation state
   const [validations, setValidations] = useState({
@@ -40,6 +44,17 @@ const ResetPasswordContent = () => {
       match: password.length > 0 && password === confirmPassword,
     });
   }, [password, confirmPassword]);
+
+  // Clear any pending redirect timer when the component unmounts,
+  // so a stale timer can't redirect the user after they've navigated away.
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current) {
+        clearTimeout(redirectTimerRef.current);
+        redirectTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const isFormValid = 
     validations.minLength && 
@@ -66,7 +81,13 @@ const ResetPasswordContent = () => {
       await authService.resetPassword(token, password);
       setSuccess(true);
       toast.success('Password reset successfully!');
-      setTimeout(() => {
+
+      // Clear any existing timer before scheduling a new one, then store
+      // the new timer's id so it can be cancelled on unmount.
+      if (redirectTimerRef.current) {
+        clearTimeout(redirectTimerRef.current);
+      }
+      redirectTimerRef.current = setTimeout(() => {
         router.push('/login');
       }, 3000);
     } catch (err: any) {
