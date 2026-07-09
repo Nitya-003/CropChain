@@ -40,7 +40,7 @@ const TrackBatch: React.FC = () => {
     setErrorType(null);
 
     try {
-      const result = await realCropBatchService.getBatch(batchId);
+      const result = await realCropBatchService.getPublicBatch(batchId);
       setBatch(result);
     } catch (error: any) {
       console.error('Batch error:', error);
