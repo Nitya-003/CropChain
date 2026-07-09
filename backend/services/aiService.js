@@ -1,4 +1,5 @@
-const axios = require('axios');
+﻿const axios = require('axios');
+const logger = require('../utils/logger');
 
 class AIService {
     constructor() {
@@ -40,17 +41,17 @@ class AIService {
                 const { GoogleGenerativeAI } = require('@google/generative-ai');
                 this.genAI = new GoogleGenerativeAI(this.geminiApiKey);
                 this.modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
-                console.log(`✓ AI chatbot initialized using Google Gemini (${this.modelName})`);
+                logger.info(`✓ AI chatbot initialized using Google Gemini (${this.modelName})`);
             } catch (error) {
-                console.error('Failed to load Google Generative AI SDK, falling back to basic responses:', error.message);
+                logger.error('Failed to load Google Generative AI SDK, falling back to basic responses:', error.message);
                 this.provider = 'fallback';
             }
         } else if (this.provider === 'openai') {
             this.apiKey = this.openaiApiKey;
             this.modelName = process.env.AI_MODEL || 'gpt-4o-mini';
-            console.log(`✓ AI chatbot initialized using OpenAI (${this.modelName})`);
+            logger.info(`✓ AI chatbot initialized using OpenAI (${this.modelName})`);
         } else {
-            console.warn('OpenAI/Gemini API key not found. AI chatbot will use fallback responses.');
+            logger.warn('OpenAI/Gemini API key not found. AI chatbot will use fallback responses.');
         }
     }
 
@@ -357,7 +358,7 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
                     };
             }
         } catch (error) {
-            console.error('Function execution error:', error);
+            logger.error('Function execution error:', error);
             return {
                 success: false,
                 message: 'An error occurred while processing your request.'
@@ -449,7 +450,7 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
                     message: response.text()
                 };
             } catch (error) {
-                console.error('Gemini API error:', error.message);
+                logger.error('Gemini API error:', error.message);
                 return await this.getSmartFallbackResponse(message, batchService);
             }
         }
@@ -528,7 +529,7 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
             };
 
         } catch (error) {
-            console.error('OpenAI API error:', error.response?.data || error.message);
+            logger.error('OpenAI API error:', error.response?.data || error.message);
             
             // Fallback to local response on API error
             return await this.getSmartFallbackResponse(message, batchService);
@@ -608,7 +609,7 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
                     message: text
                 };
             } catch (error) {
-                console.error('Gemini streaming API error:', error.message);
+                logger.error('Gemini streaming API error:', error.message);
                 const fallback = await this.getSmartFallbackResponse(message, batchService);
                 await this.streamText(fallback.message, onToken);
                 return fallback;
@@ -676,7 +677,7 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
                 message: initialResponse.message
             };
         } catch (error) {
-            console.error('OpenAI streaming API error:', error.response?.data || error.message);
+            logger.error('OpenAI streaming API error:', error.response?.data || error.message);
             const fallback = await this.getSmartFallbackResponse(message, batchService);
             await this.streamText(fallback.message, onToken);
             return fallback;
@@ -850,7 +851,7 @@ You can view the full interactive journey map here: [View Interactive Journey](/
                     };
                 }
             } catch (error) {
-                console.error('Smart fallback batch query error:', error);
+                logger.error('Smart fallback batch query error:', error);
             }
         }
 
@@ -883,7 +884,7 @@ You can view the full journey of this batch here: [View Journey](/batch/${batch.
                     };
                 }
             } catch (error) {
-                console.error('Smart fallback latest query error:', error);
+                logger.error('Smart fallback latest query error:', error);
             }
         }
 
@@ -910,7 +911,7 @@ Click on any batch ID to trace its journey.`
                     };
                 }
             } catch (error) {
-                console.error('Smart fallback search query error:', error);
+                logger.error('Smart fallback search query error:', error);
             }
         }
 
@@ -927,7 +928,7 @@ Click on any batch ID to trace its journey.`
 - **Batches Added Last 30 Days:** ${stats.stats.recentBatches}`
                 };
             } catch (error) {
-                console.error('Smart fallback stats query error:', error);
+                logger.error('Smart fallback stats query error:', error);
             }
         }
 
@@ -1075,7 +1076,7 @@ Click on any batch ID to trace its journey.`
             try {
                 fetchedBatch = await batchService.getBatchByIdOrPartial(batchIdSearch);
             } catch (error) {
-                console.error('Error fetching batch context:', error);
+                logger.error('Error fetching batch context:', error);
             }
         }
 
@@ -1092,7 +1093,7 @@ Click on any batch ID to trace its journey.`
                     cropTransitStats = this.calculateTransitStats(batchesOfCrop, foundCropType);
                 }
             } catch (error) {
-                console.error('Error fetching crop batches for transit stats:', error);
+                logger.error('Error fetching crop batches for transit stats:', error);
             }
         }
 
@@ -1119,7 +1120,7 @@ Click on any batch ID to trace its journey.`
                     }, null, 2)}\n\n`;
                 }
             } catch (e) {
-                console.error('Error fetching dashboard stats for context:', e);
+                logger.error('Error fetching dashboard stats for context:', e);
             }
         }
 
@@ -1188,7 +1189,7 @@ INSTRUCTIONS & CONSTRAINTS:
                     return { success: true, message: result.response.text() };
                 }
             } catch (error) {
-                console.error('Gemini context query error:', error.message);
+                logger.error('Gemini context query error:', error.message);
                 const fallback = await this.getSmartFallbackResponse(message, batchService);
                 if (onToken) await this.streamText(fallback.message, onToken);
                 return { success: true, message: fallback.message };
@@ -1228,7 +1229,7 @@ INSTRUCTIONS & CONSTRAINTS:
                 };
             }
         } catch (error) {
-            console.error('OpenAI context query error:', error.response?.data || error.message);
+            logger.error('OpenAI context query error:', error.response?.data || error.message);
             const fallback = await this.getSmartFallbackResponse(message, batchService);
             if (onToken) await this.streamText(fallback.message, onToken);
             return { success: true, message: fallback.message };
@@ -1279,7 +1280,7 @@ Return the structured risk assessment JSON.`;
                 const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
                 return JSON.parse(cleanJson);
             } catch (error) {
-                console.error('Gemini spoilage prediction error:', error.message);
+                logger.error('Gemini spoilage prediction error:', error.message);
                 return this.calculateLocalSpoilageRisk(batch, transitHours);
             }
         }
@@ -1304,7 +1305,7 @@ Return the structured risk assessment JSON.`;
                 const content = response.data.choices[0].message.content;
                 return JSON.parse(content);
             } catch (error) {
-                console.error('OpenAI spoilage prediction error:', error.message);
+                logger.error('OpenAI spoilage prediction error:', error.message);
                 return this.calculateLocalSpoilageRisk(batch, transitHours);
             }
         }
@@ -1384,4 +1385,6 @@ Return the structured risk assessment JSON.`;
 }
 
 module.exports = new AIService();
+
+
 
