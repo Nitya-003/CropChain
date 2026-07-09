@@ -43,7 +43,7 @@ const generateBatchId = async (session) => {
 const generateQRCode = async (batchId) => {
     try {
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-        const trackingUrl = `${frontendUrl}/track/${batchId}`;
+        const trackingUrl = `${frontendUrl}/track-batch?id=${encodeURIComponent(batchId)}`;
         return await QRCode.toDataURL(trackingUrl, {
             width: 400,
             margin: 2,
