@@ -1,5 +1,6 @@
-const { ethers } = require('ethers');
+﻿const { ethers } = require('ethers');
 require('dotenv').config();
+const logger = require('../utils/logger');
 
 class OracleService {
     constructor() {
@@ -15,7 +16,7 @@ class OracleService {
      */
     async initialize() {
         try {
-            console.log('🔮 Initializing Oracle Service...');
+            logger.info('🔮 Initializing Oracle Service...');
             
             // Setup oracle wallet and check environment variables first
             const privateKey = process.env.ORACLE_PRIVATE_KEY;
@@ -33,7 +34,7 @@ class OracleService {
             this.provider = new ethers.WebSocketProvider(providerUrl);
             
             this.oracleWallet = new ethers.Wallet(privateKey, this.provider);
-            console.log(`🔑 Oracle wallet address: ${this.oracleWallet.address}`);
+            logger.info(`🔑 Oracle wallet address: ${this.oracleWallet.address}`);
             
             const contractABI = [
                 "event IoTDataRequested(bytes32 indexed batchId, address requester)",
@@ -47,11 +48,11 @@ class OracleService {
             // Start event listening
             await this.startEventListening();
             
-            console.log('✅ Oracle Service initialized successfully');
+            logger.info('✅ Oracle Service initialized successfully');
             return true;
             
         } catch (error) {
-            console.error('❌ Failed to initialize Oracle Service:', error.message);
+            logger.error('❌ Failed to initialize Oracle Service:', error.message);
             throw error;
         }
     }
@@ -61,12 +62,12 @@ class OracleService {
      */
     async startEventListening() {
         if (this.isListening) {
-            console.log('⚠️ Oracle service is already listening');
+            logger.info('⚠️ Oracle service is already listening');
             return;
         }
 
         try {
-            console.log('👂 Starting event listening for IoTDataRequested...');
+            logger.info('👂 Starting event listening for IoTDataRequested...');
             
             // Listen for IoT data requests
             this.contract.on('IoTDataRequested', (batchId, requester) => {
@@ -74,10 +75,10 @@ class OracleService {
             });
             
             this.isListening = true;
-            console.log('✅ Event listening started successfully');
+            logger.info('✅ Event listening started successfully');
             
         } catch (error) {
-            console.error('❌ Failed to start event listening:', error.message);
+            logger.error('❌ Failed to start event listening:', error.message);
             throw error;
         }
     }
@@ -93,14 +94,14 @@ class OracleService {
 
         try {
             const batchIdStr = ethers.decodeBytes32String(batchId);
-            console.log(`📡 IoT Data Requested:`);
-            console.log(`   Batch ID: ${batchIdStr}`);
-            console.log(`   Requester: ${requester}`);
-            console.log(`   Timestamp: ${new Date().toISOString()}`);
+            logger.info(`📡 IoT Data Requested:`);
+            logger.info(`   Batch ID: ${batchIdStr}`);
+            logger.info(`   Requester: ${requester}`);
+            logger.info(`   Timestamp: ${new Date().toISOString()}`);
             
             // Check if already processing this batch
             if (this.requestQueue.has(batchIdStr)) {
-                console.log(`⚠️ Already processing batch ${batchIdStr}, skipping...`);
+                logger.info(`⚠️ Already processing batch ${batchIdStr}, skipping...`);
                 return;
             }
             
@@ -111,11 +112,11 @@ class OracleService {
                 status: 'processing'
             });
             
-            console.log(`❌ No real IoT sensor integration configured. Cannot fulfill IoT data request for batch ${batchIdStr}.`);
+            logger.info(`❌ No real IoT sensor integration configured. Cannot fulfill IoT data request for batch ${batchIdStr}.`);
             this.requestQueue.delete(batchIdStr);
             
         } catch (error) {
-            console.error(`❌ Failed to handle IoT request for batch ${batchId}:`, error.message);
+            logger.error(`❌ Failed to handle IoT request for batch ${batchId}:`, error.message);
             
             // Remove from queue even on failure
             const batchIdStr = ethers.decodeBytes32String(batchId);
@@ -128,7 +129,7 @@ class OracleService {
      */
     async fulfillIoTData(batchId, iotData) {
         try {
-            console.log(`🔗 Fulfilling IoT data on blockchain...`);
+            logger.info(`🔗 Fulfilling IoT data on blockchain...`);
             
             // Convert temperature to hundredths for contract
             const temperatureRaw = Math.round(iotData.temperature * 10);
@@ -140,7 +141,7 @@ class OracleService {
                 iotData.humidity
             );
             
-            console.log(`⛽ Gas estimate: ${gasEstimate.toString()}`);
+            logger.info(`⛽ Gas estimate: ${gasEstimate.toString()}`);
             
             const tx = await this.contract.fulfillIoTData(
                 batchId,
@@ -152,19 +153,19 @@ class OracleService {
                 }
             );
             
-            console.log(`📤 Transaction sent: ${tx.hash}`);
+            logger.info(`📤 Transaction sent: ${tx.hash}`);
             
             // Wait for confirmation
             const receipt = await tx.wait();
             
-            console.log(`✅ Transaction confirmed:`);
-            console.log(`   Block: ${receipt.blockNumber}`);
-            console.log(`   Gas Used: ${receipt.gasUsed.toString()}`);
+            logger.info(`✅ Transaction confirmed:`);
+            logger.info(`   Block: ${receipt.blockNumber}`);
+            logger.info(`   Gas Used: ${receipt.gasUsed.toString()}`);
             
             return receipt;
             
         } catch (error) {
-            console.error('❌ Failed to fulfill IoT data:', error.message);
+            logger.error('❌ Failed to fulfill IoT data:', error.message);
             throw error;
         }
     }
@@ -190,7 +191,7 @@ class OracleService {
             if (this.contract && this.isListening) {
                 this.contract.removeAllListeners('IoTDataRequested');
                 this.isListening = false;
-                console.log('🛑 Oracle service stopped');
+                logger.info('🛑 Oracle service stopped');
             }
             
             if (this.provider) {
@@ -198,7 +199,7 @@ class OracleService {
             }
             
         } catch (error) {
-            console.error('❌ Error stopping oracle service:', error.message);
+            logger.error('❌ Error stopping oracle service:', error.message);
         }
     }
 
@@ -222,7 +223,7 @@ class OracleService {
             };
             
         } catch (error) {
-            console.error(`❌ Failed to get IoT data for batch ${batchId}:`, error.message);
+            logger.error(`❌ Failed to get IoT data for batch ${batchId}:`, error.message);
             throw error;
         }
     }
@@ -233,15 +234,17 @@ const oracleService = new OracleService();
 
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
-    console.log('\n🛑 Shutting down Oracle Service...');
+    logger.info('\n🛑 Shutting down Oracle Service...');
     await oracleService.stop();
     process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-    console.log('\n🛑 Shutting down Oracle Service...');
+    logger.info('\n🛑 Shutting down Oracle Service...');
     await oracleService.stop();
     process.exit(0);
 });
 
 module.exports = oracleService;
+
+
