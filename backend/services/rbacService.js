@@ -1,4 +1,4 @@
-/**
+﻿/**
  * RBAC Service
  */
 
@@ -6,6 +6,7 @@ const {
     PERMISSIONS, ROLES, hasPermission, hasAnyPermission, hasAllPermissions,
     isMultisigAction, getMultisigConfig, canApproveMultisig, getRoleLevel, isRoleHigher
 } = require('../constants/permissions');
+const logger = require('../utils/logger');
 
 class RBACService {
     static checkPermission(user, permission) {
@@ -126,7 +127,7 @@ class RBACService {
             if (!req.user) return res.status(401).json({ error: 'Unauthorized', message: 'Authentication required' });
             const hasAuth = requireAll ? this.checkAllPermissions(req.user, permArray) : this.checkAnyPermission(req.user, permArray);
             if (!hasAuth) {
-                console.log(`[RBAC] Permission denied for user ${req.user.email}: needs ${permArray.join(', ')}`);
+                logger.warn(`[RBAC] Permission denied for user ${req.user.email}: needs ${permArray.join(', ')}`);
                 return res.status(403).json({ error: 'Forbidden', message: `Missing required permission(s): ${permArray.join(', ')}` });
             }
             next();
@@ -135,3 +136,4 @@ class RBACService {
 }
 
 module.exports = RBACService;
+
