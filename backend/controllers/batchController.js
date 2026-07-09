@@ -669,15 +669,15 @@ exports.recordIoTData = async (req, res) => {
             );
         }
 
-        if (typeof temperature !== 'number' || temperature < -20 || temperature > 140) {
+        if (typeof temperature !== 'number' || Number.isNaN(temperature) || temperature < -20 || temperature > 140) {
             return res.status(400).json(
-                apiResponse.errorResponse('Temperature must be a number between -20 and 140', 'INVALID_TEMPERATURE', 400)
+                apiResponse.errorResponse('Temperature must be a valid number between -20 and 140', 'INVALID_TEMPERATURE', 400)
             );
         }
 
-        if (typeof humidity !== 'number' || humidity < 0 || humidity > 100) {
+        if (typeof humidity !== 'number' || Number.isNaN(humidity) || humidity < 0 || humidity > 100) {
             return res.status(400).json(
-                apiResponse.errorResponse('Humidity must be a number between 0 and 100', 'INVALID_HUMIDITY', 400)
+                apiResponse.errorResponse('Humidity must be a valid number between 0 and 100', 'INVALID_HUMIDITY', 400)
             );
         }
 
