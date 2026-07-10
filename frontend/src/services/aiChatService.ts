@@ -1,3 +1,5 @@
+import { tokenService } from './token.service';
+
 interface ChatMessage {
   id: string;
   content: string;
@@ -156,7 +158,7 @@ class AIChatService {
     onStatus?: (status: string) => void
   ): Promise<ChatResponse> {
     try {
-      const token = localStorage.getItem('token');
+      const token = tokenService.getAccessToken();
       const response = await fetch(`${this.baseUrl}/api/ai/batch-query`, {
         method: 'POST',
         headers: {

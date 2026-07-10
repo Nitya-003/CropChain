@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { Search, Package, ArrowRight, Thermometer, AlertTriangle, CheckCircle, Wifi, AlertOctagon, Sparkles } from 'lucide-react';
@@ -13,10 +13,12 @@ import { useBatchSocket } from '../../hooks/useBatchSocket';
 import { JourneyPreview } from '../../components/journey/JourneyPreview';
 
 const TrackBatchContent: React.FC = () => {
+  const searchParams = useSearchParams();
   const [batchId, setBatchId] = useState('');
   const [batch, setBatch] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [errorType, setErrorType] = useState<'not-found' | 'error' | null>(null);
+  const lastAutoSearchedId = useRef<string | null>(null);
 
   const { t } = useTranslation();
   const searchParams = useSearchParams();
@@ -33,17 +35,16 @@ const TrackBatchContent: React.FC = () => {
     }
   });
 
-  const handleSearch = async (e?: React.FormEvent<HTMLFormElement>, overrideId?: string) => {
-    if (e) e.preventDefault();
-    const idToSearch = (overrideId ?? batchId).trim();
-    if (!idToSearch) return;
+  const searchBatch = useCallback(async (id: string) => {
+    const trimmedId = id.trim();
+    if (!trimmedId) return;
 
     setIsSearching(true);
     setBatch(null);
     setErrorType(null);
 
     try {
-      const result = await realCropBatchService.getBatch(idToSearch);
+      const result = await realCropBatchService.getPublicBatch(batchId);
       setBatch(result);
     } catch (error: any) {
       console.error('Batch error:', error);
@@ -56,6 +57,20 @@ const TrackBatchContent: React.FC = () => {
     } finally {
       setIsSearching(false);
     }
+  }, []);
+
+  useEffect(() => {
+    const queryBatchId = searchParams.get('id')?.trim();
+    if (!queryBatchId || lastAutoSearchedId.current === queryBatchId) return;
+
+    lastAutoSearchedId.current = queryBatchId;
+    setBatchId(queryBatchId);
+    searchBatch(queryBatchId);
+  }, [searchBatch, searchParams]);
+
+  const handleSearch = async (e?: React.FormEvent<HTMLFormElement>) => {
+    if (e) e.preventDefault();
+    await searchBatch(batchId);
   };
 
   // Auto-search when the page is opened with a ?batchId= query param.
@@ -345,13 +360,10 @@ const TrackBatchContent: React.FC = () => {
   );
 };
 
-// useSearchParams requires a Suspense boundary in the Next.js App Router.
-const TrackBatch: React.FC = () => {
-  return (
-    <Suspense fallback={<TrackBatchSkeleton />}>
-      <TrackBatchContent />
-    </Suspense>
-  );
-};
+const TrackBatch: React.FC = () => (
+  <Suspense fallback={null}>
+    <TrackBatchContent />
+  </Suspense>
+);
 
 export default TrackBatch;

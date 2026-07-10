@@ -136,10 +136,6 @@ function initializeSocketIO(httpServer) {
             return socket.emit('bid_error', { message: 'User not found' });
           }
 
-          if (user.balance < bidAmount) {
-            return socket.emit('bid_error', { message: `Insufficient funds. Your balance is ${user.balance} credits.` });
-          }
-
           // 2. Fetch auction to verify state
           const auction = await Auction.findById(auctionId);
           if (!auction) {
@@ -162,6 +158,12 @@ function initializeSocketIO(httpServer) {
           // Optimistic locking approach using conditions
           const previousHighestBidder = auction.highestBidder;
           const previousHighestBid = auction.currentHighestBid;
+          const isSelfOutbid = previousHighestBidder && previousHighestBidder.toString() === bidderId;
+          const amountToDeduct = isSelfOutbid ? bidAmount - previousHighestBid : bidAmount;
+
+          if (user.balance < amountToDeduct) {
+            return socket.emit('bid_error', { message: `Insufficient funds. Your balance is ${user.balance} credits.` });
+          }
 
           const updatedAuction = await Auction.findOneAndUpdate(
             {
@@ -184,14 +186,15 @@ function initializeSocketIO(httpServer) {
           }
 
           // 4. Refund previous highest bidder (if any) and deduct new highest bidder's balance
-          if (previousHighestBidder) {
+          if (previousHighestBidder && !isSelfOutbid) {
             await User.findByIdAndUpdate(previousHighestBidder, {
               $inc: { balance: previousHighestBid }
             });
           }
 
-          user.balance -= bidAmount;
-          await user.save();
+          await User.findByIdAndUpdate(bidderId, {
+            $inc: { balance: -amountToDeduct }
+          });
 
           // 5. Create new Bid record
           const newBid = new Bid({

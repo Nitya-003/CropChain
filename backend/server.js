@@ -392,6 +392,37 @@ app.post('/api/batches', batchLimiter, protect, authorizeRoles('farmer'), valida
     }
 });
 
+// GET public batch tracking data - no authentication required
+app.get('/api/batches/public/:batchId', batchLimiter, async (req, res) => {
+    try {
+        const { batchId } = req.params;
+        const result = await batchService.getPublicBatch(batchId);
+
+        if (!result.success) {
+            if (result.statusCode === 404) {
+                logger.warn('Public batch not found', { batchId, ip: req.ip });
+                const response = apiResponse.notFoundResponse('Batch', `ID: ${batchId}`);
+                return res.status(404).json(response);
+            }
+
+            const response = apiResponse.errorResponse(result.error, 'INVALID_BATCH_ID', result.statusCode || 400);
+            return res.status(response.statusCode).json(response);
+        }
+
+        const response = apiResponse.successResponse({ batch: result.batch }, 'Public batch tracking data retrieved successfully');
+        res.json(response);
+    } catch (error) {
+        notificationService.notifyError('public batch tracking fetch', error);
+        logger.error('Error fetching public batch tracking data', { error: error.message, stack: error.stack });
+        const response = apiResponse.errorResponse(
+            'Failed to fetch public batch tracking data',
+            'PUBLIC_BATCH_FETCH_ERROR',
+            500
+        );
+        res.status(500).json(response);
+    }
+});
+
 // GET one batch - requires authentication
 app.get('/api/batches/:batchId', batchLimiter, protect, async (req, res) => {
     try {
