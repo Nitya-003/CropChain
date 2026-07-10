@@ -17,8 +17,8 @@ const mockBatchData = {
   qrCode: '/qr/batch-001.png',
 };
 
-const { mockGetBatch, mockUseBatchSocket, mockPush, mockUseSearchParams } = vi.hoisted(() => ({
-  mockGetBatch: vi.fn(),
+const { mockGetPublicBatch, mockUseBatchSocket, mockPush } = vi.hoisted(() => ({
+  mockGetPublicBatch: vi.fn(),
   mockUseBatchSocket: vi.fn().mockReturnValue({ isConnected: false, lastUpdate: null }),
   mockPush: vi.fn(),
   mockUseSearchParams: vi.fn(() => new URLSearchParams()),
@@ -30,7 +30,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('../../../services/realCropBatchService', () => ({
-  realCropBatchService: { getBatch: mockGetBatch },
+  realCropBatchService: { getPublicBatch: mockGetPublicBatch },
 }));
 
 vi.mock('../../../hooks/useBatchSocket', () => ({
@@ -58,7 +58,7 @@ describe('TrackBatch Page', () => {
   });
 
   it('shows searching state while searching', async () => {
-    mockGetBatch.mockImplementation(() => new Promise(() => {}));
+    mockGetPublicBatch.mockImplementation(() => new Promise(() => {}));
     const user = userEvent.setup();
     renderTrackBatch();
     const input = screen.getByPlaceholderText(/Enter Batch ID/);
@@ -70,7 +70,7 @@ describe('TrackBatch Page', () => {
   });
 
   it('displays batch details on successful search', async () => {
-    mockGetBatch.mockResolvedValue(mockBatchData);
+    mockGetPublicBatch.mockResolvedValue(mockBatchData);
     const user = userEvent.setup();
     renderTrackBatch();
     await user.type(screen.getByPlaceholderText(/Enter Batch ID/), 'BATCH-001');
@@ -98,7 +98,7 @@ describe('TrackBatch Page', () => {
   });
 
   it('displays IoT sensor data when available', async () => {
-    mockGetBatch.mockResolvedValue(mockBatchData);
+    mockGetPublicBatch.mockResolvedValue(mockBatchData);
     const user = userEvent.setup();
     renderTrackBatch();
     await user.type(screen.getByPlaceholderText(/Enter Batch ID/), 'BATCH-001');
@@ -110,7 +110,7 @@ describe('TrackBatch Page', () => {
 
   it('shows spoilage alert when batch is spoiled', async () => {
     const spoiledBatch = { ...mockBatchData, isSpoiled: true, currentTemperature: 95 };
-    mockGetBatch.mockResolvedValue(spoiledBatch);
+    mockGetPublicBatch.mockResolvedValue(spoiledBatch);
     const user = userEvent.setup();
     renderTrackBatch();
     await user.type(screen.getByPlaceholderText(/Enter Batch ID/), 'BATCH-001');
@@ -121,7 +121,7 @@ describe('TrackBatch Page', () => {
   });
 
   it('shows EmptyState when batch is not found', async () => {
-    mockGetBatch.mockRejectedValue(new Error('not found'));
+    mockGetPublicBatch.mockRejectedValue(new Error('not found'));
     const user = userEvent.setup();
     renderTrackBatch();
     await user.type(screen.getByPlaceholderText(/Enter Batch ID/), 'INVALID-001');
@@ -132,7 +132,7 @@ describe('TrackBatch Page', () => {
   });
 
   it('shows ErrorState on search error', async () => {
-    mockGetBatch.mockRejectedValue(new Error('Network error'));
+    mockGetPublicBatch.mockRejectedValue(new Error('Network error'));
     const user = userEvent.setup();
     renderTrackBatch();
     await user.type(screen.getByPlaceholderText(/Enter Batch ID/), 'BATCH-001');
@@ -143,8 +143,8 @@ describe('TrackBatch Page', () => {
   });
 
   it('allows retry from ErrorState', async () => {
-    mockGetBatch.mockRejectedValueOnce(new Error('Network error'));
-    mockGetBatch.mockResolvedValueOnce(mockBatchData);
+    mockGetPublicBatch.mockRejectedValueOnce(new Error('Network error'));
+    mockGetPublicBatch.mockResolvedValueOnce(mockBatchData);
     const user = userEvent.setup();
     renderTrackBatch();
     await user.type(screen.getByPlaceholderText(/Enter Batch ID/), 'BATCH-001');
@@ -159,7 +159,7 @@ describe('TrackBatch Page', () => {
   });
 
   it('shows LIVE indicator when WebSocket is connected', async () => {
-    mockGetBatch.mockResolvedValue(mockBatchData);
+    mockGetPublicBatch.mockResolvedValue(mockBatchData);
     mockUseBatchSocket.mockReturnValue({ isConnected: true, lastUpdate: new Date() });
     const user = userEvent.setup();
     renderTrackBatch();
@@ -174,6 +174,6 @@ describe('TrackBatch Page', () => {
     const user = userEvent.setup();
     renderTrackBatch();
     await user.click(screen.getByText('Track'));
-    expect(mockGetBatch).not.toHaveBeenCalled();
+    expect(mockGetPublicBatch).not.toHaveBeenCalled();
   });
 });
