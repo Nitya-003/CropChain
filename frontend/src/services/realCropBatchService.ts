@@ -34,6 +34,15 @@ export interface BatchData {
   };
 }
 
+// Matches the flat shape expected by the backend's updateBatchSchema
+export interface UpdateBatchPayload {
+  stage: string;
+  actor: string;
+  location: string;
+  timestamp: string;
+  notes?: string;
+}
+
 export const realCropBatchService = {
   createBatch: async (formData: any): Promise<BatchData> => {
     const response = await apiClient.post('/batches', formData);
@@ -77,7 +86,7 @@ export const realCropBatchService = {
     const response = await apiClient.get('/approvals', { params });
     return response.data.data;
   },
-  
+
   getRequestsNeedingSignature: async () => {
     const response = await apiClient.get('/approvals/pending');
     return response.data.data;

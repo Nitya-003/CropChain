@@ -1,4 +1,4 @@
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const mockBatchData = {
@@ -21,11 +21,12 @@ const { mockGetPublicBatch, mockUseBatchSocket, mockPush } = vi.hoisted(() => ({
   mockGetPublicBatch: vi.fn(),
   mockUseBatchSocket: vi.fn().mockReturnValue({ isConnected: false, lastUpdate: null }),
   mockPush: vi.fn(),
+  mockUseSearchParams: vi.fn(() => new URLSearchParams()),
 }));
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockUseSearchParams(),
 }));
 
 vi.mock('../../../services/realCropBatchService', () => ({
@@ -46,6 +47,7 @@ describe('TrackBatch Page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseBatchSocket.mockReturnValue({ isConnected: false, lastUpdate: null });
+    mockUseSearchParams.mockReturnValue(new URLSearchParams());
   });
 
   it('renders the search form', () => {
@@ -79,6 +81,19 @@ describe('TrackBatch Page', () => {
       expect(screen.getByText('John Farmer')).toBeInTheDocument();
       expect(screen.getByText('500 kg')).toBeInTheDocument();
       expect(screen.getByText('Punjab')).toBeInTheDocument();
+    });
+  });
+
+  it('automatically searches when batch ID is provided in query params', async () => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams('id=BATCH-001'));
+    mockGetBatch.mockResolvedValue(mockBatchData);
+
+    renderTrackBatch();
+
+    await waitFor(() => {
+      expect(mockGetBatch).toHaveBeenCalledWith('BATCH-001');
+      expect(screen.getByDisplayValue('BATCH-001')).toBeInTheDocument();
+      expect(screen.getByText('BATCH-001')).toBeInTheDocument();
     });
   });
 

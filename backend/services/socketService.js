@@ -1,6 +1,8 @@
 ﻿const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
+const Batch = require('../models/Batch');
+const { hasPermission, PERMISSIONS } = require('../constants/permissions');
 
 let io = null;
 
@@ -45,9 +47,43 @@ function initializeSocketIO(httpServer) {
       }
 
       // Handle client joining batch-specific rooms
-      socket.on('join-batch-room', (batchId) => {
-        socket.join(`batch:${batchId}`);
-        logger.info(`[SOCKET] Client ${socket.id} joined batch room: ${batchId}`);
+      socket.on('join-batch-room', async (batchId) => {
+        try {
+          const user = socket.user;
+          if (!user) {
+            socket.emit('error', { message: 'Authentication required to join batch room' });
+            return;
+          }
+
+          const userId = user.id || user._id;
+          const userFarmerId = user.farmerId || userId;
+
+          const batch = await Batch.findOne({ batchId }).lean();
+          if (!batch) {
+            socket.emit('error', { message: 'Batch not found' });
+            return;
+          }
+
+          const batchOwnerId = (batch.farmerId || '').toString().trim().toLowerCase();
+          const normalizedUserId = userId.toString().trim().toLowerCase();
+          const normalizedFarmerId = userFarmerId.toString().trim().toLowerCase();
+
+          const isOwner = batchOwnerId === normalizedFarmerId || batchOwnerId === normalizedUserId;
+          const canViewAll = hasPermission(user.role, PERMISSIONS.BATCH_VIEW_ALL);
+          const canRead = hasPermission(user.role, PERMISSIONS.BATCH_READ);
+
+          if (!isOwner && !canViewAll && !canRead) {
+            socket.emit('error', { message: 'Access denied: you do not have permission to view this batch' });
+            logger.warn(`[SOCKET] Unauthorized attempt by ${socket.id} (user ${userId}, role ${user.role}) to join batch room: ${batchId}`);
+            return;
+          }
+
+          socket.join(`batch:${batchId}`);
+          logger.info(`[SOCKET] Client ${socket.id} (user ${userId}, role ${user.role}) joined batch room: ${batchId}`);
+        } catch (err) {
+          logger.error(`[SOCKET ERROR] Error authorizing batch room join for ${socket.id}:`, err);
+          socket.emit('error', { message: 'Failed to verify batch access' });
+        }
       });
 
       // Handle client leaving batch rooms
@@ -100,10 +136,6 @@ function initializeSocketIO(httpServer) {
             return socket.emit('bid_error', { message: 'User not found' });
           }
 
-          if (user.balance < bidAmount) {
-            return socket.emit('bid_error', { message: `Insufficient funds. Your balance is ${user.balance} credits.` });
-          }
-
           // 2. Fetch auction to verify state
           const auction = await Auction.findById(auctionId);
           if (!auction) {
@@ -126,6 +158,12 @@ function initializeSocketIO(httpServer) {
           // Optimistic locking approach using conditions
           const previousHighestBidder = auction.highestBidder;
           const previousHighestBid = auction.currentHighestBid;
+          const isSelfOutbid = previousHighestBidder && previousHighestBidder.toString() === bidderId;
+          const amountToDeduct = isSelfOutbid ? bidAmount - previousHighestBid : bidAmount;
+
+          if (user.balance < amountToDeduct) {
+            return socket.emit('bid_error', { message: `Insufficient funds. Your balance is ${user.balance} credits.` });
+          }
 
           const updatedAuction = await Auction.findOneAndUpdate(
             {
@@ -148,14 +186,15 @@ function initializeSocketIO(httpServer) {
           }
 
           // 4. Refund previous highest bidder (if any) and deduct new highest bidder's balance
-          if (previousHighestBidder) {
+          if (previousHighestBidder && !isSelfOutbid) {
             await User.findByIdAndUpdate(previousHighestBidder, {
               $inc: { balance: previousHighestBid }
             });
           }
 
-          user.balance -= bidAmount;
-          await user.save();
+          await User.findByIdAndUpdate(bidderId, {
+            $inc: { balance: -amountToDeduct }
+          });
 
           // 5. Create new Bid record
           const newBid = new Bid({

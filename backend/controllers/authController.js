@@ -742,24 +742,31 @@ const resetPassword = async (req, res) => {
 
 const addFunds = async (req, res) => {
     try {
-        const { amount } = req.body;
+        const { amount, userId } = req.body;
+        
+        if (!userId) {
+            return res.status(400).json(
+                apiResponse.errorResponse('Please provide a target userId', 'MISSING_USER_ID', 400)
+            );
+        }
+
         if (amount === undefined || typeof amount !== 'number' || amount <= 0) {
             return res.status(400).json(
                 apiResponse.errorResponse('Please provide a valid positive number for amount', 'INVALID_AMOUNT', 400)
             );
         }
 
-        const user = await User.findById(req.user.id);
+        const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json(
-                apiResponse.notFoundResponse('User', req.user.id)
+                apiResponse.notFoundResponse('User', userId)
             );
         }
 
         user.balance = (user.balance || 0) + amount;
         await user.save();
 
-        logger.info('Funds added successfully', { userId: user._id, amount, newBalance: user.balance });
+        logger.info('Funds added successfully', { adminId: req.user.id, targetUserId: user._id, amount, newBalance: user.balance });
 
         return res.json(
             apiResponse.successResponse({ user: sanitizeUser(user) }, 'Funds added successfully')
