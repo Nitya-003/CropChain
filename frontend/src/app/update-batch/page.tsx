@@ -96,14 +96,11 @@ const [copied, setCopied] = useState(false);
     setIsUpdating(true);
     try {
       const updatedBatch = await realCropBatchService.updateBatch(batch.batchId, {
-        currentStage: updateData.stage,
-        updates: [{
-          stage: updateData.stage,
-          actor: updateData.actor,
-          location: updateData.location,
-          notes: updateData.notes,
-          timestamp: new Date(updateData.timestamp).toISOString()
-        }]
+        stage: updateData.stage,
+        actor: updateData.actor,
+        location: updateData.location,
+        notes: updateData.notes,
+        timestamp: new Date(updateData.timestamp).toISOString()
       });
       setBatch(updatedBatch);
       toast.success(`Batch updated successfully! New stage: ${updateData.stage}`);
@@ -572,7 +569,7 @@ const handleCopyTransactionHash = async () => {
   )}
 </button>
 
-          <a
+          
             href={`https://sepolia.etherscan.io/tx/${transactionDetails.hash}`}
             target="_blank"
             rel="noopener noreferrer"
