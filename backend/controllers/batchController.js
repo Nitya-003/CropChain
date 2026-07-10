@@ -11,6 +11,18 @@ const QRCode = require('qrcode');
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+const CSV_FORMULA_PREFIX = /^[=+\-@]/;
+
+const escapeCsvCell = (value) => {
+    if (value == null) return '""';
+    const str = String(value);
+    const escaped = str.replace(/"/g, '""');
+    if (CSV_FORMULA_PREFIX.test(escaped)) {
+        return `"\t${escaped}"`;
+    }
+    return `"${escaped}"`;
+};
+
 const buildSafeSearchFilter = (value) => {
     if (typeof value !== 'string') {
         return null;
@@ -603,14 +615,14 @@ exports.exportBatch = async (req, res) => {
         if (format === 'csv') {
             const csvData = [
                 'Field,Value',
-                `Batch ID,${batch.batchId}`,
-                `Crop Type,${batch.cropType}`,
-                `Quantity,${batch.quantity} kg`,
-                `Harvest Date,${batch.harvestDate || 'N/A'}`,
-                `Origin,${batch.origin}`,
-                `Farmer,${batch.farmerName}`,
-                `Current Stage,${batch.currentStage}`,
-                `Status,${batch.isSpoiled ? 'Spoiled' : 'Active'}`,
+                `Batch ID,${escapeCsvCell(batch.batchId)}`,
+                `Crop Type,${escapeCsvCell(batch.cropType)}`,
+                `Quantity,${escapeCsvCell(batch.quantity + ' kg')}`,
+                `Harvest Date,${escapeCsvCell(batch.harvestDate || 'N/A')}`,
+                `Origin,${escapeCsvCell(batch.origin)}`,
+                `Farmer,${escapeCsvCell(batch.farmerName)}`,
+                `Current Stage,${escapeCsvCell(batch.currentStage)}`,
+                `Status,${escapeCsvCell(batch.isSpoiled ? 'Spoiled' : 'Active')}`,
             ];
 
             if (batch.updates?.length) {
@@ -618,12 +630,13 @@ exports.exportBatch = async (req, res) => {
                 csvData.push('Timeline');
                 csvData.push('Stage,Actor,Location,Date,Notes');
                 batch.updates.forEach(u => {
-                    const stage = (u.stage || '').replace(/"/g, '""');
-                    const actor = (u.actor || '').replace(/"/g, '""');
-                    const location = (u.location || '').replace(/"/g, '""');
-                    const timestamp = (u.timestamp || '').replace(/"/g, '""');
-                    const notes = (u.notes || '').replace(/"/g, '""');
-                    csvData.push(`"${stage}","${actor}","${location}","${timestamp}","${notes}"`);
+                    csvData.push([
+                        escapeCsvCell(u.stage),
+                        escapeCsvCell(u.actor),
+                        escapeCsvCell(u.location),
+                        escapeCsvCell(u.timestamp),
+                        escapeCsvCell(u.notes),
+                    ].join(','));
                 });
             }
 
