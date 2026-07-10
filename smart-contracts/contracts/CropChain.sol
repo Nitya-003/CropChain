@@ -297,8 +297,12 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         // Clear approval after use
         nextCustodianApproval[batchId] = address(0);
 
-        // Reset batchListedQuantity to invalidate active ghost listings from previous custodian
-        batchListedQuantity[batchId] = 0;
+        // batchListedQuantity is intentionally NOT reset here. The tracker accumulates
+        // across custodian transitions so the over-allocation guard in createListing()
+        // always reflects the total quantity ever listed minus what has been sold.
+        // Resetting would let a new custodian re-list the full batch quantity while
+        // prior custodians' listings remain active, allowing total listed quantity
+        // to exceed the physical batch quantity.
 
         // Dynamic role checks based on stage transition
         require(_canUpdateStage(batchId, stage), "Role not allowed for this stage transition");
