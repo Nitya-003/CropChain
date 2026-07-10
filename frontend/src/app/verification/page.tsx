@@ -129,6 +129,16 @@ const VerificationDashboardComponent: React.FC = () => {
         ];
     }, [unverifiedUsers, verifiedUsers]);
 
+    // Reset rowStatuses on unmount (prevents stale badges on later mounts)
+    useEffect(() => {
+        return () => {
+            setRowStatuses({});
+        };
+    }, []);
+
+
+
+
     // Handle incoming socket status updates
     const handleVerificationSocketUpdate = useCallback((data: any) => {
         console.log('[SOCKET EVENT] Verification update:', data);
@@ -152,6 +162,7 @@ const VerificationDashboardComponent: React.FC = () => {
             }
         }
     }, [unverifiedUsers, verifiedUsers]);
+
 
     const { isConnected: socketConnected } = useVerificationSocket({
         userIds: allUserIds,
