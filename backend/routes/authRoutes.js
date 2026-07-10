@@ -15,7 +15,7 @@ const {
 } = require('../controllers/authController');
 const { protect, adminOnly } = require('../middleware/auth');
 const validateRegistration = require('../middleware/validateRegistration');
-const { authLimiter } = require('../middleware/rateLimiters');
+const { authLimiter, registerLimiter } = require('../middleware/rateLimiters');
 
 router.post('/register', validateRegistration, registerUser);
 router.post('/login', loginUser);
@@ -26,9 +26,9 @@ router.post('/reset-password/:token', authLimiter, resetPassword);
 router.post('/add-funds', protect, adminOnly, addFunds);
 
 // Wallet authentication routes
-router.get('/nonce', getNonce);
-router.post('/wallet-login', walletLogin);
-router.post('/wallet-register', validateRegistration, walletRegister);
+router.get('/nonce', authLimiter, getNonce);
+router.post('/wallet-login', authLimiter, walletLogin);
+router.post('/wallet-register', registerLimiter, validateRegistration, walletRegister);
 router.put('/profile', protect, updateProfile);
 
 module.exports = router;
