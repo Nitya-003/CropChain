@@ -4,7 +4,8 @@ const {
     createAuction,
     getAllAuctions,
     getAuctionDetails,
-    getAuctionBids
+    getAuctionBids,
+    placeBid
 } = require('../controllers/auctionController');
 const { protect } = require('../middleware/auth');
 const { batchLimiter } = require('../middleware/rateLimiters');
@@ -14,5 +15,6 @@ router.post('/', protect, batchLimiter, createAuction);
 router.get('/', protect, getAllAuctions);
 router.get('/:id', protect, getAuctionDetails);
 router.get('/:id/bids', protect, getAuctionBids);
+router.post('/:id/bids', protect, batchLimiter, placeBid);
 
 module.exports = router;
