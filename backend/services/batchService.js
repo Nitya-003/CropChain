@@ -47,7 +47,7 @@ class BatchService {
     async generateQRCode(batchId) {
         try {
             const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-            const trackingUrl = `${frontendUrl}/track/${encodeURIComponent(batchId)}`;
+            const trackingUrl = `${frontendUrl}/track-batch?id=${encodeURIComponent(batchId)}`;
             return await QRCode.toDataURL(trackingUrl, {
                 width: 400,
                 margin: 2,
