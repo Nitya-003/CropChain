@@ -211,10 +211,29 @@ exports.updateBatch = async (req, res) => {
         const { batchId } = req.params;
         const validatedData = req.body;
 
-        // Normalize stage to lowercase for consistency
         const normalizedStage = validatedData.stage.toLowerCase();
 
-        const batch = await Batch.findOne({ batchId });
+        const updateEntry = {
+            stage: normalizedStage,
+            actor: validatedData.actorName || req.user.name,
+            location: validatedData.location,
+            timestamp: validatedData.timestamp || new Date().toISOString(),
+            notes: validatedData.notes
+        };
+
+        const setFields = { currentStage: normalizedStage };
+        if (validatedData.quantity) setFields.quantity = validatedData.quantity;
+        if (validatedData.ipfsCID) setFields.ipfsCID = validatedData.ipfsCID;
+        if (validatedData.blockchainHash) setFields.blockchainHash = validatedData.blockchainHash;
+
+        const batch = await Batch.findOneAndUpdate(
+            { batchId },
+            {
+                $set: setFields,
+                $push: { updates: updateEntry }
+            },
+            { new: true }
+        );
 
         if (!batch) {
             return res.status(404).json(
@@ -222,25 +241,8 @@ exports.updateBatch = async (req, res) => {
             );
         }
 
-        // Update batch fields
         const previousStage = batch.currentStage;
-        batch.currentStage = normalizedStage;
-        
-        // Add update entry
-        batch.updates.push({
-            stage: normalizedStage,
-            actor: validatedData.actorName || req.user.name,
-            location: validatedData.location,
-            timestamp: validatedData.timestamp || new Date().toISOString(),
-            notes: validatedData.notes
-        });
 
-        // Update additional fields if provided
-        if (validatedData.quantity) batch.quantity = validatedData.quantity;
-        if (validatedData.ipfsCID) batch.ipfsCID = validatedData.ipfsCID;
-        if (validatedData.blockchainHash) batch.blockchainHash = validatedData.blockchainHash;
-
-        // Determine activity type and log activity
         let eventType = 'batch_status_updated';
         let description = `Batch stage updated to ${normalizedStage}`;
         if (normalizedStage === 'mandi') {
@@ -273,11 +275,8 @@ exports.updateBatch = async (req, res) => {
             }
         });
 
-        await batch.save();
-
         logger.info('Batch updated', { batchId, stage: normalizedStage, userId: req.user.id });
 
-        // Emit real-time WebSocket updates
         emitToBatchRoom(batchId, 'batch-updated', batch);
         emitToBatchRoom(batchId, 'batch-stage-changed', {
             batchId,
@@ -311,20 +310,6 @@ exports.recallBatch = async (req, res) => {
     try {
         const { batchId } = req.params;
 
-        const batch = await Batch.findOne({ batchId });
-
-        if (!batch) {
-            return res.status(404).json(
-                apiResponse.notFoundResponse('Batch', `ID: ${batchId}`)
-            );
-        }
-
-        if (batch.isRecalled) {
-            return res.status(400).json(
-                apiResponse.errorResponse('Batch already recalled', 'BATCH_ALREADY_RECALLED', 400)
-            );
-        }
-
         if (!req.user || !isAdminRole(req.user.role)) {
             return res.status(403).json(
                 apiResponse.errorResponse(
@@ -335,8 +320,23 @@ exports.recallBatch = async (req, res) => {
             );
         }
 
-        batch.isRecalled = true;
-        await batch.save();
+        const batch = await Batch.findOneAndUpdate(
+            { batchId, isRecalled: false },
+            { $set: { isRecalled: true } },
+            { new: true }
+        );
+
+        if (!batch) {
+            const existing = await Batch.findOne({ batchId });
+            if (!existing) {
+                return res.status(404).json(
+                    apiResponse.notFoundResponse('Batch', `ID: ${batchId}`)
+                );
+            }
+            return res.status(400).json(
+                apiResponse.errorResponse('Batch already recalled', 'BATCH_ALREADY_RECALLED', 400)
+            );
+        }
 
         logger.warn('Batch recalled', { batchId, adminId: req.user?.id, ip: req.ip });
 
@@ -671,15 +671,15 @@ exports.recordIoTData = async (req, res) => {
             );
         }
 
-        if (typeof temperature !== 'number' || temperature < -20 || temperature > 140) {
+        if (typeof temperature !== 'number' || Number.isNaN(temperature) || temperature < -20 || temperature > 140) {
             return res.status(400).json(
-                apiResponse.errorResponse('Temperature must be a number between -20 and 140', 'INVALID_TEMPERATURE', 400)
+                apiResponse.errorResponse('Temperature must be a valid number between -20 and 140', 'INVALID_TEMPERATURE', 400)
             );
         }
 
-        if (typeof humidity !== 'number' || humidity < 0 || humidity > 100) {
+        if (typeof humidity !== 'number' || Number.isNaN(humidity) || humidity < 0 || humidity > 100) {
             return res.status(400).json(
-                apiResponse.errorResponse('Humidity must be a number between 0 and 100', 'INVALID_HUMIDITY', 400)
+                apiResponse.errorResponse('Humidity must be a valid number between 0 and 100', 'INVALID_HUMIDITY', 400)
             );
         }
 
