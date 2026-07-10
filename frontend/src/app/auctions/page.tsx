@@ -1,15 +1,20 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Compass, Coins, Play, Trophy, Clock, Search, RefreshCw, PlusCircle, ArrowUpRight } from 'lucide-react';
+import { Badge, } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
+import ProtectedRoute from '../../components/ProtectedRoute';
+import { Compass, Coins, Play, Trophy, Clock, RefreshCw } from 'lucide-react';
+import toast from 'react-hot-toast';
+
 import { useAuth } from '../../context/AuthContext';
 import { auctionService, Auction } from '../../services/auctionService';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
-import ProtectedRoute from '../../components/ProtectedRoute';
-import toast from 'react-hot-toast';
+
+import MarketplaceFilters, { MarketplaceFilterState } from '../../components/marketplace/MarketplaceFilters';
+import MarketplaceFilterDrawer from '../../components/marketplace/MarketplaceFilterDrawer';
+import { buildMarketplaceChips, MarketplaceFilterChips } from '../../components/marketplace/MarketplaceFilterChips';
 
 const AuctionCard: React.FC<{ auction: Auction }> = ({ auction }) => {
   const [timeLeft, setTimeLeft] = useState<string>('');
@@ -41,7 +46,6 @@ const AuctionCard: React.FC<{ auction: Auction }> = ({ auction }) => {
 
     calculateTimeLeft();
     const interval = setInterval(calculateTimeLeft, 1000);
-
     return () => clearInterval(interval);
   }, [auction.endTime, isEnded]);
 
@@ -56,34 +60,36 @@ const AuctionCard: React.FC<{ auction: Auction }> = ({ auction }) => {
 
   const getCropEmoji = (cropType: string) => {
     switch (cropType?.toLowerCase()) {
-      case 'rice': return '🌾';
-      case 'wheat': return '🌾';
-      case 'corn': return '🌽';
-      case 'tomato': return '🍅';
-      default: return '🌱';
+      case 'rice':
+        return '🌾';
+      case 'wheat':
+        return '🌾';
+      case 'corn':
+        return '🌽';
+      case 'tomato':
+        return '🍅';
+      default:
+        return '🌱';
     }
   };
 
   return (
     <Card className="border border-border bg-card hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group overflow-hidden">
-      {/* Decorative Gradient Top border for active card */}
       {!isEnded && (
         <div className="h-1.5 w-full bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500" />
       )}
-      {isEnded && (
-        <div className="h-1.5 w-full bg-slate-300 dark:bg-slate-700" />
-      )}
+      {isEnded && <div className="h-1.5 w-full bg-slate-300 dark:bg-slate-700" />}
 
       <CardHeader className="pb-3 text-left">
         <div className="flex justify-between items-start">
           <Badge variant="outline" className="text-xl px-2 py-0.5 rounded-xl border-none select-none">
             {getCropEmoji(auction.batchDetails?.cropType || '')}
           </Badge>
-          <Badge 
-            variant="outline" 
+          <Badge
+            variant="outline"
             className={`font-semibold capitalize text-xs tracking-wider border ${
-              isEnded 
-                ? 'bg-slate-100 text-slate-600 dark:bg-slate-800/40 dark:text-slate-400 border-slate-300/30' 
+              isEnded
+                ? 'bg-slate-100 text-slate-600 dark:bg-slate-800/40 dark:text-slate-400 border-slate-300/30'
                 : 'bg-amber-500/10 text-amber-600 border-amber-500/30 animate-pulse'
             }`}
           >
@@ -96,33 +102,39 @@ const AuctionCard: React.FC<{ auction: Auction }> = ({ auction }) => {
             {auction.batchDetails?.cropType || 'Crop Batch'}
             <span className="text-xs text-muted-foreground font-normal">({auction.batchId})</span>
           </CardTitle>
-          <p className="text-xs text-muted-foreground">Farmer: <span className="font-semibold text-foreground">{auction.farmerName}</span></p>
+          <p className="text-xs text-muted-foreground">
+            Farmer: <span className="font-semibold text-foreground">{auction.farmerName}</span>
+          </p>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-4 text-left pb-4">
-        {/* Quantity and Origin */}
         <div className="grid grid-cols-2 gap-2 text-xs bg-muted/40 p-2.5 rounded-xl border border-border/40">
           <div>
             <p className="text-muted-foreground">Quantity</p>
-            <p className="font-semibold text-foreground mt-0.5">{auction.batchDetails?.quantity?.toLocaleString() || 0} kg</p>
+            <p className="font-semibold text-foreground mt-0.5">
+              {auction.batchDetails?.quantity?.toLocaleString() || 0} kg
+            </p>
           </div>
           <div>
             <p className="text-muted-foreground">Origin</p>
-            <p className="font-semibold text-foreground mt-0.5 truncate">{auction.batchDetails?.origin || 'Unknown'}</p>
+            <p className="font-semibold text-foreground mt-0.5 truncate">
+              {auction.batchDetails?.origin || 'Unknown'}
+            </p>
           </div>
         </div>
 
-        {/* Dynamic Countdown progress bar */}
         {!isEnded && (
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs font-semibold">
-              <span className="text-muted-foreground flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Time Left:</span>
+              <span className="text-muted-foreground flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" /> Time Left:
+              </span>
               <span className="text-amber-600 dark:text-amber-400 font-mono">{timeLeft}</span>
             </div>
             <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-              <div 
-                className="bg-gradient-to-r from-amber-500 to-orange-500 h-full rounded-full transition-all duration-1000" 
+              <div
+                className="bg-gradient-to-r from-amber-500 to-orange-500 h-full rounded-full transition-all duration-1000"
                 style={{ width: `${progressPercentage()}%` }}
               />
             </div>
@@ -135,7 +147,6 @@ const AuctionCard: React.FC<{ auction: Auction }> = ({ auction }) => {
           </div>
         )}
 
-        {/* Price status */}
         <div className="flex justify-between items-end border-t border-border/40 pt-3">
           <div>
             <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
@@ -147,11 +158,11 @@ const AuctionCard: React.FC<{ auction: Auction }> = ({ auction }) => {
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-              Bidder
-            </p>
+            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Bidder</p>
             <p className="text-xs font-semibold text-foreground mt-1 truncate max-w-[120px]">
-              {auction.highestBidderName || <span className="text-muted-foreground italic text-[11px]">No bids yet</span>}
+              {auction.highestBidderName || (
+                <span className="text-muted-foreground italic text-[11px]">No bids yet</span>
+              )}
             </p>
           </div>
         </div>
@@ -159,13 +170,13 @@ const AuctionCard: React.FC<{ auction: Auction }> = ({ auction }) => {
 
       <CardFooter className="pt-0 pb-5 px-6">
         <Link href={`/auctions/${auction._id}`} className="w-full">
-          <Button 
+          <Button
             className={`w-full font-semibold rounded-xl group transition-all duration-300 ${
-              isEnded 
-                ? 'bg-muted hover:bg-muted text-muted-foreground cursor-not-allowed border border-border/60 shadow-none' 
+              isEnded
+                ? 'bg-muted hover:bg-muted text-muted-foreground cursor-not-allowed border border-border/60 shadow-none'
                 : 'bg-primary hover:bg-primary/95 text-primary-foreground shadow-md shadow-primary/10 hover:shadow-lg'
             }`}
-            variant={isEnded ? "outline" : "default"}
+            variant={isEnded ? 'outline' : 'default'}
           >
             {isEnded ? (
               <span className="flex items-center justify-center gap-1.5">
@@ -173,7 +184,8 @@ const AuctionCard: React.FC<{ auction: Auction }> = ({ auction }) => {
               </span>
             ) : (
               <span className="flex items-center justify-center gap-1.5">
-                <Play className="h-4 w-4 fill-current group-hover:scale-105 transition-transform" /> Enter Auction Room
+                <Play className="h-4 w-4 fill-current group-hover:scale-105 transition-transform" />
+                Enter Auction Room
               </span>
             )}
           </Button>
@@ -185,31 +197,23 @@ const AuctionCard: React.FC<{ auction: Auction }> = ({ auction }) => {
 
 export default function AuctionsPage() {
   const { user, addFunds } = useAuth();
+
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'ended'>('all');
+
+  // Top up simulator (existing UI)
   const [topUpAmount, setTopUpAmount] = useState<number>(10000);
   const [topUpLoading, setTopUpLoading] = useState<boolean>(false);
 
-  const fetchAuctions = async () => {
-    setLoading(true);
-    try {
-      const data = await auctionService.getAllAuctions();
-      setAuctions(data);
-    } catch (error) {
-      toast.error('Failed to load auctions');
-    } finally {
-      setLoading(false);
-    }
+  const defaultFilterState: MarketplaceFilterState = {
+    productCategory: '',
+    priceMin: '',
+    priceMax: '',
+    location: '',
+    availability: '',
+    sortBy: 'latest',
   };
-
-  useEffect(() => {
-    fetchAuctions();
-  }, []);
-
-  const handleTopUp = async () => {
-    if (topUpAmount <= 0) {
-      toast.error('Amount must be positive');
       return;
     }
     setTopUpLoading(true);
@@ -222,10 +226,111 @@ export default function AuctionsPage() {
     }
   };
 
-  const filteredAuctions = auctions.filter((auction) => {
-    if (activeTab === 'all') return true;
-    return auction.status === activeTab;
-  });
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const defaultFilterState: MarketplaceFilterState = {
+    productCategory: '',
+    priceMin: '',
+    priceMax: '',
+    location: '',
+    availability: '',
+    sortBy: 'latest',
+  };
+
+  const [filters, setFilters] = useState<MarketplaceFilterState>(defaultFilterState);
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.productCategory) count++;
+    if (filters.priceMin !== '') count++;
+    if (filters.priceMax !== '') count++;
+    if (filters.location) count++;
+    if (filters.availability) count++;
+    return count;
+  }, [filters]);
+
+  const clearAllFilters = () => {
+    setFilters(defaultFilterState);
+  };
+
+  const removeFilter = {
+    category: () => setFilters((f) => ({ ...f, productCategory: '' })),
+    priceMin: () => setFilters((f) => ({ ...f, priceMin: '' })),
+    priceMax: () => setFilters((f) => ({ ...f, priceMax: '' })),
+    location: () => setFilters((f) => ({ ...f, location: '' })),
+    availability: () => setFilters((f) => ({ ...f, availability: '' })),
+  };
+
+  const filteredAuctions = useMemo(() => {
+    let list = auctions.filter((auction) => {
+      if (activeTab === 'all') return true;
+      return auction.status === activeTab;
+    });
+
+    const min = filters.priceMin === '' ? undefined : Number(filters.priceMin);
+    const max = filters.priceMax === '' ? undefined : Number(filters.priceMax);
+
+    list = list.filter((auction) => {
+      if (filters.productCategory) {
+        const cat = auction.batchDetails?.cropType || '';
+        if (String(cat).toLowerCase() !== String(filters.productCategory).toLowerCase()) return false;
+      }
+
+      const price = Number(auction.currentHighestBid || 0);
+      if (min !== undefined && !Number.isNaN(min) && price < min) return false;
+      if (max !== undefined && !Number.isNaN(max) && price > max) return false;
+
+      if (filters.location) {
+        const origin = auction.batchDetails?.origin || '';
+        if (!String(origin).toLowerCase().includes(String(filters.location).toLowerCase())) return false;
+      }
+
+      if (filters.availability) {
+        if (auction.status !== filters.availability) return false;
+      }
+
+      return true;
+    });
+
+    const sorted = [...list];
+    const getLatestTs = (a: Auction) => {
+      const t = a.endTime || a.startTime;
+      return t ? new Date(t as any).getTime() : 0;
+    };
+
+    switch (filters.sortBy) {
+      case 'price_asc':
+
+        sorted.sort((a, b) => Number(a.currentHighestBid || 0) - Number(b.currentHighestBid || 0));
+        break;
+      case 'price_desc':
+        sorted.sort((a, b) => Number(b.currentHighestBid || 0) - Number(a.currentHighestBid || 0));
+        break;
+      case 'popular':
+        sorted.sort((a, b) => Number((b as any).popularity ?? b.totalBids ?? 0) - Number((a as any).popularity ?? a.totalBids ?? 0));
+        break;
+      case 'latest':
+      default:
+        sorted.sort((a, b) => getLatestTs(b) - getLatestTs(a));
+        break;
+    }
+
+    return sorted;
+  }, [auctions, activeTab, filters]);
++
+
+  const chips = useMemo(
++    () =>
++      buildMarketplaceChips(filters, {
++        category: removeFilter.category,
++        priceMin: removeFilter.priceMin,
++        priceMax: removeFilter.priceMax,
++        location: removeFilter.location,
++        availability: removeFilter.availability,
++      }),
++    [filters]
++  );
+
 
   return (
     <ProtectedRoute>
