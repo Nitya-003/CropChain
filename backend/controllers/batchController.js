@@ -8,6 +8,7 @@ const logger = require('../utils/logger');
 const { emitToBatchRoom } = require('../services/socketService');
 const activityService = require('../services/activityService');
 const QRCode = require('qrcode');
+const { calculateUpdateHash } = require('../utils/cryptography');
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -74,6 +75,15 @@ exports.createBatch = async (req, res) => {
         const batchId = await generateBatchId(session);
         const qrCode = await generateQRCode(batchId);
 
+        const initialUpdate = {
+            stage: "farmer",
+            actor: validatedData.farmerName || req.user.name,
+            location: validatedData.origin,
+            timestamp: validatedData.harvestDate,
+            notes: validatedData.description || "Initial harvest recorded"
+        };
+        initialUpdate.hash = calculateUpdateHash(initialUpdate, '');
+
         const batch = await Batch.create([{
             batchId,
             farmerId: req.user.farmerId || req.user.id,
@@ -94,13 +104,7 @@ exports.createBatch = async (req, res) => {
             crossChain: {
                 status: 'not_required'
             },
-            updates: [{
-                stage: "farmer",
-                actor: validatedData.farmerName || req.user.name,
-                location: validatedData.origin,
-                timestamp: validatedData.harvestDate,
-                notes: validatedData.description || "Initial harvest recorded"
-            }]
+            updates: [initialUpdate]
         }], { session });
 
         // Commit the transaction
@@ -211,6 +215,17 @@ exports.updateBatch = async (req, res) => {
 
         const normalizedStage = validatedData.stage.toLowerCase();
 
+        const previousBatch = await Batch.findOne({ batchId });
+        if (!previousBatch) {
+            return res.status(404).json(
+                apiResponse.notFoundResponse('Batch', `ID: ${batchId}`)
+            );
+        }
+
+        const previousHash = previousBatch.updates && previousBatch.updates.length > 0
+            ? previousBatch.updates[previousBatch.updates.length - 1].hash || ''
+            : '';
+
         const updateEntry = {
             stage: normalizedStage,
             actor: validatedData.actorName || req.user.name,
@@ -218,6 +233,7 @@ exports.updateBatch = async (req, res) => {
             timestamp: validatedData.timestamp || new Date().toISOString(),
             notes: validatedData.notes
         };
+        updateEntry.hash = calculateUpdateHash(updateEntry, previousHash);
 
         const setFields = { currentStage: normalizedStage };
         if (validatedData.quantity) setFields.quantity = validatedData.quantity;

@@ -66,7 +66,7 @@ export const realCropBatchService = {
     return response.data.data.batch;
   },
 
-  updateBatch: async (batchId: string, updateData: Partial<BatchData>): Promise<BatchData> => {
+  updateBatch: async (batchId: string, updateData: UpdateBatchPayload): Promise<BatchData> => {
     const sanitizedId = sanitizeString(batchId);
     const response = await apiClient.put(`/batches/${sanitizedId}`, updateData);
     return response.data.data.batch;

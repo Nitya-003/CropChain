@@ -569,7 +569,7 @@ const handleCopyTransactionHash = async () => {
   )}
 </button>
 
-          
+          <a
             href={`https://sepolia.etherscan.io/tx/${transactionDetails.hash}`}
             target="_blank"
             rel="noopener noreferrer"
