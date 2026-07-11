@@ -21,6 +21,7 @@ const TrackBatchContent: React.FC = () => {
   const lastAutoSearchedId = useRef<string | null>(null);
 
   const { t } = useTranslation();
+  const searchParams = useSearchParams();
 
   // WebSocket connection for real-time updates
   const { isConnected: socketConnected, lastUpdate } = useBatchSocket({
@@ -71,6 +72,18 @@ const TrackBatchContent: React.FC = () => {
     if (e) e.preventDefault();
     await searchBatch(batchId);
   };
+
+  // Auto-search when the page is opened with a ?batchId= query param.
+  // This is how scanned QR codes land here (see backend QR generation),
+  // so we shouldn't require the user to re-type the ID and hit search.
+  useEffect(() => {
+    const idFromQuery = searchParams?.get('batchId');
+    if (idFromQuery) {
+      setBatchId(idFromQuery);
+      handleSearch(undefined, idFromQuery);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const getTimelineEvents = (batchData: any) => {
     if (!batchData || !batchData.updates) return [];

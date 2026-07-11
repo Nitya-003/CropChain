@@ -721,4 +721,3 @@ class BatchService {
 // Export singleton instance
 module.exports = new BatchService();
 
-
