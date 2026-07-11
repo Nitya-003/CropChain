@@ -40,6 +40,8 @@ const generateBatchId = async (session) => {
 
 /**
  * Generate QR code data for a batch
+ * NOTE: Must stay in sync with the URL format used in services/batchService.js.
+ * The frontend route is /track-batch (a query-param page), not /track/[batchId].
  */
 const generateQRCode = async (batchId) => {
     try {
