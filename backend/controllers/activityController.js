@@ -96,7 +96,8 @@ exports.getActivities = async (req, res) => {
         }
 
         const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
-        const limitNumber = Math.max(parseInt(limit, 10) || 10, 1);
+        const MAX_LIMIT = 100;
+        const limitNumber = Math.min(Math.max(parseInt(limit, 10) || 10, 1), MAX_LIMIT);
         const skip = (pageNumber - 1) * limitNumber;
 
         const activities = await Activity.find(query)
@@ -142,7 +143,8 @@ exports.getActivityFeed = async (req, res) => {
         }
 
         const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
-        const limitNumber = Math.max(parseInt(limit, 10) || 10, 1);
+        const MAX_LIMIT = 100;
+        const limitNumber = Math.min(Math.max(parseInt(limit, 10) || 10, 1), MAX_LIMIT);
         const skip = (pageNumber - 1) * limitNumber;
 
         const activities = await Activity.find(query)
