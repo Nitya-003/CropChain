@@ -121,6 +121,17 @@ class MultisigService {
                     result = { destructionAuthorized: true, batchId: batch.batchId };
                 }
                 break;
+            case 'batch_quality_check':
+                if (!batch.lifecycle) batch.lifecycle = { currentStage: 'Registered', stageHistory: [] };
+                batch.lifecycle.currentStage = 'Quality Checked';
+                batch.lifecycle.stageHistory.push({
+                    stage: 'Quality Checked',
+                    timestamp: new Date(),
+                    updatedBy: 'Multisig System',
+                    notes: `Quality Check Approved: ${approval.justification}`
+                });
+                result = { qualityChecked: true, batchId: batch.batchId };
+                break;
             default:
                 throw new Error(`Unknown action type: ${approval.actionType}`);
         }

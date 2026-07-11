@@ -165,6 +165,15 @@ exports.updateLifecycle = async (req, res) => {
             ));
         }
 
+        // 4. Multisig enforcement for Quality Checked
+        if (stage === 'Quality Checked') {
+            return res.status(403).json(apiResponse.errorResponse(
+                `Advancing to 'Quality Checked' requires a multi-signature approval request via the /api/approvals/quality-check endpoint.`,
+                'FORBIDDEN_MULTISIG_REQUIRED',
+                403
+            ));
+        }
+
         // Apply update
         batch.lifecycle.currentStage = stage;
         batch.lifecycle.stageHistory.push({

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Multi-Signature Approval Routes
  */
 
@@ -13,7 +13,7 @@ const activityService = require('../services/activityService');
 
 const createApprovalSchema = Joi.object({
     batchId: Joi.string().required(),
-    actionType: Joi.string().valid('batch_recall', 'batch_contaminated', 'batch_destroy').required(),
+    actionType: Joi.string().valid('batch_recall', 'batch_contaminated', 'batch_destroy', 'batch_quality_check').required(),
     justification: Joi.string().min(20).max(2000).required(),
     evidence: Joi.array().items(Joi.object({
         type: Joi.string().valid('image', 'document', 'lab_report', 'video', 'other'),
@@ -214,6 +214,21 @@ router.post('/destroy/:batchId', protect, requirePermissions(PERMISSIONS.BATCH_D
     } catch (error) {
         logger.error('[DESTROY] Request error:', error);
         res.status(400).json({ error: 'Failed to create destruction request', message: error.message });
+    }
+});
+
+// Request quality check
+router.post('/quality-check/:batchId', protect, requirePermissions(PERMISSIONS.BATCH_QUALITY_CHECK), async (req, res) => {
+    try {
+        const { justification, evidence } = req.body;
+        if (!justification || justification.length < 20) return res.status(400).json({ error: 'Validation error', message: 'Justification must be at least 20 characters' });
+        const result = await MultisigService.createApprovalRequest({
+            batchId: req.params.batchId, actionType: 'batch_quality_check', initiatedBy: req.user._id, justification, evidence: evidence || []
+        });
+        res.status(201).json({ success: true, message: 'Quality check approval request created. Waiting for inspector approvals.', data: result });
+    } catch (error) {
+        logger.error('[QUALITY_CHECK] Request error:', error);
+        res.status(400).json({ error: 'Failed to create quality check request', message: error.message });
     }
 });
 
