@@ -779,6 +779,43 @@ const addFunds = async (req, res) => {
     }
 };
 
+const setFallbackPassword = async (req, res) => {
+    try {
+        const { password } = req.body;
+        
+        if (!password || password.length < 6) {
+            return res.status(400).json(
+                apiResponse.errorResponse('Password must be at least 6 characters long', 'INVALID_PASSWORD', 400)
+            );
+        }
+
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json(
+                apiResponse.notFoundResponse('User', req.user.id)
+            );
+        }
+
+        // Hash password with higher cost factor
+        const salt = await bcrypt.genSalt(12);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        user.password = hashedPassword;
+        await user.save();
+
+        logger.info('Fallback password set successfully', { userId: user._id });
+
+        return res.json(
+            apiResponse.successResponse({ user: sanitizeUser(user) }, 'Fallback password set successfully')
+        );
+    } catch (error) {
+        logger.error('Error setting fallback password', { error: error.message });
+        return res.status(500).json(
+            apiResponse.errorResponse('Server error while setting fallback password', 'SERVER_ERROR', 500)
+        );
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
@@ -790,5 +827,6 @@ module.exports = {
     logoutUser,
     forgotPassword,
     resetPassword,
-    addFunds
+    addFunds,
+    setFallbackPassword
 };
