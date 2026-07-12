@@ -78,6 +78,7 @@ const renderWithProvider = () =>
 describe("NotificationContext", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.useRealTimers();
         mockedGetNotifications.mockResolvedValue([...sampleNotifications]);
         mockedGetUnreadCount.mockResolvedValue(2);
         mockedMarkAsRead.mockResolvedValue(undefined);
@@ -94,8 +95,6 @@ describe("NotificationContext", () => {
 
         renderWithProvider();
 
-        // Regression check for the bug: loading must resolve to false, not
-        // stay stuck at its initial `true` value forever.
         await waitFor(() => {
             expect(screen.getByTestId("loading")).toHaveTextContent("false");
         });
@@ -118,7 +117,6 @@ describe("NotificationContext", () => {
         });
         expect(screen.getByTestId("loading")).toHaveTextContent("false");
 
-        // User logs out.
         mockedUseAuth.mockReturnValue({ isAuthenticated: false, user: null });
         rerender(
             <NotificationProvider>
@@ -253,8 +251,9 @@ describe("NotificationContext", () => {
         });
 
         await act(async () => {
-            vi.advanceTimersByTime(60000);
+            await vi.advanceTimersByTimeAsync(60000);
         });
+
         await waitFor(() => {
             expect(mockedGetNotifications).toHaveBeenCalledTimes(2);
         });
