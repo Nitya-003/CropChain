@@ -1,7 +1,6 @@
-/** @jest-environment jsdom */
-
 import "@testing-library/jest-dom";
 import React from "react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 
 import { NotificationProvider, useNotifications } from "../NotificationContext";
@@ -10,37 +9,42 @@ import { onNewNotification } from "../../services/socketService";
 import { useAuth } from "../AuthContext";
 import toast from "react-hot-toast";
 
-jest.mock("../AuthContext", () => ({
-    useAuth: jest.fn(),
+vi.mock("../AuthContext", () => ({
+    useAuth: vi.fn(),
 }));
 
-jest.mock("../../services/notificationService", () => ({
+vi.mock("../../services/notificationService", () => ({
     notificationService: {
-        getNotifications: jest.fn(),
-        getUnreadCount: jest.fn(),
-        markAsRead: jest.fn(),
-        markAllAsRead: jest.fn(),
+        getNotifications: vi.fn(),
+        getUnreadCount: vi.fn(),
+        markAsRead: vi.fn(),
+        markAllAsRead: vi.fn(),
     },
 }));
 
-jest.mock("../../services/socketService", () => ({
-    onNewNotification: jest.fn(),
+vi.mock("../../services/socketService", () => ({
+    onNewNotification: vi.fn(),
 }));
 
-jest.mock("react-hot-toast", () => ({
-    __esModule: true,
+vi.mock("react-hot-toast", () => ({
     default: {
-        success: jest.fn(),
-        error: jest.fn(),
+        success: vi.fn(),
+        error: vi.fn(),
     },
 }));
 
-const mockedUseAuth = useAuth as jest.Mock;
-const mockedGetNotifications = notificationService.getNotifications as jest.Mock;
-const mockedGetUnreadCount = notificationService.getUnreadCount as jest.Mock;
-const mockedMarkAsRead = notificationService.markAsRead as jest.Mock;
-const mockedMarkAllAsRead = notificationService.markAllAsRead as jest.Mock;
-const mockedOnNewNotification = onNewNotification as jest.Mock;
+const mockedUseAuth = useAuth as unknown as ReturnType<typeof vi.fn>;
+const mockedGetNotifications = notificationService.getNotifications as unknown as ReturnType<
+    typeof vi.fn
+>;
+const mockedGetUnreadCount = notificationService.getUnreadCount as unknown as ReturnType<
+    typeof vi.fn
+>;
+const mockedMarkAsRead = notificationService.markAsRead as unknown as ReturnType<typeof vi.fn>;
+const mockedMarkAllAsRead = notificationService.markAllAsRead as unknown as ReturnType<
+    typeof vi.fn
+>;
+const mockedOnNewNotification = onNewNotification as unknown as ReturnType<typeof vi.fn>;
 
 const sampleNotifications = [
     { _id: "n1", title: "First alert", read: false },
@@ -73,7 +77,7 @@ const renderWithProvider = () =>
 
 describe("NotificationContext", () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         mockedGetNotifications.mockResolvedValue([...sampleNotifications]);
         mockedGetUnreadCount.mockResolvedValue(2);
         mockedMarkAsRead.mockResolvedValue(undefined);
@@ -82,7 +86,7 @@ describe("NotificationContext", () => {
     });
 
     afterEach(() => {
-        jest.useRealTimers();
+        vi.useRealTimers();
     });
 
     it("never gets stuck loading for a logged-out user", async () => {
@@ -213,7 +217,7 @@ describe("NotificationContext", () => {
     });
 
     it("subscribes to real-time notifications and cleans up on unmount when authenticated", async () => {
-        const cleanup = jest.fn();
+        const cleanup = vi.fn();
         mockedOnNewNotification.mockReturnValue(cleanup);
         mockedUseAuth.mockReturnValue({ isAuthenticated: true, user: { id: "u1" } });
 
@@ -239,7 +243,7 @@ describe("NotificationContext", () => {
     });
 
     it("polls for notifications every 60 seconds while authenticated", async () => {
-        jest.useFakeTimers({ legacyFakeTimers: false });
+        vi.useFakeTimers();
         mockedUseAuth.mockReturnValue({ isAuthenticated: true, user: { id: "u1" } });
 
         renderWithProvider();
@@ -249,7 +253,7 @@ describe("NotificationContext", () => {
         });
 
         await act(async () => {
-            jest.advanceTimersByTime(60000);
+            vi.advanceTimersByTime(60000);
         });
         await waitFor(() => {
             expect(mockedGetNotifications).toHaveBeenCalledTimes(2);
