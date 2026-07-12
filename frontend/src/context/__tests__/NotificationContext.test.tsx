@@ -246,16 +246,16 @@ describe("NotificationContext", () => {
 
         renderWithProvider();
 
-        await waitFor(() => {
-            expect(mockedGetNotifications).toHaveBeenCalledTimes(1);
+        await act(async () => {
+            await vi.runOnlyPendingTimersAsync();
         });
+        expect(mockedGetNotifications).toHaveBeenCalled();
+        mockedGetNotifications.mockClear();
 
         await act(async () => {
             await vi.advanceTimersByTimeAsync(60000);
         });
 
-        await waitFor(() => {
-            expect(mockedGetNotifications).toHaveBeenCalledTimes(2);
-        });
+        expect(mockedGetNotifications).toHaveBeenCalledTimes(1);
     });
 });

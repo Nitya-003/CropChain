@@ -23,7 +23,8 @@ jest.mock('../services/socketService', () => ({
 // Mock logger
 jest.mock('../utils/logger', () => ({
     info: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
+    warn: jest.fn()
 }));
 
 describe('Spoilage Risk Prediction Agent', () => {

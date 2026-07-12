@@ -85,7 +85,7 @@ export const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
               update={update}
               isCurrent={isCurrent}
               isCompleted={isCompleted}
-              txHash={index === updates.length - 1 ? blockchainHash : '0x' + Math.random().toString(16).substring(2, 42)}
+              txHash={update.blockchainHash || (index === updates.length - 1 ? blockchainHash : undefined) || '0x' + Math.random().toString(16).substring(2, 42)}
               temperature={showTelemetry ? currentTemperature : undefined}
               humidity={showTelemetry ? currentHumidity : undefined}
               isSpoiled={showTelemetry ? isSpoiled : undefined}

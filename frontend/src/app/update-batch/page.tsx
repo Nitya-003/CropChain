@@ -21,6 +21,7 @@ import toast from 'react-hot-toast';
 import { FormSkeleton, BatchInfoSkeleton } from '../../components/skeletons';
 import { useRbac } from '../../hooks/useRbac';
 import { ethers } from 'ethers';
+import { getContract, getSigner, hasMetaMask } from '../../utils/web3';
 
 const UpdateBatch: React.FC = () => {
   const { t } = useTranslation();
@@ -80,12 +81,19 @@ const [copied, setCopied] = useState(false);
     }
   };
 
+  const stageMap: Record<string, number> = {
+    'farmer': 0,
+    'mandi': 1,
+    'transport': 2,
+    'retailer': 3
+  };
+
   const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-   if (!batch) {
-  setTransactionLocked(false);
-  return;
-}
+    if (!batch) {
+      setTransactionLocked(false);
+      return;
+    }
     
     // RBAC Check: Verify user can update to this stage
     if (!canUpdateToStage(updateData.stage)) {
@@ -94,14 +102,48 @@ const [copied, setCopied] = useState(false);
     }
 
     setIsUpdating(true);
+    let txHash = '';
+
     try {
+      // Direct Web3 MetaMask updateBatch if wallet is connected and MetaMask is available
+      if (hasMetaMask()) {
+        try {
+          const signer = await getSigner();
+          if (signer) {
+            const contract = await getContract();
+            if (contract) {
+              toast.loading('Minting supply chain update on-chain...', { id: 'web3-update' });
+              
+              const stageNum = stageMap[updateData.stage.toLowerCase()] ?? 0;
+              const tx = await contract.updateBatch(
+                ethers.encodeBytes32String(batch.batchId),
+                stageNum,
+                updateData.actor,
+                updateData.location,
+                updateData.notes || 'Stage update recorded'
+              );
+              
+              const receipt = await tx.wait();
+              txHash = receipt.hash || tx.hash;
+              toast.success('Successfully updated on-chain!', { id: 'web3-update' });
+            }
+          }
+        } catch (web3Err: any) {
+          console.error("Web3 update failed:", web3Err);
+          toast.error(`Web3 update failed, queueing for background sync: ${web3Err.message || web3Err}`, { id: 'web3-update' });
+        }
+      }
+
+      // Submit update to backend API
       const updatedBatch = await realCropBatchService.updateBatch(batch.batchId, {
         stage: updateData.stage,
         actor: updateData.actor,
         location: updateData.location,
         notes: updateData.notes,
-        timestamp: new Date(updateData.timestamp).toISOString()
+        timestamp: new Date(updateData.timestamp).toISOString(),
+        blockchainHash: txHash || undefined
       });
+      
       setBatch(updatedBatch);
       toast.success(`Batch updated successfully! New stage: ${updateData.stage}`);
       setUpdateData({
@@ -351,6 +393,62 @@ const handleCopyTransactionHash = async () => {
             <Timeline events={getTimelineEvents(batch)} currentStep={getStageIndex(batch.currentStage)} />
           </div>
 
+          {/* Custodian Handover Card (Web3) */}
+          {hasMetaMask() && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+              <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
+                <Shield className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
+                Decentralized Handover (Web3)
+              </h2>
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  To hand custody of this batch over to the next actor, authorize their wallet address below.
+                </p>
+                <div className="flex gap-4">
+                  <input
+                    type="text"
+                    placeholder="Next Custodian Wallet Address (e.g. 0x...)"
+                    id="nextCustodianAddress"
+                    className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const input = document.getElementById('nextCustodianAddress') as HTMLInputElement;
+                      const address = input?.value?.trim();
+                      if (!ethers.isAddress(address)) {
+                        toast.error('Invalid Ethereum address');
+                        return;
+                      }
+                      
+                      const loadingToast = toast.loading('Authorizing next custodian on-chain...');
+                      try {
+                        const contract = await getContract();
+                        if (contract) {
+                          const tx = await contract.approveCustodian(
+                            ethers.encodeBytes32String(batch.batchId),
+                            address
+                          );
+                          await tx.wait();
+                          toast.success('Successfully authorized next custodian!', { id: loadingToast });
+                          if (input) input.value = '';
+                        } else {
+                          toast.error('Could not connect to contract', { id: loadingToast });
+                        }
+                      } catch (err: any) {
+                        console.error('Handover authorization failed:', err);
+                        toast.error(`Handover failed: ${err.message || err}`, { id: loadingToast });
+                      }
+                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-all cursor-pointer font-medium"
+                  >
+                    Approve Custodian
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Update Form */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
             <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
@@ -570,10 +668,11 @@ const handleCopyTransactionHash = async () => {
 </button>
 
           
+          <a
             href={`https://sepolia.etherscan.io/tx/${transactionDetails.hash}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs"
+            className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs text-center"
           >
             View on Etherscan
           </a>

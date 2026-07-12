@@ -32,6 +32,10 @@ const updateSchema = new mongoose.Schema({
   notes: {
     type: String,
     maxlength: 500
+  },
+  blockchainHash: {
+    type: String,
+    default: ''
   }
 }, { _id: true });
 
