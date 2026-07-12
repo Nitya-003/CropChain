@@ -81,8 +81,13 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
                 cleanupSocket();
             };
         } else {
+            // Logged-out (or not-yet-authenticated) users have no notifications
+            // to load, so loading must be cleared here too — otherwise it stays
+            // stuck at its initial `true` value forever for anyone who never
+            // logs in.
             setNotifications([]);
             setUnreadCount(0);
+            setLoading(false);
         }
     }, [isAuthenticated, user]);
 
