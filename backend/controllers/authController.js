@@ -117,12 +117,12 @@ const parseCookieHeader = (cookieHeader = '') => {
 };
 
 const buildAuthPayload = (user) => ({
-    token: generateToken(user._id, user.role, user.name),
+    token: generateToken(user._id, user.role, user.name, user.tokenVersion),
     user: sanitizeUser(user)
 });
 
 const attachRefreshCookie = (res, user) => {
-    res.cookie(REFRESH_COOKIE_NAME, generateRefreshToken(user._id), getRefreshCookieOptions());
+    res.cookie(REFRESH_COOKIE_NAME, generateRefreshToken(user._id, user.tokenVersion), getRefreshCookieOptions());
 };
 
 const clearRefreshCookie = (res) => {
@@ -281,6 +281,7 @@ const updateProfile = async (req, res) => {
         if (password) {
             const salt = await bcrypt.genSalt(12);
             user.password = await bcrypt.hash(password, salt);
+            user.tokenVersion = (user.tokenVersion || 0) + 1;
         }
 
         const updatedUser = await user.save();
@@ -592,6 +593,13 @@ const refreshSession = async (req, res) => {
             );
         }
 
+        if (decoded.tokenVersion !== undefined && decoded.tokenVersion !== user.tokenVersion) {
+            clearRefreshCookie(res);
+            return res.status(401).json(
+                apiResponse.unauthorizedResponse('Token has been invalidated. Please log in again.')
+            );
+        }
+
         attachRefreshCookie(res, user);
 
         return res.json(
@@ -727,6 +735,7 @@ const resetPassword = async (req, res) => {
         user.password = await bcrypt.hash(password, salt);
         user.resetPasswordToken = undefined;
         user.resetPasswordExpire = undefined;
+        user.tokenVersion = (user.tokenVersion || 0) + 1;
 
         await user.save();
 
