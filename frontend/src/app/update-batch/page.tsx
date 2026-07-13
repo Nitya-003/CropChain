@@ -44,6 +44,9 @@ const UpdateBatch: React.FC = () => {
   hash: string;
   status: 'Confirmed' | 'Pending';
 } | null>(null);
+const [transactionStage, setTransactionStage] = useState<
+  'idle' | 'wallet' | 'confirming'
+>('idle');
 const [copied, setCopied] = useState(false);
 
 
@@ -148,7 +151,8 @@ setTransactionLocked(true);
       return;
     }
 
-    setIsRequestingIoT(true);
+   setIsRequestingIoT(true);
+setTransactionStage('wallet');
     
     try {
       // Call smart contract to request IoT verification
@@ -168,7 +172,8 @@ setTransactionLocked(true);
         
         const tx = await contract.requestIoTVerification(batchIdBytes32);
         
-        const loadingToast = toast.loading("Requesting IoT verification...");
+        setTransactionStage('confirming');
+const loadingToast = toast.loading("Waiting for blockchain confirmation...");
         
         // Wait for transaction confirmation
         const receipt = await tx.wait();
@@ -200,6 +205,8 @@ setTransactionLocked(true);
   console.error('Error requesting IoT verification:', error);
   toast.error('Failed to request IoT verification. Please try again.');
 }finally {
+     setIsRequestingIoT(false);
+setTransactionStage('idle');
       setIsRequestingIoT(false);
       setTransactionLocked(false);
     }
@@ -512,6 +519,19 @@ const handleCopyTransactionHash = async () => {
                     >
                       {isRequestingIoT ? (
                         <>
+                        <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                        <span>
+                          {transactionStage === 'wallet'
+                          ? 'Confirm in Wallet...'
+                          : 'Waiting for Confirmation...'}
+                          </span>
+                          </>
+                          ) : (
+                          <>
+                          <Thermometer className="h-4 w-4" />
+                          <span>Request IoT Verification</span>
+                          </>
+                        )}
                           <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
                           <span>{t('updateBatch.requesting')}</span>
                         </>
