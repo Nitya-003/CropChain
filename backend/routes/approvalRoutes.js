@@ -8,11 +8,12 @@ const { protect, adminOnly, inspectorOnly, requirePermissions } = require('../mi
 const { PERMISSIONS, ROLES, isAdminRole } = require('../constants/permissions');
 const MultisigService = require('../services/multisigService');
 const Joi = require('joi');
+const logger = require('../utils/logger');
 const activityService = require('../services/activityService');
 
 const createApprovalSchema = Joi.object({
     batchId: Joi.string().required(),
-    actionType: Joi.string().valid('batch_recall', 'batch_contaminated', 'batch_destroy').required(),
+    actionType: Joi.string().valid('batch_recall', 'batch_contaminated', 'batch_destroy', 'batch_quality_check').required(),
     justification: Joi.string().min(20).max(2000).required(),
     evidence: Joi.array().items(Joi.object({
         type: Joi.string().valid('image', 'document', 'lab_report', 'video', 'other'),
@@ -33,7 +34,7 @@ router.post('/', protect, requirePermissions(PERMISSIONS.BATCH_RECALL, PERMISSIO
         const { error, value } = createApprovalSchema.validate(req.body);
         if (error) return res.status(400).json({ error: 'Validation error', details: error.details[0].message });
         const result = await MultisigService.createApprovalRequest({ ...value, initiatedBy: req.user._id });
-        console.log(`[APPROVAL] Created request ${result.requestId} by ${req.user.email}`);
+        logger.info(`[APPROVAL] Created request ${result.requestId} by ${req.user.email}`);
 
         await activityService.logActivity({
             userId: req.user._id || req.user.id,
@@ -50,7 +51,7 @@ router.post('/', protect, requirePermissions(PERMISSIONS.BATCH_RECALL, PERMISSIO
 
         res.status(201).json({ success: true, message: 'Approval request created successfully', data: result });
     } catch (error) {
-        console.error('[APPROVAL] Create error:', error);
+        logger.error('[APPROVAL] Create error:', error);
         res.status(400).json({ error: 'Failed to create approval request', message: error.message });
     }
 });
@@ -65,7 +66,7 @@ router.get('/', protect, requirePermissions(PERMISSIONS.BATCH_VIEW_ALL), async (
         const requests = await MultisigService.getPendingRequests(filters);
         res.json({ success: true, count: requests.length, data: requests });
     } catch (error) {
-        console.error('[APPROVAL] Fetch error:', error);
+        logger.error('[APPROVAL] Fetch error:', error);
         res.status(500).json({ error: 'Failed to fetch approval requests', message: error.message });
     }
 });
@@ -76,7 +77,7 @@ router.get('/pending', protect, inspectorOnly, async (req, res) => {
         const requests = await MultisigService.getRequestsNeedingSignature(req.user._id);
         res.json({ success: true, count: requests.length, data: requests });
     } catch (error) {
-        console.error('[APPROVAL] Fetch pending error:', error);
+        logger.error('[APPROVAL] Fetch pending error:', error);
         res.status(500).json({ error: 'Failed to fetch pending approvals', message: error.message });
     }
 });
@@ -93,7 +94,7 @@ router.get('/:requestId', protect, async (req, res) => {
         }
         res.json({ success: true, data: approval });
     } catch (error) {
-        console.error('[APPROVAL] Fetch detail error:', error);
+        logger.error('[APPROVAL] Fetch detail error:', error);
         res.status(404).json({ error: 'Not found', message: error.message });
     }
 });
@@ -109,7 +110,7 @@ router.post('/:requestId/sign', protect, inspectorOnly, async (req, res) => {
         const approval = await MultisigService.getRequestDetails(req.params.requestId);
         
         const result = await MultisigService.addSignature(req.params.requestId, req.user, value.decision, value.reason || '', ipAddress);
-        console.log(`[APPROVAL] Signature added to ${req.params.requestId} by ${req.user.email}: ${value.decision}`);
+        logger.info(`[APPROVAL] Signature added to ${req.params.requestId} by ${req.user.email}: ${value.decision}`);
         
         await activityService.logActivity({
             userId: req.user._id || req.user.id,
@@ -131,7 +132,7 @@ router.post('/:requestId/sign', protect, inspectorOnly, async (req, res) => {
             data: result
         });
     } catch (error) {
-        console.error('[APPROVAL] Sign error:', error);
+        logger.error('[APPROVAL] Sign error:', error);
         res.status(400).json({ error: 'Failed to add signature', message: error.message });
     }
 });
@@ -141,10 +142,10 @@ router.post('/:requestId/cancel', protect, async (req, res) => {
     try {
         const { reason } = req.body;
         const result = await MultisigService.cancelRequest(req.params.requestId, req.user._id, reason || 'Cancelled by user');
-        console.log(`[APPROVAL] Cancelled ${req.params.requestId} by ${req.user.email}`);
+        logger.info(`[APPROVAL] Cancelled ${req.params.requestId} by ${req.user.email}`);
         res.json({ success: true, message: 'Approval request cancelled', data: result });
     } catch (error) {
-        console.error('[APPROVAL] Cancel error:', error);
+        logger.error('[APPROVAL] Cancel error:', error);
         res.status(400).json({ error: 'Failed to cancel approval request', message: error.message });
     }
 });
@@ -155,7 +156,7 @@ router.get('/batch/:batchId', protect, async (req, res) => {
         const history = await MultisigService.getBatchApprovalHistory(req.params.batchId);
         res.json({ success: true, count: history.length, data: history });
     } catch (error) {
-        console.error('[APPROVAL] History error:', error);
+        logger.error('[APPROVAL] History error:', error);
         res.status(500).json({ error: 'Failed to fetch approval history', message: error.message });
     }
 });
@@ -166,7 +167,7 @@ router.get('/stats', protect, adminOnly, async (req, res) => {
         const stats = await MultisigService.getStatistics();
         res.json({ success: true, data: stats });
     } catch (error) {
-        console.error('[APPROVAL] Stats error:', error);
+        logger.error('[APPROVAL] Stats error:', error);
         res.status(500).json({ error: 'Failed to fetch statistics', message: error.message });
     }
 });
@@ -181,7 +182,7 @@ router.post('/recall/:batchId', protect, requirePermissions(PERMISSIONS.BATCH_RE
         });
         res.status(201).json({ success: true, message: 'Recall approval request created. Waiting for inspector approvals.', data: result });
     } catch (error) {
-        console.error('[RECALL] Request error:', error);
+        logger.error('[RECALL] Request error:', error);
         res.status(400).json({ error: 'Failed to create recall request', message: error.message });
     }
 });
@@ -196,7 +197,7 @@ router.post('/contaminate/:batchId', protect, requirePermissions(PERMISSIONS.BAT
         });
         res.status(201).json({ success: true, message: 'Contamination approval request created. Waiting for inspector approvals.', data: result });
     } catch (error) {
-        console.error('[CONTAMINATION] Request error:', error);
+        logger.error('[CONTAMINATION] Request error:', error);
         res.status(400).json({ error: 'Failed to create contamination request', message: error.message });
     }
 });
@@ -211,9 +212,25 @@ router.post('/destroy/:batchId', protect, requirePermissions(PERMISSIONS.BATCH_D
         });
         res.status(201).json({ success: true, message: 'Destruction authorization request created. Waiting for inspector approvals.', data: result });
     } catch (error) {
-        console.error('[DESTROY] Request error:', error);
+        logger.error('[DESTROY] Request error:', error);
         res.status(400).json({ error: 'Failed to create destruction request', message: error.message });
     }
 });
 
+// Request quality check
+router.post('/quality-check/:batchId', protect, requirePermissions(PERMISSIONS.BATCH_QUALITY_CHECK), async (req, res) => {
+    try {
+        const { justification, evidence } = req.body;
+        if (!justification || justification.length < 20) return res.status(400).json({ error: 'Validation error', message: 'Justification must be at least 20 characters' });
+        const result = await MultisigService.createApprovalRequest({
+            batchId: req.params.batchId, actionType: 'batch_quality_check', initiatedBy: req.user._id, justification, evidence: evidence || []
+        });
+        res.status(201).json({ success: true, message: 'Quality check approval request created. Waiting for inspector approvals.', data: result });
+    } catch (error) {
+        logger.error('[QUALITY_CHECK] Request error:', error);
+        res.status(400).json({ error: 'Failed to create quality check request', message: error.message });
+    }
+});
+
 module.exports = router;
+

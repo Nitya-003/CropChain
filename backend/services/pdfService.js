@@ -30,6 +30,20 @@ class PDFService {
         y = doc.y + 4;
       };
 
+      const addRecallWarning = (title, message) => {
+        const boxHeight = 58;
+        checkPageBreak(boxHeight + 12);
+
+        doc.roundedRect(50, y, pageWidth, boxHeight, 6)
+          .fillAndStroke('#fef2f2', '#dc2626');
+        doc.fillColor('#dc2626').fontSize(16).font('Helvetica-Bold');
+        doc.text(title, 66, y + 10, { width: pageWidth - 32 });
+        doc.fillColor('#7f1d1d').fontSize(9).font('Helvetica-Bold');
+        doc.text(message, 66, y + 32, { width: pageWidth - 32 });
+
+        y += boxHeight + 14;
+      };
+
       const checkPageBreak = (needed) => {
         if (y + needed > doc.page.height - 80) {
           doc.addPage();
@@ -54,6 +68,13 @@ class PDFService {
       // Horizontal rule
       doc.fillColor('#16a34a').rect(50, y, pageWidth, 2).fill();
       y += 20;
+
+      if (batch.isRecalled) {
+        addRecallWarning(
+          'RECALLED',
+          'CRITICAL FOOD SAFETY ALERT: This batch has been recalled and should not be distributed, sold, or consumed.'
+        );
+      }
 
       // ── Batch Summary ──
       addSectionTitle('Batch Summary');
@@ -105,6 +126,13 @@ class PDFService {
       // ── Compliance & Blockchain ──
       checkPageBreak(80);
       addSectionTitle('Compliance & Blockchain');
+
+      if (batch.isRecalled) {
+        addRecallWarning(
+          'RECALLED BATCH WARNING',
+          'This compliance report documents a recalled batch. Treat all chain-of-custody records as unsafe or withdrawn.'
+        );
+      }
 
       addLabelValue('Blockchain Hash', batch.blockchainHash);
       addLabelValue('Sync Status', batch.syncStatus);

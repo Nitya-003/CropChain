@@ -1,5 +1,9 @@
 const Batch = require('../models/Batch');
 const notificationService = require('./notificationService');
+const logger = require('../utils/logger');
+
+const TELEMETRY_HISTORY_LIMIT = 500;
+const TELEMETRY_HISTORY_WARNING_THRESHOLD = 450;
 
 const SPOILAGE_THRESHOLDS = {
   rice:      { maxTemp: 77, maxHumidity: 70 },
@@ -30,6 +34,8 @@ async function recordIoTData(batchId, temperature, humidity) {
 
   const wasSpoiled = batch.iotData?.isSpoiled;
   const isSpoiled = checkSpoiled(temperature, humidity, batch.cropType);
+  const telemetryHistoryLength = batch.iotData?.telemetryHistory?.length || 0;
+  const timestamp = new Date();
 
   if (isSpoiled && !wasSpoiled && batch.farmerId) {
     notificationService.createInAppNotification(
@@ -41,19 +47,34 @@ async function recordIoTData(batchId, temperature, humidity) {
     ).catch(err => console.error('Failed to send spoilage alert:', err));
   }
 
-  batch.iotData = {
-    currentTemperature: temperature,
-    currentHumidity: humidity,
-    isSpoiled,
-    lastUpdated: new Date(),
-    telemetryHistory: [
-      ...((batch.iotData && batch.iotData.telemetryHistory) || []),
-      { temperature, humidity, timestamp: new Date() }
-    ]
-  };
+  if (telemetryHistoryLength >= TELEMETRY_HISTORY_WARNING_THRESHOLD) {
+    logger.warn('Batch IoT telemetry history near cap; oldest readings will be trimmed on write', {
+      batchId,
+      telemetryHistoryLength,
+      telemetryHistoryLimit: TELEMETRY_HISTORY_LIMIT
+    });
+  }
 
-  await batch.save();
-  return batch;
+  const updatedBatch = await Batch.findOneAndUpdate(
+    { batchId },
+    {
+      $set: {
+        'iotData.currentTemperature': temperature,
+        'iotData.currentHumidity': humidity,
+        'iotData.isSpoiled': isSpoiled,
+        'iotData.lastUpdated': timestamp
+      },
+      $push: {
+        'iotData.telemetryHistory': {
+          $each: [{ temperature, humidity, timestamp }],
+          $slice: -TELEMETRY_HISTORY_LIMIT
+        }
+      }
+    },
+    { new: true, runValidators: true }
+  );
+
+  return updatedBatch || batch;
 }
 
 async function getIoTData(batchId) {
@@ -84,6 +105,8 @@ async function getIoTData(batchId) {
 
 module.exports = {
   SPOILAGE_THRESHOLDS,
+  TELEMETRY_HISTORY_LIMIT,
+  TELEMETRY_HISTORY_WARNING_THRESHOLD,
   getThreshold,
   checkSpoiled,
   recordIoTData,

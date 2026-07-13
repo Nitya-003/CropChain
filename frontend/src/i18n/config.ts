@@ -5,6 +5,7 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 // Import translations
 import enTranslations from './locales/en.json';
 import hiTranslations from './locales/hi.json';
+import mrTranslations from './locales/mr.json';
 
 i18n
   .use(LanguageDetector) // Detect user language
@@ -17,7 +18,11 @@ i18n
       hi: {
         translation: hiTranslations,
       },
+      mr: {
+        translation: mrTranslations,
+      },
     },
+
     fallbackLng: 'en', // Fallback language
     lng: (typeof window !== 'undefined' && localStorage.getItem('language')) || 'en', // Default language
     interpolation: {

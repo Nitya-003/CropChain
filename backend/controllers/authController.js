@@ -117,12 +117,12 @@ const parseCookieHeader = (cookieHeader = '') => {
 };
 
 const buildAuthPayload = (user) => ({
-    token: generateToken(user._id, user.role, user.name),
+    token: generateToken(user._id, user.role, user.name, user.tokenVersion),
     user: sanitizeUser(user)
 });
 
 const attachRefreshCookie = (res, user) => {
-    res.cookie(REFRESH_COOKIE_NAME, generateRefreshToken(user._id), getRefreshCookieOptions());
+    res.cookie(REFRESH_COOKIE_NAME, generateRefreshToken(user._id, user.tokenVersion), getRefreshCookieOptions());
 };
 
 const clearRefreshCookie = (res) => {
@@ -281,6 +281,7 @@ const updateProfile = async (req, res) => {
         if (password) {
             const salt = await bcrypt.genSalt(12);
             user.password = await bcrypt.hash(password, salt);
+            user.tokenVersion = (user.tokenVersion || 0) + 1;
         }
 
         const updatedUser = await user.save();
@@ -592,6 +593,13 @@ const refreshSession = async (req, res) => {
             );
         }
 
+        if (decoded.tokenVersion !== undefined && decoded.tokenVersion !== user.tokenVersion) {
+            clearRefreshCookie(res);
+            return res.status(401).json(
+                apiResponse.unauthorizedResponse('Token has been invalidated. Please log in again.')
+            );
+        }
+
         attachRefreshCookie(res, user);
 
         return res.json(
@@ -727,6 +735,7 @@ const resetPassword = async (req, res) => {
         user.password = await bcrypt.hash(password, salt);
         user.resetPasswordToken = undefined;
         user.resetPasswordExpire = undefined;
+        user.tokenVersion = (user.tokenVersion || 0) + 1;
 
         await user.save();
 
@@ -742,10 +751,50 @@ const resetPassword = async (req, res) => {
 
 const addFunds = async (req, res) => {
     try {
-        const { amount } = req.body;
+        const { amount, userId } = req.body;
+        
+        if (!userId) {
+            return res.status(400).json(
+                apiResponse.errorResponse('Please provide a target userId', 'MISSING_USER_ID', 400)
+            );
+        }
+
         if (amount === undefined || typeof amount !== 'number' || amount <= 0) {
             return res.status(400).json(
                 apiResponse.errorResponse('Please provide a valid positive number for amount', 'INVALID_AMOUNT', 400)
+            );
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json(
+                apiResponse.notFoundResponse('User', userId)
+            );
+        }
+
+        user.balance = (user.balance || 0) + amount;
+        await user.save();
+
+        logger.info('Funds added successfully', { adminId: req.user.id, targetUserId: user._id, amount, newBalance: user.balance });
+
+        return res.json(
+            apiResponse.successResponse({ user: sanitizeUser(user) }, 'Funds added successfully')
+        );
+    } catch (error) {
+        logger.error('Error adding funds', { error: error.message });
+        return res.status(500).json(
+            apiResponse.errorResponse('Server error while adding funds', 'SERVER_ERROR', 500)
+        );
+    }
+};
+
+const setFallbackPassword = async (req, res) => {
+    try {
+        const { password } = req.body;
+        
+        if (!password || password.length < 6) {
+            return res.status(400).json(
+                apiResponse.errorResponse('Password must be at least 6 characters long', 'INVALID_PASSWORD', 400)
             );
         }
 
@@ -756,18 +805,22 @@ const addFunds = async (req, res) => {
             );
         }
 
-        user.balance = (user.balance || 0) + amount;
+        // Hash password with higher cost factor
+        const salt = await bcrypt.genSalt(12);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        user.password = hashedPassword;
         await user.save();
 
-        logger.info('Funds added successfully', { userId: user._id, amount, newBalance: user.balance });
+        logger.info('Fallback password set successfully', { userId: user._id });
 
         return res.json(
-            apiResponse.successResponse({ user: sanitizeUser(user) }, 'Funds added successfully')
+            apiResponse.successResponse({ user: sanitizeUser(user) }, 'Fallback password set successfully')
         );
     } catch (error) {
-        logger.error('Error adding funds', { error: error.message });
+        logger.error('Error setting fallback password', { error: error.message });
         return res.status(500).json(
-            apiResponse.errorResponse('Server error while adding funds', 'SERVER_ERROR', 500)
+            apiResponse.errorResponse('Server error while setting fallback password', 'SERVER_ERROR', 500)
         );
     }
 };
@@ -783,5 +836,6 @@ module.exports = {
     logoutUser,
     forgotPassword,
     resetPassword,
-    addFunds
+    addFunds,
+    setFallbackPassword
 };

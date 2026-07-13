@@ -92,7 +92,7 @@ describe('ProfilePage', () => {
 
   it('allows entering edit mode and editing fields', async () => {
     render(<ProfilePage />);
-    const editBtn = screen.getByRole('button', { name: /Edit Profile/i });
+    const editBtn = screen.getByRole('button', { name: 'profile.editProfile' });
     fireEvent.click(editBtn);
 
     const nameInput = screen.getByDisplayValue('John Farmer');
@@ -110,14 +110,14 @@ describe('ProfilePage', () => {
     render(<ProfilePage />);
     
     // Enter edit mode
-    fireEvent.click(screen.getByRole('button', { name: /Edit Profile/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'profile.editProfile' }));
     
     // Change name
     const nameInput = screen.getByDisplayValue('John Farmer');
     fireEvent.change(nameInput, { target: { value: 'New Farmer Name' } });
 
     // Submit form
-    fireEvent.click(screen.getByRole('button', { name: /Save Changes/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'profile.saveChanges' }));
 
     await waitFor(() => {
       expect(mockUpdateProfile).toHaveBeenCalledWith({ name: 'New Farmer Name' });
@@ -129,7 +129,7 @@ describe('ProfilePage', () => {
     render(<ProfilePage />);
     
     // Enter edit mode
-    fireEvent.click(screen.getByRole('button', { name: /Edit Profile/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'profile.editProfile' }));
 
     // Fill password change inputs with mismatching new passwords
     const currentPasswordInput = screen.getAllByPlaceholderText('••••••••')[0];
@@ -141,9 +141,9 @@ describe('ProfilePage', () => {
     fireEvent.change(confirmPasswordInput, { target: { value: 'DifferentNewPassword123!' } });
 
     // Save changes
-    fireEvent.click(screen.getByRole('button', { name: /Save Changes/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'profile.saveChanges' }));
 
-    expect(toast.error).toHaveBeenCalledWith('New passwords do not match');
+    expect(toast.error).toHaveBeenCalledWith('validation.passwordsDoNotMatch');
     expect(mockUpdateProfile).not.toHaveBeenCalled();
   });
 
@@ -151,7 +151,7 @@ describe('ProfilePage', () => {
     render(<ProfilePage />);
     
     // Enter edit mode
-    fireEvent.click(screen.getByRole('button', { name: /Edit Profile/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'profile.editProfile' }));
 
     const currentPasswordInput = screen.getAllByPlaceholderText('••••••••')[0];
     const newPasswordInput = screen.getAllByPlaceholderText('••••••••')[1];
@@ -162,9 +162,9 @@ describe('ProfilePage', () => {
     fireEvent.change(newPasswordInput, { target: { value: 'NoSpecial123' } });
     fireEvent.change(confirmPasswordInput, { target: { value: 'NoSpecial123' } });
 
-    fireEvent.click(screen.getByRole('button', { name: /Save Changes/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'profile.saveChanges' }));
 
-    expect(toast.error).toHaveBeenCalledWith('Password must contain at least one special character');
+    expect(toast.error).toHaveBeenCalledWith('validation.passwordSpecialChar');
     expect(mockUpdateProfile).not.toHaveBeenCalled();
   });
 });

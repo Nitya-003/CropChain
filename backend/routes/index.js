@@ -3,7 +3,7 @@ const router = express.Router();
 const mongoose = require("mongoose");
 const { updateBatchStatus, getBatches, exportBatch, recordIoTData, getIoTData } = require("../controllers/batchController");
 const { protect, adminOnly } = require("../middleware/auth");
-const { batchLimiter } = require("../middleware/rateLimiters");
+const { batchLimiter, iotLimiter } = require("../middleware/rateLimiters");
 
 router.get('/status', (req, res) => {
     const state = mongoose.connection.readyState;
@@ -30,8 +30,8 @@ router.get('/batches/:batchId/export', batchLimiter, protect, exportBatch);
 router.patch('/batches/:batchId/status', batchLimiter, protect, adminOnly, updateBatchStatus);
 
 // IoT sensor data
-router.post('/batches/:batchId/iot', protect, recordIoTData);
-router.get('/batches/:batchId/iot', protect, getIoTData);
-router.get('/batches/:batchId/iot/history', protect, getIoTData);
+router.post('/batches/:batchId/iot', iotLimiter, protect, recordIoTData);
+router.get('/batches/:batchId/iot', iotLimiter, protect, getIoTData);
+router.get('/batches/:batchId/iot/history', iotLimiter, protect, getIoTData);
 
 module.exports = router;

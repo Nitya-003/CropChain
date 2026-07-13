@@ -96,9 +96,13 @@ jest.mock('mongoose', () => {
 jest.mock('../models/Counter', () => mockCounter);
 jest.mock('../models/Batch', () => mockBatch);
 jest.mock('../models/User', () => mockUser);
+jest.mock('../utils/shutdown', () => ({
+  gracefulShutdown: jest.fn()
+}));
 
 const app = require("../server");
 const mongoose = require("mongoose");
+const { protect } = require('../middleware/auth');
 
 describe("Batch API Endpoints", () => {
   beforeEach(() => {
@@ -141,6 +145,109 @@ describe("Batch API Endpoints", () => {
     expect(res.body.data).toBeDefined();
     expect(res.body.data.batch).toBeDefined();
     expect(res.body.data.batch).toHaveProperty("batchId");
+  });
+
+  it("should return safe public tracking data without authentication", async () => {
+    mockBatch.findOne.mockResolvedValue({
+      toJSON: () => ({
+        _id: 'mongo-internal-id',
+        batchId: 'BATCH000001',
+        farmerId: 'FARM123',
+        farmerName: 'Test Farmer',
+        farmerAddress: '123 Private Farm Lane',
+        farmerWalletAddress: '0xprivatewallet',
+        cropType: 'rice',
+        quantity: 50,
+        harvestDate: '2024-01-01T00:00:00.000Z',
+        origin: 'Test Origin',
+        certifications: 'Organic',
+        description: 'Good rice',
+        createdAt: '2024-01-02T00:00:00.000Z',
+        currentStage: 'farmer',
+        status: 'Active',
+        isRecalled: false,
+        qrCode: 'data:image/png;base64,qr',
+        blockchainHash: '0xprivatehash',
+        syncStatus: 'pending',
+        pendingApprovalId: 'approval-1',
+        approvalHistory: [{ requestId: 'approval-1' }],
+        updates: [{
+          _id: 'update-internal-id',
+          stage: 'farmer',
+          actor: 'Test Farmer',
+          location: 'Test Origin',
+          timestamp: '2024-01-01T00:00:00.000Z',
+          notes: 'Initial harvest recorded'
+        }],
+        currentTemperature: 72,
+        currentHumidity: 65,
+        isSpoiled: false,
+        iotTimestamp: '2024-01-03T00:00:00.000Z',
+        spoilageRisk: {
+          riskLevel: 'Low',
+          riskScore: 10,
+          factors: ['stable temperature'],
+          predictedAt: '2024-01-03T00:00:00.000Z'
+        }
+      })
+    });
+
+    const res = await request(app).get('/api/batches/public/BATCH000001');
+
+    expect(res.statusCode).toEqual(200);
+    expect(protect).not.toHaveBeenCalled();
+    expect(mockBatch.findOne).toHaveBeenCalledWith({ batchId: 'BATCH000001' });
+    expect(res.body.data.batch).toMatchObject({
+      batchId: 'BATCH000001',
+      farmerName: 'Test Farmer',
+      cropType: 'rice',
+      quantity: 50,
+      origin: 'Test Origin',
+      currentStage: 'farmer',
+      status: 'Active',
+      qrCode: 'data:image/png;base64,qr'
+    });
+    expect(res.body.data.batch).not.toHaveProperty('_id');
+    expect(res.body.data.batch).not.toHaveProperty('farmerId');
+    expect(res.body.data.batch).not.toHaveProperty('farmerAddress');
+    expect(res.body.data.batch).not.toHaveProperty('farmerWalletAddress');
+    expect(res.body.data.batch).not.toHaveProperty('blockchainHash');
+    expect(res.body.data.batch).not.toHaveProperty('syncStatus');
+    expect(res.body.data.batch).not.toHaveProperty('pendingApprovalId');
+    expect(res.body.data.batch).not.toHaveProperty('approvalHistory');
+    expect(res.body.data.batch.updates[0]).not.toHaveProperty('_id');
+    expect(res.body.data.batch.updates[0]).not.toHaveProperty('notes');
+  });
+
+  it("should return 404 for a missing public tracking batch", async () => {
+    mockBatch.findOne.mockResolvedValue(null);
+
+    const res = await request(app).get('/api/batches/public/MISSING001');
+
+    expect(res.statusCode).toEqual(404);
+    expect(protect).not.toHaveBeenCalled();
+  });
+
+  it("should return 400 for an invalid public tracking batch ID", async () => {
+    const res = await request(app).get('/api/batches/public/%20');
+
+    expect(res.statusCode).toEqual(400);
+    expect(mockBatch.findOne).not.toHaveBeenCalled();
+    expect(protect).not.toHaveBeenCalled();
+  });
+
+  it("should keep the existing batch detail route protected", async () => {
+    mockBatch.findOne.mockResolvedValue({
+      batchId: 'BATCH000001',
+      currentStage: 'farmer',
+      isRecalled: false,
+      updates: []
+    });
+
+    const res = await request(app).get('/api/batches/BATCH000001');
+
+    expect(res.statusCode).toEqual(200);
+    expect(protect).toHaveBeenCalled();
   });
 
   it("should allow a valid stage transition (farmer -> mandi)", async () => {

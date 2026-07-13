@@ -1,4 +1,5 @@
 import { offlineStorage, PendingBatch, PendingUpdate } from './offlineStorage';
+import { apiClient } from './apiClient';
 import toast from 'react-hot-toast';
 
 export type SyncStatus = 'idle' | 'syncing' | 'error';
@@ -214,25 +215,10 @@ class SyncManager {
     await offlineStorage.updateBatchStatus(id, 'syncing');
 
     try {
-      // Call the backend API
-      const response = await fetch(`${(typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001'}/api/batches`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(pendingBatch.data),
-      });
+      await apiClient.post('/batches', pendingBatch.data);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      await response.json();
-      
-      // Mark as synced
       await offlineStorage.updateBatchStatus(id, 'synced');
-      
-      // Notify listeners
+
       this.notifyListeners({
         type: 'batch',
         id,
@@ -256,28 +242,10 @@ class SyncManager {
     await offlineStorage.updateUpdateStatus(id, 'syncing');
 
     try {
-      // Call the backend API
-      const response = await fetch(
-        `${(typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001'}/api/batches/${pendingUpdate.batchId}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(pendingUpdate.data),
-        }
-      );
+      await apiClient.put(`/batches/${pendingUpdate.batchId}`, pendingUpdate.data);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      await response.json();
-      
-      // Mark as synced
       await offlineStorage.updateUpdateStatus(id, 'synced');
-      
-      // Notify listeners
+
       this.notifyListeners({
         type: 'update',
         id,
@@ -375,7 +343,45 @@ class SyncManager {
         position: 'top-right',
       });
     }
+  }  // end retryFailed
+
+  /**
+   * Conflict resolution: permanently discard a pending update that is in
+   * 'conflict' status so it is no longer retried.
+   */
+  async discardPendingUpdate(pendingId: string): Promise<void> {
+    try {
+      await offlineStorage.updateUpdateStatus(pendingId, 'failed', 'Discarded by user during conflict resolution');
+      await offlineStorage.removeFromSyncQueue(pendingId);
+      this.notifyListeners({ type: 'update', id: pendingId, status: 'error', error: 'Discarded' });
+      toast('Local change discarded.', { duration: 2000, position: 'top-right' });
+    } catch (error) {
+      console.error('[SyncManager] Failed to discard pending update:', error);
+      throw error;
+    }
   }
-}
+
+  /**
+   * Conflict resolution: replace the stored payload of a conflicted pending
+   * update with the user-edited one, reset its status to 'pending', and
+   * re-enqueue it for syncing.
+   */
+  async resubmitWithResolution(pendingId: string, resolvedData: Record<string, unknown>): Promise<void> {
+    try {
+      // Patch the stored payload
+      await offlineStorage.updatePendingUpdateData(pendingId, resolvedData);
+      // Reset status so it gets picked up on next sync
+      await offlineStorage.updateUpdateStatus(pendingId, 'pending');
+      // Re-enqueue (priority 1 so it goes to the front)
+      await offlineStorage.addToSyncQueue('update', pendingId, 1);
+      toast('Change resubmitted — syncing now...', { duration: 2000, position: 'top-right' });
+      await this.triggerSync();
+    } catch (error) {
+      console.error('[SyncManager] Failed to resubmit resolved update:', error);
+      throw error;
+    }
+  }
+}  // end SyncManager
+
 
 export const syncManager = new SyncManager();

@@ -47,7 +47,7 @@ class BatchService {
     async generateQRCode(batchId) {
         try {
             const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-            const trackingUrl = `${frontendUrl}/track/${encodeURIComponent(batchId)}`;
+            const trackingUrl = `${frontendUrl}/track-batch?id=${encodeURIComponent(batchId)}`;
             return await QRCode.toDataURL(trackingUrl, {
                 width: 400,
                 margin: 2,
@@ -214,6 +214,89 @@ class BatchService {
             };
         } catch (error) {
             logger.error('Error fetching batch:', error);
+            throw error;
+        }
+    }
+
+    sanitizeBatchId(batchId) {
+        const sanitizedId = typeof batchId === 'string' ? batchId.trim() : '';
+        if (!sanitizedId || sanitizedId.length > 100 || !/^[A-Za-z0-9_-]+$/.test(sanitizedId)) {
+            return null;
+        }
+        return sanitizedId;
+    }
+
+    toPublicBatch(batch) {
+        const batchData = typeof batch.toJSON === 'function' ? batch.toJSON() : batch;
+        const iotData = batchData.iotData || {};
+
+        return {
+            batchId: batchData.batchId,
+            farmerName: batchData.farmerName,
+            cropType: batchData.cropType,
+            quantity: batchData.quantity,
+            harvestDate: batchData.harvestDate,
+            origin: batchData.origin,
+            certifications: batchData.certifications,
+            description: batchData.description,
+            createdAt: batchData.createdAt,
+            currentStage: batchData.currentStage,
+            status: batchData.status,
+            isRecalled: batchData.isRecalled,
+            updates: (batchData.updates || []).map(update => ({
+                stage: update.stage,
+                actor: update.actor,
+                location: update.location,
+                timestamp: update.timestamp
+            })),
+            qrCode: batchData.qrCode,
+            isSpoiled: batchData.isSpoiled ?? iotData.isSpoiled,
+            currentTemperature: batchData.currentTemperature ?? iotData.currentTemperature,
+            currentHumidity: batchData.currentHumidity ?? iotData.currentHumidity,
+            iotTimestamp: batchData.iotTimestamp ?? iotData.lastUpdated,
+            spoilageRisk: batchData.spoilageRisk ? {
+                riskLevel: batchData.spoilageRisk.riskLevel,
+                riskScore: batchData.spoilageRisk.riskScore,
+                factors: batchData.spoilageRisk.factors || [],
+                predictedAt: batchData.spoilageRisk.predictedAt
+            } : undefined
+        };
+    }
+
+    /**
+     * Get safe public tracking data for a batch.
+     * @param {string} batchId - Batch identifier
+     * @returns {Object} - Result with public batch data or error
+     */
+    async getPublicBatch(batchId) {
+        const sanitizedId = this.sanitizeBatchId(batchId);
+
+        if (!sanitizedId) {
+            return {
+                success: false,
+                error: 'Invalid batch ID',
+                statusCode: 400
+            };
+        }
+
+        try {
+            const batch = await Batch.findOne({ batchId: sanitizedId });
+
+            if (!batch) {
+                return {
+                    success: false,
+                    error: 'Batch not found',
+                    statusCode: 404
+                };
+            }
+
+            return {
+                success: true,
+                batch: this.toPublicBatch(batch),
+                message: 'Public batch tracking data retrieved successfully'
+            };
+        } catch (error) {
+            logger.error('Error fetching public batch:', error);
             throw error;
         }
     }
@@ -637,5 +720,4 @@ class BatchService {
 
 // Export singleton instance
 module.exports = new BatchService();
-
 
