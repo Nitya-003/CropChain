@@ -1,4 +1,8 @@
 import { API_URL } from '../utils/constants';
+import * as SecureStore from 'expo-secure-store';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001/api';
+const TOKEN_KEY = 'auth_token';
 
 interface RequestOptions {
   method?: string;
@@ -6,15 +10,22 @@ interface RequestOptions {
   headers?: Record<string, string>;
 }
 
+async function getHeaders(headers: Record<string, string> = {}): Promise<Record<string, string>> {
+  const token = await SecureStore.getItemAsync(TOKEN_KEY).catch(() => null);
+
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...headers,
+  };
+}
+
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, headers = {} } = options;
 
   const config: RequestInit = {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
-    },
+    headers: await getHeaders(headers),
   };
 
   if (body) config.body = JSON.stringify(body);

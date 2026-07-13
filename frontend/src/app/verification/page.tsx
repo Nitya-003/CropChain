@@ -121,15 +121,21 @@ const VerificationDashboardComponent: React.FC = () => {
         }
     };
 
-    // Memoize all active user IDs to join room subscriptions for
+    // Keep socket subscription IDs stable across directory refreshes.
+    // IDs are computed once per admin role session (not on every unverified/verified list change).
     const allUserIds = useMemo(() => {
+        if (user?.role !== 'admin') return [];
         return [
             ...unverifiedUsers.map(u => u._id),
             ...verifiedUsers.map(u => u._id)
         ];
-    }, [unverifiedUsers, verifiedUsers]);
+        // Intentionally NOT dependent on unverifiedUsers/verifiedUsers to prevent
+        // disconnect/reconnect on every directory refresh.
+    }, [user?.role]);
 
     // Handle incoming socket status updates
+
+
     const handleVerificationSocketUpdate = useCallback((data: any) => {
         console.log('[SOCKET EVENT] Verification update:', data);
         if (data?.userId && data?.newState) {

@@ -46,10 +46,10 @@ The system is live and deployed across production services:
 
 ## Architecture
 
-### Frontend (React + TypeScript)
-- **Framework**: React 18 with TypeScript
+### Frontend (Next.js + TypeScript)
+- **Framework**: Next.js with TypeScript
 - **Styling**: Tailwind CSS with custom design system
-- **Routing**: React Router for navigation
+- **Routing**: Next.js App/Pages Router
 - **Icons**: Lucide React for consistent iconography
 - **State Management**: React hooks and context
 
@@ -59,7 +59,7 @@ The system is live and deployed across production services:
 - **QR Codes**: QRCode library for batch QR generation
 - **Database**: MongoDB for metadata storage
 - **Authentication**: JWT-based auth system
-- **AI Integration**: OpenAI GPT-4o mini for intelligent assistance
+- **AI Integration**: Gemini (@google/generative-ai) for intelligent assistance
 
 ### ML Service (Python + Flask)
 - **Runtime**: Python 3.11 with Flask framework
@@ -149,7 +149,7 @@ docker compose up --build
 
 This starts:
 
-* Frontend (React + Vite)
+* Frontend (Next.js)
 * Backend (Node.js + Express)
 * ML Service (Python + Flask)
 * MongoDB Database
@@ -259,8 +259,8 @@ docker images
 
 6. **Configure AI Chatbot** (Optional)
    ```bash
-   # Add OpenAI API key to backend/.env
-   echo "OPENAI_API_KEY=your_openai_api_key_here" >> backend/.env
+   # Add Gemini API key to backend/.env
+   echo "GEMINI_API_KEY=your_gemini_api_key_here" >> backend/.env
    ```
 
 ### Development Setup
@@ -404,8 +404,8 @@ MONGODB_URI=mongodb://localhost:27017/cropchain
 JWT_SECRET=your_secret_key
 
 # AI Chatbot (Optional)
-OPENAI_API_KEY=your_openai_api_key_here
-AI_MODEL=gpt-4o-mini
+GEMINI_API_KEY=your_gemini_api_key_here
+AI_MODEL=gemini-1.5-flash
 AI_MAX_TOKENS=500
 AI_TEMPERATURE=0.7
 
@@ -437,7 +437,7 @@ networks: {
 
 ### Frontend Tests
 ```bash
-npm test
+npx vitest
 ```
 
 ### Backend Tests
@@ -504,7 +504,7 @@ npx hardhat run scripts/deploy.js --network polygon
 - MongoDB + Mongoose
 - JWT Authentication
 - QRCode Generation
-- OpenAI API Integration
+- Gemini API Integration
 - Axios HTTP Client
 
 **Machine Learning**

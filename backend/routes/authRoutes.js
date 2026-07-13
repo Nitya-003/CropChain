@@ -11,9 +11,10 @@ const {
     logoutUser,
     forgotPassword,
     resetPassword,
-    addFunds
+    addFunds,
+    setFallbackPassword
 } = require('../controllers/authController');
-const { protect } = require('../middleware/auth');
+const { protect, adminOnly } = require('../middleware/auth');
 const validateRegistration = require('../middleware/validateRegistration');
 const { authLimiter } = require('../middleware/rateLimiters');
 
@@ -23,12 +24,13 @@ router.post('/refresh', refreshSession);
 router.post('/logout', logoutUser);
 router.post('/forgot-password', authLimiter, forgotPassword);
 router.post('/reset-password/:token', authLimiter, resetPassword);
-router.post('/add-funds', protect, addFunds);
+router.post('/add-funds', protect, adminOnly, addFunds);
 
 // Wallet authentication routes
 router.get('/nonce', getNonce);
 router.post('/wallet-login', walletLogin);
 router.post('/wallet-register', validateRegistration, walletRegister);
+router.post('/set-fallback-password', protect, setFallbackPassword);
 router.put('/profile', protect, updateProfile);
 
 module.exports = router;
