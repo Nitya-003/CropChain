@@ -82,6 +82,17 @@ router.get('/pending', protect, inspectorOnly, async (req, res) => {
     }
 });
 
+// Get statistics
+router.get('/stats', protect, adminOnly, async (req, res) => {
+    try {
+        const stats = await MultisigService.getStatistics();
+        res.json({ success: true, data: stats });
+    } catch (error) {
+        logger.error('[APPROVAL] Stats error:', error);
+        res.status(500).json({ error: 'Failed to fetch statistics', message: error.message });
+    }
+});
+
 // Get approval request details
 router.get('/:requestId', protect, async (req, res) => {
     try {
@@ -158,17 +169,6 @@ router.get('/batch/:batchId', protect, async (req, res) => {
     } catch (error) {
         logger.error('[APPROVAL] History error:', error);
         res.status(500).json({ error: 'Failed to fetch approval history', message: error.message });
-    }
-});
-
-// Get statistics
-router.get('/stats', protect, adminOnly, async (req, res) => {
-    try {
-        const stats = await MultisigService.getStatistics();
-        res.json({ success: true, data: stats });
-    } catch (error) {
-        logger.error('[APPROVAL] Stats error:', error);
-        res.status(500).json({ error: 'Failed to fetch statistics', message: error.message });
     }
 });
 
