@@ -17,7 +17,7 @@ const mockBatchData = {
   qrCode: '/qr/batch-001.png',
 };
 
-const { mockGetPublicBatch, mockUseBatchSocket, mockPush } = vi.hoisted(() => ({
+const { mockGetPublicBatch, mockUseBatchSocket, mockPush, mockUseSearchParams } = vi.hoisted(() => ({
   mockGetPublicBatch: vi.fn(),
   mockUseBatchSocket: vi.fn().mockReturnValue({ isConnected: false, lastUpdate: null }),
   mockPush: vi.fn(),
@@ -86,12 +86,12 @@ describe('TrackBatch Page', () => {
 
   it('automatically searches when batch ID is provided in query params', async () => {
     mockUseSearchParams.mockReturnValue(new URLSearchParams('id=BATCH-001'));
-    mockGetBatch.mockResolvedValue(mockBatchData);
+    mockGetPublicBatch.mockResolvedValue(mockBatchData);
 
     renderTrackBatch();
 
     await waitFor(() => {
-      expect(mockGetBatch).toHaveBeenCalledWith('BATCH-001');
+      expect(mockGetPublicBatch).toHaveBeenCalledWith('BATCH-001');
       expect(screen.getByDisplayValue('BATCH-001')).toBeInTheDocument();
       expect(screen.getByText('BATCH-001')).toBeInTheDocument();
     });

@@ -7,6 +7,8 @@ import toast from 'react-hot-toast';
 import { realCropBatchService } from '../../services/realCropBatchService';
 import { useRbac } from '../../hooks/useRbac';
 import { sanitizeObject } from '../../lib/sanitize';
+import { ethers } from 'ethers';
+import { getContract, getSigner, hasMetaMask } from '../../utils/web3';
 
 const AddBatchContent: React.FC = () => {
   const { t } = useTranslation();
@@ -147,15 +149,52 @@ const AddBatchContent: React.FC = () => {
 
     setIsLoading(true);
 
-    const sanitizedData = sanitizeObject(formData);
-    const createBatchPromise = realCropBatchService.createBatch(sanitizedData);
-
     try {
+      const sanitizedData = sanitizeObject(formData);
+      
+      // Step 1: Register crop in database
+      const createBatchPromise = realCropBatchService.createBatch(sanitizedData);
       const batch = await toast.promise(createBatchPromise, {
-        loading: 'Creating batch on blockchain...',
-        success: (data) => `Batch created! ID: ${data.batchId}`,
-        error: (err) => `Creation failed: ${err.message || 'Unknown error'}`
+        loading: 'Registering crop in database...',
+        success: (data) => `Crop registered! ID: ${data.batchId}`,
+        error: (err) => `Registration failed: ${err.message || 'Unknown error'}`
       });
+
+      // Step 2: Mint provenance record on-chain using connected wallet
+      if (hasMetaMask()) {
+        try {
+          const signer = await getSigner();
+          if (signer) {
+            const contract = await getContract();
+            if (contract) {
+              toast.loading('Minting provenance record on-chain...', { id: 'web3-sync' });
+              
+              const tx = await contract.createBatch(
+                ethers.encodeBytes32String(batch.batchId),
+                ethers.encodeBytes32String(batch.cropType.toUpperCase()),
+                "QmYwAPJhy5n2aBhajbN7yXq3TqK6Lj5ee2ov3333333333", // 46-char valid IPFS CID
+                BigInt(batch.quantity),
+                batch.farmerName,
+                batch.origin,
+                batch.description || 'Initial harvest recorded'
+              );
+              
+              await tx.wait();
+              
+              // Step 3: Update backend with actual transaction hash
+              const updated = await realCropBatchService.updateBatch(batch.batchId, {
+                blockchainHash: tx.hash
+              });
+              
+              batch.blockchainHash = tx.hash;
+              toast.success('Successfully minted on-chain!', { id: 'web3-sync' });
+            }
+          }
+        } catch (web3Err: any) {
+          console.error("Web3 sync failed:", web3Err);
+          toast.error(`Web3 minting failed, queued for background sync: ${web3Err.message || web3Err}`, { id: 'web3-sync' });
+        }
+      }
 
       setGeneratedBatch(batch);
       setSuccess(true);

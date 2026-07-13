@@ -1,4 +1,4 @@
-﻿/**
+/**
  * BatchService - Handles all batch-related business logic
  * Extracted from server.js to follow Separation of Concerns principle
  */
@@ -79,7 +79,7 @@ class BatchService {
                 const batchId = await this.generateBatchId(session);
                 const qrCode = await this.generateQRCode(batchId);
 
-                const blockchainHash = blockchainService.simulateHash(batchData);
+                const blockchainHash = batchData.blockchainHash || blockchainService.simulateHash(batchData);
 
                 const batch = await Batch.create([{
                     batchId,
@@ -96,13 +96,14 @@ class BatchService {
                     isRecalled: false,
                     qrCode,
                     blockchainHash,
-                    syncStatus: 'pending',
+                    syncStatus: batchData.blockchainHash ? 'synced' : 'pending',
                     updates: [{
                         stage: 'farmer',
                         actor: batchData.farmerName || user.name,
                         location: batchData.origin,
                         timestamp: batchData.harvestDate,
-                        notes: batchData.description || 'Initial harvest recorded'
+                        notes: batchData.description || 'Initial harvest recorded',
+                        blockchainHash: batchData.blockchainHash || ''
                     }],
                     lifecycle: {
                         currentStage: 'Registered',
@@ -122,7 +123,9 @@ class BatchService {
                 session.endSession();
 
                 // Try to sync with blockchain (non-blocking)
-                this.syncToBlockchain(createdBatch, 'create');
+                if (createdBatch.syncStatus !== 'synced') {
+                    this.syncToBlockchain(createdBatch, 'create');
+                }
 
                 // Log platform activities
                 await activityService.logActivity({
@@ -351,7 +354,7 @@ class BatchService {
                 };
             }
 
-            const blockchainHash = blockchainService.simulateHash(updateData);
+            const blockchainHash = updateData.blockchainHash || blockchainService.simulateHash(updateData);
 
             const batch = await Batch.findOneAndUpdate(
                 { batchId },
@@ -362,14 +365,15 @@ class BatchService {
                             actor: updateData.actor,
                             location: updateData.location,
                             timestamp: updateData.timestamp,
-                            notes: updateData.notes
+                            notes: updateData.notes,
+                            blockchainHash: updateData.blockchainHash || ''
                         }
                     },
                     currentStage: normalizedStage,
                     blockchainHash,
-                    syncStatus: 'pending'
+                    syncStatus: updateData.blockchainHash ? 'synced' : 'pending'
                 },
-                { new: true }
+                { new: true, runValidators: true }
             );
 
             // Determine activity type and log activity
@@ -414,7 +418,9 @@ class BatchService {
             });
 
             // Try to sync with blockchain (non-blocking)
-            this.syncToBlockchain(batch, 'update');
+            if (batch.syncStatus !== 'synced') {
+                this.syncToBlockchain(batch, 'update');
+            }
 
             logger.info(`[SUCCESS] Batch updated: ${batchId} to stage ${normalizedStage} by ${updateData.actor}`);
 
