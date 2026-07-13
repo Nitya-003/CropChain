@@ -1,4 +1,5 @@
 import { offlineStorage, PendingBatch, PendingUpdate } from './offlineStorage';
+import { apiClient } from './apiClient';
 import toast from 'react-hot-toast';
 
 export type SyncStatus = 'idle' | 'syncing' | 'error';
@@ -214,25 +215,10 @@ class SyncManager {
     await offlineStorage.updateBatchStatus(id, 'syncing');
 
     try {
-      // Call the backend API
-      const response = await fetch(`${(typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001'}/api/batches`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(pendingBatch.data),
-      });
+      await apiClient.post('/batches', pendingBatch.data);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      await response.json();
-      
-      // Mark as synced
       await offlineStorage.updateBatchStatus(id, 'synced');
-      
-      // Notify listeners
+
       this.notifyListeners({
         type: 'batch',
         id,
@@ -256,28 +242,10 @@ class SyncManager {
     await offlineStorage.updateUpdateStatus(id, 'syncing');
 
     try {
-      // Call the backend API
-      const response = await fetch(
-        `${(typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001'}/api/batches/${pendingUpdate.batchId}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(pendingUpdate.data),
-        }
-      );
+      await apiClient.put(`/batches/${pendingUpdate.batchId}`, pendingUpdate.data);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      await response.json();
-      
-      // Mark as synced
       await offlineStorage.updateUpdateStatus(id, 'synced');
-      
-      // Notify listeners
+
       this.notifyListeners({
         type: 'update',
         id,

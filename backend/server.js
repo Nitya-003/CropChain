@@ -35,8 +35,8 @@ const ccipService = require('./services/ccipService');
 const notificationService = require('./services/notificationService');
 const blockchainQueue = require('./services/blockchainQueue');
 const blockchainWorker = require('./services/blockchainWorker');
-const notificationQueue = require('./services/notificationQueue');
-const notificationWorker = require('./services/notificationWorker');
+const notificationQueue = require('./jobs/queue');
+const notificationWorker = require('./jobs/worker');
 
 // Import MongoDB Models
 const Batch = require('./models/Batch');
@@ -386,6 +386,37 @@ app.post('/api/batches', batchLimiter, protect, authorizeRoles('farmer'), valida
         const response = apiResponse.errorResponse(
             'Failed to create batch',
             'BATCH_CREATION_ERROR',
+            500
+        );
+        res.status(500).json(response);
+    }
+});
+
+// GET public batch tracking data - no authentication required
+app.get('/api/batches/public/:batchId', batchLimiter, async (req, res) => {
+    try {
+        const { batchId } = req.params;
+        const result = await batchService.getPublicBatch(batchId);
+
+        if (!result.success) {
+            if (result.statusCode === 404) {
+                logger.warn('Public batch not found', { batchId, ip: req.ip });
+                const response = apiResponse.notFoundResponse('Batch', `ID: ${batchId}`);
+                return res.status(404).json(response);
+            }
+
+            const response = apiResponse.errorResponse(result.error, 'INVALID_BATCH_ID', result.statusCode || 400);
+            return res.status(response.statusCode).json(response);
+        }
+
+        const response = apiResponse.successResponse({ batch: result.batch }, 'Public batch tracking data retrieved successfully');
+        res.json(response);
+    } catch (error) {
+        notificationService.notifyError('public batch tracking fetch', error);
+        logger.error('Error fetching public batch tracking data', { error: error.message, stack: error.stack });
+        const response = apiResponse.errorResponse(
+            'Failed to fetch public batch tracking data',
+            'PUBLIC_BATCH_FETCH_ERROR',
             500
         );
         res.status(500).json(response);

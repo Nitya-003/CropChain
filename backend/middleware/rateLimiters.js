@@ -40,6 +40,11 @@ const aiLimiter = createLimiter(
     'Too many AI requests from this IP, please try again later.'
 );
 
+const iotLimiter = createLimiter(
+    parseInt(process.env.IOT_RATE_LIMIT_MAX, 10) || 60,
+    'Too many IoT data requests from this IP, please try again later.'
+);
+
 const registerWindowMs = parseInt(process.env.REGISTER_RATE_LIMIT_WINDOW_MS, 10) || 60 * 60 * 1000; // 1 hour
 const registerLimiter = rateLimit({
     windowMs: registerWindowMs,
@@ -148,6 +153,7 @@ module.exports = {
     authLimiter,
     batchLimiter,
     aiLimiter,
+    iotLimiter,
     registerLimiter,
     rateLimitWindowMs,
     rateLimitMaxRequests,

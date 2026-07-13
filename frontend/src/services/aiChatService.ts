@@ -1,4 +1,5 @@
 import { API_URL } from './apiClient';
+import { tokenService } from './token.service';
 
 interface ChatMessage {
   id: string;
@@ -155,6 +156,8 @@ class AIChatService {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/ai/batch-query`, {
+      const token = tokenService.getAccessToken();
+      const response = await fetch(`${this.baseUrl}/api/ai/batch-query`, {
         method: 'POST',
         headers: {
           'Accept': 'text/event-stream',

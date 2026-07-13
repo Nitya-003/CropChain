@@ -3,11 +3,11 @@
  * Extracted from server.js to follow Separation of Concerns principle
  */
 
-const emailProvider = require('../config/email');
+const emailProvider = require('./emailService');
 const logger = require('../utils/logger');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
-const { addEmailJob } = require('./notificationQueue');
+const { addEmailJob } = require('../jobs/queue');
 
 class NotificationService {
     constructor() {

@@ -2,8 +2,10 @@ const Joi = require("joi");
 const STAGES = require("../constants/stages");
 
 const createBatchSchema = Joi.object({
-  farmerId: Joi.string().alphanum().min(5).max(50).required(),
-  
+  // farmerId is not sent by the frontend — the backend trusts req.user for this.
+  // Kept optional here only in case a caller supplies it explicitly.
+  farmerId: Joi.string().alphanum().min(5).max(50).optional(),
+
   farmerName: Joi.string()
     .min(2)
     .max(100)

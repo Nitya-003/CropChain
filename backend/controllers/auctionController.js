@@ -5,6 +5,7 @@ const User = require('../models/User');
 const apiResponse = require('../utils/apiResponse');
 const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
+const mongoose = require('mongoose');
 
 // Create a new auction for a batch
 const createAuction = async (req, res) => {
@@ -201,9 +202,133 @@ const getAuctionBids = async (req, res) => {
     }
 };
 
+// Place a new bid on an auction
+const placeBid = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const { id } = req.params;
+        const { bidAmount } = req.body;
+
+        if (!bidAmount || bidAmount <= 0) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json(
+                apiResponse.errorResponse('Valid bid amount is required', 'INVALID_BID_AMOUNT', 400)
+            );
+        }
+
+        const auction = await Auction.findById(id).session(session);
+
+        if (!auction) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json(
+                apiResponse.notFoundResponse('Auction', id)
+            );
+        }
+
+        if (auction.status !== 'active' || auction.endTime <= new Date()) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json(
+                apiResponse.errorResponse('Auction is no longer active', 'AUCTION_ENDED', 400)
+            );
+        }
+
+        if (auction.farmerId.toString() === req.user.id.toString()) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(403).json(
+                apiResponse.errorResponse('You cannot bid on your own auction', 'FORBIDDEN', 403)
+            );
+        }
+
+        if (bidAmount <= auction.currentHighestBid) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json(
+                apiResponse.errorResponse(`Bid amount must be greater than current highest bid (${auction.currentHighestBid})`, 'BID_TOO_LOW', 400)
+            );
+        }
+
+        const user = await User.findById(req.user.id).session(session);
+        
+        if (!user || user.balance < bidAmount) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json(
+                apiResponse.errorResponse('Insufficient balance', 'INSUFFICIENT_BALANCE', 400)
+            );
+        }
+
+        // Refund previous highest bidder
+        if (auction.highestBidder) {
+            const previousBidder = await User.findById(auction.highestBidder).session(session);
+            if (previousBidder) {
+                previousBidder.balance += auction.currentHighestBid;
+                await previousBidder.save({ session });
+            }
+        }
+
+        // Deduct new bid amount from current user
+        user.balance -= bidAmount;
+        await user.save({ session });
+
+        // Update auction
+        auction.currentHighestBid = bidAmount;
+        auction.highestBidder = user._id;
+        await auction.save({ session });
+
+        // Create bid record
+        const bid = new Bid({
+            auctionId: auction._id,
+            userId: user._id,
+            userName: user.name,
+            cropId: auction.batchId,
+            bidAmount: bidAmount
+        });
+        await bid.save({ session });
+
+        await session.commitTransaction();
+        session.endSession();
+
+        logger.info('Bid placed successfully', { auctionId: auction._id, userId: user._id, amount: bidAmount });
+
+        // Broadcast global bid event
+        const io = socketService.getIO();
+        if (io) {
+            io.emit('bid_placed', {
+                auctionId: auction._id,
+                bid: {
+                    userId: user._id,
+                    userName: user.name,
+                    bidAmount: bidAmount,
+                    timestamp: bid.timestamp
+                },
+                currentHighestBid: bidAmount
+            });
+        }
+
+        return res.status(201).json(
+            apiResponse.successResponse({ bid }, 'Bid placed successfully', 201)
+        );
+
+    } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+        logger.error('Error placing bid', { error: error.message });
+        return res.status(500).json(
+            apiResponse.errorResponse('Server error while placing bid', 'SERVER_ERROR', 500)
+        );
+    }
+};
+
 module.exports = {
     createAuction,
     getAllAuctions,
     getAuctionDetails,
-    getAuctionBids
+    getAuctionBids,
+    placeBid
 };
