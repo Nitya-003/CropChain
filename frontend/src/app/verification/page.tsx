@@ -512,6 +512,7 @@ const VerificationDashboardComponent: React.FC = () => {
             <RevocationModal
                 open={revokeTarget !== null}
                 onOpenChange={(open) => { if (!open) setRevokeTarget(null); }}
+                onClose={() => setRevokeTarget(null)}
                 userName={revokeTarget?.name || ''}
                 onConfirm={handleRevokeConfirm}
                 isProcessing={processingUserId === revokeTarget?.id}
