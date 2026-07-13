@@ -57,7 +57,7 @@ const computeEventHash = ({ previousHash, event }) => {
         createdAt: event.createdAt,
     };
 
-    const secret = process.env.AUDIT_EVENT_HMAC_SECRET || 'dev-audit-secret-change-me';
+    const secret = process.env.AUDIT_EVENT_HMAC_SECRET || 'dummy_audit_event_hmac_secret_default_32_chars';
     const canonical = stableStringify(payload);
     return crypto.createHmac('sha256', secret).update(canonical).digest('hex');
 };

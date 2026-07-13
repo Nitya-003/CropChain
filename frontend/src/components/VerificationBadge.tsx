@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { CheckCircle, XCircle } from 'lucide-react';
 
@@ -13,6 +14,7 @@ const VerificationBadge: React.FC<VerificationBadgeProps> = ({
     size = 'md',
     showLabel = true,
 }) => {
+    const { t } = useTranslation();
     const sizeClasses = {
         sm: 'w-4 h-4',
         md: 'w-5 h-5',
@@ -39,7 +41,7 @@ const VerificationBadge: React.FC<VerificationBadgeProps> = ({
                     />
                     {showLabel && (
                         <span className={`${textSizeClasses[size]} font-medium text-green-600 dark:text-green-400`}>
-                            Verified
+                            {t('verification.verified')}
                         </span>
                     )}
                 </>
@@ -51,7 +53,7 @@ const VerificationBadge: React.FC<VerificationBadgeProps> = ({
                     />
                     {showLabel && (
                         <span className={`${textSizeClasses[size]} font-medium text-gray-500 dark:text-gray-400`}>
-                            Not Verified
+                            {t('verification.unverified')}
                         </span>
                     )}
                 </>

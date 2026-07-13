@@ -37,6 +37,11 @@ const REQUIRED_VARS = {
     validate: (v) => /^(0x)?[a-fA-F0-9]{64}$/.test(v),
     hint: "Expected a 64-character hex string (with or without 0x prefix)",
   },
+  AUDIT_EVENT_HMAC_SECRET: {
+    description: "HMAC secret for audit event hash-chain integrity",
+    validate: (v) => v.length >= 32,
+    hint: "Minimum 32 characters. Generate with: openssl rand -hex 32",
+  },
 };
 
 const OPTIONAL_VARS_WARN = {

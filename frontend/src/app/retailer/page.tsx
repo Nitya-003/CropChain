@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ShoppingBag, Package, RefreshCw, CheckCircle, Clock, TrendingUp, Search, ArrowRight, Tag, Gavel } from 'lucide-react';
 import Link from 'next/link';
 import { realCropBatchService } from '../../services/realCropBatchService';
@@ -15,6 +16,7 @@ import { auctionService, Auction } from '../../services/auctionService';
 const RELEVANT_STAGES = ['transport', 'retailer'];
 
 const RetailerDashboardComponent: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [batches, setBatches] = useState<any[]>([]);
   const [activeAuctions, setActiveAuctions] = useState<Auction[]>([]);
@@ -147,21 +149,21 @@ const RetailerDashboardComponent: React.FC = () => {
             <ShoppingBag className="h-8 w-8 text-purple-600 dark:text-purple-400" />
           </div>
           <div className="text-left">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Retailer Dashboard</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('retailer.dashboard')}</h1>
             <p className="text-sm text-muted-foreground">
-              Welcome back, <span className="font-semibold text-foreground">{user?.name || 'Retailer'}</span> — manage incoming inventory
+              {t('retailer.welcomeBack', { name: user?.name || 'Retailer' })}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={loadBatches} className="gap-1.5 bg-background/50">
             <RefreshCw className="h-3.5 w-3.5" />
-            Refresh
+            {t('farmer.refresh')}
           </Button>
           <Link href="/update-batch">
             <Button size="sm" className="gap-1.5 bg-purple-600 hover:bg-purple-700 text-white">
               <Tag className="h-3.5 w-3.5" />
-              Mark as Received
+              {t('retailer.markAsReceived')}
             </Button>
           </Link>
         </div>
@@ -171,33 +173,33 @@ const RetailerDashboardComponent: React.FC = () => {
       <div className="grid md:grid-cols-3 gap-6">
         <Card className="border border-border bg-card hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <span className="text-sm font-medium text-muted-foreground">Incoming Shipments</span>
+            <span className="text-sm font-medium text-muted-foreground">{t('retailer.incomingShipments')}</span>
             <div className="bg-blue-500/10 p-2 rounded-xl">
               <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
           </CardHeader>
           <CardContent className="space-y-1 text-left">
             <div className="text-3xl font-bold tracking-tight">{stats.incomingShipments}</div>
-            <p className="text-xs text-muted-foreground">Batches currently in transit to your store</p>
+            <p className="text-xs text-muted-foreground">{t('retailer.batchesInTransitToStore')}</p>
           </CardContent>
         </Card>
 
         <Card className="border border-border bg-card hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <span className="text-sm font-medium text-muted-foreground">Received</span>
+            <span className="text-sm font-medium text-muted-foreground">{t('retailer.received')}</span>
             <div className="bg-purple-500/10 p-2 rounded-xl">
               <CheckCircle className="h-5 w-5 text-purple-600 dark:text-purple-400" />
             </div>
           </CardHeader>
           <CardContent className="space-y-1 text-left">
             <div className="text-3xl font-bold tracking-tight">{stats.receivedBatches}</div>
-            <p className="text-xs text-muted-foreground">Batches received and on sale</p>
+            <p className="text-xs text-muted-foreground">{t('retailer.batchesReceivedOnSale')}</p>
           </CardContent>
         </Card>
 
         <Card className="border border-border bg-card hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <span className="text-sm font-medium text-muted-foreground">Total Inventory</span>
+            <span className="text-sm font-medium text-muted-foreground">{t('retailer.totalInventory')}</span>
             <div className="bg-emerald-500/10 p-2 rounded-xl">
               <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
@@ -206,7 +208,7 @@ const RetailerDashboardComponent: React.FC = () => {
             <div className="text-3xl font-bold tracking-tight">
               {stats.totalQuantity.toLocaleString()} <span className="text-lg font-medium text-muted-foreground">kg</span>
             </div>
-            <p className="text-xs text-muted-foreground">Combined stock across incoming and received</p>
+            <p className="text-xs text-muted-foreground">{t('retailer.combinedStock')}</p>
           </CardContent>
         </Card>
       </div>
@@ -220,8 +222,8 @@ const RetailerDashboardComponent: React.FC = () => {
                 <Tag className="h-6 w-6 text-purple-600 dark:text-purple-400" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">Mark as Received / Sold</p>
-                <p className="text-sm text-muted-foreground">Update batch stage when delivery arrives</p>
+                <p className="font-semibold text-foreground">{t('retailer.markAsReceivedSold')}</p>
+                <p className="text-sm text-muted-foreground">{t('retailer.updateBatchOnDelivery')}</p>
               </div>
             </CardContent>
           </Card>
@@ -234,8 +236,8 @@ const RetailerDashboardComponent: React.FC = () => {
                 <Search className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">Verify a Batch</p>
-                <p className="text-sm text-muted-foreground">Check provenance and full journey of any batch</p>
+                <p className="font-semibold text-foreground">{t('retailer.verifyBatch')}</p>
+                <p className="text-sm text-muted-foreground">{t('retailer.checkProvenance')}</p>
               </div>
             </CardContent>
           </Card>
@@ -268,7 +270,7 @@ const RetailerDashboardComponent: React.FC = () => {
         <CardHeader className="pb-3 border-b border-border/40">
           <div className="flex items-center gap-2">
             <ShoppingBag className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg font-semibold text-foreground">Inventory &amp; Incoming Batches</CardTitle>
+            <CardTitle className="text-lg font-semibold text-foreground">{t('retailer.inventoryAndIncoming')}</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -278,7 +280,7 @@ const RetailerDashboardComponent: React.FC = () => {
                 <ShoppingBag className="h-8 w-8 text-muted-foreground" />
               </div>
               <div>
-                <p className="font-semibold text-foreground">Loading...</p>
+                <p className="font-semibold text-foreground">{t('common.loading')}</p>
               </div>
             </div>
           ) : batches.length === 0 ? (
@@ -287,8 +289,8 @@ const RetailerDashboardComponent: React.FC = () => {
                 <ShoppingBag className="h-8 w-8 text-muted-foreground" />
               </div>
               <div>
-                <p className="font-semibold text-foreground">No batches yet</p>
-                <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters</p>
+                <p className="font-semibold text-foreground">{t('retailer.noBatchesYet')}</p>
+                <p className="text-sm text-muted-foreground mt-1">{t('mandi.adjustFilters')}</p>
               </div>
             </div>
           ) : (
@@ -296,13 +298,13 @@ const RetailerDashboardComponent: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40 border-b border-border/40">
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Batch ID</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Farmer</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Crop</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Quantity</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Harvest Date</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Status</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Actions</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.batchId')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.farmer')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.cropType')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.quantity')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.harvestDate')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.status')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('common.actions', 'Actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -337,7 +339,7 @@ const RetailerDashboardComponent: React.FC = () => {
                         <TableCell className="py-4 px-6">
                           <div className="flex flex-col gap-1.5 items-start">
                             <Badge variant="outline" className={`capitalize font-semibold border ${getStageColor(batch.currentStage)}`}>
-                              {batch.currentStage === 'transport' ? 'In Transit' : 'Received'}
+                              {batch.currentStage === 'transport' ? t('retailer.inTransitBadge') : t('retailer.receivedBadge')}
                             </Badge>
                             {activeAuction && (
                               <Badge variant="outline" className={`text-[10px] font-bold uppercase tracking-wide border ${
@@ -345,7 +347,7 @@ const RetailerDashboardComponent: React.FC = () => {
                                   ? 'bg-amber-500/10 text-amber-600 border-amber-500/30 animate-pulse' 
                                   : 'bg-slate-100 text-slate-600 border-slate-300/30 dark:bg-slate-800/40 dark:text-slate-400'
                               }`}>
-                                {activeAuction.status === 'active' ? 'Live Auction' : 'Auction Ended'}
+                                {activeAuction.status === 'active' ? t('auction.liveAuction') : t('auction.auctionEnded')}
                               </Badge>
                             )}
                           </div>
@@ -356,14 +358,14 @@ const RetailerDashboardComponent: React.FC = () => {
                               <Link href={`/update-batch?id=${batch.batchId}`}>
                                 <Button variant="default" size="sm" className="gap-1.5 bg-purple-600 hover:bg-purple-700 text-white h-8 rounded-lg text-xs">
                                   <Tag className="h-3.5 w-3.5" />
-                                  Receive
+                                  {t('retailer.receive')}
                                 </Button>
                               </Link>
                             ) : (
                               <Link href={`/track-batch?id=${batch.batchId}`}>
                                 <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground h-8 rounded-lg text-xs">
                                   <ArrowRight className="h-3.5 w-3.5" />
-                                  View
+                                  {t('farmer.view')}
                                 </Button>
                               </Link>
                             )}
@@ -371,7 +373,7 @@ const RetailerDashboardComponent: React.FC = () => {
                               <Link href={`/auctions/${activeAuction._id}`}>
                                 <Button variant="outline" size="sm" className="gap-1.5 text-slate-500 h-8 rounded-lg text-xs">
                                   <Gavel className="h-3.5 w-3.5" />
-                                  {activeAuction.status === 'active' ? 'Bid Room' : 'Auction'}
+                                  {activeAuction.status === 'active' ? t('retailer.bidRoom') : t('auction.auctionEnded')}
                                 </Button>
                               </Link>
                             )}
@@ -388,7 +390,7 @@ const RetailerDashboardComponent: React.FC = () => {
         {batches.length > 0 && totalPages > 1 && (
           <CardFooter className="flex items-center justify-between border-t border-border/40 py-4 px-6">
             <p className="text-xs text-muted-foreground">
-              Showing {paginatedBatches.length} of {batches.length} results
+              {t('pagination.showing', { count: paginatedBatches.length, total: batches.length })}
             </p>
             <div className="flex items-center gap-2">
               <Button
@@ -398,10 +400,10 @@ const RetailerDashboardComponent: React.FC = () => {
                 onClick={() => setPage(p => p - 1)}
                 className="h-8 rounded-lg text-xs"
               >
-                Previous
+                {t('pagination.previous')}
               </Button>
               <span className="text-xs font-semibold text-foreground">
-                Page {page} of {totalPages}
+                {t('pagination.page', { current: page, total: totalPages })}
               </span>
               <Button
                 variant="outline"
@@ -410,7 +412,7 @@ const RetailerDashboardComponent: React.FC = () => {
                 onClick={() => setPage(p => p + 1)}
                 className="h-8 rounded-lg text-xs"
               >
-                Next
+                {t('pagination.next')}
               </Button>
             </div>
           </CardFooter>

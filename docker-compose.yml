@@ -47,14 +47,14 @@ services:
   # Frontend Service
   frontend:
     build:
-      context: .
-      dockerfile: docker/Dockerfile.dev
+      context: ./frontend
+      dockerfile: Dockerfile.dev
     container_name: cropchain-frontend
     ports:
-      - '5173:5173'
+      - '3000:3000'
     volumes:
-      - .:/usr/src/app
-      - /usr/src/app/frontend/node_modules
+      - ./frontend:/usr/src/app
+      - /usr/src/app/node_modules
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:3001
     networks:

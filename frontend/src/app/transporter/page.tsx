@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Truck, Package, RefreshCw, MapPin, Clock, CheckCircle, Navigation, Search, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { realCropBatchService } from '../../services/realCropBatchService';
@@ -14,6 +15,7 @@ import BatchFilters from '../../components/BatchFilters';
 const RELEVANT_STAGES = ['mandi', 'transport'];
 
 const TransporterDashboardComponent: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [batches, setBatches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -138,21 +140,21 @@ const TransporterDashboardComponent: React.FC = () => {
             <Truck className="h-8 w-8 text-blue-600 dark:text-blue-400" />
           </div>
           <div className="text-left">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Transporter Dashboard</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('transporter.dashboard')}</h1>
             <p className="text-sm text-muted-foreground">
-              Welcome back, <span className="font-semibold text-foreground">{user?.name || 'Transporter'}</span> — manage your active shipments
+              {t('transporter.welcomeBack', { name: user?.name || 'Transporter' })}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={loadBatches} className="gap-1.5 bg-background/50">
             <RefreshCw className="h-3.5 w-3.5" />
-            Refresh
+            {t('farmer.refresh')}
           </Button>
           <Link href="/update-batch">
             <Button size="sm" className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
               <Navigation className="h-3.5 w-3.5" />
-              Update Location
+              {t('transporter.updateLocation')}
             </Button>
           </Link>
         </div>
@@ -162,33 +164,33 @@ const TransporterDashboardComponent: React.FC = () => {
       <div className="grid md:grid-cols-3 gap-6">
         <Card className="border border-border bg-card hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <span className="text-sm font-medium text-muted-foreground">Ready for Pickup</span>
+            <span className="text-sm font-medium text-muted-foreground">{t('transporter.readyForPickup')}</span>
             <div className="bg-amber-500/10 p-2 rounded-xl">
               <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
           </CardHeader>
           <CardContent className="space-y-1 text-left">
             <div className="text-3xl font-bold tracking-tight">{stats.awaitingPickup}</div>
-            <p className="text-xs text-muted-foreground">Batches at mandi awaiting transport</p>
+            <p className="text-xs text-muted-foreground">{t('transporter.batchesAwaitingTransport')}</p>
           </CardContent>
         </Card>
 
         <Card className="border border-border bg-card hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <span className="text-sm font-medium text-muted-foreground">In Transit</span>
+            <span className="text-sm font-medium text-muted-foreground">{t('transporter.inTransit')}</span>
             <div className="bg-blue-500/10 p-2 rounded-xl">
               <Truck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
           </CardHeader>
           <CardContent className="space-y-1 text-left">
             <div className="text-3xl font-bold tracking-tight">{stats.inTransit}</div>
-            <p className="text-xs text-muted-foreground">Batches currently en route</p>
+            <p className="text-xs text-muted-foreground">{t('transporter.batchesEnRoute')}</p>
           </CardContent>
         </Card>
 
         <Card className="border border-border bg-card hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <span className="text-sm font-medium text-muted-foreground">Total Load</span>
+            <span className="text-sm font-medium text-muted-foreground">{t('transporter.totalLoad')}</span>
             <div className="bg-emerald-500/10 p-2 rounded-xl">
               <Package className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
@@ -197,7 +199,7 @@ const TransporterDashboardComponent: React.FC = () => {
             <div className="text-3xl font-bold tracking-tight">
               {stats.totalQuantity.toLocaleString()} <span className="text-lg font-medium text-muted-foreground">kg</span>
             </div>
-            <p className="text-xs text-muted-foreground">Combined load across all active batches</p>
+            <p className="text-xs text-muted-foreground">{t('transporter.combinedLoad')}</p>
           </CardContent>
         </Card>
       </div>
@@ -211,8 +213,8 @@ const TransporterDashboardComponent: React.FC = () => {
                 <Navigation className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">Update Transport Stage</p>
-                <p className="text-sm text-muted-foreground">Log pickup and update location for a batch</p>
+                <p className="font-semibold text-foreground">{t('transporter.updateTransportStage')}</p>
+                <p className="text-sm text-muted-foreground">{t('transporter.logPickupAndLocation')}</p>
               </div>
             </CardContent>
           </Card>
@@ -225,8 +227,8 @@ const TransporterDashboardComponent: React.FC = () => {
                 <Truck className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">Route Optimizer</p>
-                <p className="text-sm text-muted-foreground">Find the most efficient multi-stop path for pickups</p>
+                <p className="font-semibold text-foreground">{t('transporter.routeOptimizer')}</p>
+                <p className="text-sm text-muted-foreground">{t('transporter.findEfficientPath')}</p>
               </div>
             </CardContent>
           </Card>
@@ -239,8 +241,8 @@ const TransporterDashboardComponent: React.FC = () => {
                 <Search className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">Track a Batch</p>
-                <p className="text-sm text-muted-foreground">Verify the full journey of any shipment</p>
+                <p className="font-semibold text-foreground">{t('transporter.trackABatch')}</p>
+                <p className="text-sm text-muted-foreground">{t('transporter.verifyShipmentJourney')}</p>
               </div>
             </CardContent>
           </Card>
@@ -273,7 +275,7 @@ const TransporterDashboardComponent: React.FC = () => {
         <CardHeader className="pb-3 border-b border-border/40">
           <div className="flex items-center gap-2">
             <Truck className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg font-semibold text-foreground">Shipments Overview</CardTitle>
+            <CardTitle className="text-lg font-semibold text-foreground">{t('transporter.shipmentsOverview')}</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -283,7 +285,7 @@ const TransporterDashboardComponent: React.FC = () => {
                 <Truck className="h-8 w-8 text-muted-foreground" />
               </div>
               <div>
-                <p className="font-semibold text-foreground">Loading...</p>
+                <p className="font-semibold text-foreground">{t('common.loading')}</p>
               </div>
             </div>
           ) : batches.length === 0 ? (
@@ -292,8 +294,8 @@ const TransporterDashboardComponent: React.FC = () => {
                 <Truck className="h-8 w-8 text-muted-foreground" />
               </div>
               <div>
-                <p className="font-semibold text-foreground">No active shipments</p>
-                <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters</p>
+                <p className="font-semibold text-foreground">{t('transporter.noActiveShipments')}</p>
+                <p className="text-sm text-muted-foreground mt-1">{t('mandi.adjustFilters')}</p>
               </div>
             </div>
           ) : (
@@ -301,13 +303,13 @@ const TransporterDashboardComponent: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40 border-b border-border/40">
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Batch ID</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Farmer</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Crop</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Quantity</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Origin</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Status</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">Actions</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.batchId')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.farmer')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.cropType')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.quantity')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.origin')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.status')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('common.actions', 'Actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -335,7 +337,7 @@ const TransporterDashboardComponent: React.FC = () => {
                       </TableCell>
                       <TableCell className="py-4 px-6">
                         <Badge variant="outline" className={`capitalize font-semibold border ${getStageColor(batch.currentStage)}`}>
-                          {batch.currentStage === 'mandi' ? 'Ready for Pickup' : 'In Transit'}
+                          {batch.currentStage === 'mandi' ? t('transporter.readyForPickupBadge') : t('transporter.inTransitBadge')}
                         </Badge>
                       </TableCell>
                       <TableCell className="py-4 px-6">
@@ -348,12 +350,12 @@ const TransporterDashboardComponent: React.FC = () => {
                             {batch.currentStage === 'mandi' ? (
                               <>
                                 <Truck className="h-3.5 w-3.5" />
-                                Pick Up
+                                {t('transporter.pickUp')}
                               </>
                             ) : (
                               <>
                                 <CheckCircle className="h-3.5 w-3.5" />
-                                Deliver
+                                {t('transporter.deliver')}
                               </>
                             )}
                           </Button>
@@ -369,7 +371,7 @@ const TransporterDashboardComponent: React.FC = () => {
         {batches.length > 0 && totalPages > 1 && (
           <CardFooter className="flex items-center justify-between border-t border-border/40 py-4 px-6">
             <p className="text-xs text-muted-foreground">
-              Showing {paginatedBatches.length} of {batches.length} results
+              {t('pagination.showing', { count: paginatedBatches.length, total: batches.length })}
             </p>
             <div className="flex items-center gap-2">
               <Button
@@ -379,11 +381,11 @@ const TransporterDashboardComponent: React.FC = () => {
                 onClick={() => setPage(p => p - 1)}
                 className="h-8 rounded-lg text-xs"
               >
-                Previous
+                {t('pagination.previous')}
               </Button>
               <span className="text-xs font-semibold text-foreground">
-                Page {page} of {totalPages}
-              </span>
+              {t('pagination.page', { current: page, total: totalPages })}
+            </span>
               <Button
                 variant="outline"
                 size="sm"
@@ -391,7 +393,7 @@ const TransporterDashboardComponent: React.FC = () => {
                 onClick={() => setPage(p => p + 1)}
                 className="h-8 rounded-lg text-xs"
               >
-                Next
+                {t('pagination.next')}
               </Button>
             </div>
           </CardFooter>

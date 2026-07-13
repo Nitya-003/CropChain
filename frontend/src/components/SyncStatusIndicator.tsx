@@ -1,15 +1,32 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Cloud, Wifi, WifiOff, RefreshCw, AlertCircle, Check } from 'lucide-react';
 import { syncManager, SyncStatus } from '../services/syncManager';
+import { ConflictResolutionModal } from './ConflictResolutionModal';
 
 const SyncStatusIndicator: React.FC = () => {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const { t } = useTranslation();
+  // Safe default for pre-render/SSR environments where `navigator` may not
+  // exist yet. The real value is read in useEffect, which only runs on
+  // the client after mount.
+  const [isOnline, setIsOnline] = useState(true);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [pendingCount, setPendingCount] = useState({ batches: 0, updates: 0 });
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
 
+  // Conflict states
+  const [conflicts, setConflicts] = useState<any[]>([]);
+  const [selectedConflict, setSelectedConflict] = useState<any | null>(null);
+  const [showConflictModal, setShowConflictModal] = useState(false);
+
   useEffect(() => {
+    // Now that we're safely on the client, sync isOnline with the actual
+    // browser state before wiring up the online/offline listeners.
+    if (typeof navigator !== 'undefined') {
+      setIsOnline(navigator.onLine);
+    }
+
     // Listen for online/offline events
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -44,6 +61,11 @@ const SyncStatusIndicator: React.FC = () => {
     try {
       const counts = await syncManager.getPendingCount();
       setPendingCount(counts);
+
+      // Fetch conflict updates
+      const pendingUpdates = await syncManager.getAllPendingUpdates();
+      const conflictItems = pendingUpdates.filter((u) => u.status === 'conflict');
+      setConflicts(conflictItems);
     } catch (err) {
       console.error('Failed to fetch pending count:', err);
     } finally {
@@ -69,30 +91,36 @@ const SyncStatusIndicator: React.FC = () => {
     }
   };
 
+  const handleResolveConflict = (conflictItem: any) => {
+    setSelectedConflict(conflictItem);
+    setShowConflictModal(true);
+    setShowDetails(false);
+  };
+
   const totalPending = pendingCount.batches + pendingCount.updates;
 
+  // ── Status helpers ───────────────────────────────────────────────────────
+
   const getStatusIcon = () => {
-    if (!isOnline) {
-      return <WifiOff className="h-4 w-4" />;
-    }
+    if (!isOnline) return <WifiOff className="h-4 w-4" />;
 
-    if (syncStatus === 'syncing') {
+    if (conflicts.length > 0)
+      return <AlertCircle className="h-4 w-4 text-orange-200" />;
+
+    if (syncStatus === 'syncing')
       return <RefreshCw className="h-4 w-4 animate-spin" />;
-    }
 
-    if (syncStatus === 'error') {
-      return <AlertCircle className="h-4 w-4" />;
-    }
+    if (syncStatus === 'error') return <AlertCircle className="h-4 w-4" />;
 
-    if (totalPending > 0) {
-      return <Cloud className="h-4 w-4" />;
-    }
+    if (totalPending > 0) return <Cloud className="h-4 w-4" />;
 
     return <Check className="h-4 w-4" />;
   };
 
   const getStatusColor = () => {
     if (!isOnline) return 'bg-gray-500';
+    if (conflicts.length > 0)
+      return 'bg-orange-600 dark:bg-orange-700 animate-pulse';
     if (syncStatus === 'syncing') return 'bg-blue-500';
     if (syncStatus === 'error') return 'bg-red-500';
     if (totalPending > 0) return 'bg-yellow-500';
@@ -100,12 +128,17 @@ const SyncStatusIndicator: React.FC = () => {
   };
 
   const getStatusText = () => {
-    if (!isOnline) return 'Offline';
-    if (syncStatus === 'syncing') return 'Syncing...';
-    if (syncStatus === 'error') return 'Sync Error';
-    if (totalPending > 0) return `${totalPending} Pending`;
-    return 'Synced';
+    if (!isOnline) return t('offline.youAreOffline', 'Offline');
+    if (conflicts.length > 0)
+      return t('sync.conflicts', { count: conflicts.length, defaultValue: '{{count}} Conflict' });
+    if (syncStatus === 'syncing') return t('sync.syncing');
+    if (syncStatus === 'error') return t('sync.syncFailed', 'Sync Error');
+    if (totalPending > 0) return t('sync.pendingSync', { count: totalPending });
+    return t('sync.synced');
   };
+
+  // Pulse the badge when there is anything actionable
+  const shouldPulse = totalPending > 0 || conflicts.length > 0;
 
   return (
     <div className="fixed top-4 right-4 z-50">
@@ -117,7 +150,7 @@ const SyncStatusIndicator: React.FC = () => {
             flex items-center space-x-2 px-3 py-2 rounded-full shadow-lg
             ${getStatusColor()} text-white
             hover:opacity-90 transition-all duration-200
-            ${totalPending > 0 ? 'animate-pulse' : ''}
+            ${shouldPulse && conflicts.length === 0 ? 'animate-pulse' : ''}
           `}
           aria-label="Sync status"
         >
@@ -127,11 +160,11 @@ const SyncStatusIndicator: React.FC = () => {
             getStatusIcon()
           )}
           <span className="text-sm font-medium">
-            {isInitialLoading ? 'Loading...' : getStatusText()}
+            {isInitialLoading ? t('common.loading', 'Loading...') : getStatusText()}
           </span>
-          {!isInitialLoading && totalPending > 0 && (
+          {!isInitialLoading && (totalPending > 0 || conflicts.length > 0) && (
             <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs">
-              {totalPending}
+              {totalPending + conflicts.length}
             </span>
           )}
         </button>
@@ -143,7 +176,7 @@ const SyncStatusIndicator: React.FC = () => {
             <div className="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-gray-900 dark:text-white">
-                  Sync Status
+                  {t('sync.syncStatus', 'Sync Status')}
                 </h3>
                 <div className="flex items-center space-x-2">
                   {isOnline ? (
@@ -152,7 +185,9 @@ const SyncStatusIndicator: React.FC = () => {
                     <WifiOff className="h-4 w-4 text-gray-500" />
                   )}
                   <span className="text-sm text-gray-600 dark:text-gray-400">
-                    {isOnline ? 'Online' : 'Offline'}
+                    {isOnline
+                      ? t('sync.online', 'Online')
+                      : t('offline.youAreOffline', 'Offline')}
                   </span>
                 </div>
               </div>
@@ -164,13 +199,17 @@ const SyncStatusIndicator: React.FC = () => {
               {totalPending > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">Pending Batches:</span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      {t('sync.pendingBatches', 'Pending Batches:')}
+                    </span>
                     <span className="font-medium text-gray-900 dark:text-white">
                       {pendingCount.batches}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">Pending Updates:</span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      {t('sync.pendingUpdates', 'Pending Updates:')}
+                    </span>
                     <span className="font-medium text-gray-900 dark:text-white">
                       {pendingCount.updates}
                     </span>
@@ -181,23 +220,58 @@ const SyncStatusIndicator: React.FC = () => {
               {/* Status Message */}
               <div className="text-sm text-gray-600 dark:text-gray-400">
                 {!isOnline && (
-                  <p>You're offline. Changes will sync when connection is restored.</p>
+                  <p>{t('sync.offlineMessage', "You're offline. Changes will sync when connection is restored.")}</p>
                 )}
-                {isOnline && totalPending === 0 && (
-                  <p>All changes are synced to the blockchain.</p>
+                {isOnline && totalPending === 0 && conflicts.length === 0 && (
+                  <p>{t('sync.allSyncedMessage', 'All changes are synced to the blockchain.')}</p>
                 )}
                 {isOnline && totalPending > 0 && syncStatus === 'idle' && (
-                  <p>Waiting to sync pending changes...</p>
+                  <p>{t('sync.waitingMessage', 'Waiting to sync pending changes...')}</p>
                 )}
                 {syncStatus === 'syncing' && (
-                  <p>Syncing your changes to the blockchain...</p>
+                  <p>{t('sync.syncingMessage', 'Syncing your changes to the blockchain...')}</p>
                 )}
-                {syncStatus === 'error' && (
+                {syncStatus === 'error' && conflicts.length === 0 && (
                   <p className="text-red-600 dark:text-red-400">
-                    Some items failed to sync. Check your connection and try again.
+                    {t('sync.errorMessage', 'Some items failed to sync. Check your connection and try again.')}
                   </p>
                 )}
               </div>
+
+              {/* Conflicts List */}
+              {conflicts.length > 0 && (
+                <div className="border-t border-gray-100 dark:border-gray-700 pt-3 mt-2 space-y-2">
+                  <p className="text-xs font-bold text-orange-600 dark:text-orange-400">
+                    ⚠️ {t('sync.conflictsHeading', 'Sync Conflicts')} ({conflicts.length})
+                  </p>
+                  <div className="max-h-36 overflow-y-auto space-y-2">
+                    {conflicts.map((conflict) => (
+                      <div
+                        key={conflict.pendingId || conflict.id}
+                        className="text-xs p-2 bg-orange-50/50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/40 rounded-lg flex justify-between items-center"
+                      >
+                        <div className="flex-1 pr-2 overflow-hidden">
+                          <p className="font-bold text-gray-800 dark:text-gray-200 truncate">
+                            {conflict.batchId}
+                          </p>
+                          <p className="text-gray-500 text-[10px] truncate">
+                            Stage:{' '}
+                            <span className="uppercase">
+                              {conflict.data?.stage || conflict.stage}
+                            </span>
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleResolveConflict(conflict)}
+                          className="px-2 py-1 bg-orange-600 hover:bg-orange-700 text-white font-semibold text-[10px] rounded transition-colors"
+                        >
+                          {t('sync.resolve', 'Resolve')}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Actions */}
               <div className="flex space-x-2 pt-2">
@@ -207,7 +281,7 @@ const SyncStatusIndicator: React.FC = () => {
                     className="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors"
                   >
                     <RefreshCw className="h-4 w-4 inline mr-1" />
-                    Sync Now
+                    {t('sync.syncNow', 'Sync Now')}
                   </button>
                 )}
                 {syncStatus === 'error' && (
@@ -216,7 +290,7 @@ const SyncStatusIndicator: React.FC = () => {
                     className="flex-1 px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors"
                   >
                     <AlertCircle className="h-4 w-4 inline mr-1" />
-                    Retry Failed
+                    {t('sync.retry', 'Retry Failed')}
                   </button>
                 )}
               </div>
@@ -224,6 +298,21 @@ const SyncStatusIndicator: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Conflict Resolution Modal */}
+      {selectedConflict && (
+        <ConflictResolutionModal
+          open={showConflictModal}
+          onOpenChange={setShowConflictModal}
+          conflict={{
+            id: selectedConflict.pendingId || selectedConflict.id,
+            batchId: selectedConflict.batchId,
+            data: selectedConflict.data,
+            conflictDetails: selectedConflict.conflictDetails,
+          }}
+          onResolve={updatePendingCount}
+        />
+      )}
     </div>
   );
 };

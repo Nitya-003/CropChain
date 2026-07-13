@@ -50,9 +50,7 @@ const DEFAULT_JOB_OPTIONS = {
     },
     removeOnFail: {
         age: 7 * 24 * 3600 // Keep failed jobs for 7 days for debugging
-    },
-    // Don't remove job on failure - we want to track it
-    removeOnFail: false
+    }
 };
 
 // Queue instance (singleton)
