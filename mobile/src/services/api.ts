@@ -1,4 +1,4 @@
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001/api';
+import { API_URL } from '../utils/constants';
 
 interface RequestOptions {
   method?: string;
