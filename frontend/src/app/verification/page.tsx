@@ -133,6 +133,16 @@ const VerificationDashboardComponent: React.FC = () => {
         // disconnect/reconnect on every directory refresh.
     }, [user?.role]);
 
+    // Reset rowStatuses on unmount (prevents stale badges on later mounts)
+    useEffect(() => {
+        return () => {
+            setRowStatuses({});
+        };
+    }, []);
+
+
+
+
     // Handle incoming socket status updates
 
 
@@ -158,6 +168,7 @@ const VerificationDashboardComponent: React.FC = () => {
             }
         }
     }, [unverifiedUsers, verifiedUsers]);
+
 
     const { isConnected: socketConnected } = useVerificationSocket({
         userIds: allUserIds,
