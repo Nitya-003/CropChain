@@ -30,6 +30,7 @@ const createBatchSchema = Joi.object({
 
   certifications: Joi.string().max(500).allow(""),
   description: Joi.string().max(1000).allow(""),
+  blockchainHash: Joi.string().allow("").optional(),
 });
 
 const updateBatchSchema = Joi.object({
@@ -51,6 +52,7 @@ const updateBatchSchema = Joi.object({
     .iso()
     .max("now")
     .default(() => new Date()),
+  blockchainHash: Joi.string().allow("").optional(),
 });
 
 

@@ -8,6 +8,7 @@ export interface StageUpdate {
   location: string;
   timestamp: string;
   notes?: string;
+  blockchainHash?: string;
 }
 
 interface JourneyStageNodeProps {

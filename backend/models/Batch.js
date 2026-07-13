@@ -36,6 +36,10 @@ const updateSchema = new mongoose.Schema({
   hash: {
     type: String,
     trim: true
+  },
+  blockchainHash: {
+    type: String,
+    default: ''
   }
 }, { _id: true });
 

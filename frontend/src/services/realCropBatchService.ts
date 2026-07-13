@@ -41,6 +41,7 @@ export interface UpdateBatchPayload {
   location: string;
   timestamp: string;
   notes?: string;
+  blockchainHash?: string;
 }
 
 export const realCropBatchService = {
@@ -66,7 +67,7 @@ export const realCropBatchService = {
     return response.data.data.batch;
   },
 
-  updateBatch: async (batchId: string, updateData: UpdateBatchPayload): Promise<BatchData> => {
+  updateBatch: async (batchId: string, updateData: Partial<BatchData> & Partial<UpdateBatchPayload>): Promise<BatchData> => {
     const sanitizedId = sanitizeString(batchId);
     const response = await apiClient.put(`/batches/${sanitizedId}`, updateData);
     return response.data.data.batch;

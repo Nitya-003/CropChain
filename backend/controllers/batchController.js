@@ -618,16 +618,25 @@ exports.exportBatch = async (req, res) => {
             delete batch.iotData;
         }
 
+        const sanitizeCSV = (str) => {
+            if (!str) return '';
+            const s = String(str);
+            if (/^[=+\-@\t\r]/.test(s)) {
+                return "'" + s;
+            }
+            return s;
+        };
+
         if (format === 'csv') {
             const csvData = [
                 'Field,Value',
-                `Batch ID,${batch.batchId}`,
-                `Crop Type,${batch.cropType}`,
+                `Batch ID,${sanitizeCSV(batch.batchId)}`,
+                `Crop Type,${sanitizeCSV(batch.cropType)}`,
                 `Quantity,${batch.quantity} kg`,
                 `Harvest Date,${batch.harvestDate || 'N/A'}`,
-                `Origin,${batch.origin}`,
-                `Farmer,${batch.farmerName}`,
-                `Current Stage,${batch.currentStage}`,
+                `Origin,${sanitizeCSV(batch.origin)}`,
+                `Farmer,${sanitizeCSV(batch.farmerName)}`,
+                `Current Stage,${sanitizeCSV(batch.currentStage)}`,
                 `Status,${batch.isSpoiled ? 'Spoiled' : 'Active'}`,
             ];
 
@@ -636,11 +645,11 @@ exports.exportBatch = async (req, res) => {
                 csvData.push('Timeline');
                 csvData.push('Stage,Actor,Location,Date,Notes');
                 batch.updates.forEach(u => {
-                    const stage = (u.stage || '').replace(/"/g, '""');
-                    const actor = (u.actor || '').replace(/"/g, '""');
-                    const location = (u.location || '').replace(/"/g, '""');
-                    const timestamp = (u.timestamp || '').replace(/"/g, '""');
-                    const notes = (u.notes || '').replace(/"/g, '""');
+                    const stage = sanitizeCSV(u.stage || '').replace(/"/g, '""');
+                    const actor = sanitizeCSV(u.actor || '').replace(/"/g, '""');
+                    const location = sanitizeCSV(u.location || '').replace(/"/g, '""');
+                    const timestamp = sanitizeCSV(u.timestamp || '').replace(/"/g, '""');
+                    const notes = sanitizeCSV(u.notes || '').replace(/"/g, '""');
                     csvData.push(`"${stage}","${actor}","${location}","${timestamp}","${notes}"`);
                 });
             }

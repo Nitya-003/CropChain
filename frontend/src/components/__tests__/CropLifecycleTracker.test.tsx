@@ -1,35 +1,48 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { AxiosHeaders, type AxiosResponse } from 'axios';
 import { CropLifecycleTracker } from '../journey/CropLifecycleTracker';
-import React from 'react';
+import { apiClient } from '../../services/apiClient';
+import React, { type HTMLAttributes, type ReactNode } from 'react';
+
+vi.mock('../../services/apiClient', () => ({
+  apiClient: {
+    get: vi.fn(),
+  },
+}));
 
 // Mock framer-motion to avoid animation timing in tests
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+    div: ({ children, ...props }: HTMLAttributes<HTMLDivElement>) => <div {...props}>{children}</div>,
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+  AnimatePresence: ({ children }: { children?: ReactNode }) => <>{children}</>,
 }));
+
+const createAxiosResponse = <T,>(data: T): AxiosResponse<T> => ({
+  data,
+  status: 200,
+  statusText: 'OK',
+  headers: {},
+  config: { headers: new AxiosHeaders() },
+});
 
 describe('CropLifecycleTracker', () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
-  it('renders loading state initially', async () => {
-    // Mock fetch that remains pending
-    const pendingFetch = new Promise(() => {});
-    vi.stubGlobal('fetch', () => pendingFetch);
+  it('renders loading state initially', () => {
+    vi.mocked(apiClient.get).mockImplementation(() => new Promise(() => {}));
 
     const { container } = render(<CropLifecycleTracker batchId="BATCH123" />);
+
     expect(container.querySelector('[aria-busy="true"]')).toBeInTheDocument();
+    expect(apiClient.get).toHaveBeenCalledWith('/batches/BATCH123/lifecycle');
   });
 
   it('renders error state and friendly retry UI on failure', async () => {
-    vi.stubGlobal('fetch', () => Promise.resolve({
-      ok: false,
-      status: 500
-    }));
+    vi.mocked(apiClient.get).mockRejectedValue(new Error('Request failed'));
 
     render(<CropLifecycleTracker batchId="BATCH123" />);
 
@@ -40,69 +53,62 @@ describe('CropLifecycleTracker', () => {
   });
 
   it('renders empty state banner for newly created batch', async () => {
-    const mockData = {
-      success: true,
-      data: {
-        currentStage: 'Registered',
-        completionPercentage: 17,
-        stageHistory: [
-          {
-            stage: 'Registered',
-            timestamp: new Date().toISOString(),
-            updatedBy: 'Farmer Bob',
-            notes: 'Batch created'
-          }
-        ]
-      }
+    const lifecycleData = {
+      currentStage: 'Registered',
+      completionPercentage: 17,
+      stageHistory: [
+        {
+          stage: 'Registered',
+          timestamp: new Date().toISOString(),
+          updatedBy: 'Farmer Bob',
+          notes: 'Batch created'
+        }
+      ]
     };
 
-    vi.stubGlobal('fetch', () => Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve(mockData)
+    vi.mocked(apiClient.get).mockResolvedValue(createAxiosResponse({
+      success: true,
+      data: lifecycleData
     }));
 
     render(<CropLifecycleTracker batchId="BATCH123" />);
 
     await waitFor(() => {
+      expect(apiClient.get).toHaveBeenCalledWith('/batches/BATCH123/lifecycle');
       expect(screen.getByText('Lifecycle has just started.')).toBeInTheDocument();
     });
   });
 
-  it('renders completed, current, and upcoming stages correctly', async () => {
-    const mockData = {
-      success: true,
-      data: {
-        currentStage: 'Growing',
-        completionPercentage: 33,
-        stageHistory: [
-          {
-            stage: 'Registered',
-            timestamp: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-            updatedBy: 'Farmer Bob',
-            notes: 'Batch created'
-          },
-          {
-            stage: 'Growing',
-            timestamp: new Date().toISOString(),
-            updatedBy: 'Farmer Bob',
-            notes: 'Growing phase started'
-          }
-        ]
-      }
+  it('renders completed, current, and upcoming stages from the response payload', async () => {
+    const lifecycleData = {
+      currentStage: 'Growing',
+      completionPercentage: 33,
+      stageHistory: [
+        {
+          stage: 'Registered',
+          timestamp: new Date(Date.now() - 86400000).toISOString(),
+          updatedBy: 'Farmer Bob',
+          notes: 'Batch created'
+        },
+        {
+          stage: 'Growing',
+          timestamp: new Date().toISOString(),
+          updatedBy: 'Farmer Bob',
+          notes: 'Growing phase started'
+        }
+      ]
     };
 
-    vi.stubGlobal('fetch', () => Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve(mockData)
+    vi.mocked(apiClient.get).mockResolvedValue(createAxiosResponse({
+      success: true,
+      data: lifecycleData
     }));
 
     render(<CropLifecycleTracker batchId="BATCH123" />);
 
     await waitFor(() => {
       expect(screen.getByText('Crop Lifecycle Progress Tracker')).toBeInTheDocument();
-      // Progress bar percentage check
       expect(screen.getByText(/33%/)).toBeInTheDocument();
-      // Stage labels checking
       expect(screen.getAllByText('Registered').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Growing').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Harvested').length).toBeGreaterThan(0);

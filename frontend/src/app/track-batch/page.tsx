@@ -70,7 +70,7 @@ const TrackBatchContent: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const queryBatchId = searchParams.get('id')?.trim();
+    const queryBatchId = (searchParams.get('id') || searchParams.get('batchId'))?.trim();
     if (!queryBatchId || lastAutoSearchedId.current === queryBatchId) return;
 
     lastAutoSearchedId.current = queryBatchId;
@@ -82,19 +82,6 @@ const TrackBatchContent: React.FC = () => {
     if (e) e.preventDefault();
     await searchBatch(batchId);
   };
-
-  // Auto-search when the page is opened with a ?batchId= query param.
-  // This is how scanned QR codes land here (see backend QR generation),
-  // so we shouldn't require the user to re-type the ID and hit search.
-  useEffect(() => {
-    const idFromQuery = searchParams?.get('batchId');
-    if (idFromQuery) {
-      setBatchId(idFromQuery);
-      searchBatch(idFromQuery);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
-
   const getTimelineEvents = (batchData: any) => {
     if (!batchData || !batchData.updates) return [];
 

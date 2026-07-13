@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBatchSocket } from '../../hooks/useBatchSocket';
+import { apiClient } from '../../services/apiClient';
 
 // Stage Configurations
 const LIFECYCLE_STAGES = [
@@ -114,20 +115,16 @@ export const CropLifecycleTracker: React.FC<CropLifecycleTrackerProps> = ({
     setLoading(true);
     setError(null);
     try {
-      // Use standard fetch to invoke API
-      const res = await fetch(`/api/batches/${batchId}/lifecycle`);
-      if (!res.ok) {
-        throw new Error(`Failed to load lifecycle: status ${res.status}`);
+      const response = await apiClient.get(`/batches/${batchId}/lifecycle`);
+      const lifecycleData = response.data?.data;
+      if (!lifecycleData || !Array.isArray(lifecycleData.stageHistory)) {
+        throw new Error('Invalid response format');
       }
-      const json = await res.json();
-      if (json.success && json.data) {
-        setData(json.data);
-      } else {
-        throw new Error(json.message || 'Invalid response format');
-      }
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Failed to retrieve lifecycle data.');
+      setData(lifecycleData);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to retrieve lifecycle data.';
+      console.error('[CropLifecycleTracker] Failed to retrieve lifecycle data:', message);
+      setError(message);
     } finally {
       setLoading(false);
     }

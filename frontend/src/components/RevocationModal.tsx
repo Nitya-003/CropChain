@@ -15,14 +15,18 @@ import { Button } from './ui/button'
 interface RevocationModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Called when the dialog is closing, regardless of trigger (overlay click, Esc, Cancel button, etc.) */
+  onClose?: () => void
   userName: string
   onConfirm: (reason: string) => void
   isProcessing?: boolean
 }
 
+
 export function RevocationModal({
   open,
   onOpenChange,
+  onClose,
   userName,
   onConfirm,
   isProcessing = false,
@@ -42,9 +46,11 @@ export function RevocationModal({
     if (!newOpen) {
       setReason('')
       setError('')
+      onClose?.()
     }
     onOpenChange(newOpen)
   }
+
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
