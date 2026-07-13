@@ -1,3 +1,5 @@
+import { API_URL } from './apiClient';
+
 interface ChatMessage {
   id: string;
   content: string;
@@ -22,17 +24,12 @@ interface ChatContext {
 }
 
 class AIChatService {
-  private baseUrl: string;
   private messages: ChatMessage[] = [];
-
-  constructor() {
-    this.baseUrl = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001';
-  }
 
   // Send message to AI backend
   async sendMessage(message: string, context?: ChatContext): Promise<ChatResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/ai/chat`, {
+      const response = await fetch(`${API_URL}/ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -70,7 +67,7 @@ class AIChatService {
     onToken: (token: string) => void
   ): Promise<ChatResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/ai/chat`, {
+      const response = await fetch(`${API_URL}/ai/chat`, {
         method: 'POST',
         headers: {
           'Accept': 'text/event-stream',
@@ -157,7 +154,7 @@ class AIChatService {
   ): Promise<ChatResponse> {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${this.baseUrl}/api/ai/batch-query`, {
+      const response = await fetch(`${API_URL}/ai/batch-query`, {
         method: 'POST',
         headers: {
           'Accept': 'text/event-stream',
