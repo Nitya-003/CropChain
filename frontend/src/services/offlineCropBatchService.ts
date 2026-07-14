@@ -1,6 +1,7 @@
 import { offlineStorage } from './offlineStorage';
 import { syncManager } from './syncManager';
 import * as QRCode from 'qrcode';
+import { API_URL } from './apiClient';
 
 interface CropBatch {
   batchId: string;
@@ -26,9 +27,8 @@ interface CropBatch {
   syncStatus?: 'synced' | 'pending' | 'syncing' | 'failed';
   pendingId?: string;
 }
-class OfflineCropBatchService {
-  private readonly API_URL = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001';
 
+class OfflineCropBatchService {
   private async generateQRCode(batchId: string): Promise<string> {
     try {
       return await QRCode.toDataURL(batchId, {
@@ -54,7 +54,7 @@ class OfflineCropBatchService {
     if (navigator.onLine) {
       try {
         // Try to create batch online
-        const response = await fetch(`${this.API_URL}/api/batches`, {
+        const response = await fetch(`${API_URL}/batches`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -124,7 +124,7 @@ class OfflineCropBatchService {
     if (navigator.onLine) {
       try {
         // Try to update batch online
-        const response = await fetch(`${this.API_URL}/api/batches/${batchId}`, {
+        const response = await fetch(`${API_URL}/batches/${batchId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -210,7 +210,7 @@ class OfflineCropBatchService {
     // Try to fetch from API if online
     if (navigator.onLine) {
       try {
-        const response = await fetch(`${this.API_URL}/api/batches/${batchId}`);
+        const response = await fetch(`${API_URL}/batches/${batchId}`);
         if (response.ok) {
           const result = await response.json();
           return {
@@ -250,7 +250,7 @@ class OfflineCropBatchService {
     // Try to fetch from API if online
     if (navigator.onLine) {
       try {
-        const response = await fetch(`${this.API_URL}/api/batches`);
+        const response = await fetch(`${API_URL}/batches`);
         if (response.ok) {
           onlineData = await response.json();
         }

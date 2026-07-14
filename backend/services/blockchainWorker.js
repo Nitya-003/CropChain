@@ -120,7 +120,18 @@ async function getGasPrice() {
  */
 async function waitForConfirmation(tx, timeout = 60000) {
     return new Promise(async (resolve, reject) => {
-        const timeoutId = setTimeout(() => {
+        const timeoutId = setTimeout(async () => {
+            console.log(`[Worker] Timeout waiting for ${tx.hash}, polling for receipt with grace period...`);
+            try {
+                const receipt = await pollForReceipt(tx.hash, 30000);
+                if (receipt) {
+                    console.log(`[Worker] Receipt found during grace period for ${tx.hash}`);
+                    resolve(receipt);
+                    return;
+                }
+            } catch (pollError) {
+                // Grace period polling failed
+            }
             reject(new Error('Transaction confirmation timeout'));
         }, timeout);
 
@@ -133,6 +144,32 @@ async function waitForConfirmation(tx, timeout = 60000) {
             reject(error);
         }
     });
+}
+
+/**
+ * Poll for a transaction receipt with timeout
+ * Used as fallback when tx.wait() times out
+ * @param {string} txHash - Transaction hash
+ * @param {number} timeout - Polling timeout in milliseconds
+ * @returns {Promise<Object|null>} Transaction receipt or null
+ */
+async function pollForReceipt(txHash, timeout = 30000) {
+    const startTime = Date.now();
+    const pollInterval = 2000;
+
+    while (Date.now() - startTime < timeout) {
+        try {
+            const receipt = await provider.getTransactionReceipt(txHash);
+            if (receipt) {
+                return receipt;
+            }
+        } catch (err) {
+            console.log(`[Worker] Receipt poll error for ${txHash}: ${err.message}`);
+        }
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+
+    return null;
 }
 
 /**
@@ -189,6 +226,28 @@ async function processCreateBatch(job) {
         const notes = data.description || '';
 
         await job.updateProgress(30);
+
+        // Guard: check if the batch already exists on-chain (e.g. prior attempt succeeded but receipt timed out)
+        try {
+            const onChainBatch = await contract.getBatch(batchIdBytes32);
+            if (onChainBatch.exists) {
+                console.log(`[Worker] Batch ${batchId} already exists on-chain, skipping duplicate submission`);
+                await Batch.updateOne(
+                    { batchId },
+                    {
+                        $set: {
+                            syncStatus: 'synced',
+                            'blockchainJob.status': 'completed',
+                            'blockchainJob.completedAt': new Date()
+                        }
+                    }
+                );
+                await job.updateProgress(100);
+                return { success: true, batchId, skipped: true };
+            }
+        } catch (err) {
+            console.log(`[Worker] Could not verify on-chain status for ${batchId}: ${err.message}`);
+        }
 
         // Estimate gas
         const gasLimit = await estimateGasWithBuffer(
@@ -359,6 +418,32 @@ async function processUpdateBatch(job) {
         const notes = data.notes || '';
 
         await job.updateProgress(30);
+
+        // Guard: check if a previous transaction for this batch already confirmed
+        try {
+            const prevBatchDoc = await Batch.findOne({ batchId }).lean();
+            const prevTxHash = prevBatchDoc?.blockchainHash || prevBatchDoc?.blockchainJob?.txHash;
+            if (prevTxHash) {
+                const oldReceipt = await provider.getTransactionReceipt(prevTxHash);
+                if (oldReceipt && oldReceipt.status === 1) {
+                    console.log(`[Worker] Previous tx ${prevTxHash} already confirmed for ${batchId}, skipping duplicate update`);
+                    await Batch.updateOne(
+                        { batchId },
+                        {
+                            $set: {
+                                syncStatus: 'synced',
+                                'blockchainJob.status': 'completed',
+                                'blockchainJob.completedAt': new Date()
+                            }
+                        }
+                    );
+                    await job.updateProgress(100);
+                    return { success: true, batchId, skipped: true };
+                }
+            }
+        } catch (err) {
+            console.log(`[Worker] Could not verify previous tx receipt for ${batchId}: ${err.message}`);
+        }
 
         // Estimate gas
         const gasLimit = await estimateGasWithBuffer(

@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 
 const LoginContent = () => {
-  const { login, connectWallet, user, isLoading } = useAuth();
+  const { login, connectWallet, walletLogin, isWalletConnected, user, isLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useTranslation();
@@ -136,26 +136,48 @@ const LoginContent = () => {
         </div>
 
         <div className="space-y-4">
-          <button
-            onClick={connectWallet}
-            disabled={isLoading}
-            className={`w-full flex items-center justify-center space-x-2 py-2 px-4 rounded-lg font-medium transition-all duration-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 ${isLoading
-              ? 'cursor-not-allowed opacity-70'
-              : ''
-              }`}
-          >
-            {isLoading && !isSubmitting ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span>Connecting...</span>
-              </>
-            ) : (
-              <>
-                <Wallet className="h-5 w-5" />
-                <span>{t('auth.connectWallet')}</span>
-              </>
-            )}
-          </button>
+          {isWalletConnected ? (
+            <button
+              onClick={walletLogin}
+              disabled={isLoading}
+              type="button"
+              className="w-full flex items-center justify-center space-x-2 py-2 px-4 rounded-lg font-semibold transition-all duration-200 bg-green-600 hover:bg-green-700 text-white shadow-lg cursor-pointer"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Authenticating...</span>
+                </>
+              ) : (
+                <>
+                  <Wallet className="h-5 w-5" />
+                  <span>Sign In with Wallet</span>
+                </>
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={connectWallet}
+              disabled={isLoading}
+              type="button"
+              className={`w-full flex items-center justify-center space-x-2 py-2 px-4 rounded-lg font-medium transition-all duration-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 cursor-pointer ${isLoading
+                ? 'cursor-not-allowed opacity-70'
+                : ''
+                }`}
+            >
+              {isLoading && !isSubmitting ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Connecting...</span>
+                </>
+              ) : (
+                <>
+                  <Wallet className="h-5 w-5" />
+                  <span>{t('auth.connectWallet')}</span>
+                </>
+              )}
+            </button>
+          )}
 
           <div className="text-center text-sm">
             <span className="text-gray-500 dark:text-gray-400">{t('auth.noAccount')}</span>{' '}

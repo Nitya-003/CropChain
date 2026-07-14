@@ -25,6 +25,7 @@ const PERMISSIONS = {
     BATCH_CONTAMINATED: 'batch:mark_contaminated',
     BATCH_FLAG: 'batch:flag',
     BATCH_DESTROY: 'batch:destroy',
+    BATCH_QUALITY_CHECK: 'batch:quality_check',
     
     // Supply chain stage permissions
     STAGE_FARMER: 'stage:farmer',
@@ -45,6 +46,7 @@ const PERMISSIONS = {
     INSPECTOR_APPROVE_CONTAMINATED: 'inspector:approve_contaminated',
     INSPECTOR_APPROVE_FLAG: 'inspector:approve_flag',
     INSPECTOR_APPROVE_DESTROY: 'inspector:approve_destroy',
+    INSPECTOR_APPROVE_QUALITY_CHECK: 'inspector:approve_quality_check',
     
     // Admin permissions
     ADMIN_MANAGE_ROLES: 'admin:manage_roles',
@@ -122,6 +124,7 @@ const ROLE_PERMISSIONS = {
         PERMISSIONS.INSPECTOR_APPROVE_CONTAMINATED,
         PERMISSIONS.INSPECTOR_APPROVE_FLAG,
         PERMISSIONS.INSPECTOR_APPROVE_DESTROY,
+        PERMISSIONS.INSPECTOR_APPROVE_QUALITY_CHECK,
         PERMISSIONS.USER_VERIFY
     ],
     
@@ -194,6 +197,13 @@ const MULTISIG_ACTIONS = {
         requiredApprovals: parseInt(process.env.MULTISIG_DESTROY_APPROVALS, 10) || 3,
         requiredRole: ROLES.QUALITY_INSPECTOR,
         expiresInHours: parseInt(process.env.MULTISIG_DESTROY_EXPIRY, 10) || 24
+    },
+    BATCH_QUALITY_CHECK: {
+        action: 'batch_quality_check',
+        description: 'Approve quality check for a batch',
+        requiredApprovals: parseInt(process.env.MULTISIG_QUALITY_CHECK_APPROVALS, 10) || 2,
+        requiredRole: ROLES.QUALITY_INSPECTOR,
+        expiresInHours: parseInt(process.env.MULTISIG_QUALITY_CHECK_EXPIRY, 10) || 24
     }
 };
 

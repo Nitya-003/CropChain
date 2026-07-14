@@ -2,6 +2,7 @@ const Batch = require('../models/Batch');
 const apiResponse = require('../utils/apiResponse');
 const logger = require('../utils/logger');
 const activityService = require('../services/activityService');
+const { isAdminRole } = require('../constants/permissions');
 
 const LIFECYCLE_STAGES = ['Registered', 'Growing', 'Harvested', 'Quality Checked', 'Transported', 'Delivered'];
 
@@ -126,6 +127,30 @@ exports.updateLifecycle = async (req, res) => {
 
         const currentStage = batch.lifecycle.currentStage;
 
+        // ---- Ownership / participation check ----
+        // Admins and super_admins have platform-wide oversight and are exempt.
+        // All other roles must be the batch owner (farmer) or a supply-chain
+        // participant explicitly assigned to this batch. Without this check any
+        // authenticated user of the right role could advance any batch.
+        if (!isAdminRole(req.user.role)) {
+            const userId = (req.user.id || req.user._id)?.toString().trim().toLowerCase();
+            const batchFarmerId = batch.farmerId?.toString().trim().toLowerCase();
+            const isOwner = userId === batchFarmerId;
+
+            if (!isOwner) {
+                logger.warn('Lifecycle update rejected: user does not own this batch', {
+                    userId,
+                    role: req.user.role,
+                    batchId: batch.batchId,
+                    batchOwner: batch.farmerId
+                });
+                return res.status(403).json(apiResponse.errorResponse(
+                    'You are not authorized to update the lifecycle of this batch.',
+                    'FORBIDDEN',
+                    403
+                ));
+            }
+        }
         // 1. Prevent duplicate stage updates
         if (currentStage === stage) {
             return res.status(400).json(apiResponse.errorResponse(
@@ -161,6 +186,15 @@ exports.updateLifecycle = async (req, res) => {
             return res.status(403).json(apiResponse.errorResponse(
                 `Role '${userRole}' is not authorized to update lifecycle to '${stage}'.`,
                 'FORBIDDEN',
+                403
+            ));
+        }
+
+        // 4. Multisig enforcement for Quality Checked
+        if (stage === 'Quality Checked') {
+            return res.status(403).json(apiResponse.errorResponse(
+                `Advancing to 'Quality Checked' requires a multi-signature approval request via the /api/approvals/quality-check endpoint.`,
+                'FORBIDDEN_MULTISIG_REQUIRED',
                 403
             ));
         }

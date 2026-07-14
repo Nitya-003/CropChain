@@ -2,6 +2,9 @@ const Notification = require('../models/Notification');
 const apiResponse = require('../utils/apiResponse');
 const logger = require('../utils/logger');
 
+const DEFAULT_NOTIFICATION_LIMIT = 50;
+const MAX_NOTIFICATION_LIMIT = 100;
+
 /**
  * Get all notifications for the current user
  * @route GET /api/notifications
@@ -9,7 +12,33 @@ const logger = require('../utils/logger');
  */
 exports.getUserNotifications = async (req, res) => {
     try {
-        const limit = parseInt(req.query.limit, 10) || 50;
+        const rawLimit = req.query.limit;
+        let limit = DEFAULT_NOTIFICATION_LIMIT;
+
+        if (rawLimit !== undefined) {
+            const limitValue = String(rawLimit);
+            if (!/^\d+$/.test(limitValue)) {
+                return res.status(400).json(
+                    apiResponse.errorResponse(
+                        `Notification limit must be an integer between 1 and ${MAX_NOTIFICATION_LIMIT}`,
+                        'INVALID_NOTIFICATION_LIMIT',
+                        400
+                    )
+                );
+            }
+
+            limit = Number(limitValue);
+            if (!Number.isInteger(limit) || limit < 1 || limit > MAX_NOTIFICATION_LIMIT) {
+                return res.status(400).json(
+                    apiResponse.errorResponse(
+                        `Notification limit must be an integer between 1 and ${MAX_NOTIFICATION_LIMIT}`,
+                        'INVALID_NOTIFICATION_LIMIT',
+                        400
+                    )
+                );
+            }
+        }
+
         const notifications = await Notification.find({ user: req.user.id || req.user._id })
             .sort({ createdAt: -1 })
             .limit(limit);
