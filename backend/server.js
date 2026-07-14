@@ -1,4 +1,4 @@
-require('dotenv').config();
+﻿require('dotenv').config();
 const http = require('http');
 const app = require('./app');
 const express = require('express');
@@ -700,41 +700,6 @@ if (process.env.NODE_ENV !== 'test') {
         logger.info(`Health check: http://localhost:${PORT}/api/health`);
         logger.info(`WebSocket endpoint: ws://localhost:${PORT}`);
 
-        // Create admin user on startup
-        await createAdmin();
-
-        logger.info('Admin user created successfully');
-        logger.info(`Environment: ${process.env.NODE_ENV}`);
-        logger.info('Security features enabled', {
-            rateLimit: `${rateLimitMaxRequests} req/window`,
-            nosqlInjectionProtection: true,
-            inputValidation: true,
-            securityHeaders: true,
-            requestLogging: true,
-            jwtAuth: true,
-            adminRoleAuth: true,
-            websockets: true,
-        });
-        logger.info('Configuration', {
-            corsOrigins: uniqueAllowedOrigins.length > 0 ? uniqueAllowedOrigins : 'None configured',
-            maxFileSizeMB: Math.round(maxFileSize / 1024 / 1024),
-            rateLimitWindowMinutes: Math.ceil(rateLimitWindowMs / 60000),
-        });
-
-        if (process.env.NODE_ENV === 'production') {
-            if (!process.env.MONGODB_URI) {
-                logger.warn('MONGODB_URI not set - using in-memory storage');
-            }
-            if (!process.env.JWT_SECRET) {
-                logger.warn('JWT_SECRET not set - authentication will not work');
-            }
-            if (!blockchainService.isAvailable()) {
-                logger.warn('Blockchain configuration incomplete - running in demo mode');
-            }
-        }
-
-        logger.info('Server startup complete');
-
         // Initialize BullMQ for blockchain transaction background jobs
         try {
             blockchainQueue.initializeQueue();
@@ -753,9 +718,6 @@ if (process.env.NODE_ENV !== 'test') {
             logger.error('Failed to initialize BullMQ for notifications', { error: error.message });
         }
 
-        // Start background auction settlement check
-        setInterval(settleExpiredAuctions, 10000); // Check every 10 seconds
-
         // Start background AI spoilage risk prediction agent (runs every 60 seconds)
         try {
             const { startSpoilageRiskAgent } = require('./jobs/spoilageRiskAgent');
@@ -765,39 +727,8 @@ if (process.env.NODE_ENV !== 'test') {
             logger.error('Failed to initialize background AI spoilage risk agent:', { error: error.message });
         }
 
-        // Start blockchain event listener
-        const contract = blockchainService.getContract();
-        if (contract) {
-            try {
-                startListener(contract);
-                logger.info('Blockchain event listener started');
-            } catch (error) {
-                logger.error('Failed to start blockchain listener', { error: error.message });
-            }
-        } else {
-            logger.info('Skipping blockchain listener: no contract instance available');
-        }
-
-        // Initialize CCIP dispatch service.
-        if (ccipService.initialize()) {
-            logger.info('CCIP service initialized');
-        } else {
-            logger.info('CCIP service not configured - cross-chain dispatch disabled');
-        }
-
-        // Start Oracle service for IoT data verification if blockchain is active
-        // WARNING: ORACLE_ENABLED must be explicitly set to 'true' in production
-        if (process.env.ORACLE_ENABLED === 'true' && blockchainService.isAvailable() && process.env.ORACLE_PRIVATE_KEY) {
-            try {
-                await oracleService.initialize();
-                logger.info('Oracle service started successfully');
-            } catch (error) {
-                logger.error('Failed to start Oracle service', { error: error.message });
-                logger.warn('Continuing without Oracle service');
-            }
-        } else {
-            logger.info('Oracle service disabled: set ORACLE_ENABLED=true to enable');
-        }
+        // NOTE: auction settlement, blockchain listener, ccipService, oracleService,
+        // and createAdmin are all handled by runStartupTasks() in startup/bootstrap.js above.
     });
 }
 

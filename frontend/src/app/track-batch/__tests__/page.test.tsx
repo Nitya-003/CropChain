@@ -17,7 +17,7 @@ const mockBatchData = {
   qrCode: '/qr/batch-001.png',
 };
 
-const { mockGetPublicBatch, mockUseBatchSocket, mockPush } = vi.hoisted(() => ({
+const { mockGetPublicBatch, mockUseBatchSocket, mockPush, mockUseSearchParams } = vi.hoisted(() => ({
   mockGetPublicBatch: vi.fn(),
   mockUseBatchSocket: vi.fn().mockReturnValue({ isConnected: false, lastUpdate: null }),
   mockPush: vi.fn(),
@@ -35,6 +35,11 @@ vi.mock('../../../services/realCropBatchService', () => ({
 
 vi.mock('../../../hooks/useBatchSocket', () => ({
   useBatchSocket: () => mockUseBatchSocket(),
+}));
+
+vi.mock('../../../utils/crypto', () => ({
+  verifyHashChain: vi.fn().mockResolvedValue(true),
+  sha256: vi.fn().mockResolvedValue('mockedhash')
 }));
 
 const TrackBatch = (await import('../page')).default;
@@ -86,12 +91,12 @@ describe('TrackBatch Page', () => {
 
   it('automatically searches when batch ID is provided in query params', async () => {
     mockUseSearchParams.mockReturnValue(new URLSearchParams('id=BATCH-001'));
-    mockGetBatch.mockResolvedValue(mockBatchData);
+    mockGetPublicBatch.mockResolvedValue(mockBatchData);
 
     renderTrackBatch();
 
     await waitFor(() => {
-      expect(mockGetBatch).toHaveBeenCalledWith('BATCH-001');
+      expect(mockGetPublicBatch).toHaveBeenCalledWith('BATCH-001');
       expect(screen.getByDisplayValue('BATCH-001')).toBeInTheDocument();
       expect(screen.getByText('BATCH-001')).toBeInTheDocument();
     });
@@ -117,6 +122,20 @@ describe('TrackBatch Page', () => {
     await user.click(screen.getByText('Track'));
     await waitFor(() => {
       expect(screen.getByText(/WARNING/)).toBeInTheDocument();
+    });
+  });
+
+  it('shows tamper alert when validation hash chain is broken', async () => {
+    const { verifyHashChain } = await import('../../../utils/crypto');
+    vi.mocked(verifyHashChain).mockResolvedValueOnce(false);
+
+    mockGetPublicBatch.mockResolvedValue(mockBatchData);
+    const user = userEvent.setup();
+    renderTrackBatch();
+    await user.type(screen.getByPlaceholderText(/Enter Batch ID/), 'BATCH-001');
+    await user.click(screen.getByText('Track'));
+    await waitFor(() => {
+      expect(screen.getByText('LEDGER INTEGRITY BREACH: TAMPERING DETECTED')).toBeInTheDocument();
     });
   });
 
