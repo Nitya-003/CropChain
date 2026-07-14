@@ -9,6 +9,13 @@ class OracleService {
         this.oracleWallet = null;
         this.isListening = false;
         this.requestQueue = new Map(); // Track pending requests
+        this._reconnecting = false;
+        this._contractABI = [
+            "event IoTDataRequested(bytes32 indexed batchId, address requester)",
+            "event IoTDataFulfilled(bytes32 indexed batchId, int256 temperature, int256 humidity, bool isSpoiled)",
+            "function fulfillIoTData(bytes32 batchId, int256 temperature, int256 humidity) external",
+            "function getBatch(bytes32 batchId) view returns (tuple(address farmer, uint256 quantity, string stage, bool exists, int256 temperature, int256 humidity, bool isSpoiled))"
+        ];
     }
 
     /**
@@ -31,19 +38,12 @@ class OracleService {
             
             // Setup provider (WebSocket for real-time events)
             const providerUrl = process.env.PROVIDER_URL || 'http://localhost:8545';
-            this.provider = new ethers.WebSocketProvider(providerUrl);
+            this.provider = await this._createProvider(providerUrl);
             
             this.oracleWallet = new ethers.Wallet(privateKey, this.provider);
             logger.info(`🔑 Oracle wallet address: ${this.oracleWallet.address}`);
             
-            const contractABI = [
-                "event IoTDataRequested(bytes32 indexed batchId, address requester)",
-                "event IoTDataFulfilled(bytes32 indexed batchId, int256 temperature, int256 humidity, bool isSpoiled)",
-                "function fulfillIoTData(bytes32 batchId, int256 temperature, int256 humidity) external",
-                "function getBatch(bytes32 batchId) view returns (tuple(address farmer, uint256 quantity, string stage, bool exists, int256 temperature, int256 humidity, bool isSpoiled))"
-            ];
-            
-            this.contract = new ethers.Contract(contractAddress, contractABI, this.oracleWallet);
+            this.contract = new ethers.Contract(contractAddress, this._contractABI, this.oracleWallet);
             
             // Start event listening
             await this.startEventListening();
@@ -55,6 +55,78 @@ class OracleService {
             logger.error('❌ Failed to initialize Oracle Service:', error.message);
             throw error;
         }
+    }
+
+    /**
+     * Create a WebSocket provider with automatic reconnection listeners
+     */
+    async _createProvider(url) {
+        const provider = new ethers.WebSocketProvider(url);
+
+        const ws = provider._websocket;
+        if (ws) {
+            ws.addEventListener('close', () => {
+                console.log('⚠️ Oracle WebSocket disconnected. Initiating reconnection...');
+                this._scheduleReconnect();
+            });
+            ws.addEventListener('error', (err) => {
+                console.error('⚠️ Oracle WebSocket error:', err.message || err);
+            });
+        }
+
+        await provider.ready;
+        return provider;
+    }
+
+    /**
+     * Schedule a reconnection attempt with exponential backoff
+     */
+    async _scheduleReconnect() {
+        if (this._reconnecting) return;
+        this._reconnecting = true;
+        this.isListening = false;
+
+        const maxAttempts = 10;
+        const baseDelay = 1000;
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            const delay = baseDelay * Math.pow(2, attempt - 1);
+            console.log(`🔄 Reconnection attempt ${attempt}/${maxAttempts} in ${delay}ms...`);
+
+            await new Promise(resolve => setTimeout(resolve, delay));
+
+            try {
+                // Clean up old listeners and connection
+                if (this.contract) {
+                    this.contract.removeAllListeners('IoTDataRequested');
+                }
+                if (this.provider) {
+                    try { await this.provider.destroy(); } catch {}
+                }
+
+                // Create new provider
+                const providerUrl = process.env.PROVIDER_URL || 'http://localhost:8545';
+                this.provider = await this._createProvider(providerUrl);
+
+                // Reconnect wallet and contract to the new provider
+                const privateKey = process.env.ORACLE_PRIVATE_KEY;
+                this.oracleWallet = new ethers.Wallet(privateKey, this.provider);
+                const contractAddress = process.env.CONTRACT_ADDRESS;
+                this.contract = new ethers.Contract(contractAddress, this._contractABI, this.oracleWallet);
+
+                // Re-register event listeners
+                await this.startEventListening();
+
+                console.log('✅ Oracle reconnected successfully');
+                this._reconnecting = false;
+                return;
+            } catch (error) {
+                console.error(`❌ Reconnection attempt ${attempt} failed:`, error.message);
+            }
+        }
+
+        console.error('❌ All reconnection attempts exhausted. Oracle is offline.');
+        this._reconnecting = false;
     }
 
     /**
@@ -179,7 +251,8 @@ class OracleService {
             oracleAddress: this.oracleWallet?.address,
             contractAddress: this.contract?.target,
             pendingRequests: this.requestQueue.size,
-            providerConnected: this.provider?._ready || false
+            providerConnected: this.provider?._ready || false,
+            reconnecting: this._reconnecting
         };
     }
 
