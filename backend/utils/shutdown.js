@@ -3,8 +3,8 @@ const mongoose = require('mongoose');
 const socketService = require('../services/socketService');
 const blockchainQueue = require('../services/blockchainQueue');
 const blockchainWorker = require('../services/blockchainWorker');
-const notificationQueue = require('../services/notificationQueue');
-const notificationWorker = require('../services/notificationWorker');
+const notificationQueue = require('../jobs/queue');
+const notificationWorker = require('../jobs/worker');
 const { closeRedisConnection } = require('../config/redis');
 
 const SHUTDOWN_TIMEOUT_MS = 10000;

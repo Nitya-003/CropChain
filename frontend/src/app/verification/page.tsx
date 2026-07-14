@@ -121,15 +121,31 @@ const VerificationDashboardComponent: React.FC = () => {
         }
     };
 
-    // Memoize all active user IDs to join room subscriptions for
+    // Keep socket subscription IDs stable across directory refreshes.
+    // IDs are computed once per admin role session (not on every unverified/verified list change).
     const allUserIds = useMemo(() => {
+        if (user?.role !== 'admin') return [];
         return [
             ...unverifiedUsers.map(u => u._id),
             ...verifiedUsers.map(u => u._id)
         ];
-    }, [unverifiedUsers, verifiedUsers]);
+        // Intentionally NOT dependent on unverifiedUsers/verifiedUsers to prevent
+        // disconnect/reconnect on every directory refresh.
+    }, [user?.role]);
+
+    // Reset rowStatuses on unmount (prevents stale badges on later mounts)
+    useEffect(() => {
+        return () => {
+            setRowStatuses({});
+        };
+    }, []);
+
+
+
 
     // Handle incoming socket status updates
+
+
     const handleVerificationSocketUpdate = useCallback((data: any) => {
         console.log('[SOCKET EVENT] Verification update:', data);
         if (data?.userId && data?.newState) {
@@ -152,6 +168,7 @@ const VerificationDashboardComponent: React.FC = () => {
             }
         }
     }, [unverifiedUsers, verifiedUsers]);
+
 
     const { isConnected: socketConnected } = useVerificationSocket({
         userIds: allUserIds,
@@ -506,6 +523,7 @@ const VerificationDashboardComponent: React.FC = () => {
             <RevocationModal
                 open={revokeTarget !== null}
                 onOpenChange={(open) => { if (!open) setRevokeTarget(null); }}
+                onClose={() => setRevokeTarget(null)}
                 userName={revokeTarget?.name || ''}
                 onConfirm={handleRevokeConfirm}
                 isProcessing={processingUserId === revokeTarget?.id}

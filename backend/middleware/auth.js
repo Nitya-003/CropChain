@@ -18,6 +18,10 @@ const protect = async (req, res, next) => {
         
         if (!user) return res.status(401).json({ error: 'Not authorized', message: 'User not found' });
 
+        if (decoded.tokenVersion !== undefined && decoded.tokenVersion !== user.tokenVersion) {
+            return res.status(401).json({ error: 'Token invalidated', message: 'Token has been invalidated. Please log in again.' });
+        }
+
         const normalizedUser = user.toObject({ virtuals: true });
         normalizedUser._id = normalizedUser._id.toString();
         normalizedUser.id = normalizedUser._id;

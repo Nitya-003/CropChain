@@ -1,10 +1,11 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { syncQueue } from '../services/syncQueue';
+import type { SyncQueueInput } from '../types';
 
 interface SyncContextType {
   status: 'idle' | 'syncing' | 'error';
   pendingCount: number;
-  addToQueue: (params: { batchId: string; action: string; data: Record<string, any> }) => Promise<void>;
+  addToQueue: (params: SyncQueueInput) => Promise<void>;
   processNow: () => Promise<void>;
 }
 
@@ -23,7 +24,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, []);
 
-  const addToQueue = useCallback(async (params: { batchId: string; action: string; data: Record<string, any> }) => {
+  const addToQueue = useCallback(async (params: SyncQueueInput) => {
     await syncQueue.addToQueue(params);
   }, []);
 

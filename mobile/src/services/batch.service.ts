@@ -1,5 +1,9 @@
 import { api } from './api';
-import type { Batch } from '../types';
+import type { Batch, BatchStageUpdatePayload } from '../types';
+
+interface BatchResponse {
+  data: { batch: Batch };
+}
 
 export const batchService = {
   async getBatches(): Promise<Batch[]> {
@@ -17,9 +21,9 @@ export const batchService = {
     return res.data;
   },
 
-  async updateStage(batchId: string, stage: string): Promise<Batch> {
-    const res = await api.put<{ data: Batch }>(`/batches/${batchId}/stage`, { stage });
-    return res.data;
+  async updateStage(batchId: string, data: BatchStageUpdatePayload): Promise<Batch> {
+    const res = await api.put<BatchResponse>(`/batches/${batchId}`, data);
+    return res.data.batch;
   },
 
   async getBatchByQR(qrData: string): Promise<Batch> {
