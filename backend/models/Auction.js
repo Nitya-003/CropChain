@@ -44,6 +44,10 @@ const auctionSchema = new mongoose.Schema({
     enum: ['active', 'ended', 'cancelled'],
     default: 'active',
     index: true
+  },
+  settledAt: {
+    type: Date,
+    default: null
   }
 }, { timestamps: true });
 
