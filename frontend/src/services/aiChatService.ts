@@ -154,10 +154,8 @@ class AIChatService {
     onStatus?: (status: string) => void
   ): Promise<ChatResponse> {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/ai/batch-query`, {
       const token = tokenService.getAccessToken();
-      const response = await fetch(`${this.baseUrl}/api/ai/batch-query`, {
+      const response = await fetch(`${API_URL}/ai/batch-query`, {
         method: 'POST',
         headers: {
           'Accept': 'text/event-stream',

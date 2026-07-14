@@ -37,6 +37,11 @@ vi.mock('../../../hooks/useBatchSocket', () => ({
   useBatchSocket: () => mockUseBatchSocket(),
 }));
 
+vi.mock('../../../utils/crypto', () => ({
+  verifyHashChain: vi.fn().mockResolvedValue(true),
+  sha256: vi.fn().mockResolvedValue('mockedhash')
+}));
+
 const TrackBatch = (await import('../page')).default;
 
 function renderTrackBatch() {
@@ -117,6 +122,20 @@ describe('TrackBatch Page', () => {
     await user.click(screen.getByText('Track'));
     await waitFor(() => {
       expect(screen.getByText(/WARNING/)).toBeInTheDocument();
+    });
+  });
+
+  it('shows tamper alert when validation hash chain is broken', async () => {
+    const { verifyHashChain } = await import('../../../utils/crypto');
+    vi.mocked(verifyHashChain).mockResolvedValueOnce(false);
+
+    mockGetPublicBatch.mockResolvedValue(mockBatchData);
+    const user = userEvent.setup();
+    renderTrackBatch();
+    await user.type(screen.getByPlaceholderText(/Enter Batch ID/), 'BATCH-001');
+    await user.click(screen.getByText('Track'));
+    await waitFor(() => {
+      expect(screen.getByText('LEDGER INTEGRITY BREACH: TAMPERING DETECTED')).toBeInTheDocument();
     });
   });
 

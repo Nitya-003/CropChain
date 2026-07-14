@@ -1,10 +1,6 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-
-import { RefreshCw, Search, Package, Clock, User, MapPin, Shield, Lock, Thermometer } from 'lucide-react';
-import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-
 import {
   RefreshCw,
   Search,
@@ -682,21 +678,12 @@ useEffect(() => {
                     >
                       {isRequestingIoT ? (
                         <>
-                        <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                        <span>
-                          {transactionStage === 'wallet'
-                          ? 'Confirm in Wallet...'
-                          : 'Waiting for Confirmation...'}
-                          </span>
-                          </>
-                          ) : (
-                          <>
-                          <Thermometer className="h-4 w-4" />
-                          <span>Request IoT Verification</span>
-                          </>
-                        )}
                           <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                          <span>{t('updateBatch.requesting')}</span>
+                          <span>
+                            {transactionStage === 'wallet'
+                              ? 'Confirm in Wallet...'
+                              : t('updateBatch.requesting')}
+                          </span>
                         </>
                       ) : (
                         <>

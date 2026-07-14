@@ -11,6 +11,7 @@ import { ErrorState } from '../../components/common/ErrorState';
 import { TrackBatchSkeleton } from '../../components/skeletons';
 import { useBatchSocket } from '../../hooks/useBatchSocket';
 import { JourneyPreview } from '../../components/journey/JourneyPreview';
+import { verifyHashChain } from '../../utils/crypto';
 
 const TrackBatchContent: React.FC = () => {
   const searchParams = useSearchParams();
@@ -18,18 +19,22 @@ const TrackBatchContent: React.FC = () => {
   const [batch, setBatch] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [errorType, setErrorType] = useState<'not-found' | 'error' | null>(null);
+  const [isTampered, setIsTampered] = useState(false);
   const lastAutoSearchedId = useRef<string | null>(null);
 
   const { t } = useTranslation();
-
 
   // WebSocket connection for real-time updates
   const { isConnected: socketConnected, lastUpdate } = useBatchSocket({
     batchId: batch?.batchId || batch?.id,
     enabled: !!batch,
-    onBatchUpdate: (data) => {
+    onBatchUpdate: async (data) => {
       console.log('[TrackBatch] Real-time batch update received:', data);
       if (data.batch) {
+        if (data.batch.updates) {
+          const isValid = await verifyHashChain(data.batch.updates);
+          setIsTampered(!isValid);
+        }
         setBatch(data.batch);
       }
     }
@@ -42,9 +47,14 @@ const TrackBatchContent: React.FC = () => {
     setIsSearching(true);
     setBatch(null);
     setErrorType(null);
+    setIsTampered(false);
 
     try {
       const result = await realCropBatchService.getPublicBatch(trimmedId);
+      if (result && result.updates) {
+        const isValid = await verifyHashChain(result.updates);
+        setIsTampered(!isValid);
+      }
       setBatch(result);
     } catch (error: any) {
       console.error('Batch error:', error);
@@ -72,7 +82,6 @@ const TrackBatchContent: React.FC = () => {
     if (e) e.preventDefault();
     await searchBatch(batchId);
   };
-
   const getTimelineEvents = (batchData: any) => {
     if (!batchData || !batchData.updates) return [];
 
@@ -128,6 +137,23 @@ const TrackBatchContent: React.FC = () => {
       {batch && (
         <div className="grid md:grid-cols-3 gap-8">
           
+          {/* Tamper Warning Banner */}
+          {isTampered && (
+            <div className="md:col-span-3">
+              <div className="rounded-xl p-6 shadow-lg border-2 flex items-start gap-4 bg-gradient-to-r from-red-500/10 to-amber-500/10 border-red-500 backdrop-blur-md animate-pulse">
+                <AlertOctagon className="h-8 w-8 flex-shrink-0 text-red-600 dark:text-red-400" />
+                <div>
+                  <h3 className="text-xl font-bold text-red-800 dark:text-red-200">
+                    {t('batch.tamperedTitle', 'LEDGER INTEGRITY BREACH: TAMPERING DETECTED')}
+                  </h3>
+                  <p className="mt-2 text-red-700 dark:text-red-300">
+                    {t('batch.tamperedMessage', 'WARNING: The cryptographic verification validation hash chain for this crop batch is broken. This indicates that one or more past transaction records (e.g. location, weight, dates, or actor details) have been retroactively altered. Data integrity is compromised.')}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Recall / Flagged Warning Banner */}
           {(batch.isRecalled || batch.status === 'Flagged') && (
             <div className="md:col-span-3">

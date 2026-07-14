@@ -15,6 +15,7 @@ const apiResponse = require('../utils/apiResponse');
 const { getStageNumber, getStagesString, isValidStage, normalizeStage, isValidTransition, getNextStage } = require('../constants/stages');
 const activityService = require('./activityService');
 const logger = require('../utils/logger');
+const { calculateUpdateHash } = require('../utils/cryptography');
 
 class BatchService {
     /**
@@ -81,6 +82,16 @@ class BatchService {
 
                 const blockchainHash = batchData.blockchainHash || blockchainService.simulateHash(batchData);
 
+                const initialUpdate = {
+                    stage: 'farmer',
+                    actor: batchData.farmerName || user.name,
+                    location: batchData.origin,
+                    timestamp: batchData.harvestDate,
+                    notes: batchData.description || 'Initial harvest recorded',
+                    blockchainHash: batchData.blockchainHash || ''
+                };
+                initialUpdate.hash = calculateUpdateHash(initialUpdate, '');
+
                 const batch = await Batch.create([{
                     batchId,
                     farmerId: user.farmerId || user.id,
@@ -97,14 +108,7 @@ class BatchService {
                     qrCode,
                     blockchainHash,
                     syncStatus: batchData.blockchainHash ? 'synced' : 'pending',
-                    updates: [{
-                        stage: 'farmer',
-                        actor: batchData.farmerName || user.name,
-                        location: batchData.origin,
-                        timestamp: batchData.harvestDate,
-                        notes: batchData.description || 'Initial harvest recorded',
-                        blockchainHash: batchData.blockchainHash || ''
-                    }],
+                    updates: [initialUpdate],
                     lifecycle: {
                         currentStage: 'Registered',
                         stageHistory: [{
@@ -354,20 +358,27 @@ class BatchService {
                 };
             }
 
+            const previousHash = previousBatch.updates && previousBatch.updates.length > 0
+                ? previousBatch.updates[previousBatch.updates.length - 1].hash || ''
+                : '';
+
+            const newUpdate = {
+                stage: normalizedStage,
+                actor: updateData.actor,
+                location: updateData.location,
+                timestamp: updateData.timestamp || new Date().toISOString(),
+                notes: updateData.notes || '',
+                blockchainHash: updateData.blockchainHash || ''
+            };
+            newUpdate.hash = calculateUpdateHash(newUpdate, previousHash);
+
             const blockchainHash = updateData.blockchainHash || blockchainService.simulateHash(updateData);
 
             const batch = await Batch.findOneAndUpdate(
                 { batchId },
                 {
                     $push: {
-                        updates: {
-                            stage: normalizedStage,
-                            actor: updateData.actor,
-                            location: updateData.location,
-                            timestamp: updateData.timestamp,
-                            notes: updateData.notes,
-                            blockchainHash: updateData.blockchainHash || ''
-                        }
+                        updates: newUpdate
                     },
                     currentStage: normalizedStage,
                     blockchainHash,

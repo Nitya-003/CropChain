@@ -206,14 +206,25 @@ export default function AuctionsPage() {
   const [topUpAmount, setTopUpAmount] = useState<number>(10000);
   const [topUpLoading, setTopUpLoading] = useState<boolean>(false);
 
-  const defaultFilterState: MarketplaceFilterState = {
-    productCategory: '',
-    priceMin: '',
-    priceMax: '',
-    location: '',
-    availability: '',
-    sortBy: 'latest',
+  const fetchAuctions = async () => {
+    setLoading(true);
+    try {
+      const data = await auctionService.getAllAuctions();
+      setAuctions(data);
+    } catch (error) {
+      toast.error('Failed to load auctions');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchAuctions();
+  }, []);
+
+  const handleTopUp = async () => {
+    if (topUpAmount <= 0) {
+      toast.error('Amount must be positive');
       return;
     }
     setTopUpLoading(true);
@@ -307,7 +318,7 @@ export default function AuctionsPage() {
         sorted.sort((a, b) => Number(b.currentHighestBid || 0) - Number(a.currentHighestBid || 0));
         break;
       case 'popular':
-        sorted.sort((a, b) => Number((b as any).popularity ?? b.totalBids ?? 0) - Number((a as any).popularity ?? a.totalBids ?? 0));
+        sorted.sort((a, b) => Number((b as any).popularity ?? (b as any).totalBids ?? 0) - Number((a as any).popularity ?? (a as any).totalBids ?? 0));
         break;
       case 'latest':
       default:
@@ -317,19 +328,18 @@ export default function AuctionsPage() {
 
     return sorted;
   }, [auctions, activeTab, filters]);
-+
 
   const chips = useMemo(
-+    () =>
-+      buildMarketplaceChips(filters, {
-+        category: removeFilter.category,
-+        priceMin: removeFilter.priceMin,
-+        priceMax: removeFilter.priceMax,
-+        location: removeFilter.location,
-+        availability: removeFilter.availability,
-+      }),
-+    [filters]
-+  );
+    () =>
+      buildMarketplaceChips(filters, {
+        category: removeFilter.category,
+        priceMin: removeFilter.priceMin,
+        priceMax: removeFilter.priceMax,
+        location: removeFilter.location,
+        availability: removeFilter.availability,
+      }),
+    [filters]
+  );
 
 
   return (

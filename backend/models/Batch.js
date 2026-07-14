@@ -33,6 +33,10 @@ const updateSchema = new mongoose.Schema({
     type: String,
     maxlength: 500
   },
+  hash: {
+    type: String,
+    trim: true
+  },
   blockchainHash: {
     type: String,
     default: ''
