@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSync } from '../../../src/contexts/SyncContext';
+import { useAuth } from '../../../src/contexts/AuthContext';
 import { batchService } from '../../../src/services/batch.service';
 import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
 import { ErrorState } from '../../../src/components/ErrorState';
-import type { Batch } from '../../../src/types';
+import type { Batch, BatchStage } from '../../../src/types';
 
-const stageFlow = ['farmer', 'mandi', 'transport', 'retailer'];
+const stageFlow: BatchStage[] = ['farmer', 'mandi', 'transport', 'retailer'];
 
 const stageDetails: Record<string, { label: string; icon: string; color: string }> = {
   farmer: { label: 'Farm', icon: 'tractor', color: '#6366f1' },
@@ -20,9 +21,11 @@ const stageDetails: Record<string, { label: string; icon: string; color: string 
 export default function BatchDetailScreen() {
   const { batchId } = useLocalSearchParams<{ batchId: string }>();
   const { addToQueue } = useSync();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [batch, setBatch] = useState<Batch | null>(null);
+  const [updateLocation, setUpdateLocation] = useState('');
 
   useEffect(() => {
     if (!batchId) return;
@@ -45,10 +48,21 @@ export default function BatchDetailScreen() {
 
   const currentStageIndex = batch ? stageFlow.indexOf(batch.stage) : -1;
 
-  const handleStageUpdate = async (newStage: string) => {
+  const handleStageUpdate = async (newStage: BatchStage) => {
     if (!batch?.id) return;
+    const actor = user?.name.trim();
+    const location = updateLocation.trim();
+    if (!actor || actor.length < 2 || location.length < 2) {
+      alert('A signed-in user and an update location of at least 2 characters are required');
+      return;
+    }
     try {
-      await addToQueue({ batchId: batch.id, action: 'stage_update', data: { stage: newStage } });
+      await addToQueue({
+        batchId: batch.id,
+        action: 'stage_update',
+        data: { stage: newStage, actor, location },
+      });
+      setUpdateLocation('');
       alert('Update queued for sync');
     } catch {
       alert('Failed to queue update');
@@ -157,8 +171,15 @@ export default function BatchDetailScreen() {
       {currentStageIndex >= 0 && currentStageIndex < stageFlow.length - 1 && (
         <View className="mx-5 mb-8">
           <Text className="text-base font-bold text-gray-900 dark:text-white mb-3">Update Stage</Text>
+          <TextInput
+            value={updateLocation}
+            onChangeText={setUpdateLocation}
+            placeholder="Current update location"
+            maxLength={200}
+            className="mb-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+          />
           <View className="flex-row gap-2">
-            {stageFlow.slice(currentStageIndex + 1).map((stage) => {
+            {stageFlow.slice(currentStageIndex + 1, currentStageIndex + 2).map((stage) => {
               const detail = stageDetails[stage];
               return (
                 <TouchableOpacity
