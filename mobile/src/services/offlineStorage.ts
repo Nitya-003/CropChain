@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Batch, SyncQueueItem } from '../types';
+import type { Batch, SyncQueueInput, SyncQueueItem } from '../types';
 
 const KEYS = {
   BATCHES: '@cropchain/batches',
@@ -41,7 +41,7 @@ export const offlineStorage = {
     return data ? JSON.parse(data) : [];
   },
 
-  async addToQueue(item: Omit<SyncQueueItem, 'id' | 'createdAt' | 'retries'>): Promise<void> {
+  async addToQueue(item: SyncQueueInput & { priority: SyncQueueItem['priority'] }): Promise<void> {
     const queue = await this.getQueue();
     const newItem: SyncQueueItem = {
       ...item,
