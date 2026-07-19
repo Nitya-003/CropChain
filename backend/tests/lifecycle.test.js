@@ -92,6 +92,7 @@ describe("Crop Lifecycle API Endpoints", () => {
   it("should get lifecycle progress and auto-initialize it if not present", async () => {
     const testBatch = {
       batchId: 'BATCH123',
+      farmerId: 'FARM123',
       farmerName: 'Test Farmer',
       save: jest.fn().mockResolvedValue(true)
     };
@@ -109,6 +110,7 @@ describe("Crop Lifecycle API Endpoints", () => {
   it("should allow a valid sequential transition from Registered to Growing", async () => {
     const testBatch = {
       batchId: 'BATCH123',
+      farmerId: 'FARM123',
       lifecycle: {
         currentStage: 'Registered',
         stageHistory: [{ stage: 'Registered', timestamp: new Date(), updatedBy: 'System' }]
@@ -130,6 +132,7 @@ describe("Crop Lifecycle API Endpoints", () => {
   it("should prevent duplicate transitions to the current stage", async () => {
     const testBatch = {
       batchId: 'BATCH123',
+      farmerId: 'FARM123',
       lifecycle: {
         currentStage: 'Growing',
         stageHistory: [
@@ -153,6 +156,7 @@ describe("Crop Lifecycle API Endpoints", () => {
   it("should prevent skipping stages (e.g. Registered -> Quality Checked)", async () => {
     const testBatch = {
       batchId: 'BATCH123',
+      farmerId: 'FARM123',
       lifecycle: {
         currentStage: 'Registered',
         stageHistory: [{ stage: 'Registered', timestamp: new Date(), updatedBy: 'System' }]
@@ -173,6 +177,7 @@ describe("Crop Lifecycle API Endpoints", () => {
   it("should prevent reverting to previous stages (e.g. Growing -> Registered)", async () => {
     const testBatch = {
       batchId: 'BATCH123',
+      farmerId: 'FARM123',
       lifecycle: {
         currentStage: 'Growing',
         stageHistory: [
@@ -196,6 +201,7 @@ describe("Crop Lifecycle API Endpoints", () => {
   it("should block update by unauthorized role (e.g. Farmer to Transported)", async () => {
     const testBatch = {
       batchId: 'BATCH123',
+      farmerId: 'FARM123',
       lifecycle: {
         currentStage: 'Harvested',
         stageHistory: [
