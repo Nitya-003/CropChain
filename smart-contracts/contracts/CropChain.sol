@@ -466,11 +466,13 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         require(listing.active, "Listing inactive");
         require(msg.sender == listing.seller || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Not allowed");
 
-        // Restore the listing's remaining available quantity back to the batch's tracker
-        // ONLY if the seller is still the current custodian.
-        if (listing.seller == _getCurrentCustodian(listing.batchId)) {
-            batchListedQuantity[listing.batchId] -= listing.quantityAvailable;
-        }
+        // Restore the listing's remaining available quantity back to the batch's tracker.
+        // This must happen regardless of who the current custodian is — if custody
+        // has transferred since the listing was created, the condition
+        // listing.seller == _getCurrentCustodian(listing.batchId) would fail and the
+        // tracker would never be decremented, permanently reducing the batch's
+        // available listing supply until no further listings can be created.
+        batchListedQuantity[listing.batchId] -= listing.quantityAvailable;
 
         listing.active = false;
         listing.quantityAvailable = 0;
