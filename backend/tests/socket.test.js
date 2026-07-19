@@ -277,14 +277,21 @@ describe('Socket.IO Service', () => {
 
     test('refunds the previous highest bidder and charges the full bid for a normal outbid', async () => {
       mockSocket.user = { id: 'user-b', name: 'User B' };
-      mockUser.findById
-        .mockResolvedValueOnce({ _id: 'user-b', name: 'User B', balance: 1000 })
-        .mockReturnValue({
+      let findUserCallCount2 = 0;
+      mockUser.findById.mockImplementation((userId) => {
+        findUserCallCount2 += 1;
+        if (findUserCallCount2 === 1) {
+          return Promise.resolve({ _id: 'user-b', name: 'User B', balance: 1000 });
+        }
+        return {
           select: jest.fn().mockReturnValue({
             lean: jest.fn().mockResolvedValue({ name: 'User B' })
           })
-        });
-      mockUser.findByIdAndUpdate.mockResolvedValue({});
+        };
+      });
+      mockUser.findByIdAndUpdate.mockImplementation((userId, update) => {
+        return Promise.resolve({});
+      });
 
       mockAuction.findById.mockResolvedValue({
         _id: 'auction-1',

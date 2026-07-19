@@ -1,10 +1,73 @@
-﻿const { Server } = require('socket.io');
+const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 const Batch = require('../models/Batch');
 const { hasPermission, PERMISSIONS } = require('../constants/permissions');
 
 let io = null;
+
+const MAX_HTTP_BUFFER_SIZE = parseInt(process.env.SOCKET_MAX_BUFFER_SIZE, 10) || 1e5;
+
+const EVENT_RATE_LIMITS = {
+  'place_bid': { maxPerSecond: 10 },
+  'join-batch-room': { maxPerSecond: 5 },
+  'leave-batch-room': { maxPerSecond: 10 },
+  'join_auction': { maxPerSecond: 5 },
+  'leave_auction': { maxPerSecond: 10 },
+  'join-verification-room': { maxPerSecond: 5 },
+  'leave-verification-room': { maxPerSecond: 10 },
+};
+
+function createRateLimiter() {
+  const buckets = new Map();
+  return function checkRate(event, socketId) {
+    const config = EVENT_RATE_LIMITS[event];
+    if (!config) return true;
+    const key = `${socketId}:${event}`;
+    const now = Date.now();
+    let timestamps = buckets.get(key);
+    if (!timestamps) {
+      timestamps = [];
+      buckets.set(key, timestamps);
+    }
+    const cutoff = now - 1000;
+    while (timestamps.length > 0 && timestamps[0] < cutoff) {
+      timestamps.shift();
+    }
+    if (timestamps.length >= config.maxPerSecond) {
+      return false;
+    }
+    timestamps.push(now);
+    return true;
+  };
+}
+
+function validatePayload(event, data) {
+  if (event === 'join-batch-room' || event === 'leave-batch-room') {
+    return typeof data === 'string' && data.length > 0 && data.length <= 200;
+  }
+  if (event === 'join_auction' || event === 'leave_auction') {
+    return typeof data === 'string' && data.length > 0 && data.length <= 200;
+  }
+  if (event === 'join-verification-room' || event === 'leave-verification-room') {
+    return typeof data === 'string' && data.length > 0 && data.length <= 200;
+  }
+  if (event === 'place_bid') {
+    return (
+      data &&
+      typeof data === 'object' &&
+      typeof data.auctionId === 'string' &&
+      data.auctionId.length > 0 &&
+      data.auctionId.length <= 200 &&
+      typeof data.bidAmount === 'number' &&
+      Number.isFinite(data.bidAmount) &&
+      data.bidAmount > 0 &&
+      data.bidAmount <= Number.MAX_SAFE_INTEGER &&
+      Object.keys(data).length <= 2
+    );
+  }
+  return true;
+}
 
 /**
  * Initialize Socket.IO server instance
@@ -19,8 +82,11 @@ function initializeSocketIO(httpServer) {
         methods: ['GET', 'POST'],
         credentials: true
       },
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      maxHttpBufferSize: MAX_HTTP_BUFFER_SIZE
     });
+
+    const checkRate = createRateLimiter();
 
     io.use((socket, next) => {
       const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
@@ -46,8 +112,24 @@ function initializeSocketIO(httpServer) {
         logger.info(`[SOCKET] Client ${socket.id} joined user room: ${socket.user.id}`);
       }
 
+      function withGuard(event, handler) {
+        return async (data) => {
+          if (!checkRate(event, socket.id)) {
+            logger.warn(`[SOCKET] Rate limit exceeded for ${socket.id} on ${event}`);
+            socket.emit('error', { message: 'Too many requests. Please slow down.' });
+            return;
+          }
+          if (!validatePayload(event, data)) {
+            logger.warn(`[SOCKET] Invalid payload from ${socket.id} on ${event}`);
+            socket.emit('error', { message: 'Invalid payload.' });
+            return;
+          }
+          return await handler(data);
+        };
+      }
+
       // Handle client joining batch-specific rooms
-      socket.on('join-batch-room', async (batchId) => {
+      socket.on('join-batch-room', withGuard('join-batch-room', async (batchId) => {
         try {
           const user = socket.user;
           if (!user) {
@@ -84,40 +166,40 @@ function initializeSocketIO(httpServer) {
           logger.error(`[SOCKET ERROR] Error authorizing batch room join for ${socket.id}:`, err);
           socket.emit('error', { message: 'Failed to verify batch access' });
         }
-      });
+      }));
 
       // Handle client leaving batch rooms
-      socket.on('leave-batch-room', (batchId) => {
+      socket.on('leave-batch-room', withGuard('leave-batch-room', (batchId) => {
         socket.leave(`batch:${batchId}`);
         logger.info(`[SOCKET] Client ${socket.id} left batch room: ${batchId}`);
-      });
+      }));
 
       // Handle client joining verification-specific rooms
-      socket.on('join-verification-room', (userId) => {
+      socket.on('join-verification-room', withGuard('join-verification-room', (userId) => {
         socket.join(`verification:user:${userId}`);
         logger.info(`[SOCKET] Client ${socket.id} joined verification room: ${userId}`);
-      });
+      }));
 
       // Handle client leaving verification rooms
-      socket.on('leave-verification-room', (userId) => {
+      socket.on('leave-verification-room', withGuard('leave-verification-room', (userId) => {
         socket.leave(`verification:user:${userId}`);
         logger.info(`[SOCKET] Client ${socket.id} left verification room: ${userId}`);
-      });
+      }));
 
       // Join auction room
-      socket.on('join_auction', (auctionId) => {
+      socket.on('join_auction', withGuard('join_auction', (auctionId) => {
         socket.join(`auction:${auctionId}`);
         logger.info(`[SOCKET] Client ${socket.id} joined auction room: ${auctionId}`);
-      });
+      }));
 
       // Leave auction room
-      socket.on('leave_auction', (auctionId) => {
+      socket.on('leave_auction', withGuard('leave_auction', (auctionId) => {
         socket.leave(`auction:${auctionId}`);
         logger.info(`[SOCKET] Client ${socket.id} left auction room: ${auctionId}`);
-      });
+      }));
 
       // Place bid
-      socket.on('place_bid', async ({ auctionId, bidAmount }) => {
+      socket.on('place_bid', withGuard('place_bid', async ({ auctionId, bidAmount }) => {
         try {
           const Auction = require('../models/Auction');
           const Bid = require('../models/Bid');
@@ -220,7 +302,7 @@ function initializeSocketIO(httpServer) {
           logger.error('[SOCKET ERROR] error placing bid:', error);
           socket.emit('bid_error', { message: 'An internal error occurred while placing your bid.' });
         }
-      });
+      }));
 
       // Handle disconnection
       socket.on('disconnect', () => {
