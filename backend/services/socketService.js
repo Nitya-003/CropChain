@@ -127,6 +127,19 @@ function initializeSocketIO(httpServer) {
             return socket.emit('bid_error', { message: 'Authentication required' });
           }
 
+          // Validate bidAmount before any DB operations or arithmetic
+          if (bidAmount === undefined || bidAmount === null || typeof bidAmount !== 'number' || !Number.isFinite(bidAmount)) {
+            return socket.emit('bid_error', { message: 'Bid amount must be a valid finite number.' });
+          }
+
+          if (bidAmount <= 0) {
+            return socket.emit('bid_error', { message: 'Bid amount must be a positive number.' });
+          }
+
+          if (bidAmount > Number.MAX_SAFE_INTEGER) {
+            return socket.emit('bid_error', { message: 'Bid amount exceeds the maximum allowed value.' });
+          }
+
           const bidderId = socket.user.id;
           const bidderName = socket.user.name;
 
