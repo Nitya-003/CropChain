@@ -40,6 +40,11 @@ const aiLimiter = createLimiter(
     'Too many AI requests from this IP, please try again later.'
 );
 
+const notificationLimiter = createLimiter(
+    parseInt(process.env.NOTIFICATION_RATE_LIMIT_MAX, 10) || 20,
+    'Too many notification requests from this IP, please try again later.'
+);
+
 const iotLimiter = createLimiter(
     parseInt(process.env.IOT_RATE_LIMIT_MAX, 10) || 60,
     'Too many IoT data requests from this IP, please try again later.'
@@ -154,6 +159,7 @@ module.exports = {
     batchLimiter,
     aiLimiter,
     iotLimiter,
+    notificationLimiter,
     registerLimiter,
     rateLimitWindowMs,
     rateLimitMaxRequests,

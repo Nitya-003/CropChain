@@ -7,9 +7,11 @@ const {
     getUnreadCount 
 } = require('../controllers/notificationController');
 const { protect } = require('../middleware/auth');
+const { notificationLimiter } = require('../middleware/rateLimiters');
 
 // All notification routes require authentication
 router.use(protect);
+router.use(notificationLimiter);
 
 router.get('/', getUserNotifications);
 router.get('/unread-count', getUnreadCount);
