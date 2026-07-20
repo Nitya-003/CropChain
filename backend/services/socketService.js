@@ -1,4 +1,4 @@
-﻿const { Server } = require('socket.io');
+const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 const Batch = require('../models/Batch');
@@ -113,7 +113,7 @@ function initializeSocketIO(httpServer) {
       }
 
       function withGuard(event, handler) {
-        return (data) => {
+        return async (data) => {
           if (!checkRate(event, socket.id)) {
             logger.warn(`[SOCKET] Rate limit exceeded for ${socket.id} on ${event}`);
             socket.emit('error', { message: 'Too many requests. Please slow down.' });
@@ -124,7 +124,7 @@ function initializeSocketIO(httpServer) {
             socket.emit('error', { message: 'Invalid payload.' });
             return;
           }
-          handler(data);
+          return await handler(data);
         };
       }
 
@@ -166,7 +166,7 @@ function initializeSocketIO(httpServer) {
           logger.error(`[SOCKET ERROR] Error authorizing batch room join for ${socket.id}:`, err);
           socket.emit('error', { message: 'Failed to verify batch access' });
         }
-      });
+      }));
 
       // Handle client leaving batch rooms
       socket.on('leave-batch-room', withGuard('leave-batch-room', (batchId) => {
