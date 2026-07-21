@@ -601,6 +601,14 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
             "Invalid stakeholder role"
         );
 
+        // Revoke all possible OZ AccessControl stakeholder roles for this user
+        // to ensure complete revocation even if multiple roles were previously granted
+        _revokeRole(FARMER_ROLE, account);
+        _revokeRole(MANDI_ROLE, account);
+        _revokeRole(TRANSPORTER_ROLE, account);
+        _revokeRole(RETAILER_ROLE, account);
+        _revokeRole(ORACLE_ROLE, account);
+
         // Sync the legacy roles mapping so onlyAuthorized and createListing checks work
         if (role == FARMER_ROLE) roles[account] = ActorRole.Farmer;
         else if (role == MANDI_ROLE) roles[account] = ActorRole.Mandi;
