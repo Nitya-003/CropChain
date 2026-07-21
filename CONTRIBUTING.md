@@ -1,8 +1,8 @@
-# Contributing to CropChain 🌾
+# Contributing to CropChain
 
 First off, thank you for considering contributing to CropChain! It's people like you who make this tool better for farmers and consumers everywhere.
 
-## 🛠️ Tech Stack Background
+## Tech Stack Background
 
 Before contributing, ensure you are familiar with:
 
@@ -10,7 +10,7 @@ Before contributing, ensure you are familiar with:
 - **Backend:** Node.js, Express, MongoDB
 - **Blockchain:** Solidity, Hardhat, Ethers.js
 
-## 🚀 How Can I Contribute?
+## How Can I Contribute?
 
 ### 1. Reporting Bugs
 
@@ -31,7 +31,7 @@ Before contributing, ensure you are familiar with:
 5. **Commit** your changes with clear messages (e.g., `feat: add batch filtering by date`).
 6. **Push** to your fork and submit a Pull Request.
 
-## 🧪 Development Workflow
+## Development Workflow
 
 ### Smart Contract Changes
 
@@ -44,7 +44,7 @@ If you are modifying `CropChain.sol`:
 
 - We aim for "Apple-level" aesthetics. Please ensure any new components are responsive and use the Tailwind design system defined in `tailwind.config.js`.
 
-## 📜 Style Guidelines
+## Style Guidelines
 
 - **TypeScript:** Use interfaces for all data models (Batch, Actor, History).
 - **Solidity:** Follow the [Official Solidity Style Guide](https://docs.soliditylang.org/en/v0.8.19/style-guide.html).
