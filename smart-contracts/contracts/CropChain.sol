@@ -419,7 +419,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         }
 
         // Mint a sub-batch for the buyer to preserve traceability
-        bytes32 subBatchId = keccak256(abi.encodePacked(listing.batchId, msg.sender, block.timestamp, listingId));
+        bytes32 subBatchId = keccak256(abi.encodePacked(listing.batchId, msg.sender, block.timestamp, listingId, allBatchIds.length));
         
         cropBatches[subBatchId] = CropBatch({
             batchId: subBatchId,
