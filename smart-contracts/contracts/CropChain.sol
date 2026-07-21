@@ -298,12 +298,10 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         // Clear approval after use
         nextCustodianApproval[batchId] = address(0);
 
-        // batchListedQuantity is intentionally NOT reset here. The tracker accumulates
-        // across custodian transitions so the over-allocation guard in createListing()
-        // always reflects the total quantity ever listed minus what has been sold.
-        // Resetting would let a new custodian re-list the full batch quantity while
-        // prior custodians' listings remain active, allowing total listed quantity
-        // to exceed the physical batch quantity.
+        // Reset batchListedQuantity to 0 on custody transfer because the new custodian
+        // now holds the full physical batch and any prior active listings are invalidated
+        // (they can no longer be bought).
+        batchListedQuantity[batchId] = 0;
 
         // Dynamic role checks based on stage transition
         require(_canUpdateStage(batchId, stage), "Role not allowed for this stage transition");
@@ -466,13 +464,12 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         require(listing.active, "Listing inactive");
         require(msg.sender == listing.seller || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Not allowed");
 
-        // Restore the listing's remaining available quantity back to the batch's tracker.
-        // This must happen regardless of who the current custodian is — if custody
-        // has transferred since the listing was created, the condition
-        // listing.seller == _getCurrentCustodian(listing.batchId) would fail and the
-        // tracker would never be decremented, permanently reducing the batch's
-        // available listing supply until no further listings can be created.
-        batchListedQuantity[listing.batchId] -= listing.quantityAvailable;
+        // Only restore the listed quantity if the seller is still the current custodian.
+        // If custody has transferred, the batchListedQuantity was already reset to 0
+        // during updateBatch, and deducting here would corrupt the new custodian's tracker.
+        if (listing.seller == _getCurrentCustodian(listing.batchId)) {
+            batchListedQuantity[listing.batchId] -= listing.quantityAvailable;
+        }
 
         listing.active = false;
         listing.quantityAvailable = 0;
