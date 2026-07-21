@@ -1,5 +1,5 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: 'CropChain Free-Tier Friendly Infrastructure Stack - VPC, EC2 with Docker'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "CropChain Free-Tier Friendly Infrastructure Stack - VPC, EC2 with Docker"
 
 Parameters:
   InstanceType:
@@ -33,7 +33,7 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       CidrBlock: 10.0.1.0/24
-      AvailabilityZone: !Select [0, !GetAZs '']
+      AvailabilityZone: !Select [0, !GetAZs ""]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
@@ -85,7 +85,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:

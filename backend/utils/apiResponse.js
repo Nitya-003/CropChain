@@ -10,14 +10,14 @@
  * @param {number} statusCode - HTTP status code
  * @returns {Object} Standardized success response
  */
-const successResponse = (data, message = 'Success', statusCode = 200) => {
+const successResponse = (data, message = "Success", statusCode = 200) => {
   return {
     success: true,
     data,
     error: null,
-    code: 'SUCCESS',
+    code: "SUCCESS",
     message,
-    statusCode
+    statusCode,
   };
 };
 
@@ -29,7 +29,12 @@ const successResponse = (data, message = 'Success', statusCode = 200) => {
  * @param {*} details - Additional error details
  * @returns {Object} Standardized error response
  */
-const errorResponse = (errorMessage, errorCode = 'SERVER_ERROR', statusCode = 500, details = null) => {
+const errorResponse = (
+  errorMessage,
+  errorCode = "SERVER_ERROR",
+  statusCode = 500,
+  details = null,
+) => {
   return {
     success: false,
     data: null,
@@ -37,7 +42,7 @@ const errorResponse = (errorMessage, errorCode = 'SERVER_ERROR', statusCode = 50
     code: errorCode,
     message: errorMessage,
     statusCode,
-    ...(details && { details })
+    ...(details && { details }),
   };
 };
 
@@ -51,11 +56,11 @@ const validationErrorResponse = (errors, statusCode = 400) => {
   return {
     success: false,
     data: null,
-    error: 'Validation failed',
-    code: 'VALIDATION_ERROR',
-    message: 'One or more validation errors occurred',
+    error: "Validation failed",
+    code: "VALIDATION_ERROR",
+    message: "One or more validation errors occurred",
     statusCode,
-    details: Array.isArray(errors) ? errors : [errors]
+    details: Array.isArray(errors) ? errors : [errors],
   };
 };
 
@@ -68,8 +73,8 @@ const validationErrorResponse = (errors, statusCode = 400) => {
 const notFoundResponse = (resource, identifier) => {
   return errorResponse(
     `${resource} with ${identifier} not found`,
-    'NOT_FOUND',
-    404
+    "NOT_FOUND",
+    404,
   );
 };
 
@@ -78,8 +83,8 @@ const notFoundResponse = (resource, identifier) => {
  * @param {string} message - Error message
  * @returns {Object} Standardized unauthorized response
  */
-const unauthorizedResponse = (message = 'Authentication required') => {
-  return errorResponse(message, 'UNAUTHORIZED', 401);
+const unauthorizedResponse = (message = "Authentication required") => {
+  return errorResponse(message, "UNAUTHORIZED", 401);
 };
 
 /**
@@ -87,8 +92,8 @@ const unauthorizedResponse = (message = 'Authentication required') => {
  * @param {string} message - Error message
  * @returns {Object} Standardized forbidden response
  */
-const forbiddenResponse = (message = 'Access forbidden') => {
-  return errorResponse(message, 'FORBIDDEN', 403);
+const forbiddenResponse = (message = "Access forbidden") => {
+  return errorResponse(message, "FORBIDDEN", 403);
 };
 
 /**
@@ -97,7 +102,7 @@ const forbiddenResponse = (message = 'Access forbidden') => {
  * @returns {Object} Standardized conflict response
  */
 const conflictResponse = (message) => {
-  return errorResponse(message, 'CONFLICT', 409);
+  return errorResponse(message, "CONFLICT", 409);
 };
 
 /**
@@ -107,10 +112,10 @@ const conflictResponse = (message) => {
  */
 const rateLimitResponse = (retryAfter = 900) => {
   return errorResponse(
-    'Too many requests, please try again later',
-    'RATE_LIMIT_EXCEEDED',
+    "Too many requests, please try again later",
+    "RATE_LIMIT_EXCEEDED",
     429,
-    { retryAfter }
+    { retryAfter },
   );
 };
 
@@ -122,5 +127,5 @@ module.exports = {
   unauthorizedResponse,
   forbiddenResponse,
   conflictResponse,
-  rateLimitResponse
+  rateLimitResponse,
 };

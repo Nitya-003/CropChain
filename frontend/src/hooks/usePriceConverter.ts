@@ -1,7 +1,6 @@
 import { useCryptoPrices } from "./useCryptoPrices";
 import { useCurrency } from "../context/CurrencyContext";
 
-
 export const usePriceConverter = () => {
   const { data, isError, isLoading } = useCryptoPrices();
   const { currency } = useCurrency();

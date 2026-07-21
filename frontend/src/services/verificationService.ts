@@ -1,129 +1,142 @@
-import { apiClient } from './apiClient';
+import { apiClient } from "./apiClient";
 
 export interface VerificationStatus {
-    isVerified: boolean;
-    role: string;
-    verifiedAt?: string;
-    credentialHash?: string;
+  isVerified: boolean;
+  role: string;
+  verifiedAt?: string;
+  credentialHash?: string;
 }
 
 export interface UnverifiedUser {
-    _id: string;
-    name: string;
-    email: string;
-    role: string;
-    walletAddress?: string;
-    createdAt: string;
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+  walletAddress?: string;
+  createdAt: string;
 }
 
 export interface VerifiedUser extends UnverifiedUser {
-    verification: {
-        verifiedAt: string;
-        verifiedBy: {
-            name: string;
-            email: string;
-        };
+  verification: {
+    verifiedAt: string;
+    verifiedBy: {
+      name: string;
+      email: string;
     };
+  };
 }
 
 declare global {
-    interface Window {
-        ethereum?: {
-            request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-            selectedAddress?: string;
-        };
-    }
+  interface Window {
+    ethereum?: {
+      request: (args: {
+        method: string;
+        params?: unknown[];
+      }) => Promise<unknown>;
+      selectedAddress?: string;
+    };
+  }
 }
 
 export const verificationService = {
-    /**
-     * Link wallet address to user account
-     */
-    async linkWallet(): Promise<{ success: boolean; walletAddress: string }> {
-        if (!window.ethereum) {
-            throw new Error('MetaMask is not installed');
-        }
+  /**
+   * Link wallet address to user account
+   */
+  async linkWallet(): Promise<{ success: boolean; walletAddress: string }> {
+    if (!window.ethereum) {
+      throw new Error("MetaMask is not installed");
+    }
 
-        // Request account access
-        const accounts = await window.ethereum.request({
-            method: 'eth_requestAccounts',
-        }) as string[];
+    // Request account access
+    const accounts = (await window.ethereum.request({
+      method: "eth_requestAccounts",
+    })) as string[];
 
-        const walletAddress = accounts[0];
+    const walletAddress = accounts[0];
 
-        // Sign message to prove ownership
-        const message = `Link wallet ${walletAddress} to CropChain account`;
-        const signature = await window.ethereum.request({
-            method: 'personal_sign',
-            params: [message, walletAddress],
-        }) as string;
+    // Sign message to prove ownership
+    const message = `Link wallet ${walletAddress} to CropChain account`;
+    const signature = (await window.ethereum.request({
+      method: "personal_sign",
+      params: [message, walletAddress],
+    })) as string;
 
-        const response = await apiClient.post('/verification/link-wallet', { walletAddress, signature });
+    const response = await apiClient.post("/verification/link-wallet", {
+      walletAddress,
+      signature,
+    });
 
-        return response.data;
-    },
+    return response.data;
+  },
 
-    /**
-     * Issue verifiable credential (Admin only)
-     */
-    async issueCredential(
-        userId: string,
-        walletAddress: string
-    ): Promise<{ success: boolean; credentialHash: string }> {
-        if (!window.ethereum) {
-            throw new Error('MetaMask is not installed');
-        }
+  /**
+   * Issue verifiable credential (Admin only)
+   */
+  async issueCredential(
+    userId: string,
+    walletAddress: string,
+  ): Promise<{ success: boolean; credentialHash: string }> {
+    if (!window.ethereum) {
+      throw new Error("MetaMask is not installed");
+    }
 
-        const accounts = await window.ethereum.request({
-            method: 'eth_requestAccounts',
-        }) as string[];
+    const accounts = (await window.ethereum.request({
+      method: "eth_requestAccounts",
+    })) as string[];
 
-        const adminAddress = accounts[0];
+    const adminAddress = accounts[0];
 
-        // Sign verification message with deterministic, non-PII content
-        const message = `Issue credential for user ${userId} with wallet ${walletAddress}`;
-        const signature = await window.ethereum.request({
-            method: 'personal_sign',
-            params: [message, adminAddress],
-        }) as string;
+    // Sign verification message with deterministic, non-PII content
+    const message = `Issue credential for user ${userId} with wallet ${walletAddress}`;
+    const signature = (await window.ethereum.request({
+      method: "personal_sign",
+      params: [message, adminAddress],
+    })) as string;
 
-        const response = await apiClient.post('/verification/issue', { userId, signature, walletAddress });
+    const response = await apiClient.post("/verification/issue", {
+      userId,
+      signature,
+      walletAddress,
+    });
 
-        return response.data;
-    },
+    return response.data;
+  },
 
-    /**
-     * Revoke credential (Admin only)
-     */
-    async revokeCredential(
-        userId: string,
-        reason: string
-    ): Promise<{ success: boolean }> {
-        const response = await apiClient.post('/verification/revoke', { userId, reason });
+  /**
+   * Revoke credential (Admin only)
+   */
+  async revokeCredential(
+    userId: string,
+    reason: string,
+  ): Promise<{ success: boolean }> {
+    const response = await apiClient.post("/verification/revoke", {
+      userId,
+      reason,
+    });
 
-        return response.data;
-    },
+    return response.data;
+  },
 
-    /**
-     * Check verification status
-     */
-    async checkVerification(userId: string): Promise<VerificationStatus> {
-        const response = await apiClient.get(`/verification/check/${userId}`);
-        return response.data;
-    },
+  /**
+   * Check verification status
+   */
+  async checkVerification(userId: string): Promise<VerificationStatus> {
+    const response = await apiClient.get(`/verification/check/${userId}`);
+    return response.data;
+  },
 
-    async getUnverifiedUsers(): Promise<UnverifiedUser[]> {
-        const response = await apiClient.get('/verification/unverified');
+  async getUnverifiedUsers(): Promise<UnverifiedUser[]> {
+    const response = await apiClient.get("/verification/unverified");
 
-        return response.data.data.users;
-    },
+    return response.data.data.users;
+  },
 
-    /**
-     * Get verified users (Admin only)
-     */
-    async getVerifiedUsers(): Promise<VerifiedUser[]> {
-        const response = await apiClient.get('/verification/verified');
+  /**
+   * Get verified users (Admin only)
+   */
+  async getVerifiedUsers(): Promise<VerifiedUser[]> {
+    const response = await apiClient.get("/verification/verified");
 
-        return response.data.data.users;
-    },
+    return response.data.data.users;
+  },
 };

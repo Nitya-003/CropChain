@@ -1,4 +1,4 @@
-const { ValidationError } = require('../utils/errorHandler');
+const { ValidationError } = require("../utils/errorHandler");
 
 const validateRequest = (schema) => {
   return (req, res, next) => {
@@ -8,7 +8,7 @@ const validateRequest = (schema) => {
     if (error) {
       // If there's an error, throw ValidationError to be caught by error handler
       const details = error.details.map((detail) => detail.message);
-      const validationError = new ValidationError('Validation failed', details);
+      const validationError = new ValidationError("Validation failed", details);
       return next(validationError);
     }
 
@@ -18,4 +18,3 @@ const validateRequest = (schema) => {
 };
 
 module.exports = validateRequest;
-

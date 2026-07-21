@@ -1,19 +1,43 @@
 "use client";
-import React, { useState, useEffect, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Store, Package, RefreshCw, CheckCircle, Clock, TrendingUp, Search, ArrowRight, Gavel } from 'lucide-react';
-import Link from 'next/link';
-import { realCropBatchService } from '../../services/realCropBatchService';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../../components/ui/card';
-import { Badge } from '../../components/ui/badge';
-import { Button } from '../../components/ui/button';
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/table';
-import ProtectedRoute from '../../components/ProtectedRoute';
-import { useAuth } from '../../context/AuthContext';
-import BatchFilters from '../../components/BatchFilters';
-import { auctionService, Auction } from '../../services/auctionService';
+import React, { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  Store,
+  Package,
+  RefreshCw,
+  CheckCircle,
+  Clock,
+  TrendingUp,
+  Search,
+  ArrowRight,
+  Gavel,
+} from "lucide-react";
+import Link from "next/link";
+import { realCropBatchService } from "../../services/realCropBatchService";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from "../../components/ui/card";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "../../components/ui/table";
+import ProtectedRoute from "../../components/ProtectedRoute";
+import { useAuth } from "../../context/AuthContext";
+import BatchFilters from "../../components/BatchFilters";
+import { auctionService, Auction } from "../../services/auctionService";
+import BatchSyncBadge from "../../components/BatchSyncBadge";
 
-const RELEVANT_STAGES = ['farmer', 'mandi'];
+const RELEVANT_STAGES = ["farmer", "mandi"];
 
 const MandiDashboardComponent: React.FC = () => {
   const { t } = useTranslation();
@@ -23,40 +47,54 @@ const MandiDashboardComponent: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const [filters, setFilters] = useState({
-    search: '',
-    stage: '',
-    cropType: '',
-    status: '',
-    dateFrom: '',
-    dateTo: '',
-    sortBy: 'createdAt',
-    sortOrder: 'desc',
+    search: "",
+    stage: "",
+    cropType: "",
+    status: "",
+    dateFrom: "",
+    dateTo: "",
+    sortBy: "createdAt",
+    sortOrder: "desc",
     page: 1,
-    limit: 100
+    limit: 100,
   });
 
-  const [searchInput, setSearchInput] = useState('');
+  const [searchInput, setSearchInput] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
   const activeCount = Object.entries(filters).filter(([key, val]) => {
-    if (key === 'sortBy' && val === 'createdAt') return false;
-    if (key === 'sortOrder' && val === 'desc') return false;
-    if (key === 'page' && val === 1) return false;
-    if (key === 'limit' && val === 100) return false;
-    return val !== '';
+    if (key === "sortBy" && val === "createdAt") return false;
+    if (key === "sortOrder" && val === "desc") return false;
+    if (key === "page" && val === 1) return false;
+    if (key === "limit" && val === 100) return false;
+    return val !== "";
   }).length;
 
   useEffect(() => {
     loadBatches();
-  }, [filters.search, filters.cropType, filters.status, filters.dateFrom, filters.dateTo, filters.sortBy, filters.sortOrder]);
+  }, [
+    filters.search,
+    filters.cropType,
+    filters.status,
+    filters.dateFrom,
+    filters.dateTo,
+    filters.sortBy,
+    filters.sortOrder,
+  ]);
 
   const loadBatches = async () => {
     setIsLoading(true);
     try {
       const apiFilters: any = {};
       Object.entries(filters).forEach(([key, val]) => {
-        if (val !== undefined && val !== '' && key !== 'stage' && key !== 'page' && key !== 'limit') {
+        if (
+          val !== undefined &&
+          val !== "" &&
+          key !== "stage" &&
+          key !== "page" &&
+          key !== "limit"
+        ) {
           apiFilters[key] = val;
         }
       });
@@ -69,17 +107,17 @@ const MandiDashboardComponent: React.FC = () => {
         const auctions = await auctionService.getAllAuctions();
         setActiveAuctions(auctions);
       } catch (err) {
-        console.error('Failed to load active auctions:', err);
+        console.error("Failed to load active auctions:", err);
       }
 
       // Mandi sees batches that are at farmer stage (pending arrival) or mandi stage (accepted)
-      const relevantBatches = allBatches.filter(
-        (b: any) => RELEVANT_STAGES.includes(b.currentStage)
+      const relevantBatches = allBatches.filter((b: any) =>
+        RELEVANT_STAGES.includes(b.currentStage),
       );
 
       setBatches(relevantBatches);
     } catch (error) {
-      console.error('Failed to load batches:', error);
+      console.error("Failed to load batches:", error);
     } finally {
       setIsLoading(false);
     }
@@ -91,33 +129,49 @@ const MandiDashboardComponent: React.FC = () => {
   }, [batches, page]);
 
   const totalPages = Math.max(1, Math.ceil(batches.length / pageSize));
-  const stats = useMemo(() => ({
-    pendingAcceptance: batches.filter((b: any) => b.currentStage === 'farmer').length,
-    acceptedTotal: batches.filter((b: any) => b.currentStage === 'mandi').length,
-    totalQuantity: batches.reduce((sum: number, b: any) => sum + (b.quantity || 0), 0),
-  }), [batches]);
+  const stats = useMemo(
+    () => ({
+      pendingAcceptance: batches.filter((b: any) => b.currentStage === "farmer")
+        .length,
+      acceptedTotal: batches.filter((b: any) => b.currentStage === "mandi")
+        .length,
+      totalQuantity: batches.reduce(
+        (sum: number, b: any) => sum + (b.quantity || 0),
+        0,
+      ),
+    }),
+    [batches],
+  );
 
   const clearFilters = () => {
-    setSearchInput('');
+    setSearchInput("");
     setFilters({
-      search: '', stage: '', cropType: '', status: '',
-      dateFrom: '', dateTo: '', sortBy: 'createdAt', sortOrder: 'desc', page: 1, limit: 100
+      search: "",
+      stage: "",
+      cropType: "",
+      status: "",
+      dateFrom: "",
+      dateTo: "",
+      sortBy: "createdAt",
+      sortOrder: "desc",
+      page: 1,
+      limit: 100,
     });
     setPage(1);
   };
 
   const getStageColor = (stage: string) => {
     switch (stage?.toLowerCase()) {
-      case 'farmer':
-        return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 border-indigo-300/30';
-      case 'mandi':
-        return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300/30';
-      case 'transport':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-300/30';
-      case 'retailer':
-        return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border-purple-300/30';
+      case "farmer":
+        return "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 border-indigo-300/30";
+      case "mandi":
+        return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300/30";
+      case "transport":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-300/30";
+      case "retailer":
+        return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border-purple-300/30";
       default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-700/30';
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-700/30";
     }
   };
 
@@ -149,21 +203,31 @@ const MandiDashboardComponent: React.FC = () => {
             <Store className="h-8 w-8 text-amber-600 dark:text-amber-400" />
           </div>
           <div className="text-left">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('mandi.dashboard')}</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+              {t("mandi.dashboard")}
+            </h1>
             <p className="text-sm text-muted-foreground">
-              {t('mandi.welcomeBack', { name: user?.name || 'Mandi' })}
+              {t("mandi.welcomeBack", { name: user?.name || "Mandi" })}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={loadBatches} className="gap-1.5 bg-background/50">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadBatches}
+            className="gap-1.5 bg-background/50"
+          >
             <RefreshCw className="h-3.5 w-3.5" />
-            {t('farmer.refresh')}
+            {t("farmer.refresh")}
           </Button>
           <Link href="/update-batch">
-            <Button size="sm" className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white">
+            <Button
+              size="sm"
+              className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
+            >
               <ArrowRight className="h-3.5 w-3.5" />
-              {t('mandi.updateBatchStage')}
+              {t("mandi.updateBatchStage")}
             </Button>
           </Link>
         </div>
@@ -173,42 +237,61 @@ const MandiDashboardComponent: React.FC = () => {
       <div className="grid md:grid-cols-3 gap-6">
         <Card className="border border-border bg-card hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <span className="text-sm font-medium text-muted-foreground">{t('mandi.pendingArrival')}</span>
+            <span className="text-sm font-medium text-muted-foreground">
+              {t("mandi.pendingArrival")}
+            </span>
             <div className="bg-indigo-500/10 p-2 rounded-xl">
               <Clock className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
             </div>
           </CardHeader>
           <CardContent className="space-y-1 text-left">
-            <div className="text-3xl font-bold tracking-tight">{stats.pendingAcceptance}</div>
-            <p className="text-xs text-muted-foreground">{t('mandi.batchesAwaitingAcceptance')}</p>
+            <div className="text-3xl font-bold tracking-tight">
+              {stats.pendingAcceptance}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t("mandi.batchesAwaitingAcceptance")}
+            </p>
           </CardContent>
         </Card>
 
         <Card className="border border-border bg-card hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <span className="text-sm font-medium text-muted-foreground">{t('mandi.acceptedAtMandi')}</span>
+            <span className="text-sm font-medium text-muted-foreground">
+              {t("mandi.acceptedAtMandi")}
+            </span>
             <div className="bg-amber-500/10 p-2 rounded-xl">
               <CheckCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
           </CardHeader>
           <CardContent className="space-y-1 text-left">
-            <div className="text-3xl font-bold tracking-tight">{stats.acceptedTotal}</div>
-            <p className="text-xs text-muted-foreground">{t('mandi.batchesAtMarketStage')}</p>
+            <div className="text-3xl font-bold tracking-tight">
+              {stats.acceptedTotal}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t("mandi.batchesAtMarketStage")}
+            </p>
           </CardContent>
         </Card>
 
         <Card className="border border-border bg-card hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <span className="text-sm font-medium text-muted-foreground">{t('mandi.totalVolume')}</span>
+            <span className="text-sm font-medium text-muted-foreground">
+              {t("mandi.totalVolume")}
+            </span>
             <div className="bg-emerald-500/10 p-2 rounded-xl">
               <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
           </CardHeader>
           <CardContent className="space-y-1 text-left">
             <div className="text-3xl font-bold tracking-tight">
-              {stats.totalQuantity.toLocaleString()} <span className="text-lg font-medium text-muted-foreground">kg</span>
+              {stats.totalQuantity.toLocaleString()}{" "}
+              <span className="text-lg font-medium text-muted-foreground">
+                kg
+              </span>
             </div>
-            <p className="text-xs text-muted-foreground">{t('mandi.combinedQuantity')}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("mandi.combinedQuantity")}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -222,8 +305,12 @@ const MandiDashboardComponent: React.FC = () => {
                 <ArrowRight className="h-6 w-6 text-amber-600 dark:text-amber-400" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">{t('mandi.acceptBatch')}</p>
-                <p className="text-sm text-muted-foreground">{t('mandi.acceptIncomingBatches')}</p>
+                <p className="font-semibold text-foreground">
+                  {t("mandi.acceptBatch")}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {t("mandi.acceptIncomingBatches")}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -236,8 +323,12 @@ const MandiDashboardComponent: React.FC = () => {
                 <Search className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">{t('mandi.trackABatch')}</p>
-                <p className="text-sm text-muted-foreground">{t('mandi.lookUpBatch')}</p>
+                <p className="font-semibold text-foreground">
+                  {t("mandi.trackABatch")}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {t("mandi.lookUpBatch")}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -250,11 +341,11 @@ const MandiDashboardComponent: React.FC = () => {
           <BatchFilters
             filters={filters}
             onFilterChange={(partial) => {
-              setFilters(f => ({ ...f, ...partial }));
+              setFilters((f) => ({ ...f, ...partial }));
               setPage(1);
             }}
             onSearchSubmit={(search) => {
-              setFilters(f => ({ ...f, search, page: 1 }));
+              setFilters((f) => ({ ...f, search, page: 1 }));
               setPage(1);
             }}
             onClearFilters={clearFilters}
@@ -270,7 +361,9 @@ const MandiDashboardComponent: React.FC = () => {
         <CardHeader className="pb-3 border-b border-border/40">
           <div className="flex items-center gap-2">
             <Package className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg font-semibold text-foreground">{t('mandi.incomingAndCurrentBatches')}</CardTitle>
+            <CardTitle className="text-lg font-semibold text-foreground">
+              {t("mandi.incomingAndCurrentBatches")}
+            </CardTitle>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -280,7 +373,9 @@ const MandiDashboardComponent: React.FC = () => {
                 <Package className="h-8 w-8 text-muted-foreground" />
               </div>
               <div>
-                <p className="font-semibold text-foreground">{t('common.loading')}</p>
+                <p className="font-semibold text-foreground">
+                  {t("common.loading")}
+                </p>
               </div>
             </div>
           ) : batches.length === 0 ? (
@@ -289,8 +384,12 @@ const MandiDashboardComponent: React.FC = () => {
                 <Package className="h-8 w-8 text-muted-foreground" />
               </div>
               <div>
-                <p className="font-semibold text-foreground">{t('mandi.noBatchesAvailable')}</p>
-                <p className="text-sm text-muted-foreground mt-1">{t('mandi.adjustFilters')}</p>
+                <p className="font-semibold text-foreground">
+                  {t("mandi.noBatchesAvailable")}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {t("mandi.adjustFilters")}
+                </p>
               </div>
             </div>
           ) : (
@@ -298,79 +397,143 @@ const MandiDashboardComponent: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40 border-b border-border/40">
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.batchId')}</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.farmer')}</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.cropType')}</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.quantity')}</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('batch.status')}</TableHead>
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">{t('common.actions')}</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">
+                      {t("batch.batchId")}
+                    </TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">
+                      {t("batch.farmer")}
+                    </TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">
+                      {t("batch.cropType")}
+                    </TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">
+                      {t("batch.quantity")}
+                    </TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">
+                      {t("batch.status")}
+                    </TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left">
+                      {t("common.actions")}
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>                  {paginatedBatches.map((batch) => {
+                <TableBody>
+                  {" "}
+                  {paginatedBatches.map((batch) => {
                     const activeAuction = activeAuctions.find(
-                      (a) => a.batchId === batch.batchId
+                      (a) => a.batchId === batch.batchId,
                     );
                     return (
-                      <TableRow key={batch.batchId} className="border-b border-border/40 hover:bg-muted/30 transition-colors text-left">
+                      <TableRow
+                        key={batch.batchId}
+                        className="border-b border-border/40 hover:bg-muted/30 transition-colors text-left"
+                      >
                         <TableCell className="py-4 px-6">
-                          <span className="font-mono text-xs bg-muted text-muted-foreground px-2 py-1 rounded border border-border">
-                            {batch.batchId?.slice(0, 8)}...{batch.batchId?.slice(-4)}
-                          </span>
-                        </TableCell>
-                        <TableCell className="py-4 px-6">
-                          <div>
-                            <p className="font-medium text-foreground text-sm">{batch.farmerName}</p>
-                            <p className="text-xs text-muted-foreground">{batch.origin}</p>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs bg-muted text-muted-foreground px-2 py-1 rounded border border-border">
+                              {batch.batchId?.slice(0, 8)}...
+                              {batch.batchId?.slice(-4)}
+                            </span>
+                            {batch.syncStatus &&
+                              batch.syncStatus !== "synced" && (
+                                <BatchSyncBadge
+                                  syncStatus={batch.syncStatus}
+                                  showLabel={false}
+                                  size="sm"
+                                />
+                              )}
                           </div>
                         </TableCell>
                         <TableCell className="py-4 px-6">
-                          <span className="capitalize font-medium text-foreground text-sm">{batch.cropType}</span>
+                          <div>
+                            <p className="font-medium text-foreground text-sm">
+                              {batch.farmerName}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {batch.origin}
+                            </p>
+                          </div>
                         </TableCell>
                         <TableCell className="py-4 px-6">
-                          <span className="font-medium text-foreground text-sm">{batch.quantity?.toLocaleString()} kg</span>
+                          <span className="capitalize font-medium text-foreground text-sm">
+                            {batch.cropType}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-4 px-6">
+                          <span className="font-medium text-foreground text-sm">
+                            {batch.quantity?.toLocaleString()} kg
+                          </span>
                         </TableCell>
                         <TableCell className="py-4 px-6">
                           <div className="flex flex-col gap-1.5 items-start">
-                            <Badge variant="outline" className={`capitalize font-semibold border ${getStageColor(batch.currentStage)}`}>
-                              {batch.currentStage === 'farmer' ? t('mandi.pendingArrivalBadge') : t('mandi.atMarketBadge')}
+                            <Badge
+                              variant="outline"
+                              className={`capitalize font-semibold border ${getStageColor(batch.currentStage)}`}
+                            >
+                              {batch.currentStage === "farmer"
+                                ? t("mandi.pendingArrivalBadge")
+                                : t("mandi.atMarketBadge")}
                             </Badge>
-                            {activeAuction && activeAuction.status === 'active' && (
-                              <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 font-bold animate-pulse text-[10px] uppercase tracking-wide">
-                                {t('auction.liveAuction')}
-                              </Badge>
-                            )}
-                            {activeAuction && activeAuction.status === 'ended' && (
-                              <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-300/30 text-[10px] dark:bg-slate-800/40 dark:text-slate-400 uppercase tracking-wide">
-                                {t('auction.auctionEnded')}
-                              </Badge>
-                            )}
+                            {activeAuction &&
+                              activeAuction.status === "active" && (
+                                <Badge
+                                  variant="outline"
+                                  className="bg-amber-500/10 text-amber-600 border-amber-500/30 font-bold animate-pulse text-[10px] uppercase tracking-wide"
+                                >
+                                  {t("auction.liveAuction")}
+                                </Badge>
+                              )}
+                            {activeAuction &&
+                              activeAuction.status === "ended" && (
+                                <Badge
+                                  variant="outline"
+                                  className="bg-slate-100 text-slate-600 border-slate-300/30 text-[10px] dark:bg-slate-800/40 dark:text-slate-400 uppercase tracking-wide"
+                                >
+                                  {t("auction.auctionEnded")}
+                                </Badge>
+                              )}
                           </div>
                         </TableCell>
                         <TableCell className="py-4 px-6">
                           <div className="flex items-center gap-1.5">
-                            {activeAuction && activeAuction.status === 'active' ? (
+                            {activeAuction &&
+                            activeAuction.status === "active" ? (
                               <Link href={`/auctions/${activeAuction._id}`}>
-                                <Button size="sm" className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold h-8 rounded-lg text-xs">
+                                <Button
+                                  size="sm"
+                                  className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold h-8 rounded-lg text-xs"
+                                >
                                   <Gavel className="h-3.5 w-3.5" />
-                                  {t('mandi.bidLive')}
+                                  {t("mandi.bidLive")}
                                 </Button>
                               </Link>
-                            ) : activeAuction && activeAuction.status === 'ended' ? (
+                            ) : activeAuction &&
+                              activeAuction.status === "ended" ? (
                               <Link href={`/auctions/${activeAuction._id}`}>
-                                <Button variant="outline" size="sm" className="gap-1.5 text-slate-500 h-8 rounded-lg text-xs">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-1.5 text-slate-500 h-8 rounded-lg text-xs"
+                                >
                                   <Gavel className="h-3.5 w-3.5" />
-                                  {t('auction.results')}
+                                  {t("auction.results")}
                                 </Button>
                               </Link>
                             ) : (
                               <Link href={`/update-batch?id=${batch.batchId}`}>
                                 <Button
-                                  variant={batch.currentStage === 'farmer' ? 'default' : 'ghost'}
+                                  variant={
+                                    batch.currentStage === "farmer"
+                                      ? "default"
+                                      : "ghost"
+                                  }
                                   size="sm"
                                   className="gap-1.5 h-8 rounded-lg text-xs"
                                 >
                                   <ArrowRight className="h-3.5 w-3.5" />
-                                  {batch.currentStage === 'farmer' ? t('mandi.accept') : t('mandi.update')}
+                                  {batch.currentStage === "farmer"
+                                    ? t("mandi.accept")
+                                    : t("mandi.update")}
                                 </Button>
                               </Link>
                             )}
@@ -387,29 +550,32 @@ const MandiDashboardComponent: React.FC = () => {
         {batches.length > 0 && totalPages > 1 && (
           <CardFooter className="flex items-center justify-between border-t border-border/40 py-4 px-6">
             <p className="text-xs text-muted-foreground">
-              {t('pagination.showing', { count: paginatedBatches.length, total: batches.length })}
+              {t("pagination.showing", {
+                count: paginatedBatches.length,
+                total: batches.length,
+              })}
             </p>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 disabled={page <= 1}
-                onClick={() => setPage(p => p - 1)}
+                onClick={() => setPage((p) => p - 1)}
                 className="h-8 rounded-lg text-xs"
               >
-                {t('pagination.previous')}
+                {t("pagination.previous")}
               </Button>
               <span className="text-xs font-semibold text-foreground">
-                {t('pagination.page', { current: page, total: totalPages })}
+                {t("pagination.page", { current: page, total: totalPages })}
               </span>
               <Button
                 variant="outline"
                 size="sm"
                 disabled={page >= totalPages}
-                onClick={() => setPage(p => p + 1)}
+                onClick={() => setPage((p) => p + 1)}
                 className="h-8 rounded-lg text-xs"
               >
-                {t('pagination.next')}
+                {t("pagination.next")}
               </Button>
             </div>
           </CardFooter>
@@ -421,7 +587,7 @@ const MandiDashboardComponent: React.FC = () => {
 
 export default function MandiDashboardPage() {
   return (
-    <ProtectedRoute allowedRoles={['mandi']}>
+    <ProtectedRoute allowedRoles={["mandi"]}>
       <MandiDashboardComponent />
     </ProtectedRoute>
   );

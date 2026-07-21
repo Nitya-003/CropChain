@@ -1,23 +1,33 @@
 "use client";
 
-import React, { useState, useEffect, useRef, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { Loader2, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowLeft, Check, X } from 'lucide-react';
-import { authService } from '../../services/auth.service';
-import toast from 'react-hot-toast';
+import React, { useState, useEffect, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import {
+  Loader2,
+  Lock,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  CheckCircle2,
+  ArrowLeft,
+  Check,
+  X,
+} from "lucide-react";
+import { authService } from "../../services/auth.service";
+import toast from "react-hot-toast";
 
 const ResetPasswordContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get('token');
+  const token = searchParams.get("token");
 
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
   // Holds the id of the pending redirect timeout so it can be cleared
@@ -56,31 +66,31 @@ const ResetPasswordContent = () => {
     };
   }, []);
 
-  const isFormValid = 
-    validations.minLength && 
-    validations.hasUpper && 
-    validations.hasLower && 
-    validations.hasNumber && 
-    validations.hasSpecial && 
+  const isFormValid =
+    validations.minLength &&
+    validations.hasUpper &&
+    validations.hasLower &&
+    validations.hasNumber &&
+    validations.hasSpecial &&
     validations.match;
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!token) {
-      setError('Password reset token is missing. Please request a new link.');
+      setError("Password reset token is missing. Please request a new link.");
       return;
     }
     if (!isFormValid) {
-      setError('Please satisfy all password strength requirements.');
+      setError("Please satisfy all password strength requirements.");
       return;
     }
 
-    setError('');
+    setError("");
     setIsSubmitting(true);
     try {
       await authService.resetPassword(token, password);
       setSuccess(true);
-      toast.success('Password reset successfully!');
+      toast.success("Password reset successfully!");
 
       // Clear any existing timer before scheduling a new one, then store
       // the new timer's id so it can be cancelled on unmount.
@@ -88,13 +98,13 @@ const ResetPasswordContent = () => {
         clearTimeout(redirectTimerRef.current);
       }
       redirectTimerRef.current = setTimeout(() => {
-        router.push('/login');
+        router.push("/login");
       }, 3000);
     } catch (err: any) {
       console.error(err);
       setError(
-        err.response?.data?.message || 
-        'Failed to reset password. The link may have expired or is invalid.'
+        err.response?.data?.message ||
+          "Failed to reset password. The link may have expired or is invalid.",
       );
     } finally {
       setIsSubmitting(false);
@@ -112,10 +122,11 @@ const ResetPasswordContent = () => {
             Invalid Link
           </h2>
           <p className="text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
-            The password reset link is invalid or has expired. Please request a new link to reset your password.
+            The password reset link is invalid or has expired. Please request a
+            new link to reset your password.
           </p>
-          <Link 
-            href="/forgot-password" 
+          <Link
+            href="/forgot-password"
             className="inline-flex items-center justify-center w-full py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200"
           >
             Request New Link
@@ -136,10 +147,11 @@ const ResetPasswordContent = () => {
             Password Updated
           </h2>
           <p className="text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
-            Your password has been successfully updated. You will be redirected to the login page in a few seconds...
+            Your password has been successfully updated. You will be redirected
+            to the login page in a few seconds...
           </p>
-          <Link 
-            href="/login" 
+          <Link
+            href="/login"
             className="inline-flex items-center justify-center w-full py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200"
           >
             Go to Login
@@ -149,14 +161,26 @@ const ResetPasswordContent = () => {
     );
   }
 
-  const ValidationItem = ({ isValid, text }: { isValid: boolean; text: string }) => (
+  const ValidationItem = ({
+    isValid,
+    text,
+  }: {
+    isValid: boolean;
+    text: string;
+  }) => (
     <div className="flex items-center space-x-2 text-sm">
       {isValid ? (
         <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
       ) : (
         <X className="h-4 w-4 text-gray-300 dark:text-gray-600 flex-shrink-0" />
       )}
-      <span className={isValid ? "text-green-600 dark:text-green-400" : "text-gray-500 dark:text-gray-400"}>
+      <span
+        className={
+          isValid
+            ? "text-green-600 dark:text-green-400"
+            : "text-gray-500 dark:text-gray-400"
+        }
+      >
         {text}
       </span>
     </div>
@@ -166,8 +190,8 @@ const ResetPasswordContent = () => {
     <div className="min-h-[80vh] flex items-center justify-center p-4">
       <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-100 dark:border-gray-700 transition-all duration-300">
         <div className="mb-6">
-          <Link 
-            href="/login" 
+          <Link
+            href="/login"
             className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 transition-colors"
           >
             <ArrowLeft className="h-4 w-4 mr-1.5" />
@@ -196,7 +220,10 @@ const ResetPasswordContent = () => {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+            <label
+              htmlFor="new-password"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"
+            >
               New Password
             </label>
             <div className="relative">
@@ -205,7 +232,7 @@ const ResetPasswordContent = () => {
               </div>
               <input
                 id="new-password"
-                type={showPassword ? 'text' : 'password'}
+                type={showPassword ? "text" : "password"}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -218,13 +245,20 @@ const ResetPasswordContent = () => {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
               >
-                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5" />
+                ) : (
+                  <Eye className="h-5 w-5" />
+                )}
               </button>
             </div>
           </div>
 
           <div>
-            <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+            <label
+              htmlFor="confirm-password"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"
+            >
               Confirm Password
             </label>
             <div className="relative">
@@ -233,7 +267,7 @@ const ResetPasswordContent = () => {
               </div>
               <input
                 id="confirm-password"
-                type={showConfirmPassword ? 'text' : 'password'}
+                type={showConfirmPassword ? "text" : "password"}
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -246,7 +280,11 @@ const ResetPasswordContent = () => {
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
               >
-                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                {showConfirmPassword ? (
+                  <EyeOff className="h-5 w-5" />
+                ) : (
+                  <Eye className="h-5 w-5" />
+                )}
               </button>
             </div>
           </div>
@@ -255,12 +293,30 @@ const ResetPasswordContent = () => {
             <div className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
               Password Requirements
             </div>
-            <ValidationItem isValid={validations.minLength} text="At least 8 characters" />
-            <ValidationItem isValid={validations.hasUpper} text="At least one uppercase letter (A-Z)" />
-            <ValidationItem isValid={validations.hasLower} text="At least one lowercase letter (a-z)" />
-            <ValidationItem isValid={validations.hasNumber} text="At least one number (0-9)" />
-            <ValidationItem isValid={validations.hasSpecial} text="At least one special character (!@#...)" />
-            <ValidationItem isValid={validations.match} text="Passwords match" />
+            <ValidationItem
+              isValid={validations.minLength}
+              text="At least 8 characters"
+            />
+            <ValidationItem
+              isValid={validations.hasUpper}
+              text="At least one uppercase letter (A-Z)"
+            />
+            <ValidationItem
+              isValid={validations.hasLower}
+              text="At least one lowercase letter (a-z)"
+            />
+            <ValidationItem
+              isValid={validations.hasNumber}
+              text="At least one number (0-9)"
+            />
+            <ValidationItem
+              isValid={validations.hasSpecial}
+              text="At least one special character (!@#...)"
+            />
+            <ValidationItem
+              isValid={validations.match}
+              text="Passwords match"
+            />
           </div>
 
           <button
@@ -274,7 +330,7 @@ const ResetPasswordContent = () => {
                 Resetting Password...
               </>
             ) : (
-              'Reset Password'
+              "Reset Password"
             )}
           </button>
         </form>
@@ -285,11 +341,13 @@ const ResetPasswordContent = () => {
 
 export default function ResetPassword() {
   return (
-    <Suspense fallback={
-      <div className="flex justify-center items-center py-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+        </div>
+      }
+    >
       <ResetPasswordContent />
     </Suspense>
   );

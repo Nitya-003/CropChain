@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient';
+import { apiClient } from "./apiClient";
 
 export interface ActivityItem {
   _id: string;
@@ -38,32 +38,40 @@ export const activityFeedService = {
   /**
    * Fetch personalized activity feed for current user
    */
-  getFeed: async (filters: ActivityFilters = {}): Promise<ActivityFeedResponse> => {
+  getFeed: async (
+    filters: ActivityFilters = {},
+  ): Promise<ActivityFeedResponse> => {
     const params = new URLSearchParams();
-    if (filters.eventType) params.append('eventType', filters.eventType);
-    if (filters.batchId) params.append('batchId', filters.batchId);
-    if (filters.startDate) params.append('startDate', filters.startDate);
-    if (filters.endDate) params.append('endDate', filters.endDate);
-    if (filters.page) params.append('page', String(filters.page));
-    if (filters.limit) params.append('limit', String(filters.limit));
+    if (filters.eventType) params.append("eventType", filters.eventType);
+    if (filters.batchId) params.append("batchId", filters.batchId);
+    if (filters.startDate) params.append("startDate", filters.startDate);
+    if (filters.endDate) params.append("endDate", filters.endDate);
+    if (filters.page) params.append("page", String(filters.page));
+    if (filters.limit) params.append("limit", String(filters.limit));
 
-    const response = await apiClient.get<ActivityFeedResponse>(`/activities/feed?${params.toString()}`);
+    const response = await apiClient.get<ActivityFeedResponse>(
+      `/activities/feed?${params.toString()}`,
+    );
     return response.data;
   },
 
   /**
    * Fetch all activities (Admin only)
    */
-  getAllActivities: async (filters: ActivityFilters = {}): Promise<ActivityFeedResponse> => {
+  getAllActivities: async (
+    filters: ActivityFilters = {},
+  ): Promise<ActivityFeedResponse> => {
     const params = new URLSearchParams();
-    if (filters.eventType) params.append('eventType', filters.eventType);
-    if (filters.batchId) params.append('batchId', filters.batchId);
-    if (filters.startDate) params.append('startDate', filters.startDate);
-    if (filters.endDate) params.append('endDate', filters.endDate);
-    if (filters.page) params.append('page', String(filters.page));
-    if (filters.limit) params.append('limit', String(filters.limit));
+    if (filters.eventType) params.append("eventType", filters.eventType);
+    if (filters.batchId) params.append("batchId", filters.batchId);
+    if (filters.startDate) params.append("startDate", filters.startDate);
+    if (filters.endDate) params.append("endDate", filters.endDate);
+    if (filters.page) params.append("page", String(filters.page));
+    if (filters.limit) params.append("limit", String(filters.limit));
 
-    const response = await apiClient.get<ActivityFeedResponse>(`/activities?${params.toString()}`);
+    const response = await apiClient.get<ActivityFeedResponse>(
+      `/activities?${params.toString()}`,
+    );
     return response.data;
-  }
+  },
 };

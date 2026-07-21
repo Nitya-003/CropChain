@@ -42,7 +42,7 @@ const updateBatchSchema = Joi.object({
     .required()
     .lowercase() // Normalize to lowercase before validation
     .messages({
-      "any.only": `Stage must be one of: ${STAGES.join(', ')}`,
+      "any.only": `Stage must be one of: ${STAGES.join(", ")}`,
     }),
 
   actor: Joi.string().min(2).max(100).required(),
@@ -54,6 +54,5 @@ const updateBatchSchema = Joi.object({
     .default(() => new Date()),
   blockchainHash: Joi.string().allow("").optional(),
 });
-
 
 module.exports = { createBatchSchema, updateBatchSchema };

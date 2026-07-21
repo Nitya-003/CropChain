@@ -27,6 +27,7 @@ This document outlines the comprehensive security measures implemented in the Cr
   - Balances legitimate use with abuse prevention
 
 #### Configuration Features:
+
 - Standard headers for rate limit information
 - Custom error messages with retry information
 - IP-based tracking
@@ -37,22 +38,24 @@ This document outlines the comprehensive security measures implemented in the Cr
 **Implementation**: `express-mongo-sanitize` middleware.
 
 #### Protection Features:
+
 - Removes/replaces MongoDB operators (`$where`, `$ne`, `$gt`, etc.)
 - Sanitizes query parameters, request body, and URL parameters
 - Configurable replacement character (`_`)
 - Logging of sanitization events for security monitoring
 
 #### Monitored Patterns:
+
 ```javascript
 const suspiciousPatterns = [
-    /\$where/i,
-    /\$ne/i,
-    /\$gt/i,
-    /\$lt/i,
-    /\$regex/i,
-    /javascript:/i,
-    /<script/i,
-    /union.*select/i
+  /\$where/i,
+  /\$ne/i,
+  /\$gt/i,
+  /\$lt/i,
+  /\$regex/i,
+  /javascript:/i,
+  /<script/i,
+  /union.*select/i,
 ];
 ```
 
@@ -61,6 +64,7 @@ const suspiciousPatterns = [
 **Implementation**: Comprehensive validation schemas using Zod library.
 
 #### Batch Creation Schema (`createBatchSchema`):
+
 ```javascript
 {
     farmerName: 2-100 chars, letters/spaces/periods/hyphens only
@@ -75,6 +79,7 @@ const suspiciousPatterns = [
 ```
 
 #### Batch Update Schema (`updateBatchSchema`):
+
 ```javascript
 {
     actor: 2-100 chars, letters/spaces/periods/hyphens only
@@ -86,6 +91,7 @@ const suspiciousPatterns = [
 ```
 
 #### Batch ID Validation:
+
 - Format: `CROP-YYYY-XXXX` (e.g., `CROP-2024-0001`)
 - Regex validation for consistent format
 - Prevents injection through URL parameters
@@ -95,6 +101,7 @@ const suspiciousPatterns = [
 **Implementation**: `helmet` middleware for security headers.
 
 #### Headers Applied:
+
 - **Content Security Policy**: Prevents XSS attacks
 - **X-Frame-Options**: Prevents clickjacking
 - **X-Content-Type-Options**: Prevents MIME sniffing
@@ -106,6 +113,7 @@ const suspiciousPatterns = [
 **Implementation**: Custom security logging middleware.
 
 #### Logged Information:
+
 - Timestamp of request
 - HTTP method and path
 - Client IP address
@@ -114,6 +122,7 @@ const suspiciousPatterns = [
 - Request success/failure status
 
 #### Security Alerts:
+
 - Automatic detection of suspicious patterns
 - Warning logs for potential attacks
 - IP tracking for forensic analysis
@@ -123,6 +132,7 @@ const suspiciousPatterns = [
 **Implementation**: Production-grade error handling with information disclosure protection.
 
 #### Features:
+
 - Environment-aware error responses
 - Detailed errors in development
 - Generic errors in production
@@ -134,6 +144,7 @@ const suspiciousPatterns = [
 **Implementation**: Secure CORS setup with environment-based origins.
 
 #### Configuration:
+
 - Configurable allowed origins
 - Credentials support
 - Preflight handling
@@ -144,6 +155,7 @@ const suspiciousPatterns = [
 **Implementation**: Body parsing limits to prevent DoS attacks.
 
 #### Limits:
+
 - JSON payload: 10MB maximum
 - URL-encoded data: 10MB maximum
 - JSON validation on parsing
@@ -166,38 +178,43 @@ The security middleware is applied in the following order:
 ### Protected Endpoints:
 
 #### Authentication Routes (Future Implementation)
+
 - `POST /api/auth/login` - 5 req/15min limit
 - `POST /api/auth/register` - 5 req/15min limit
 
 #### Batch Management Routes
+
 - `POST /api/batches` - 20 req/15min + full validation
 - `GET /api/batches/:batchId` - 20 req/15min + ID validation
 - `PUT /api/batches/:batchId` - 20 req/15min + full validation
 - `GET /api/batches` - 20 req/15min
 
 #### System Routes
+
 - `GET /api/health` - General rate limit only
 
 ## Validation Error Responses
 
 ### Structure:
+
 ```json
 {
-    "error": "Validation failed",
-    "details": [
-        {
-            "field": "farmerName",
-            "message": "Farmer name must be at least 2 characters"
-        }
-    ]
+  "error": "Validation failed",
+  "details": [
+    {
+      "field": "farmerName",
+      "message": "Farmer name must be at least 2 characters"
+    }
+  ]
 }
 ```
 
 ### Rate Limit Error Response:
+
 ```json
 {
-    "error": "Too many requests from this IP, please try again later.",
-    "retryAfter": "15 minutes"
+  "error": "Too many requests from this IP, please try again later.",
+  "retryAfter": "15 minutes"
 }
 ```
 
@@ -215,6 +232,7 @@ The security middleware is applied in the following order:
 ## Monitoring and Alerting
 
 ### Security Events Logged:
+
 - Rate limit violations
 - Validation failures
 - Suspicious pattern detection
@@ -223,6 +241,7 @@ The security middleware is applied in the following order:
 - Server errors with IP tracking
 
 ### Log Format:
+
 ```
 [TIMESTAMP] METHOD PATH - IP: x.x.x.x - User-Agent: ...
 [SECURITY WARNING] Suspicious pattern detected from IP x.x.x.x: pattern
@@ -232,6 +251,7 @@ The security middleware is applied in the following order:
 ## Environment Variables
 
 ### Required Security Configuration:
+
 ```env
 NODE_ENV=production
 FRONTEND_URL=https://your-frontend-domain.com
@@ -239,6 +259,7 @@ PORT=3001
 ```
 
 ### Optional Security Configuration:
+
 ```env
 RATE_LIMIT_WINDOW_MS=900000  # 15 minutes
 RATE_LIMIT_MAX_REQUESTS=100
@@ -249,6 +270,7 @@ BATCH_RATE_LIMIT_MAX=20
 ## Testing Security Features
 
 ### Rate Limiting Test:
+
 ```bash
 # Test general rate limit
 for i in {1..101}; do curl http://localhost:3001/api/health; done
@@ -261,6 +283,7 @@ for i in {1..6}; do curl -X POST http://localhost:3001/api/auth/login; done
 ```
 
 ### Validation Test:
+
 ```bash
 # Test invalid batch creation
 curl -X POST http://localhost:3001/api/batches \
@@ -269,6 +292,7 @@ curl -X POST http://localhost:3001/api/batches \
 ```
 
 ### NoSQL Injection Test:
+
 ```bash
 # Test injection attempt (should be sanitized)
 curl -X POST http://localhost:3001/api/batches \

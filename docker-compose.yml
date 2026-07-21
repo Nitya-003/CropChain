@@ -4,7 +4,7 @@ services:
     image: mongo:latest
     container_name: cropchain-mongodb
     ports:
-      - '27017:27017'
+      - "27017:27017"
     volumes:
       - mongodb_data:/data/db
     networks:
@@ -18,7 +18,7 @@ services:
       - .:/usr/src/app
     command: sh -c "npm install && npx hardhat node --hostname 0.0.0.0"
     ports:
-      - '8545:8545'
+      - "8545:8545"
     networks:
       - cropchain-network
     depends_on:
@@ -31,7 +31,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: cropchain-backend
     ports:
-      - '3001:3001'
+      - "3001:3001"
     volumes:
       - ./backend:/usr/src/app
     environment:
@@ -51,7 +51,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: cropchain-frontend
     ports:
-      - '3000:3000'
+      - "3000:3000"
     volumes:
       - ./frontend:/usr/src/app
       - /usr/src/app/node_modules
@@ -69,7 +69,7 @@ services:
       dockerfile: Dockerfile
     container_name: cropchain-ml-service
     ports:
-      - '5001:5001'
+      - "5001:5001"
     environment:
       - PORT=5001
       - CORS_ORIGIN=http://localhost:3001

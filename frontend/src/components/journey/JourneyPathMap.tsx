@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Navigation, Info, MapPin, Loader2 } from 'lucide-react';
-import { StageUpdate } from './JourneyStageNode';
-import { useTranslation } from 'react-i18next';
-import { geocodeAddress } from '../../utils/geocoding';
-import 'leaflet/dist/leaflet.css';
+import React, { useState, useEffect, useRef } from "react";
+import { Navigation, Info, MapPin, Loader2 } from "lucide-react";
+import { StageUpdate } from "./JourneyStageNode";
+import { useTranslation } from "react-i18next";
+import { geocodeAddress } from "../../utils/geocoding";
+import "leaflet/dist/leaflet.css";
 
 interface JourneyPathMapProps {
   updates: StageUpdate[];
@@ -19,7 +19,7 @@ interface Coordinates {
 export const JourneyPathMap: React.FC<JourneyPathMapProps> = ({
   updates,
   selectedUpdateIndex,
-  onSelectUpdate
+  onSelectUpdate,
 }) => {
   const { t } = useTranslation();
   const [coordsList, setCoordsList] = useState<Coordinates[]>([]);
@@ -41,13 +41,13 @@ export const JourneyPathMap: React.FC<JourneyPathMapProps> = ({
       setIsResolving(true);
       try {
         const resolved = await Promise.all(
-          updates.map(update => geocodeAddress(update.location))
+          updates.map((update) => geocodeAddress(update.location)),
         );
         if (active) {
           setCoordsList(resolved);
         }
       } catch (err) {
-        console.error('Failed to geocode journey locations:', err);
+        console.error("Failed to geocode journey locations:", err);
       } finally {
         if (active) {
           setIsResolving(false);
@@ -66,22 +66,29 @@ export const JourneyPathMap: React.FC<JourneyPathMapProps> = ({
     if (isResolving || coordsList.length === 0 || !containerRef.current) return;
 
     // Dynamically load leaflet on the client side
-    import('leaflet').then((L) => {
+    import("leaflet").then((L) => {
       // Fix leaflet default marker icon issue in Next.js
       delete (L.Icon.Default.prototype as any)._getIconUrl;
       L.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+        iconRetinaUrl:
+          "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+        iconUrl:
+          "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+        shadowUrl:
+          "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
       });
 
       // Initialize map instance if not already done
       if (!mapRef.current) {
         const center = coordsList[0] || { lat: 20.5937, lng: 78.9629 };
-        mapRef.current = L.map(containerRef.current!).setView([center.lat, center.lng], 6);
+        mapRef.current = L.map(containerRef.current!).setView(
+          [center.lat, center.lng],
+          6,
+        );
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         }).addTo(mapRef.current);
       }
 
@@ -95,7 +102,7 @@ export const JourneyPathMap: React.FC<JourneyPathMapProps> = ({
       }, 100);
 
       // Clear existing markers from previous render
-      markersRef.current.forEach(marker => map.removeLayer(marker));
+      markersRef.current.forEach((marker) => map.removeLayer(marker));
       markersRef.current = [];
 
       // Clear existing polyline
@@ -115,18 +122,18 @@ export const JourneyPathMap: React.FC<JourneyPathMapProps> = ({
         const isCurrent = index === updates.length - 1;
 
         // Stage colors matching design guidelines
-        let pinColor = '#10b981'; // Completed / Default
-        if (update.stage === 'farmer') pinColor = '#22c55e'; // Green
-        if (update.stage === 'mandi') pinColor = '#a855f7'; // Purple
-        if (update.stage === 'transport') pinColor = '#f97316'; // Orange
-        if (update.stage === 'retailer') pinColor = '#06b6d4'; // Cyan
+        let pinColor = "#10b981"; // Completed / Default
+        if (update.stage === "farmer") pinColor = "#22c55e"; // Green
+        if (update.stage === "mandi") pinColor = "#a855f7"; // Purple
+        if (update.stage === "transport") pinColor = "#f97316"; // Orange
+        if (update.stage === "retailer") pinColor = "#06b6d4"; // Cyan
 
         // Custom HTML marker matching premium apple-level looks
         const markerHtml = `
           <div style="
             background-color: ${pinColor};
-            width: ${isSelected ? '28px' : '22px'};
-            height: ${isSelected ? '28px' : '22px'};
+            width: ${isSelected ? "28px" : "22px"};
+            height: ${isSelected ? "28px" : "22px"};
             border-radius: 50%;
             border: 2px solid white;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
@@ -137,7 +144,7 @@ export const JourneyPathMap: React.FC<JourneyPathMapProps> = ({
             font-size: 10px;
             font-weight: bold;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            transform: scale(${isSelected ? '1.15' : '1'});
+            transform: scale(${isSelected ? "1.15" : "1"});
           ">
             ${index + 1}
           </div>
@@ -145,9 +152,9 @@ export const JourneyPathMap: React.FC<JourneyPathMapProps> = ({
 
         const customIcon = L.divIcon({
           html: markerHtml,
-          className: 'custom-map-marker-node',
+          className: "custom-map-marker-node",
           iconSize: isSelected ? [28, 28] : [22, 22],
-          iconAnchor: isSelected ? [14, 14] : [11, 11]
+          iconAnchor: isSelected ? [14, 14] : [11, 11],
         });
 
         // Detail Popup Card
@@ -165,11 +172,15 @@ export const JourneyPathMap: React.FC<JourneyPathMapProps> = ({
             <div style="color: #6b7280; font-size: 10px;">
               <strong>Time:</strong> ${new Date(update.timestamp).toLocaleString()}
             </div>
-            ${update.notes ? `
+            ${
+              update.notes
+                ? `
               <div style="margin-top: 6px; padding-top: 4px; border-t border-gray-100 italic color: #4b5563; font-size: 11px;">
                 "${update.notes}"
               </div>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
         `;
 
@@ -178,7 +189,7 @@ export const JourneyPathMap: React.FC<JourneyPathMapProps> = ({
           .addTo(map);
 
         // Click handler syncs selection to parent timeline
-        marker.on('click', () => {
+        marker.on("click", () => {
           onSelectUpdate(update, index);
         });
 
@@ -197,19 +208,25 @@ export const JourneyPathMap: React.FC<JourneyPathMapProps> = ({
 
       // Draw polyline connecting coordinates
       if (coordsList.length >= 2) {
-        polylineRef.current = L.polyline(coordsList.map(c => [c.lat, c.lng]), {
-          color: '#4f46e5', // Premium Indigo
-          weight: 4,
-          opacity: 0.8,
-          lineJoin: 'round',
-          className: 'journey-svg-path' // CSS animated dashed flowing lines
-        }).addTo(map);
+        polylineRef.current = L.polyline(
+          coordsList.map((c) => [c.lat, c.lng]),
+          {
+            color: "#4f46e5", // Premium Indigo
+            weight: 4,
+            opacity: 0.8,
+            lineJoin: "round",
+            className: "journey-svg-path", // CSS animated dashed flowing lines
+          },
+        ).addTo(map);
       }
 
       // Smooth pan to active coordinate when selection changes
       const activeCoords = coordsList[selectedUpdateIndex];
       if (activeCoords) {
-        map.panTo([activeCoords.lat, activeCoords.lng], { animate: true, duration: 0.8 });
+        map.panTo([activeCoords.lat, activeCoords.lng], {
+          animate: true,
+          duration: 0.8,
+        });
         const activeMarker = markersRef.current[selectedUpdateIndex];
         if (activeMarker) {
           activeMarker.openPopup();
@@ -235,7 +252,7 @@ export const JourneyPathMap: React.FC<JourneyPathMapProps> = ({
       <div className="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-gray-800 pb-3">
         <h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2 text-lg">
           <Navigation className="h-5 w-5 text-green-600 dark:text-green-400 rotate-45" />
-          <span>{t('journey.journey_path', 'Geographic Transit Map')}</span>
+          <span>{t("journey.journey_path", "Geographic Transit Map")}</span>
         </h3>
         <span className="text-xs font-semibold px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center gap-1">
           <Info className="h-3 w-3" />
@@ -245,7 +262,6 @@ export const JourneyPathMap: React.FC<JourneyPathMapProps> = ({
 
       {/* Map Container */}
       <div className="relative flex-1 bg-gradient-to-br from-green-50/20 to-blue-50/20 dark:from-gray-900/40 dark:to-gray-800/40 border border-gray-100 dark:border-gray-800 rounded-xl min-h-[300px] overflow-hidden flex items-center justify-center">
-        
         {/* Loading overlay */}
         {isResolving && (
           <div className="absolute inset-0 z-[1000] flex flex-col items-center justify-center bg-white/80 dark:bg-gray-900/80 gap-3">
@@ -261,7 +277,11 @@ export const JourneyPathMap: React.FC<JourneyPathMapProps> = ({
             No transit data available
           </div>
         ) : (
-          <div ref={containerRef} className="w-full h-full absolute inset-0 z-0" style={{ minHeight: '300px' }} />
+          <div
+            ref={containerRef}
+            className="w-full h-full absolute inset-0 z-0"
+            style={{ minHeight: "300px" }}
+          />
         )}
       </div>
 
@@ -276,7 +296,8 @@ export const JourneyPathMap: React.FC<JourneyPathMapProps> = ({
             {updates[selectedUpdateIndex].location}
           </div>
           <div className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">
-            {updates[selectedUpdateIndex].actor} • {new Date(updates[selectedUpdateIndex].timestamp).toLocaleString()}
+            {updates[selectedUpdateIndex].actor} •{" "}
+            {new Date(updates[selectedUpdateIndex].timestamp).toLocaleString()}
           </div>
         </div>
       )}
