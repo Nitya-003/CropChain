@@ -4,6 +4,11 @@ const mongoose = require('mongoose');
 const apiResponse = require('../utils/apiResponse');
 const { isAdminRole } = require('../constants/permissions');
 const STAGES = require('../constants/stages');
+const {
+  LIFECYCLE_STAGES,
+  SUPPLY_CHAIN_TO_LIFECYCLE,
+  isLifecycleAtLeast,
+} = require('../constants/stageMapping');
 const logger = require('../utils/logger');
 const { emitToBatchRoom } = require('../services/socketService');
 const activityService = require('../services/activityService');
@@ -234,6 +239,20 @@ exports.updateBatch = async (req, res) => {
             return res.status(404).json(
                 apiResponse.notFoundResponse('Batch', `ID: ${batchId}`)
             );
+        }
+
+        // Cross-validation: check lifecycle stage prerequisite for this supply chain stage
+        const minLifecycleStage = SUPPLY_CHAIN_TO_LIFECYCLE[normalizedStage];
+        if (minLifecycleStage) {
+            const lifecycleStage = previousBatch.lifecycle?.currentStage || 'Registered';
+            if (!isLifecycleAtLeast(lifecycleStage, minLifecycleStage)) {
+                return res.status(400).json(apiResponse.errorResponse(
+                    `Cannot advance batch to '${normalizedStage}' because the crop lifecycle is still at '${lifecycleStage}'. ` +
+                    `Lifecycle must be at least '${minLifecycleStage}' before the batch can reach '${normalizedStage}'.`,
+                    'LIFECYCLE_PREREQUISITE_NOT_MET',
+                    400
+                ));
+            }
         }
 
         const previousHash = previousBatch.updates && previousBatch.updates.length > 0

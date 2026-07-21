@@ -13,6 +13,11 @@ const notificationService = require('./notificationService');
 const { emitToBatchRoom, emitGlobal } = require('./socketService');
 const apiResponse = require('../utils/apiResponse');
 const { getStageNumber, getStagesString, isValidStage, normalizeStage, isValidTransition, getNextStage } = require('../constants/stages');
+const {
+  LIFECYCLE_STAGES,
+  SUPPLY_CHAIN_TO_LIFECYCLE,
+  isLifecycleAtLeast,
+} = require('../constants/stageMapping');
 const activityService = require('./activityService');
 const logger = require('../utils/logger');
 const { calculateUpdateHash } = require('../utils/cryptography');
@@ -356,6 +361,20 @@ class BatchService {
                     error: 'Invalid stage transition',
                     statusCode: 400
                 };
+            }
+
+            // Cross-validation: check lifecycle stage prerequisite for this supply chain stage
+            const minLifecycleStage = SUPPLY_CHAIN_TO_LIFECYCLE[normalizedStage];
+            if (minLifecycleStage) {
+                const lifecycleStage = previousBatch.lifecycle?.currentStage || 'Registered';
+                if (!isLifecycleAtLeast(lifecycleStage, minLifecycleStage)) {
+                    return {
+                        success: false,
+                        error: `Cannot advance batch to '${normalizedStage}' because the crop lifecycle is still at '${lifecycleStage}'. ` +
+                            `Lifecycle must be at least '${minLifecycleStage}' before the batch can reach '${normalizedStage}'.`,
+                        statusCode: 400
+                    };
+                }
             }
 
             const previousHash = previousBatch.updates && previousBatch.updates.length > 0
