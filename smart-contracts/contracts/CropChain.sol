@@ -366,10 +366,12 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         uint256 listingId = nextListingId;
         nextListingId = listingId + 1;
 
+        address listingSeller = _getCurrentCustodian(batchId);
+        
         listings[listingId] = MarketListing({
             listingId: listingId,
             batchId: batchId,
-            seller: msg.sender,
+            seller: listingSeller,
             quantity: quantity,
             quantityAvailable: quantity,
             unitPriceWei: unitPriceWei,
@@ -377,7 +379,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
             createdAt: block.timestamp
         });
 
-        emit ListingCreated(listingId, batchId, msg.sender, quantity, unitPriceWei);
+        emit ListingCreated(listingId, batchId, listingSeller, quantity, unitPriceWei);
 
         return listingId;
     }
