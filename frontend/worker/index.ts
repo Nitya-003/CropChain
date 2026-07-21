@@ -1,22 +1,22 @@
 // Custom Service Worker for CropChain PWA
 // Using ES Module style supported by @ducanh2912/next-pwa
 
-declare const self: ServiceWorkerGlobalScope;
+const sw = self as any;
 
 // Install event
-self.addEventListener("install", () => {
+sw.addEventListener("install", () => {
   console.log("[SW] Installed");
-  self.skipWaiting();
+  sw.skipWaiting();
 });
 
 // Activate event
-self.addEventListener("activate", (event) => {
+sw.addEventListener("activate", (event: any) => {
   console.log("[SW] Activated");
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(sw.clients.claim());
 });
 
 // Sync event - triggered when connection is restored
-self.addEventListener("sync", (event) => {
+sw.addEventListener("sync", (event: any) => {
   console.log(`[SW] Sync event triggered: ${event.tag}`);
 
   // Tag names used by workbox-background-sync or custom tags
@@ -26,11 +26,11 @@ self.addEventListener("sync", (event) => {
 });
 
 // Listen for message events from client pages
-self.addEventListener("message", (event) => {
+sw.addEventListener("message", (event: any) => {
   if (!event.data) return;
 
   if (event.data.type === "SKIP_WAITING") {
-    self.skipWaiting();
+    sw.skipWaiting();
   }
 
   // Allow client to manually request sync event simulation
@@ -42,7 +42,7 @@ self.addEventListener("message", (event) => {
 
 // Helper function to broadcast online sync trigger to all open tabs
 async function notifyClientsOfOnlineSync() {
-  const clients = await self.clients.matchAll({ type: "window" });
+  const clients = await sw.clients.matchAll({ type: "window" });
   console.log(`[SW] Broadcasting SW_ONLINE_SYNC to ${clients.length} clients`);
 
   for (const client of clients) {
