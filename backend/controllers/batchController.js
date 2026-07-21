@@ -417,7 +417,7 @@ exports.recallBatch = async (req, res) => {
 const simulateBlockchainHash = (data) => {
     const crypto = require('crypto');
     return crypto.createHash('sha256')
-        .update(JSON.stringify(data) + Date.now())
+        .update(JSON.stringify(data) + Date.now() + crypto.randomBytes(16).toString('hex'))
         .digest('hex');
 };
 
