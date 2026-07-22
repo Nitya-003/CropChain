@@ -1,59 +1,50 @@
-const Joi = require("joi");
-const STAGES = require("../constants/stages");
+const { z } = require('zod');
+const { STAGES } = require('../constants/stages');
 
-const createBatchSchema = Joi.object({
-  // farmerId is not sent by the frontend — the backend trusts req.user for this.
-  // Kept optional here only in case a caller supplies it explicitly.
-  farmerId: Joi.string().alphanum().min(5).max(50).optional(),
-
-  farmerName: Joi.string()
+const createBatchSchema = z.object({
+  farmerId: z.string().min(5).max(50).regex(/^[a-zA-Z0-9]+$/).optional(),
+  farmerName: z.string()
     .min(2)
     .max(100)
-    .regex(/^[a-zA-Z\s.-]+$/)
-    .required()
-    .messages({
-      "string.pattern.base":
-        "Farmer name can only contain letters, spaces, periods, and hyphens",
-    }),
-
-  farmerAddress: Joi.string().min(10).max(500).required(),
-
-  cropType: Joi.string().valid("rice", "wheat", "corn", "tomato").required(),
-
-  quantity: Joi.number().min(1).max(1000000).required(),
-
-  harvestDate: Joi.date().iso().max("now").required().messages({
-    "date.max": "Harvest date cannot be in the future",
-  }),
-
-  origin: Joi.string().min(5).max(200).required(),
-
-  certifications: Joi.string().max(500).allow(""),
-  description: Joi.string().max(1000).allow(""),
-  blockchainHash: Joi.string().allow("").optional(),
+    .regex(/^[a-zA-Z\s.-]+$/, "Farmer name can only contain letters, spaces, periods, and hyphens"),
+  farmerAddress: z.string().min(10).max(500),
+  cropType: z.enum(["rice", "wheat", "corn", "tomato"]),
+  quantity: z.number().min(1).max(1000000),
+  harvestDate: z.string().refine((date) => !isNaN(Date.parse(date)), "Invalid date format").refine((date) => new Date(date) <= new Date(), "Harvest date cannot be in the future"),
+  origin: z.string().min(5).max(200),
+  certifications: z.string().max(500).optional(),
+  description: z.string().max(1000).optional(),
+  blockchainHash: z.string().optional(),
 });
 
-const updateBatchSchema = Joi.object({
-  // batchId is in URL, so not required in body
-  batchId: Joi.string().optional(),
-
-  stage: Joi.string()
-    .valid(...STAGES)
-    .required()
-    .lowercase() // Normalize to lowercase before validation
-    .messages({
-      "any.only": `Stage must be one of: ${STAGES.join(', ')}`,
+const updateBatchSchema = z.object({
+  batchId: z.string().optional(),
+  stage: z.string()
+    .toLowerCase()
+    .refine((val) => STAGES.includes(val), {
+      message: `Stage must be one of: ${STAGES.join(', ')}`,
     }),
-
-  actor: Joi.string().min(2).max(100).required(),
-  location: Joi.string().min(2).max(200).required(),
-  notes: Joi.string().max(500).allow(""),
-  timestamp: Joi.date()
-    .iso()
-    .max("now")
-    .default(() => new Date()),
-  blockchainHash: Joi.string().allow("").optional(),
+  actor: z.string().min(2).max(100),
+  location: z.string().min(2).max(200),
+  notes: z.string().max(500).optional(),
+  timestamp: z.string().optional().default(() => new Date().toISOString())
+    .refine((date) => !isNaN(Date.parse(date)), "Invalid date format")
+    .refine((date) => new Date(date) <= new Date(), "Timestamp cannot be in the future"),
+  blockchainHash: z.string().optional(),
 });
 
+const updateBatchStatusSchema = z.object({
+  status: z.enum(['Active', 'Flagged', 'Inactive']),
+});
 
-module.exports = { createBatchSchema, updateBatchSchema };
+const recordIoTDataSchema = z.object({
+  temperature: z.number().min(-20).max(140),
+  humidity: z.number().min(0).max(100),
+});
+
+module.exports = { 
+  createBatchSchema, 
+  updateBatchSchema,
+  updateBatchStatusSchema,
+  recordIoTDataSchema
+};
