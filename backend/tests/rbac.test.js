@@ -325,6 +325,24 @@ describe('RBAC Backend Tests', () => {
                 .send(batchData);
 
             testBatch = response.body.data.batch;
+
+            // Advance lifecycle to Delivered so supply chain transition tests
+            // are not blocked by lifecycle prerequisite checks (this suite
+            // tests RBAC authorization, not lifecycle progression).
+            const batchDoc = inMemoryBatches.find(b => b.batchId === testBatch.batchId);
+            if (batchDoc) {
+                batchDoc.lifecycle = {
+                    currentStage: 'Delivered',
+                    stageHistory: [
+                        { stage: 'Registered', timestamp: new Date(), updatedBy: 'Test Farmer' },
+                        { stage: 'Growing', timestamp: new Date(), updatedBy: 'Test Farmer' },
+                        { stage: 'Harvested', timestamp: new Date(), updatedBy: 'Test Farmer' },
+                        { stage: 'Quality Checked', timestamp: new Date(), updatedBy: 'Test Inspector' },
+                        { stage: 'Transported', timestamp: new Date(), updatedBy: 'Test Transporter' },
+                        { stage: 'Delivered', timestamp: new Date(), updatedBy: 'Test Retailer' }
+                    ]
+                };
+            }
         });
 
         it('Should allow mandi to update to mandi stage', async () => {

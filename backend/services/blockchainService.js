@@ -67,7 +67,7 @@ class BlockchainService {
     simulateHash(data) {
         return '0x' + crypto
             .createHash('sha256')
-            .update(JSON.stringify(data) + Date.now().toString())
+            .update(JSON.stringify(data) + Date.now().toString() + crypto.randomBytes(16).toString('hex'))
             .digest('hex');
     }
 
