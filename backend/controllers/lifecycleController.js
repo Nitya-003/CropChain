@@ -3,8 +3,11 @@ const apiResponse = require('../utils/apiResponse');
 const logger = require('../utils/logger');
 const activityService = require('../services/activityService');
 const { isAdminRole } = require('../constants/permissions');
-
-const LIFECYCLE_STAGES = ['Registered', 'Growing', 'Harvested', 'Quality Checked', 'Transported', 'Delivered'];
+const {
+  LIFECYCLE_STAGES,
+  LIFECYCLE_TO_SUPPLY_CHAIN,
+  isSupplyChainAtLeast,
+} = require('../constants/stageMapping');
 
 // Stage completion percentage mapping
 const STAGE_COMPLETION = {
@@ -196,6 +199,18 @@ exports.updateLifecycle = async (req, res) => {
                 `Advancing to 'Quality Checked' requires a multi-signature approval request via the /api/approvals/quality-check endpoint.`,
                 'FORBIDDEN_MULTISIG_REQUIRED',
                 403
+            ));
+        }
+
+        // 5. Cross-validation with supply chain stage
+        const minSupplyChainStage = LIFECYCLE_TO_SUPPLY_CHAIN[stage];
+        if (minSupplyChainStage && !isSupplyChainAtLeast(batch.currentStage, minSupplyChainStage)) {
+            const supplyChainLabel = batch.currentStage || 'farmer';
+            return res.status(400).json(apiResponse.errorResponse(
+                `Cannot advance lifecycle to '${stage}' because the batch supply chain is still at '${supplyChainLabel}'. ` +
+                `The supply chain must reach at least '${minSupplyChainStage}' before the lifecycle can advance to '${stage}'.`,
+                'SUPPLY_CHAIN_PREREQUISITE_NOT_MET',
+                400
             ));
         }
 
