@@ -1,4 +1,4 @@
-﻿/**
+/**
  * BlockchainService - Handles all blockchain-related operations
  * Extracted from server.js to follow Separation of Concerns principle
  */
@@ -72,7 +72,11 @@ class BlockchainService {
       "0x" +
       crypto
         .createHash("sha256")
-        .update(JSON.stringify(data) + Date.now().toString())
+        .update(
+          JSON.stringify(data) +
+            Date.now().toString() +
+            crypto.randomBytes(16).toString("hex"),
+        )
         .digest("hex")
     );
   }

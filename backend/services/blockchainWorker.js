@@ -21,6 +21,47 @@ const User = require("../models/User");
 const { getStageNumber } = require("../constants/stages");
 const { addEmailJob } = require("../jobs/queue");
 
+// Block explorer URL cache and resolvers
+let _explorerBaseUrl = null;
+
+/**
+ * Resolve block explorer base URL from provider chain ID
+ * @returns {Promise<string>} Base URL for the block explorer
+ */
+async function getExplorerBaseUrl() {
+    if (_explorerBaseUrl) return _explorerBaseUrl;
+
+    try {
+        const network = await provider.getNetwork();
+        const chainId = Number(network.chainId);
+        const explorers = {
+            1: 'https://etherscan.io',
+            5: 'https://goerli.etherscan.io',
+            11155111: 'https://sepolia.etherscan.io',
+            137: 'https://polygonscan.com',
+            80001: 'https://mumbai.polygonscan.com',
+            42161: 'https://arbiscan.io',
+            421614: 'https://sepolia.arbiscan.io',
+            1101: 'https://zkevm.polygonscan.com',
+            2442: 'https://cardona-zkevm.polygonscan.com',
+        };
+        _explorerBaseUrl = explorers[chainId] || 'https://sepolia.etherscan.io';
+    } catch {
+        _explorerBaseUrl = 'https://sepolia.etherscan.io';
+    }
+    return _explorerBaseUrl;
+}
+
+/**
+ * Build a block explorer URL for a transaction
+ * @param {string} txHash - Transaction hash
+ * @returns {Promise<string>} Full explorer URL
+ */
+async function getBlockExplorerTxUrl(txHash) {
+    const baseUrl = await getExplorerBaseUrl();
+    return `${baseUrl}/tx/${txHash}`;
+}
+
 // Gas configuration
 const GAS_CONFIG = {
   maxFeePerGas: ethers.parseUnits("100", "gwei"), // Max 100 gwei
@@ -345,15 +386,16 @@ async function processCreateBatch(job) {
       if (batchDoc) {
         const farmer = await User.findById(batchDoc.farmerId).lean();
         if (farmer && farmer.email) {
+          const explorerUrl = await getBlockExplorerTxUrl(tx.hash);
           await addEmailJob(
             farmer.email,
             `Blockchain Confirmation: Batch ${batchId} Created`,
             `<h2>Batch Creation Confirmed</h2>
-                        <p>Hello ${farmer.name},</p>
-                        <p>Your batch <strong>${batchId}</strong> has been successfully recorded on the blockchain.</p>
-                        <p>Transaction Hash: <a href="https://sepolia.etherscan.io/tx/${tx.hash}">${tx.hash}</a></p>
-                        <p>Block Number: ${receipt.blockNumber}</p>
-                        <p>CropChain Team</p>`,
+            <p>Hello ${farmer.name},</p>
+            <p>Your batch <strong>${batchId}</strong> has been successfully recorded on the blockchain.</p>
+            <p>Transaction Hash: <a href="${explorerUrl}">${tx.hash}</a></p>
+            <p>Block Number: ${receipt.blockNumber}</p>
+            <p>CropChain Team</p>`,
           );
         }
       }
@@ -550,15 +592,16 @@ async function processUpdateBatch(job) {
       if (batchDoc) {
         const farmer = await User.findById(batchDoc.farmerId).lean();
         if (farmer && farmer.email) {
+          const explorerUrl = await getBlockExplorerTxUrl(tx.hash);
           await addEmailJob(
             farmer.email,
             `Blockchain Confirmation: Batch ${batchId} Updated`,
             `<h2>Batch Update Confirmed</h2>
-                        <p>Hello ${farmer.name},</p>
-                        <p>The update to your batch <strong>${batchId}</strong> has been successfully recorded on the blockchain.</p>
-                        <p>Transaction Hash: <a href="https://sepolia.etherscan.io/tx/${tx.hash}">${tx.hash}</a></p>
-                        <p>Block Number: ${receipt.blockNumber}</p>
-                        <p>CropChain Team</p>`,
+            <p>Hello ${farmer.name},</p>
+            <p>The update to your batch <strong>${batchId}</strong> has been successfully recorded on the blockchain.</p>
+            <p>Transaction Hash: <a href="${explorerUrl}">${tx.hash}</a></p>
+            <p>Block Number: ${receipt.blockNumber}</p>
+            <p>CropChain Team</p>`,
           );
         }
       }

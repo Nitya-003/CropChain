@@ -4,6 +4,11 @@ const mongoose = require("mongoose");
 const apiResponse = require("../utils/apiResponse");
 const { isAdminRole } = require("../constants/permissions");
 const STAGES = require("../constants/stages");
+const {
+  LIFECYCLE_STAGES,
+  SUPPLY_CHAIN_TO_LIFECYCLE,
+  isLifecycleAtLeast,
+} = require("../constants/stageMapping");
 const logger = require("../utils/logger");
 const { emitToBatchRoom } = require("../services/socketService");
 const activityService = require("../services/activityService");
@@ -246,44 +251,56 @@ exports.updateBatch = async (req, res) => {
 
     const previousBatch = await Batch.findOne({ batchId });
     if (!previousBatch) {
-      return res
-        .status(404)
-        .json(apiResponse.notFoundResponse("Batch", `ID: ${batchId}`));
+      return res.status(404).json(
+        apiResponse.notFoundResponse("Batch", `ID: ${batchId}`)
+      );
     }
 
-    const previousHash =
-      previousBatch.updates && previousBatch.updates.length > 0
-        ? previousBatch.updates[previousBatch.updates.length - 1].hash || ""
-        : "";
+    // Cross-validation: check lifecycle stage prerequisite for this supply chain stage
+    const minLifecycleStage = SUPPLY_CHAIN_TO_LIFECYCLE[normalizedStage];
+    if (minLifecycleStage) {
+      const lifecycleStage = previousBatch.lifecycle?.currentStage || "Registered";
+      if (!isLifecycleAtLeast(lifecycleStage, minLifecycleStage)) {
+        return res.status(400).json(apiResponse.errorResponse(
+          `Cannot advance batch to '${normalizedStage}' because the crop lifecycle is still at '${lifecycleStage}'. ` +
+          `Lifecycle must be at least '${minLifecycleStage}' before the batch can reach '${normalizedStage}'.`,
+          "LIFECYCLE_PREREQUISITE_NOT_MET",
+          400
+        ));
+      }
+    }
+
+    const previousHash = previousBatch.updates && previousBatch.updates.length > 0
+      ? previousBatch.updates[previousBatch.updates.length - 1].hash || ""
+      : "";
 
     const updateEntry = {
       stage: normalizedStage,
       actor: validatedData.actorName || req.user.name,
       location: validatedData.location,
       timestamp: validatedData.timestamp || new Date().toISOString(),
-      notes: validatedData.notes,
+      notes: validatedData.notes
     };
     updateEntry.hash = calculateUpdateHash(updateEntry, previousHash);
 
     const setFields = { currentStage: normalizedStage };
     if (validatedData.quantity) setFields.quantity = validatedData.quantity;
     if (validatedData.ipfsCID) setFields.ipfsCID = validatedData.ipfsCID;
-    if (validatedData.blockchainHash)
-      setFields.blockchainHash = validatedData.blockchainHash;
+    if (validatedData.blockchainHash) setFields.blockchainHash = validatedData.blockchainHash;
 
     const batch = await Batch.findOneAndUpdate(
       { batchId },
       {
         $set: setFields,
-        $push: { updates: updateEntry },
+        $push: { updates: updateEntry }
       },
-      { new: true },
+      { new: true }
     );
 
     if (!batch) {
-      return res
-        .status(404)
-        .json(apiResponse.notFoundResponse("Batch", `ID: ${batchId}`));
+      return res.status(404).json(
+        apiResponse.notFoundResponse("Batch", `ID: ${batchId}`)
+      );
     }
 
     const previousStage = batch.currentStage;
@@ -316,38 +333,31 @@ exports.updateBatch = async (req, res) => {
         stage: normalizedStage,
         actor: validatedData.actorName || req.user.name,
         location: validatedData.location,
-        notes: validatedData.notes,
-      },
+        notes: validatedData.notes
+      }
     });
 
-    logger.info("Batch updated", {
-      batchId,
-      stage: normalizedStage,
-      userId: req.user.id,
-    });
+    logger.info("Batch updated", { batchId, stage: normalizedStage, userId: req.user.id });
 
     emitToBatchRoom(batchId, "batch-updated", batch);
     emitToBatchRoom(batchId, "batch-stage-changed", {
       batchId,
       stage: normalizedStage,
       actor: validatedData.actorName || req.user.name,
-      timestamp: validatedData.timestamp || new Date().toISOString(),
+      timestamp: validatedData.timestamp || new Date().toISOString()
     });
 
     const response = apiResponse.successResponse(
       { batch },
-      "Batch updated successfully",
+      "Batch updated successfully"
     );
     res.json(response);
   } catch (error) {
-    logger.error("Error updating batch", {
-      error: error.message,
-      stack: error.stack,
-    });
+    logger.error("Error updating batch", { error: error.message, stack: error.stack });
     const response = apiResponse.errorResponse(
       "Failed to update batch",
       "BATCH_UPDATE_ERROR",
-      500,
+      500
     );
     res.status(500).json(response);
   }
@@ -444,7 +454,7 @@ const simulateBlockchainHash = (data) => {
   const crypto = require("crypto");
   return crypto
     .createHash("sha256")
-    .update(JSON.stringify(data) + Date.now())
+    .update(JSON.stringify(data) + Date.now() + crypto.randomBytes(16).toString("hex"))
     .digest("hex");
 };
 

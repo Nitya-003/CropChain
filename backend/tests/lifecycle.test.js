@@ -206,6 +206,7 @@ describe("Crop Lifecycle API Endpoints", () => {
     const testBatch = {
       batchId: "BATCH123",
       farmerId: "FARM123",
+      currentStage: "mandi",
       lifecycle: {
         currentStage: "Harvested",
         stageHistory: [
@@ -229,5 +230,89 @@ describe("Crop Lifecycle API Endpoints", () => {
     expect(res.statusCode).toEqual(403);
     expect(res.body.success).toBe(false);
     expect(res.body.error).toContain("is not authorized to update");
+  });
+
+  it("should reject lifecycle advance to Transported when supply chain is still farmer", async () => {
+    const testBatch = {
+      batchId: 'BATCH123',
+      farmerId: 'FARM123',
+      currentStage: 'farmer',
+      lifecycle: {
+        currentStage: 'Quality Checked',
+        stageHistory: [
+          { stage: 'Registered', timestamp: new Date(), updatedBy: 'System' },
+          { stage: 'Growing', timestamp: new Date(), updatedBy: 'System' },
+          { stage: 'Harvested', timestamp: new Date(), updatedBy: 'System' },
+          { stage: 'Quality Checked', timestamp: new Date(), updatedBy: 'Inspector' }
+        ]
+      },
+      save: jest.fn().mockResolvedValue(true)
+    };
+    mockBatch.findOne.mockResolvedValue(testBatch);
+    mockCurrentUser = { id: 'FARM123', name: 'Test Transporter', role: 'transporter' };
+
+    const res = await request(app)
+      .patch("/api/batches/BATCH123/lifecycle")
+      .send({ stage: 'Transported' });
+
+    expect(res.statusCode).toEqual(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain("supply chain must reach at least");
+  });
+
+  it("should reject lifecycle advance to Delivered when supply chain is still transport", async () => {
+    const testBatch = {
+      batchId: 'BATCH123',
+      farmerId: 'FARM123',
+      currentStage: 'transport',
+      lifecycle: {
+        currentStage: 'Transported',
+        stageHistory: [
+          { stage: 'Registered', timestamp: new Date(), updatedBy: 'System' },
+          { stage: 'Growing', timestamp: new Date(), updatedBy: 'System' },
+          { stage: 'Harvested', timestamp: new Date(), updatedBy: 'System' },
+          { stage: 'Quality Checked', timestamp: new Date(), updatedBy: 'Inspector' },
+          { stage: 'Transported', timestamp: new Date(), updatedBy: 'Transporter' }
+        ]
+      },
+      save: jest.fn().mockResolvedValue(true)
+    };
+    mockBatch.findOne.mockResolvedValue(testBatch);
+    mockCurrentUser = { id: 'FARM123', name: 'Test Retailer', role: 'retailer' };
+
+    const res = await request(app)
+      .patch("/api/batches/BATCH123/lifecycle")
+      .send({ stage: 'Delivered' });
+
+    expect(res.statusCode).toEqual(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain("supply chain must reach at least");
+  });
+
+  it("should allow lifecycle advance to Transported when supply chain is at transport", async () => {
+    const testBatch = {
+      batchId: 'BATCH123',
+      farmerId: 'FARM123',
+      currentStage: 'transport',
+      lifecycle: {
+        currentStage: 'Quality Checked',
+        stageHistory: [
+          { stage: 'Registered', timestamp: new Date(), updatedBy: 'System' },
+          { stage: 'Growing', timestamp: new Date(), updatedBy: 'System' },
+          { stage: 'Harvested', timestamp: new Date(), updatedBy: 'System' },
+          { stage: 'Quality Checked', timestamp: new Date(), updatedBy: 'Inspector' }
+        ]
+      },
+      save: jest.fn().mockResolvedValue(true)
+    };
+    mockBatch.findOne.mockResolvedValue(testBatch);
+    mockCurrentUser = { id: 'FARM123', name: 'Test Transporter', role: 'transporter' };
+
+    const res = await request(app)
+      .patch("/api/batches/BATCH123/lifecycle")
+      .send({ stage: 'Transported' });
+
+    expect(res.statusCode).toEqual(200);
+    expect(res.body.success).toBe(true);
   });
 });

@@ -259,6 +259,12 @@ describe("Batch API Endpoints", () => {
       currentStage: "farmer",
       isRecalled: false,
       updates: [],
+      lifecycle: {
+        currentStage: "Harvested",
+        stageHistory: [
+          { stage: "Harvested", timestamp: new Date(), updatedBy: "Farmer" },
+        ],
+      },
     };
     mockBatch.findOne.mockResolvedValue(farmerBatch);
     mockBatch.findOneAndUpdate.mockResolvedValue({
@@ -285,6 +291,31 @@ describe("Batch API Endpoints", () => {
 
     expect(res.statusCode).toEqual(200);
     expect(res.body.success).toBe(true);
+  });
+
+  it("should reject supply chain advance to mandi when lifecycle is still Registered", async () => {
+    mockBatch.findOne.mockResolvedValue({
+      batchId: 'BATCH000001',
+      currentStage: 'farmer',
+      isRecalled: false,
+      updates: [],
+      lifecycle: {
+        currentStage: 'Registered',
+        stageHistory: [{ stage: 'Registered', timestamp: new Date(), updatedBy: 'System' }]
+      }
+    });
+
+    const res = await request(app).put('/api/batches/BATCH000001').send({
+      stage: 'mandi',
+      actor: 'Mandi Worker',
+      location: 'Mandi Center',
+      timestamp: new Date().toISOString(),
+      notes: 'Arrived at mandi'
+    });
+
+    expect(res.statusCode).toEqual(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('Lifecycle must be at least');
   });
 
   it("should return 400 for skipped stage transition (farmer -> retailer)", async () => {
@@ -368,11 +399,13 @@ describe("Batch API Endpoints", () => {
       batchId: "BATCH000001",
       currentStage: "transport",
       isRecalled: false,
-      updates: [
-        { stage: "farmer" },
-        { stage: "mandi" },
-        { stage: "transport" },
-      ],
+      updates: [{ stage: "farmer" }, { stage: "mandi" }, { stage: "transport" }],
+      lifecycle: {
+        currentStage: "Transported",
+        stageHistory: [
+          { stage: "Transported", timestamp: new Date(), updatedBy: "Transporter" },
+        ],
+      },
     });
     mockBatch.findOneAndUpdate.mockResolvedValue({
       batchId: "BATCH000001",
