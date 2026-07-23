@@ -4,10 +4,10 @@ Based on a thorough review of the project directory structure, dependencies, and
 
 ## 🛠️ Identified Issues & Discrepancies
 
-### 1. Documentation & Stack Mismatches
-* **Frontend Framework Mismatch**: The `README.md` states the frontend uses React + Vite, but `frontend/package.json` reveals the project has been migrated to **Next.js 16.2.6** (`"name": "cropchain-frontend-next"`).
-* **AI Provider Discrepancy**: The README mentions "OpenAI GPT-4o mini" integration, but `backend/package.json` includes `@google/generative-ai`, suggesting a shift to Gemini that hasn't been documented.
-* **Testing Commands**: The README documents `npm test` for the frontend, but the frontend actually uses `vitest run` as defined in its scripts.
+### 1. Documentation & Stack Mismatches (RESOLVED)
+* ~~**Frontend Framework Mismatch**: The `README.md` states the frontend uses React + Vite, but `frontend/package.json` reveals the project has been migrated to **Next.js 16.2.6** (`"name": "cropchain-frontend-next"`).~~ (Updated in README)
+* ~~**AI Provider Discrepancy**: The README mentions "OpenAI GPT-4o mini" integration, but `backend/package.json` includes `@google/generative-ai`, suggesting a shift to Gemini that hasn't been documented.~~ (Updated in README)
+* ~~**Testing Commands**: The README documents `npm test` for the frontend, but the frontend actually uses `vitest run` as defined in its scripts.~~ (Updated in README)
 
 ### 2. Architecture & Codebase Gaps
 * **Mobile Application State**: The README lists "Mobile app development" in the Phase 2 roadmap, yet a `mobile/` directory (React Native + Expo) already exists. Its integration status with the main backend is unclear and needs to be formally documented and connected.

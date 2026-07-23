@@ -493,7 +493,7 @@ npx hardhat run scripts/deploy.js --network polygon
 **Frontend**
 - React 18 + TypeScript
 - Tailwind CSS
-- React Router
+- Next.js App/Pages Router
 - Lucide React Icons
 - QRCode.js
 - Framer Motion (animations)
