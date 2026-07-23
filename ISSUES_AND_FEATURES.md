@@ -13,6 +13,7 @@ Based on a thorough review of the project directory structure, dependencies, and
 * **Mobile Application State**: The README lists "Mobile app development" in the Phase 2 roadmap, yet a `mobile/` directory (React Native + Expo) already exists. Its integration status with the main backend is unclear and needs to be formally documented and connected.
 * **ML Service Undocumented**: There is an `ml-service/` directory with Python files (`app.py`, `train.py`) that is completely missing from the main architectural diagrams and documentation. It's likely intended for the Phase 3 "AI-powered quality prediction."
 * **Docker Configurations**: Given the frontend migration to Next.js, the root `Dockerfile` and `docker-compose.yml` files might be outdated if they are still expecting a Vite build process.
+* **Request Validation with Zod (RESOLVED)**: Standardized request validation across batch controllers using Zod schemas (`batchSchema.js`), eliminating legacy Joi dependencies and securing endpoints against malformed data.
 * **Redundant Dependencies**: The frontend has both `dotenv` and `i18next` configured. Next.js has built-in env support, which might make `dotenv` redundant.
 
 ---
