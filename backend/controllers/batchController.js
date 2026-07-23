@@ -8,12 +8,19 @@ const {
   LIFECYCLE_STAGES,
   SUPPLY_CHAIN_TO_LIFECYCLE,
   isLifecycleAtLeast,
-} = require("../constants/stageMapping");
-const logger = require("../utils/logger");
-const { emitToBatchRoom } = require("../services/socketService");
-const activityService = require("../services/activityService");
-const QRCode = require("qrcode");
-const { calculateUpdateHash } = require("../utils/cryptography");
+} = require('../constants/stageMapping');
+const logger = require('../utils/logger');
+const { emitToBatchRoom } = require('../services/socketService');
+const activityService = require('../services/activityService');
+const batchService = require('../services/batchService');
+const QRCode = require('qrcode');
+const { calculateUpdateHash } = require('../utils/cryptography');
+const { 
+    createBatchSchema, 
+    updateBatchSchema, 
+    updateBatchStatusSchema, 
+    recordIoTDataSchema 
+} = require('../validations/batchSchema');
 
 const escapeRegex = (value) =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -85,108 +92,29 @@ const generateQRCode = async (batchId) => {
  * @access Private (Farmer only)
  */
 exports.createBatch = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+    try {
+        const validationResult = createBatchSchema.safeParse(req.body);
+        if (!validationResult.success) {
+            const issues = validationResult.error.issues || validationResult.error.errors || [];
+            const details = issues.map(err => err.message);
+            return res.status(400).json(apiResponse.errorResponse('Validation failed', 'VALIDATION_ERROR', 400, details));
+        }
 
-  try {
-    const validatedData = req.body;
+        const validatedData = validationResult.data;
+        const result = await batchService.createBatch(validatedData, req.user);
+        
+        if (!result.success) {
+            return res.status(500).json(apiResponse.errorResponse(result.error, 'BATCH_CREATION_ERROR', 500));
+        }
 
-    // Generate batch ID within transaction for atomicity
-    const batchId = await generateBatchId(session);
-    const qrCode = await generateQRCode(batchId);
-
-    const initialUpdate = {
-      stage: "farmer",
-      actor: validatedData.farmerName || req.user.name,
-      location: validatedData.origin,
-      timestamp: validatedData.harvestDate,
-      notes: validatedData.description || "Initial harvest recorded",
-    };
-    initialUpdate.hash = calculateUpdateHash(initialUpdate, "");
-
-    const batch = await Batch.create(
-      [
-        {
-          batchId,
-          farmerId: req.user.farmerId || req.user.id,
-          farmerName: validatedData.farmerName || req.user.name,
-          farmerWalletAddress: (req.user.walletAddress || "").toLowerCase(),
-          farmerAddress: validatedData.farmerAddress || req.user.address || "",
-          cropType: validatedData.cropType,
-          quantity: validatedData.quantity,
-          harvestDate: validatedData.harvestDate,
-          origin: validatedData.origin,
-          certifications: validatedData.certifications,
-          description: validatedData.description,
-          currentStage: "farmer",
-          isRecalled: false,
-          qrCode,
-          blockchainHash: simulateBlockchainHash(validatedData),
-          syncStatus: "pending",
-          crossChain: {
-            status: "not_required",
-          },
-          updates: [initialUpdate],
-        },
-      ],
-      { session },
-    );
-
-    // Commit the transaction
-    await session.commitTransaction();
-    session.endSession();
-
-    logger.info("Batch created", { batchId, userId: req.user.id, ip: req.ip });
-
-    // Log platform activities
-    await activityService.logActivity({
-      userId: req.user.id || req.user._id,
-      userRole: req.user.role,
-      eventType: "crop_registered",
-      batchId,
-      description: `Crop batch registered: ${validatedData.cropType} (${validatedData.quantity} kg)`,
-      metadata: {
-        farmerName: validatedData.farmerName || req.user.name,
-        origin: validatedData.origin,
-        quantity: validatedData.quantity,
-        cropType: validatedData.cropType,
-      },
-    });
-
-    await activityService.logActivity({
-      userId: req.user.id || req.user._id,
-      userRole: req.user.role,
-      eventType: "harvest_completed",
-      batchId,
-      description: `Harvest completed for ${validatedData.cropType} at ${validatedData.origin}`,
-      metadata: {
-        harvestDate: validatedData.harvestDate,
-        origin: validatedData.origin,
-      },
-    });
-
-    const response = apiResponse.successResponse(
-      { batch: batch[0] },
-      "Batch created successfully",
-      201,
-    );
-    res.status(201).json(response);
-  } catch (error) {
-    // Abort transaction on error
-    await session.abortTransaction();
-    session.endSession();
-
-    logger.error("Error creating batch", {
-      error: error.message,
-      stack: error.stack,
-    });
-    const response = apiResponse.errorResponse(
-      "Failed to create batch",
-      "BATCH_CREATION_ERROR",
-      500,
-    );
-    res.status(500).json(response);
-  }
+        res.status(201).json(apiResponse.successResponse({ batch: result.batch }, 'Batch created successfully', 201));
+    } catch (error) {
+        if (error.code === 11000) {
+            return res.status(409).json(apiResponse.errorResponse('Batch with this ID already exists', 'DUPLICATE_BATCH_ERROR', 409));
+        }
+        logger.error('Error creating batch', { error: error.message, stack: error.stack });
+        res.status(500).json(apiResponse.errorResponse('Failed to create batch', 'BATCH_CREATION_ERROR', 500));
+    }
 };
 
 /**
@@ -243,124 +171,32 @@ exports.getBatch = async (req, res) => {
  * @access Private (Batch owner + stage transition authorized)
  */
 exports.updateBatch = async (req, res) => {
-  try {
-    const { batchId } = req.params;
-    const validatedData = req.body;
+    try {
+        const { batchId } = req.params;
+        const validationResult = updateBatchSchema.safeParse(req.body);
+        
+        if (!validationResult.success) {
+            const issues = validationResult.error.issues || validationResult.error.errors || [];
+            const details = issues.map(err => err.message);
+            return res.status(400).json(apiResponse.errorResponse('Validation failed', 'VALIDATION_ERROR', 400, details));
+        }
 
-    const normalizedStage = validatedData.stage.toLowerCase();
+        const validatedData = validationResult.data;
+        const result = await batchService.updateBatch(batchId, validatedData, req.user);
 
-    const previousBatch = await Batch.findOne({ batchId });
-    if (!previousBatch) {
-      return res.status(404).json(
-        apiResponse.notFoundResponse("Batch", `ID: ${batchId}`)
-      );
+        if (!result.success) {
+            const statusCode = result.statusCode || 500;
+            const response = statusCode === 404
+                ? apiResponse.notFoundResponse('Batch', `ID: ${batchId}`)
+                : apiResponse.errorResponse(result.error, 'BATCH_UPDATE_ERROR', statusCode);
+            return res.status(statusCode).json(response);
+        }
+
+        res.json(apiResponse.successResponse({ batch: result.batch }, 'Batch updated successfully'));
+    } catch (error) {
+        logger.error('Error updating batch', { error: error.message, stack: error.stack });
+        res.status(500).json(apiResponse.errorResponse('Failed to update batch', 'BATCH_UPDATE_ERROR', 500));
     }
-
-    // Cross-validation: check lifecycle stage prerequisite for this supply chain stage
-    const minLifecycleStage = SUPPLY_CHAIN_TO_LIFECYCLE[normalizedStage];
-    if (minLifecycleStage) {
-      const lifecycleStage = previousBatch.lifecycle?.currentStage || "Registered";
-      if (!isLifecycleAtLeast(lifecycleStage, minLifecycleStage)) {
-        return res.status(400).json(apiResponse.errorResponse(
-          `Cannot advance batch to '${normalizedStage}' because the crop lifecycle is still at '${lifecycleStage}'. ` +
-          `Lifecycle must be at least '${minLifecycleStage}' before the batch can reach '${normalizedStage}'.`,
-          "LIFECYCLE_PREREQUISITE_NOT_MET",
-          400
-        ));
-      }
-    }
-
-    const previousHash = previousBatch.updates && previousBatch.updates.length > 0
-      ? previousBatch.updates[previousBatch.updates.length - 1].hash || ""
-      : "";
-
-    const updateEntry = {
-      stage: normalizedStage,
-      actor: validatedData.actorName || req.user.name,
-      location: validatedData.location,
-      timestamp: validatedData.timestamp || new Date().toISOString(),
-      notes: validatedData.notes
-    };
-    updateEntry.hash = calculateUpdateHash(updateEntry, previousHash);
-
-    const setFields = { currentStage: normalizedStage };
-    if (validatedData.quantity) setFields.quantity = validatedData.quantity;
-    if (validatedData.ipfsCID) setFields.ipfsCID = validatedData.ipfsCID;
-    if (validatedData.blockchainHash) setFields.blockchainHash = validatedData.blockchainHash;
-
-    const batch = await Batch.findOneAndUpdate(
-      { batchId },
-      {
-        $set: setFields,
-        $push: { updates: updateEntry }
-      },
-      { new: true }
-    );
-
-    if (!batch) {
-      return res.status(404).json(
-        apiResponse.notFoundResponse("Batch", `ID: ${batchId}`)
-      );
-    }
-
-    const previousStage = batch.currentStage;
-
-    let eventType = "batch_status_updated";
-    let description = `Batch stage updated to ${normalizedStage}`;
-    if (normalizedStage === "mandi") {
-      eventType = "ownership_transferred";
-      description = `Batch ownership transferred to Mandi at ${validatedData.location}`;
-    } else if (normalizedStage === "transport") {
-      if (previousStage === "transport") {
-        eventType = "shipment_status_updated";
-        description = `Shipment status updated: batch is at ${validatedData.location}`;
-      } else {
-        eventType = "shipment_created";
-        description = `Shipment created for transport to ${validatedData.location}`;
-      }
-    } else if (normalizedStage === "retailer") {
-      eventType = "delivery_confirmed";
-      description = `Delivery confirmed. Batch received at Retailer in ${validatedData.location}`;
-    }
-
-    await activityService.logActivity({
-      userId: req.user.id || req.user._id,
-      userRole: req.user.role,
-      eventType,
-      batchId,
-      description,
-      metadata: {
-        stage: normalizedStage,
-        actor: validatedData.actorName || req.user.name,
-        location: validatedData.location,
-        notes: validatedData.notes
-      }
-    });
-
-    logger.info("Batch updated", { batchId, stage: normalizedStage, userId: req.user.id });
-
-    emitToBatchRoom(batchId, "batch-updated", batch);
-    emitToBatchRoom(batchId, "batch-stage-changed", {
-      batchId,
-      stage: normalizedStage,
-      actor: validatedData.actorName || req.user.name,
-      timestamp: validatedData.timestamp || new Date().toISOString()
-    });
-
-    const response = apiResponse.successResponse(
-      { batch },
-      "Batch updated successfully"
-    );
-    res.json(response);
-  } catch (error) {
-    logger.error("Error updating batch", { error: error.message, stack: error.stack });
-    const response = apiResponse.errorResponse(
-      "Failed to update batch",
-      "BATCH_UPDATE_ERROR",
-      500
-    );
-    res.status(500).json(response);
-  }
 };
 
 /**
@@ -625,74 +461,57 @@ exports.getAllBatches = exports.getBatches; // Alias for consistency
  * @access Private (Admin only)
  */
 exports.updateBatchStatus = async (req, res) => {
-  try {
-    // CRITICAL: Check if user has admin role
-    if (!req.user || !isAdminRole(req.user.role)) {
-      return res
-        .status(403)
-        .json(
-          apiResponse.errorResponse(
-            "Access denied. Admin privileges required.",
-            "FORBIDDEN",
-            403,
-          ),
+    try {
+        if (!req.user || !isAdminRole(req.user.role)) {
+            return res.status(403).json(apiResponse.errorResponse('Access denied. Admin privileges required.', 'FORBIDDEN', 403));
+        }
+
+        const { batchId } = req.params;
+        const validationResult = updateBatchStatusSchema.safeParse(req.body);
+        
+        if (!validationResult.success) {
+            const details = validationResult.error.errors.map(err => err.message);
+            return res.status(400).json(apiResponse.errorResponse('Validation failed', 'VALIDATION_ERROR', 400, details));
+        }
+        
+        const { status } = validationResult.data;
+        
+        const batch = await Batch.findOneAndUpdate(
+            { batchId },
+            { $set: { status } },
+            { new: true }
         );
+
+        if (!batch) {
+            return res.status(404).json(apiResponse.notFoundResponse('Batch', `ID: ${batchId}`));
+        }
+
+        logger.info('Batch status changed', { batchId, status, userId: req.user.id, role: req.user.role });
+
+        await activityService.logActivity({
+            userId: req.user.id || req.user._id,
+            userRole: req.user.role,
+            eventType: 'batch_status_updated',
+            batchId,
+            description: `Batch status updated to ${status}`,
+            metadata: {
+                status,
+                updatedBy: req.user.email || req.user.name,
+            },
+        });
+
+        emitToBatchRoom(batchId, 'batch:statusChanged', {
+            batchId,
+            status,
+            updatedBy: req.user.email || req.user.name,
+            timestamp: new Date().toISOString(),
+        });
+
+        res.json(apiResponse.successResponse({ batch }, 'Batch status updated successfully'));
+    } catch (err) {
+        logger.error('Error updating batch status', { error: err.message, stack: err.stack });
+        res.status(500).json(apiResponse.errorResponse('Server error', 'SERVER_ERROR', 500, err.message));
     }
-
-    const { batchId } = req.params;
-    const { status } = req.body;
-    const allowedStatuses = ["Active", "Flagged", "Inactive"];
-
-    if (!allowedStatuses.includes(status)) {
-      return res
-        .status(400)
-        .json({ error: "Invalid status", allowed: allowedStatuses });
-    }
-
-    const batch = await Batch.findOneAndUpdate(
-      { batchId },
-      { $set: { status } },
-      { new: true },
-    );
-
-    if (!batch) {
-      return res.status(404).json({ error: "Batch not found" });
-    }
-
-    logger.info("Batch status changed", {
-      batchId,
-      status,
-      userId: req.user.id,
-      role: req.user.role,
-    });
-
-    await activityService.logActivity({
-      userId: req.user.id || req.user._id,
-      userRole: req.user.role,
-      eventType: "batch_status_updated",
-      batchId,
-      description: `Batch status updated to ${status}`,
-      metadata: {
-        status,
-        updatedBy: req.user.email || req.user.name,
-      },
-    });
-
-    emitToBatchRoom(batchId, "batch:statusChanged", {
-      batchId,
-      status,
-      updatedBy: req.user.email || req.user.name,
-      timestamp: new Date().toISOString(),
-    });
-
-    res.json(batch);
-  } catch (err) {
-    logger.error("Error updating batch status", {
-      error: err.message,
-      stack: err.stack,
-    });
-    res.status(500).json({ error: "Server error", details: err.message });
-  }
 };
 
 exports.exportBatch = async (req, res) => {
@@ -805,117 +624,52 @@ const spoilageDetectionService = require("../services/spoilageDetectionService")
  * @route POST /api/batches/:batchId/iot
  */
 exports.recordIoTData = async (req, res) => {
-  try {
-    const { batchId } = req.params;
-    const { temperature, humidity } = req.body;
+    try {
+        const { batchId } = req.params;
+        
+        const validationResult = recordIoTDataSchema.safeParse(req.body);
+        if (!validationResult.success) {
+            const details = validationResult.error.errors.map(err => err.message);
+            return res.status(400).json(apiResponse.errorResponse('Validation failed', 'VALIDATION_ERROR', 400, details));
+        }
+        
+        const { temperature, humidity } = validationResult.data;
 
-    if (temperature == null) {
-      return res
-        .status(400)
-        .json(
-          apiResponse.errorResponse(
-            "Temperature is required",
-            "MISSING_TEMPERATURE",
-            400,
-          ),
+        const batch = await spoilageDetectionService.recordIoTData(batchId, temperature, humidity);
+
+        await activityService.logActivity({
+            userId: req.user.id || req.user._id,
+            userRole: req.user.role,
+            eventType: 'iot_data_recorded',
+            batchId,
+            description: `IoT telemetry recorded: Temp ${temperature}°C, Humidity ${humidity}%`,
+            metadata: {
+                temperature,
+                humidity,
+                isSpoiled: batch.iotData.isSpoiled
+            }
+        });
+
+        res.json(
+            apiResponse.successResponse({
+                batchId: batch.batchId,
+                currentTemperature: batch.iotData.currentTemperature,
+                currentHumidity: batch.iotData.currentHumidity,
+                isSpoiled: batch.iotData.isSpoiled,
+                lastUpdated: batch.iotData.lastUpdated,
+            }, 'IoT data recorded successfully')
+        );
+    } catch (error) {
+        if (error.statusCode === 404) {
+            return res.status(404).json(
+                apiResponse.errorResponse('Batch not found', 'BATCH_NOT_FOUND', 404)
+            );
+        }
+        console.error('Error recording IoT data:', error);
+        res.status(500).json(
+            apiResponse.errorResponse('Failed to record IoT data', 'IOT_RECORD_ERROR', 500)
         );
     }
-    if (humidity == null) {
-      return res
-        .status(400)
-        .json(
-          apiResponse.errorResponse(
-            "Humidity is required",
-            "MISSING_HUMIDITY",
-            400,
-          ),
-        );
-    }
-
-    if (
-      typeof temperature !== "number" ||
-      Number.isNaN(temperature) ||
-      temperature < -20 ||
-      temperature > 140
-    ) {
-      return res
-        .status(400)
-        .json(
-          apiResponse.errorResponse(
-            "Temperature must be a valid number between -20 and 140",
-            "INVALID_TEMPERATURE",
-            400,
-          ),
-        );
-    }
-
-    if (
-      typeof humidity !== "number" ||
-      Number.isNaN(humidity) ||
-      humidity < 0 ||
-      humidity > 100
-    ) {
-      return res
-        .status(400)
-        .json(
-          apiResponse.errorResponse(
-            "Humidity must be a valid number between 0 and 100",
-            "INVALID_HUMIDITY",
-            400,
-          ),
-        );
-    }
-
-    const batch = await spoilageDetectionService.recordIoTData(
-      batchId,
-      temperature,
-      humidity,
-    );
-
-    await activityService.logActivity({
-      userId: req.user.id || req.user._id,
-      userRole: req.user.role,
-      eventType: "iot_data_recorded",
-      batchId,
-      description: `IoT telemetry recorded: Temp ${temperature}°C, Humidity ${humidity}%`,
-      metadata: {
-        temperature,
-        humidity,
-        isSpoiled: batch.iotData.isSpoiled,
-      },
-    });
-
-    res.json(
-      apiResponse.successResponse(
-        {
-          batchId: batch.batchId,
-          currentTemperature: batch.iotData.currentTemperature,
-          currentHumidity: batch.iotData.currentHumidity,
-          isSpoiled: batch.iotData.isSpoiled,
-          lastUpdated: batch.iotData.lastUpdated,
-        },
-        "IoT data recorded successfully",
-      ),
-    );
-  } catch (error) {
-    if (error.statusCode === 404) {
-      return res
-        .status(404)
-        .json(
-          apiResponse.errorResponse("Batch not found", "BATCH_NOT_FOUND", 404),
-        );
-    }
-    console.error("Error recording IoT data:", error);
-    res
-      .status(500)
-      .json(
-        apiResponse.errorResponse(
-          "Failed to record IoT data",
-          "IOT_RECORD_ERROR",
-          500,
-        ),
-      );
-  }
 };
 
 /**
