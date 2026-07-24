@@ -32,6 +32,39 @@ const bidSchema = new mongoose.Schema(
       index: true,
     },
   },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  userName: {
+    type: String,
+    required: true
+  },
+  cropId: {
+    type: String,
+    required: true
+  },
+  bidAmount: {
+    type: mongoose.Schema.Types.Decimal128,
+    required: true,
+    min: [0, 'Bid amount cannot be negative']
+  },
+  timestamp: {
+    type: Date,
+    default: Date.now,
+    index: true
+  }
+}, { timestamps: true, toJSON: { getters: false, virtuals: false } });
+
+bidSchema.set('toJSON', {
+  transform: function (doc, ret) {
+    if (ret.bidAmount && ret.bidAmount._bsontype === 'Decimal128') {
+      ret.bidAmount = parseFloat(ret.bidAmount.toString());
+    }
+    return ret;
+  }
+});
   { timestamps: true },
 );
 

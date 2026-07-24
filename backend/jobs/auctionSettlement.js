@@ -5,6 +5,7 @@ const User = require("../models/User");
 const Batch = require("../models/Batch");
 const socketService = require("../services/socketService");
 const notificationService = require("../services/notificationService");
+const { toDecimal, fromDecimal, toNumber } = require("../utils/decimalHelpers");
 
 class AuctionSettlementError extends Error {
   constructor(message, auctionId, cause) {
@@ -55,6 +56,8 @@ const claimAndSettleNextAuction = async (now, excludedAuctionIds = []) => {
       let batch = null;
 
       if (claimedAuction.highestBidder) {
+        buyer = await User.findById(claimedAuction.highestBidder, null, { session });
+        farmer = await User.findById(claimedAuction.farmerId, null, { session });
         buyer = await User.findById(claimedAuction.highestBidder, null, {
           session,
         });
@@ -67,6 +70,12 @@ const claimAndSettleNextAuction = async (now, excludedAuctionIds = []) => {
           throw new Error("Auction farmer not found");
         }
 
+        const farmerNewBalance = fromDecimal(
+          toDecimal(farmer.balance).plus(toDecimal(claimedAuction.currentHighestBid))
+        );
+        farmer.balance = farmerNewBalance;
+        await farmer.save({ session });
+
         const buyerName = buyer ? buyer.name : "Buyer";
         batch = await Batch.findOneAndUpdate(
           { _id: claimedAuction.cropId },
@@ -77,7 +86,7 @@ const claimAndSettleNextAuction = async (now, excludedAuctionIds = []) => {
                 stage: "mandi",
                 actor: buyerName,
                 location: "Auction Market",
-                notes: `Purchased at live auction for ${claimedAuction.currentHighestBid} credits`,
+                notes: `Purchased at live auction for ${toNumber(claimedAuction.currentHighestBid)} credits`,
               },
             },
           },
@@ -126,7 +135,7 @@ const emitSettlementSideEffects = async ({ auction, buyer, farmer, batch }) => {
   } else {
     const buyerId = auction.highestBidder.toString();
     const farmerId = auction.farmerId.toString();
-    const finalPrice = auction.currentHighestBid;
+    const finalPrice = toNumber(auction.currentHighestBid);
     const buyerName = buyer ? buyer.name : "Buyer";
 
     logger.info(

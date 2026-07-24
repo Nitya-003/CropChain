@@ -1,3 +1,17 @@
+const User = require('../models/User');
+const generateToken = require('../utils/generateToken');
+const { generateRefreshToken } = require('../utils/generateToken');
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
+const { z } = require('zod');
+const apiResponse = require('../utils/apiResponse');
+const { verifyMessage } = require('ethers');
+const { VALID_ROLES, ROLES } = require('../constants/permissions');
+const logger = require('../utils/logger');
+require('dotenv').config();
+const Redis = require('ioredis');
+const { toNumber, toDecimal, fromDecimal } = require('../utils/decimalHelpers');
 const User = require("../models/User");
 const generateToken = require("../utils/generateToken");
 const { generateRefreshToken } = require("../utils/generateToken");
@@ -136,6 +150,12 @@ const loginSchema = z.object({
 
 // Sanitization helper
 const sanitizeUser = (user) => ({
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    balance: toNumber(user.balance || 0),
+    createdAt: user.createdAt
   id: user._id,
   name: user.name,
   email: user.email,
@@ -958,6 +978,10 @@ const resetPassword = async (req, res) => {
       resetPasswordExpire: { $gt: Date.now() },
     });
 
+        user.balance = fromDecimal(toDecimal(user.balance).plus(toDecimal(amount)));
+        await user.save();
+
+        logger.info('Funds added successfully', { adminId: req.user.id, targetUserId: user._id, amount, newBalance: toNumber(user.balance) });
     if (!user) {
       return res
         .status(400)

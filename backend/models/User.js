@@ -1,3 +1,6 @@
+const mongoose = require('mongoose');
+const { ROLES, VALID_ROLES } = require('../constants/permissions');
+const { fromString } = require('../utils/decimalHelpers');
 const mongoose = require("mongoose");
 const { ROLES, VALID_ROLES } = require("../constants/permissions");
 
@@ -94,6 +97,8 @@ const userSchema = new mongoose.Schema(
       default: 0,
     },
     balance: {
+        type: mongoose.Schema.Types.Decimal128,
+        default: () => fromString('100000')
       type: Number,
       default: 100000,
     },
@@ -105,6 +110,15 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+userSchema.set('toJSON', {
+  transform: function (doc, ret) {
+    if (ret.balance && ret.balance._bsontype === 'Decimal128') {
+      ret.balance = parseFloat(ret.balance.toString());
+    }
+    return ret;
+  }
+});
 
 userSchema.index({ role: 1 });
 userSchema.index(
