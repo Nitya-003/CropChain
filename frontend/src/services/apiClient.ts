@@ -2,7 +2,6 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { tokenService } from './token.service';
 import { sanitizeObject } from '../lib/sanitize';
 
-// const baseApiUrl = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001';
 const baseApiUrl =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 export const API_URL = baseApiUrl.endsWith('/api') ? baseApiUrl : `${baseApiUrl.replace(/\/$/, '')}/api`;
