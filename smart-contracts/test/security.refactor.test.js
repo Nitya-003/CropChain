@@ -47,21 +47,21 @@ describe("CropChain Security Refactor", function () {
     });
 
     expect(
-      await cropChain.pendingWithdrawals(await attacker.getAddress())
+      await cropChain.pendingWithdrawals(await attacker.getAddress()),
     ).to.equal(ethers.parseEther("5"));
 
     const balanceBefore = await ethers.provider.getBalance(
-      await attacker.getAddress()
+      await attacker.getAddress(),
     );
 
     await attacker.attackWithdraw();
 
     const balanceAfter = await ethers.provider.getBalance(
-      await attacker.getAddress()
+      await attacker.getAddress(),
     );
 
     expect(
-      await cropChain.pendingWithdrawals(await attacker.getAddress())
+      await cropChain.pendingWithdrawals(await attacker.getAddress()),
     ).to.equal(0n);
     expect(await attacker.reentryAttempts()).to.equal(1n);
     expect(await attacker.reentrancySucceeded()).to.equal(false);
@@ -79,15 +79,17 @@ describe("CropChain Security Refactor", function () {
     await cropChain.connect(oracle).recordSpotPrice(cropType, unitPrice);
     await cropChain.setRole(oracle.address, Roles.Farmer);
 
-    await cropChain.connect(oracle).createBatch(
-      batchId,
-      cropType,
-      "ipfs://bafybeigdyrztqz4xq7x4z7m4xq7x4z7m4xq7x4z7m4",
-      50,
-      "farmer",
-      "origin",
-      "notes"
-    );
+    await cropChain
+      .connect(oracle)
+      .createBatch(
+        batchId,
+        cropType,
+        "ipfs://bafybeigdyrztqz4xq7x4z7m4xq7x4z7m4xq7x4z7m4",
+        50,
+        "farmer",
+        "origin",
+        "notes",
+      );
 
     await cropChain.connect(oracle).createListing(batchId, 10, unitPrice);
 
@@ -96,7 +98,7 @@ describe("CropChain Security Refactor", function () {
     });
 
     expect(await cropChain.pendingWithdrawals(owner.address)).to.equal(
-      ethers.parseEther("1")
+      ethers.parseEther("1"),
     );
 
     await cropChain.connect(owner).withdrawProceeds();
@@ -115,21 +117,23 @@ describe("CropChain Security Refactor", function () {
     await cropChain.connect(oracle).recordSpotPrice(cropType, unitPrice);
     await cropChain.setRole(oracle.address, Roles.Farmer);
 
-    await cropChain.connect(oracle).createBatch(
-      batchId,
-      cropType,
-      "ipfs://bafybeigdyrztqz4xq7x4z7m4xq7x4z7m4xq7x4z7m4",
-      50,
-      "farmer",
-      "origin",
-      "notes"
-    );
+    await cropChain
+      .connect(oracle)
+      .createBatch(
+        batchId,
+        cropType,
+        "ipfs://bafybeigdyrztqz4xq7x4z7m4xq7x4z7m4xq7x4z7m4",
+        50,
+        "farmer",
+        "origin",
+        "notes",
+      );
 
     await cropChain.connect(oracle).createListing(batchId, 10, unitPrice);
     await cropChain.pause();
 
     await expect(
-      cropChain.connect(buyer).buyFromListing(1, 1, { value: unitPrice })
+      cropChain.connect(buyer).buyFromListing(1, 1, { value: unitPrice }),
     ).to.be.revertedWith("Pausable: paused");
   });
 
@@ -141,28 +145,36 @@ describe("CropChain Security Refactor", function () {
 
     await cropChain.setRole(oracle.address, Roles.Oracle);
 
-    await cropChain.connect(oracle).recordSpotPrice(cropType, ethers.parseEther("1"));
+    await cropChain
+      .connect(oracle)
+      .recordSpotPrice(cropType, ethers.parseEther("1"));
     await ethers.provider.send("evm_increaseTime", [1800]);
     await ethers.provider.send("evm_mine", []);
-    await cropChain.connect(oracle).recordSpotPrice(cropType, ethers.parseEther("1"));
+    await cropChain
+      .connect(oracle)
+      .recordSpotPrice(cropType, ethers.parseEther("1"));
     await cropChain.setRole(oracle.address, Roles.Farmer);
 
-    await cropChain.connect(oracle).createBatch(
-      batchId,
-      cropType,
-      "ipfs://bafybeigdyrztqz4xq7x4z7m4xq7x4z7m4xq7x4z7m4",
-      100,
-      "farmer",
-      "field",
-      "created"
-    );
+    await cropChain
+      .connect(oracle)
+      .createBatch(
+        batchId,
+        cropType,
+        "ipfs://bafybeigdyrztqz4xq7x4z7m4xq7x4z7m4xq7x4z7m4",
+        100,
+        "farmer",
+        "field",
+        "created",
+      );
 
     await expect(
-      cropChain.connect(oracle).createListing(batchId, 10, ethers.parseEther("5"))
+      cropChain
+        .connect(oracle)
+        .createListing(batchId, 10, ethers.parseEther("5")),
     ).not.to.be.reverted;
 
     await expect(
-      cropChain.buyFromListing(1, 1, { value: ethers.parseEther("5") })
+      cropChain.buyFromListing(1, 1, { value: ethers.parseEther("5") }),
     ).to.be.revertedWith("TWAP deviation too high");
   });
 
@@ -173,23 +185,22 @@ describe("CropChain Security Refactor", function () {
       "AccessControl: account " +
         buyer.address.toLowerCase() +
         " is missing role " +
-        DEFAULT_ADMIN_ROLE
+        DEFAULT_ADMIN_ROLE,
     );
 
     await expect(
-      cropChain.connect(buyer).setTwapConfig(3600, 1000)
+      cropChain.connect(buyer).setTwapConfig(3600, 1000),
     ).to.be.revertedWith(
       "AccessControl: account " +
         buyer.address.toLowerCase() +
         " is missing role " +
-        DEFAULT_ADMIN_ROLE
+        DEFAULT_ADMIN_ROLE,
     );
 
     await expect(cropChain.pause()).to.not.be.reverted;
     expect(await cropChain.paused()).to.be.true;
 
-    await expect(cropChain.setTwapConfig(7200, 1000))
-      .to.not.be.reverted;
+    await expect(cropChain.setTwapConfig(7200, 1000)).to.not.be.reverted;
     expect(await cropChain.twapWindow()).to.equal(7200n);
     expect(await cropChain.maxPriceDeviationBps()).to.equal(1000n);
   });
@@ -206,15 +217,17 @@ describe("CropChain Security Refactor", function () {
     await cropChain.setRole(mandi.address, Roles.Mandi);
 
     // 1. Farmer creates the batch (stage = Farmer)
-    await cropChain.connect(oracle).createBatch(
-      batchId,
-      cropType,
-      "ipfs://bafybeigdyrztqz4xq7x4z7m4xq7x4z7m4xq7x4z7m4",
-      50,
-      "farmer",
-      "origin",
-      "notes"
-    );
+    await cropChain
+      .connect(oracle)
+      .createBatch(
+        batchId,
+        cropType,
+        "ipfs://bafybeigdyrztqz4xq7x4z7m4xq7x4z7m4xq7x4z7m4",
+        50,
+        "farmer",
+        "origin",
+        "notes",
+      );
 
     // 2. Mandi updates the batch (stage = Mandi)
     await cropChain.connect(oracle).approveCustodian(batchId, mandi.address);
@@ -223,17 +236,16 @@ describe("CropChain Security Refactor", function () {
       1, // Stage.Mandi
       "mandi-actor",
       "mandi-location",
-      "received at mandi"
+      "received at mandi",
     );
 
     // 3. Farmer (oracle) tries to list/sell the batch -> should revert
     await expect(
-      cropChain.connect(oracle).createListing(batchId, 10, unitPrice)
+      cropChain.connect(oracle).createListing(batchId, 10, unitPrice),
     ).to.be.revertedWith("Only current custodian can list");
 
     // 4. Mandi successfully lists the batch
-    await expect(
-      cropChain.connect(mandi).createListing(batchId, 10, unitPrice)
-    ).to.not.be.reverted;
+    await expect(cropChain.connect(mandi).createListing(batchId, 10, unitPrice))
+      .to.not.be.reverted;
   });
 });

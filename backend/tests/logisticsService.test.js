@@ -1,25 +1,29 @@
-'use strict';
+"use strict";
 
-const { haversineDistance, solveTSP, optimizeRoute } = require('../services/logisticsService');
-const axios = require('axios');
+const {
+  haversineDistance,
+  solveTSP,
+  optimizeRoute,
+} = require("../services/logisticsService");
+const axios = require("axios");
 
-jest.mock('axios');
-jest.mock('../utils/logger', () => ({
+jest.mock("axios");
+jest.mock("../utils/logger", () => ({
   info: jest.fn(),
   warn: jest.fn(),
-  error: jest.fn()
+  error: jest.fn(),
 }));
 
-describe('Logistics Route Optimization Service', () => {
+describe("Logistics Route Optimization Service", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('haversineDistance', () => {
-    it('should calculate distance between two coordinates correctly', () => {
+  describe("haversineDistance", () => {
+    it("should calculate distance between two coordinates correctly", () => {
       // Coordinates for Bangalore and Mysore (~140 km)
       const blr = { lat: 12.971598, lng: 77.594562 };
-      const mys = { lat: 12.295810, lng: 76.639381 };
+      const mys = { lat: 12.29581, lng: 76.639381 };
 
       const dist = haversineDistance(blr, mys);
       // Distance should be approximately 128km
@@ -27,14 +31,14 @@ describe('Logistics Route Optimization Service', () => {
       expect(dist).toBeLessThan(140000);
     });
 
-    it('should return 0 for identical coordinates', () => {
+    it("should return 0 for identical coordinates", () => {
       const p = { lat: 12.971598, lng: 77.594562 };
       expect(haversineDistance(p, p)).toBe(0);
     });
   });
 
-  describe('solveTSP', () => {
-    it('should solve a simple TSP without dependencies', () => {
+  describe("solveTSP", () => {
+    it("should solve a simple TSP without dependencies", () => {
       // 3 nodes. Node 0 is start.
       // Matrix:
       // 0 -> 1 = 10, 0 -> 2 = 5
@@ -43,13 +47,13 @@ describe('Logistics Route Optimization Service', () => {
       const matrix = [
         [0, 10, 5],
         [10, 0, 20],
-        [5, 20, 0]
+        [5, 20, 0],
       ];
-      
+
       const coordinates = [
-        { lat: 0, lng: 0, type: 'start' },
-        { lat: 1, lng: 1, type: 'pickup' },
-        { lat: 2, lng: 2, type: 'pickup' }
+        { lat: 0, lng: 0, type: "start" },
+        { lat: 1, lng: 1, type: "pickup" },
+        { lat: 2, lng: 2, type: "pickup" },
       ];
 
       const result = solveTSP(matrix, coordinates);
@@ -60,7 +64,7 @@ describe('Logistics Route Optimization Service', () => {
       expect(result.path).toEqual([0, 2, 1]);
     });
 
-    it('should enforce pickup before dropoff constraint', () => {
+    it("should enforce pickup before dropoff constraint", () => {
       // 4 nodes:
       // Node 0: start
       // Node 1: dropoff (batch A)
@@ -68,23 +72,23 @@ describe('Logistics Route Optimization Service', () => {
       // Node 3: pickup (batch B)
       // If we ignore constraint: 0 -> 1 -> 2 -> 3 might be shorter.
       // But we must visit 2 (pickup A) before 1 (dropoff A).
-      
+
       const matrix = [
         [0, 5, 100, 10], // 0 is close to 1, far from 2
         [5, 0, 10, 100],
         [100, 10, 0, 5],
-        [10, 100, 5, 0]
+        [10, 100, 5, 0],
       ];
 
       const coordinates = [
-        { lat: 0, lng: 0, type: 'start' },
-        { lat: 1, lng: 1, type: 'dropoff', batchId: 'batchA' },
-        { lat: 2, lng: 2, type: 'pickup', batchId: 'batchA' },
-        { lat: 3, lng: 3, type: 'pickup', batchId: 'batchB' }
+        { lat: 0, lng: 0, type: "start" },
+        { lat: 1, lng: 1, type: "dropoff", batchId: "batchA" },
+        { lat: 2, lng: 2, type: "pickup", batchId: "batchA" },
+        { lat: 3, lng: 3, type: "pickup", batchId: "batchB" },
       ];
 
       const result = solveTSP(matrix, coordinates);
-      
+
       // Node 1 (dropoff) index is 1. Node 2 (pickup) index is 2.
       // In the resulting path, index of 2 MUST be less than index of 1.
       const indexOfPickup = result.path.indexOf(2);
@@ -95,27 +99,27 @@ describe('Logistics Route Optimization Service', () => {
     });
   });
 
-  describe('optimizeRoute', () => {
-    it('should call OSRM APIs and return optimized route', async () => {
+  describe("optimizeRoute", () => {
+    it("should call OSRM APIs and return optimized route", async () => {
       const mockTableResponse = {
         data: {
-          code: 'Ok',
+          code: "Ok",
           durations: [
             [0, 10, 20],
             [10, 0, 30],
-            [20, 30, 0]
+            [20, 30, 0],
           ],
           distances: [
             [0, 100, 200],
             [100, 0, 300],
-            [200, 300, 0]
-          ]
-        }
+            [200, 300, 0],
+          ],
+        },
       };
 
       const mockRouteResponse = {
         data: {
-          code: 'Ok',
+          code: "Ok",
           routes: [
             {
               distance: 300,
@@ -123,28 +127,28 @@ describe('Logistics Route Optimization Service', () => {
               geometry: {
                 coordinates: [
                   [77.59, 12.97],
-                  [77.60, 12.98],
-                  [77.61, 12.99]
-                ]
-              }
-            }
-          ]
-        }
+                  [77.6, 12.98],
+                  [77.61, 12.99],
+                ],
+              },
+            },
+          ],
+        },
       };
 
       axios.get.mockImplementation((url) => {
-        if (url.includes('/table/')) {
+        if (url.includes("/table/")) {
           return Promise.resolve(mockTableResponse);
-        } else if (url.includes('/route/')) {
+        } else if (url.includes("/route/")) {
           return Promise.resolve(mockRouteResponse);
         }
-        return Promise.reject(new Error('Unknown URL'));
+        return Promise.reject(new Error("Unknown URL"));
       });
 
       const coordinates = [
-        { lat: 12.97, lng: 77.59, type: 'start' },
-        { lat: 12.98, lng: 77.60, type: 'pickup' },
-        { lat: 12.99, lng: 77.61, type: 'dropoff' }
+        { lat: 12.97, lng: 77.59, type: "start" },
+        { lat: 12.98, lng: 77.6, type: "pickup" },
+        { lat: 12.99, lng: 77.61, type: "dropoff" },
       ];
 
       const result = await optimizeRoute(coordinates);
@@ -154,18 +158,18 @@ describe('Logistics Route Optimization Service', () => {
       expect(result.totalDuration).toBe(30);
       expect(result.geometry).toEqual([
         [12.97, 77.59],
-        [12.98, 77.60],
-        [12.99, 77.61]
+        [12.98, 77.6],
+        [12.99, 77.61],
       ]);
       expect(result.isFallback).toBe(false);
     });
 
-    it('should fall back to local calculations if OSRM fails', async () => {
-      axios.get.mockRejectedValue(new Error('OSRM Server Offline'));
+    it("should fall back to local calculations if OSRM fails", async () => {
+      axios.get.mockRejectedValue(new Error("OSRM Server Offline"));
 
       const coordinates = [
-        { lat: 12.97, lng: 77.59, type: 'start' },
-        { lat: 12.98, lng: 77.60, type: 'pickup' }
+        { lat: 12.97, lng: 77.59, type: "start" },
+        { lat: 12.98, lng: 77.6, type: "pickup" },
       ];
 
       const result = await optimizeRoute(coordinates);

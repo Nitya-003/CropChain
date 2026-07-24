@@ -1,10 +1,10 @@
-import { apiClient } from './apiClient';
+import { apiClient } from "./apiClient";
 
 export interface Waypoint {
   lat: number;
   lng: number;
   address?: string;
-  type?: 'start' | 'pickup' | 'dropoff';
+  type?: "start" | "pickup" | "dropoff";
   batchId?: string;
 }
 
@@ -18,8 +18,12 @@ export interface OptimizeRouteResponse {
 }
 
 export const logisticsService = {
-  optimizeRoute: async (coordinates: Waypoint[]): Promise<OptimizeRouteResponse> => {
-    const response = await apiClient.post('/logistics/optimize-route', { coordinates });
+  optimizeRoute: async (
+    coordinates: Waypoint[],
+  ): Promise<OptimizeRouteResponse> => {
+    const response = await apiClient.post("/logistics/optimize-route", {
+      coordinates,
+    });
     return response.data.data;
-  }
+  },
 };

@@ -2,11 +2,11 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'farmer' | 'mandi' | 'transporter' | 'retailer' | 'admin' | '';
+  role: "farmer" | "mandi" | "transporter" | "retailer" | "admin" | "";
   walletAddress?: string;
 }
 
-export type BatchStage = 'farmer' | 'mandi' | 'transport' | 'retailer';
+export type BatchStage = "farmer" | "mandi" | "transport" | "retailer";
 
 export interface Batch {
   id: string;
@@ -17,7 +17,7 @@ export interface Batch {
   weight: string;
   price: string;
   timestamp: string;
-  status: 'active' | 'pending' | 'completed' | 'recalled';
+  status: "active" | "pending" | "completed" | "recalled";
   verification?: {
     isVerified: boolean;
     verifiedAt?: string;
@@ -36,16 +36,21 @@ interface SyncQueueItemBase {
   batchId: string;
   createdAt: number;
   retries: number;
-  priority: 'high' | 'normal' | 'low';
+  priority: "high" | "normal" | "low";
 }
 
-export type SyncQueueItem = SyncQueueItemBase & (
-  | { action: 'stage_update'; data: BatchStageUpdatePayload }
-  | { action: 'create_batch' | 'verify'; data: Record<string, unknown> }
-);
+export type SyncQueueItem = SyncQueueItemBase &
+  (
+    | { action: "stage_update"; data: BatchStageUpdatePayload }
+    | { action: "create_batch" | "verify"; data: Record<string, unknown> }
+  );
 
 export type SyncQueueInput =
-  | { batchId: string; action: 'stage_update'; data: BatchStageUpdatePayload }
-  | { batchId: string; action: 'create_batch' | 'verify'; data: Record<string, unknown> };
+  | { batchId: string; action: "stage_update"; data: BatchStageUpdatePayload }
+  | {
+      batchId: string;
+      action: "create_batch" | "verify";
+      data: Record<string, unknown>;
+    };
 
-export type ToastType = 'success' | 'error' | 'info' | 'warning';
+export type ToastType = "success" | "error" | "info" | "warning";

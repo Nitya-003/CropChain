@@ -37,6 +37,7 @@ This document outlines the security controls used to keep blockchain secrets out
 That example has been removed from the configuration and replaced with environment-variable loading.
 
 This is a well-known Hardhat default account that poses significant security risks:
+
 - **Exposure**: Anyone with access to the codebase can extract this private key
 - **Fund Risk**: If real funds are sent to this address, they can be stolen
 - **Reproducibility**: The same key across all environments creates predictable attack vectors
@@ -44,17 +45,20 @@ This is a well-known Hardhat default account that poses significant security ris
 ### Security Solution Implemented
 
 #### 1. Simple, Clean Approach
+
 - **No Hardcoded Keys**: Eliminated all static private keys from configuration
 - **Conditional Logic**: Use environment variable if present, otherwise empty array
 - **Hardhat Defaults**: Leverages Hardhat's built-in test accounts for localhost
 
 #### 2. Environment-Based Security
+
 ```javascript
 // Network configuration
-accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
+accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [];
 ```
 
 #### 3. Network-Specific Behavior
+
 - **Localhost**: Uses Hardhat's default 20 test accounts automatically
 - **External Networks**: Uses `accounts: []` when `PRIVATE_KEY` is not present, so deployments cannot accidentally sign transactions
 - **CI/CD**: Inject `PRIVATE_KEY` and RPC URLs from the platform secret manager at runtime
@@ -62,6 +66,7 @@ accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
 ## Security Features
 
 ### Clean Implementation
+
 ```javascript
 // Polygon Mumbai Testnet
 mumbai: {
@@ -73,6 +78,7 @@ mumbai: {
 ```
 
 ### Security Characteristics
+
 - **Zero Hardcoded Values**: No private keys in the codebase
 - **Environment Dependent**: Requires explicit configuration for external networks
 - **Fail-Safe**: Empty accounts array prevents accidental transactions
@@ -83,6 +89,7 @@ mumbai: {
 ### For Local Development
 
 1. **Localhost Testing** (No setup required):
+
    ```bash
    npx hardhat node  # Uses default test accounts
    npx hardhat test  # Works automatically
@@ -93,7 +100,7 @@ mumbai: {
    # Create .env file
    PRIVATE_KEY=your_generated_private_key_here
    INFURA_URL=your_infura_url_here
-   
+
    # Test on external network
    npx hardhat run scripts/deploy.js --network mumbai
    ```
@@ -105,6 +112,7 @@ mumbai: {
 3. **Rotation**: Rotate any key that may have been exposed in a repo, build log, or ticket
 
 ### Generate New Wallet
+
 ```bash
 # Option 1: Use Hardhat node (shows test accounts)
 npx hardhat node
@@ -119,6 +127,7 @@ npx hardhat console
 ## Security Verification
 
 ### Check No Hardcoded Keys
+
 ```bash
 # Search for potential private keys
 grep -r "0x[a-fA-F0-9]{64}" . --exclude-dir=node_modules
@@ -126,6 +135,7 @@ grep -r "0x[a-fA-F0-9]{64}" . --exclude-dir=node_modules
 ```
 
 ### Test Configuration
+
 ```bash
 # Test without PRIVATE_KEY (should work for localhost)
 npx hardhat compile
@@ -137,6 +147,7 @@ PRIVATE_KEY=0x... npx hardhat compile
 ## Security Best Practices
 
 ### DO
+
 - Use environment variables for all private keys
 - Generate unique keys for each environment
 - Use repository secrets for CI/CD
@@ -144,6 +155,7 @@ PRIVATE_KEY=0x... npx hardhat compile
 - Use Hardhat's default accounts for local development
 
 ### DON'T
+
 - Commit private keys to version control
 - Use the same key across environments
 - Share private keys in plain text
@@ -153,6 +165,7 @@ PRIVATE_KEY=0x... npx hardhat compile
 ## Configuration Examples
 
 ### Development Environment (.env)
+
 ```env
 # Required for external network testing
 PRIVATE_KEY=0x1111111111111111111111111111111111111111111111111111111111111111
@@ -163,6 +176,7 @@ POLYGONSCAN_API_KEY=your_api_key_here
 Never commit `.env`; keep it local or inject the same values from your CI/CD secret store.
 
 ### CI/CD Environment
+
 ```yaml
 # GitHub Actions example
 env:
@@ -173,6 +187,7 @@ env:
 ## Important Notes
 
 ### Security Reminders
+
 - **Never** use real funds with test-generated keys
 - **Always** verify network before transactions
 - **Rotate** keys periodically for production
@@ -180,6 +195,7 @@ env:
 - **Store** production secrets in a CI/CD secret manager, not in the repository
 
 ### Hardhat Behavior
+
 - **Localhost**: Automatically provides 20 test accounts with 1000 ETH each
 - **External Networks**: Requires explicit private key configuration
 - **Empty Accounts**: Prevents accidental deployments without proper keys

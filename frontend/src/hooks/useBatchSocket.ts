@@ -1,25 +1,25 @@
-import { useEffect, useState, useCallback } from 'react';
-import { 
-  getSocket, 
-  joinBatchRoom, 
-  leaveBatchRoom, 
-  onBatchUpdated, 
+import { useEffect, useState, useCallback } from "react";
+import {
+  getSocket,
+  joinBatchRoom,
+  leaveBatchRoom,
+  onBatchUpdated,
   onBatchStageChanged,
-  isConnected 
-} from '../services/socketService';
+  isConnected,
+} from "../services/socketService";
 
 interface UseBatchSocketOptions {
-  batchId?: string;           // Optional batch ID to auto-join room
-  enabled?: boolean;          // Enable/disable socket connection (default: true)
-  onBatchUpdate?: (data: any) => void;  // Callback for batch updates
-  onStageChange?: (data: any) => void;  // Callback for stage changes
+  batchId?: string; // Optional batch ID to auto-join room
+  enabled?: boolean; // Enable/disable socket connection (default: true)
+  onBatchUpdate?: (data: any) => void; // Callback for batch updates
+  onStageChange?: (data: any) => void; // Callback for stage changes
 }
 
 interface UseBatchSocketReturn {
-  isConnected: boolean;       // Whether socket is connected
-  isConnecting: boolean;      // Whether socket is connecting
-  lastUpdate: Date | null;    // Timestamp of last update
-  error: Error | null;        // Connection error if any
+  isConnected: boolean; // Whether socket is connected
+  isConnecting: boolean; // Whether socket is connecting
+  lastUpdate: Date | null; // Timestamp of last update
+  error: Error | null; // Connection error if any
   refreshConnection: () => void; // Manually refresh connection
 }
 
@@ -31,7 +31,7 @@ export const useBatchSocket = ({
   batchId,
   enabled = true,
   onBatchUpdate,
-  onStageChange
+  onStageChange,
 }: UseBatchSocketOptions = {}): UseBatchSocketReturn => {
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -43,29 +43,29 @@ export const useBatchSocket = ({
     if (!enabled) return;
 
     const socket = getSocket();
-    
+
     const handleConnect = () => {
       setConnected(true);
       setConnecting(false);
       setError(null);
-      console.log('[HOOK] Socket connected');
+      console.log("[HOOK] Socket connected");
     };
 
     const handleDisconnect = () => {
       setConnected(false);
-      console.log('[HOOK] Socket disconnected');
+      console.log("[HOOK] Socket disconnected");
     };
 
     const handleError = (err: Error) => {
       setError(err);
       setConnected(false);
       setConnecting(false);
-      console.error('[HOOK] Socket error:', err);
+      console.error("[HOOK] Socket error:", err);
     };
 
-    socket.on('connect', handleConnect);
-    socket.on('disconnect', handleDisconnect);
-    socket.on('connect_error', handleError);
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("connect_error", handleError);
 
     // Set initial connection state
     if (socket.connected) {
@@ -75,9 +75,9 @@ export const useBatchSocket = ({
     }
 
     return () => {
-      socket.off('connect', handleConnect);
-      socket.off('disconnect', handleDisconnect);
-      socket.off('connect_error', handleError);
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("connect_error", handleError);
     };
   }, [enabled]);
 
@@ -119,10 +119,10 @@ export const useBatchSocket = ({
   // Manual refresh function
   const refreshConnection = useCallback(() => {
     if (!enabled) return;
-    
+
     setConnecting(true);
     setError(null);
-    
+
     const socket = getSocket();
     if (!socket.connected) {
       socket.connect();
@@ -134,7 +134,7 @@ export const useBatchSocket = ({
     isConnecting: connecting,
     lastUpdate,
     error,
-    refreshConnection
+    refreshConnection,
   };
 };
 
@@ -146,20 +146,20 @@ export const useSocketStatus = (): { isConnected: boolean } => {
 
   useEffect(() => {
     const socket = getSocket();
-    
+
     const updateStatus = () => {
       setStatus(isConnected());
     };
 
-    socket.on('connect', updateStatus);
-    socket.on('disconnect', updateStatus);
+    socket.on("connect", updateStatus);
+    socket.on("disconnect", updateStatus);
 
     // Initial status
     setStatus(isConnected());
 
     return () => {
-      socket.off('connect', updateStatus);
-      socket.off('disconnect', updateStatus);
+      socket.off("connect", updateStatus);
+      socket.off("disconnect", updateStatus);
     };
   }, []);
 

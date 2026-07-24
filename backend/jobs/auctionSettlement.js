@@ -55,7 +55,9 @@ const claimAndSettleNextAuction = async (now, excludedAuctionIds = []) => {
       let batch = null;
 
       if (claimedAuction.highestBidder) {
-        buyer = await User.findById(claimedAuction.highestBidder, null, { session });
+        buyer = await User.findById(claimedAuction.highestBidder, null, {
+          session,
+        });
         farmer = await User.findOneAndUpdate(
           { _id: claimedAuction.farmerId },
           { $inc: { balance: claimedAuction.currentHighestBid } },

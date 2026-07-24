@@ -1,14 +1,26 @@
 "use client";
 
-import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { realCropBatchService } from '@/services/realCropBatchService';
-import Header from '@/components/Header';
-import { ArrowLeft, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { realCropBatchService } from "@/services/realCropBatchService";
+import Header from "@/components/Header";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  AlertTriangle,
+  ShieldCheck,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface Batch {
   batchId: string;
@@ -37,7 +49,7 @@ interface Batch {
 function CompareContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const ids = searchParams.get('ids')?.split(',').filter(Boolean) || [];
+  const ids = searchParams.get("ids")?.split(",").filter(Boolean) || [];
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,16 +77,16 @@ function CompareContent() {
               console.error(`Error fetching batch ${id}:`, err);
               return null;
             }
-          })
+          }),
         );
         const validBatches = results.filter((b): b is Batch => b !== null);
         if (validBatches.length === 0) {
-          setError('No valid batches could be loaded for comparison.');
+          setError("No valid batches could be loaded for comparison.");
         } else {
           setBatches(validBatches);
         }
       } catch (err: any) {
-        setError(err.message || 'Failed to load batches.');
+        setError(err.message || "Failed to load batches.");
       } finally {
         setLoading(false);
       }
@@ -85,16 +97,16 @@ function CompareContent() {
 
   const getStageColor = (stage: string) => {
     switch (stage?.toLowerCase()) {
-      case 'farmer':
-        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-300/30';
-      case 'mandi':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-300/30';
-      case 'transport':
-        return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300/30';
-      case 'retailer':
-        return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border-purple-300/30';
+      case "farmer":
+        return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-300/30";
+      case "mandi":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-300/30";
+      case "transport":
+        return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300/30";
+      case "retailer":
+        return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border-purple-300/30";
       default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-700/30';
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-700/30";
     }
   };
 
@@ -117,12 +129,13 @@ function CompareContent() {
         <div className="max-w-4xl mx-auto p-6 text-center space-y-4 py-12">
           <AlertTriangle className="h-12 w-12 text-rose-500 mx-auto" />
           <h1 className="text-2xl font-bold text-foreground">
-            {error || 'No batches selected for comparison'}
+            {error || "No batches selected for comparison"}
           </h1>
           <p className="text-muted-foreground text-sm max-w-md mx-auto">
-            Please select at least 2 batches from the Admin Dashboard to compare their parameters.
+            Please select at least 2 batches from the Admin Dashboard to compare
+            their parameters.
           </p>
-          <Button onClick={() => router.push('/admin')} className="mt-4">
+          <Button onClick={() => router.push("/admin")} className="mt-4">
             Go to Admin Dashboard
           </Button>
         </div>
@@ -131,23 +144,40 @@ function CompareContent() {
   }
 
   const fields = [
-    { key: 'batchId', label: 'Batch ID' },
-    { key: 'cropType', label: 'Crop Type' },
-    { key: 'quantity', label: 'Quantity', format: (v: any) => `${Number(v).toLocaleString()} kg` },
-    { key: 'harvestDate', label: 'Harvest Date' },
-    { key: 'origin', label: 'Origin' },
-    { key: 'farmerName', label: 'Farmer' },
-    { key: 'currentStage', label: 'Current Stage', badge: true },
-    { key: 'status', label: 'Status', badge: true, getVal: (b: Batch) => b.isSpoiled ? 'Spoiled' : 'Active' },
-    { key: 'certifications', label: 'Certifications', format: (v: any) => v || 'None' },
-    { key: 'description', label: 'Description', format: (v: any) => v || 'No description provided' },
+    { key: "batchId", label: "Batch ID" },
+    { key: "cropType", label: "Crop Type" },
+    {
+      key: "quantity",
+      label: "Quantity",
+      format: (v: any) => `${Number(v).toLocaleString()} kg`,
+    },
+    { key: "harvestDate", label: "Harvest Date" },
+    { key: "origin", label: "Origin" },
+    { key: "farmerName", label: "Farmer" },
+    { key: "currentStage", label: "Current Stage", badge: true },
+    {
+      key: "status",
+      label: "Status",
+      badge: true,
+      getVal: (b: Batch) => (b.isSpoiled ? "Spoiled" : "Active"),
+    },
+    {
+      key: "certifications",
+      label: "Certifications",
+      format: (v: any) => v || "None",
+    },
+    {
+      key: "description",
+      label: "Description",
+      format: (v: any) => v || "No description provided",
+    },
   ];
 
   // Detect differing fields
   const differingFields = fields.filter((f) => {
     const values = batches.map((b) => {
       const val = f.getVal ? f.getVal(b) : b[f.key as keyof Batch];
-      return String(val || '');
+      return String(val || "");
     });
     return new Set(values).size > 1;
   });
@@ -158,12 +188,21 @@ function CompareContent() {
       <div className="max-w-7xl mx-auto p-6 space-y-6">
         {/* Back navigation & title */}
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push('/admin')}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push("/admin")}
+          >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="text-left">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Batch Comparison</h1>
-            <p className="text-sm text-muted-foreground">Comparing side-by-side details for {batches.length} selected batches</p>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              Batch Comparison
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Comparing side-by-side details for {batches.length} selected
+              batches
+            </p>
           </div>
         </div>
 
@@ -179,9 +218,14 @@ function CompareContent() {
               <Table className="w-full min-w-[600px]">
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40 border-b border-border/40">
-                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left w-48">Field</TableHead>
+                    <TableHead className="py-4 px-6 font-semibold text-foreground text-left w-48">
+                      Field
+                    </TableHead>
                     {batches.map((b) => (
-                      <TableHead key={b.batchId} className="py-4 px-6 font-semibold text-foreground text-center">
+                      <TableHead
+                        key={b.batchId}
+                        className="py-4 px-6 font-semibold text-foreground text-center"
+                      >
                         <span className="font-mono text-sm bg-muted text-muted-foreground px-2 py-1 rounded border border-border">
                           {b.batchId}
                         </span>
@@ -193,7 +237,10 @@ function CompareContent() {
                   {fields.map((f) => {
                     const isDifferent = differingFields.includes(f);
                     return (
-                      <TableRow key={f.key} className={`border-b border-border/40 hover:bg-muted/30 transition-colors ${isDifferent ? 'bg-amber-500/5 dark:bg-amber-500/10' : ''}`}>
+                      <TableRow
+                        key={f.key}
+                        className={`border-b border-border/40 hover:bg-muted/30 transition-colors ${isDifferent ? "bg-amber-500/5 dark:bg-amber-500/10" : ""}`}
+                      >
                         <TableCell className="py-4 px-6 font-medium text-foreground text-left">
                           <div className="flex items-center gap-1.5">
                             <span>{f.label}</span>
@@ -205,29 +252,47 @@ function CompareContent() {
                           </div>
                         </TableCell>
                         {batches.map((b) => {
-                          const rawValue = f.getVal ? f.getVal(b) : b[f.key as keyof Batch];
+                          const rawValue = f.getVal
+                            ? f.getVal(b)
+                            : b[f.key as keyof Batch];
                           return (
-                            <TableCell key={b.batchId} className="py-4 px-6 text-center">
+                            <TableCell
+                              key={b.batchId}
+                              className="py-4 px-6 text-center"
+                            >
                               {f.badge ? (
-                                f.key === 'status' ? (
-                                  rawValue === 'Spoiled' ? (
-                                    <Badge variant="outline" className="bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300 border-rose-300/30 capitalize font-semibold">
+                                f.key === "status" ? (
+                                  rawValue === "Spoiled" ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300 border-rose-300/30 capitalize font-semibold"
+                                    >
                                       Spoiled
                                     </Badge>
                                   ) : (
-                                    <Badge variant="outline" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-300/30 capitalize font-semibold">
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-300/30 capitalize font-semibold"
+                                    >
                                       Active
                                     </Badge>
                                   )
                                 ) : (
-                                  <Badge variant="outline" className={`capitalize font-semibold border ${getStageColor(String(rawValue))}`}>
+                                  <Badge
+                                    variant="outline"
+                                    className={`capitalize font-semibold border ${getStageColor(String(rawValue))}`}
+                                  >
                                     {String(rawValue)}
                                   </Badge>
                                 )
                               ) : f.format ? (
-                                <span className="text-sm font-medium text-foreground">{f.format(rawValue as any)}</span>
+                                <span className="text-sm font-medium text-foreground">
+                                  {f.format(rawValue as any)}
+                                </span>
                               ) : (
-                                <span className="text-sm font-medium text-foreground">{String(rawValue || 'N/A')}</span>
+                                <span className="text-sm font-medium text-foreground">
+                                  {String(rawValue || "N/A")}
+                                </span>
                               )}
                             </TableCell>
                           );
@@ -247,15 +312,17 @@ function CompareContent() {
 
 export default function ComparePage() {
   return (
-    <Suspense fallback={
-      <>
-        <Header />
-        <div className="max-w-7xl mx-auto p-6 space-y-8 animate-pulse">
-          <div className="h-8 bg-muted rounded w-48 mb-6"></div>
-          <div className="h-64 bg-muted rounded-xl"></div>
-        </div>
-      </>
-    }>
+    <Suspense
+      fallback={
+        <>
+          <Header />
+          <div className="max-w-7xl mx-auto p-6 space-y-8 animate-pulse">
+            <div className="h-8 bg-muted rounded w-48 mb-6"></div>
+            <div className="h-64 bg-muted rounded-xl"></div>
+          </div>
+        </>
+      }
+    >
       <CompareContent />
     </Suspense>
   );

@@ -1,9 +1,7 @@
 {
   "family": "cropchain",
   "networkMode": "awsvpc",
-  "requiresCompatibilities": [
-    "FARGATE"
-  ],
+  "requiresCompatibilities": ["FARGATE"],
   "cpu": "256",
   "memory": "512",
   "executionRoleArn": "arn:aws:iam::148221445428:role/ecsTaskExecutionRole",

@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 export const BatchInfoSkeleton: React.FC = () => {
   return (
@@ -7,10 +7,13 @@ export const BatchInfoSkeleton: React.FC = () => {
         <div className="h-6 w-6 bg-gray-300 dark:bg-gray-700 rounded mr-3"></div>
         <div className="h-7 bg-gray-300 dark:bg-gray-700 rounded w-48"></div>
       </div>
-      
+
       <div className="grid md:grid-cols-3 gap-6">
         {[1, 2, 3].map((item) => (
-          <div key={item} className="bg-gray-100 dark:bg-gray-700 rounded-xl p-4">
+          <div
+            key={item}
+            className="bg-gray-100 dark:bg-gray-700 rounded-xl p-4"
+          >
             <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded w-20 mb-2"></div>
             <div className="h-5 bg-gray-300 dark:bg-gray-600 rounded w-24"></div>
           </div>

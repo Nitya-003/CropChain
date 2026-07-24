@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { render, screen } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
 import {
   Table,
   TableHeader,
@@ -9,10 +9,10 @@ import {
   TableRow,
   TableCell,
   TableCaption,
-} from '../table';
+} from "../table";
 
-describe('Table', () => {
-  it('renders table with all subcomponents', () => {
+describe("Table", () => {
+  it("renders table with all subcomponents", () => {
     render(
       <Table>
         <TableCaption>List of items</TableCaption>
@@ -34,11 +34,11 @@ describe('Table', () => {
             <TableCell>$10</TableCell>
           </TableRow>
         </TableFooter>
-      </Table>
+      </Table>,
     );
-    expect(screen.getByText('List of items')).toBeInTheDocument();
-    expect(screen.getByText('Name')).toBeInTheDocument();
-    expect(screen.getByText('Item 1')).toBeInTheDocument();
-    expect(screen.getByText('Total')).toBeInTheDocument();
+    expect(screen.getByText("List of items")).toBeInTheDocument();
+    expect(screen.getByText("Name")).toBeInTheDocument();
+    expect(screen.getByText("Item 1")).toBeInTheDocument();
+    expect(screen.getByText("Total")).toBeInTheDocument();
   });
 });

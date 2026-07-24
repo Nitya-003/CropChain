@@ -4,12 +4,13 @@
  * Prevents cryptic runtime errors due to misconfiguration.
  */
 
-const logger = require('./logger');
+const logger = require("./logger");
 
 const REQUIRED_VARS = {
   MONGODB_URI: {
     description: "MongoDB connection string",
-    validate: (v) => v.startsWith("mongodb://") || v.startsWith("mongodb+srv://"),
+    validate: (v) =>
+      v.startsWith("mongodb://") || v.startsWith("mongodb+srv://"),
     hint: "Expected format: mongodb://host:port/db or mongodb+srv://...",
   },
   JWT_SECRET: {
@@ -63,45 +64,49 @@ const validateEnv = () => {
   const errors = [];
   const warnings = [];
 
-  Object.entries(REQUIRED_VARS).forEach(([key, { description, validate, hint }]) => {
-    const value = process.env[key];
-    if (!value) {
-      errors.push(`  - ${key}: ${description}${hint ? `. ${hint}` : ''}\n`);
-    } else if (typeof validate === "function" && !validate(value)) {
-      errors.push(`  - ${key}: value "${value}" has invalid format\n`);
-    }
-  });
+  Object.entries(REQUIRED_VARS).forEach(
+    ([key, { description, validate, hint }]) => {
+      const value = process.env[key];
+      if (!value) {
+        errors.push(`  - ${key}: ${description}${hint ? `. ${hint}` : ""}\n`);
+      } else if (typeof validate === "function" && !validate(value)) {
+        errors.push(`  - ${key}: value "${value}" has invalid format\n`);
+      }
+    },
+  );
 
   if (process.env.JWT_SECRET && process.env.JWT_REFRESH_SECRET) {
     if (process.env.JWT_SECRET === process.env.JWT_REFRESH_SECRET) {
       errors.push(
-          "  - JWT_SECRET and JWT_REFRESH_SECRET must be different values for security."
+        "  - JWT_SECRET and JWT_REFRESH_SECRET must be different values for security.",
       );
     }
   }
 
   Object.entries(OPTIONAL_VARS_WARN).forEach(([key, { description, hint }]) => {
     if (!process.env[key]) {
-      warnings.push(`  - ${key} (optional): ${description}${hint ? `. ${hint}` : ''}\n`);
+      warnings.push(
+        `  - ${key} (optional): ${description}${hint ? `. ${hint}` : ""}\n`,
+      );
     }
   });
 
   if (errors.length > 0) {
-    logger.error('ENVIRONMENT VARIABLE VALIDATION FAILED');
-    logger.error('The following required variables are missing or invalid:');
+    logger.error("ENVIRONMENT VARIABLE VALIDATION FAILED");
+    logger.error("The following required variables are missing or invalid:");
     errors.forEach((e) => logger.error(e));
-    logger.error('Please configure these in your .env file.');
-    logger.error('Refer to backend/.env.example for guidance.');
+    logger.error("Please configure these in your .env file.");
+    logger.error("Refer to backend/.env.example for guidance.");
     process.exit(1);
   }
 
   if (warnings.length > 0) {
-    logger.warn('ENVIRONMENT VARIABLE WARNINGS');
-    logger.warn('The following optional variables are not set:');
+    logger.warn("ENVIRONMENT VARIABLE WARNINGS");
+    logger.warn("The following optional variables are not set:");
     warnings.forEach((w) => logger.warn(w));
-    logger.warn('Some features may not be available.');
+    logger.warn("Some features may not be available.");
   } else {
-    logger.info('All required environment variables are valid.');
+    logger.info("All required environment variables are valid.");
   }
 };
 

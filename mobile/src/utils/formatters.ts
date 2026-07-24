@@ -1,17 +1,17 @@
 export function formatDate(dateString: string): string {
   const date = new Date(dateString);
-  return date.toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
+  return date.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
   });
 }
 
 export function formatTime(dateString: string): string {
   const date = new Date(dateString);
-  return date.toLocaleTimeString('en-IN', {
-    hour: '2-digit',
-    minute: '2-digit',
+  return date.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
@@ -25,7 +25,7 @@ export function truncateAddress(address: string): string {
 }
 
 export function getStageIndex(stage: string): number {
-  const flow = ['farmer', 'mandi', 'transport', 'retailer'];
+  const flow = ["farmer", "mandi", "transport", "retailer"];
   return flow.indexOf(stage);
 }
 
