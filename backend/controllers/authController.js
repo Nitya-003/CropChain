@@ -105,7 +105,20 @@ const sanitizeUser = (user) => ({
   createdAt: user.createdAt,
 });
 
+<<<<<<< HEAD
 const REFRESH_COOKIE_NAME = "refreshToken";
+=======
+// Pulls a flat array of human-readable messages out of a zod SafeParseError,
+// the same way batchController.js already does — keeps validation error
+// shape identical across every controller instead of leaking the raw
+// (non-JSON-friendly) ZodError object to the client.
+const extractValidationDetails = (zodError) => {
+    const issues = zodError.issues || zodError.errors || [];
+    return issues.map((issue) => issue.message);
+};
+
+const REFRESH_COOKIE_NAME = 'refreshToken';
+>>>>>>> 4fff4ff5a54bc38bcfd2a4d1f9a2796f49cacbbd
 
 const getRefreshCookieOptions = () => ({
   httpOnly: true,
@@ -148,6 +161,7 @@ const registerUser = async (req, res) => {
     // Validate request body
     const validationResult = registerSchema.safeParse(req.body);
 
+<<<<<<< HEAD
     if (!validationResult.success) {
       logger.warn("Validation failed", { details: validationResult.error });
       return res.status(400).json({
@@ -157,6 +171,19 @@ const registerUser = async (req, res) => {
         details: validationResult.error,
       });
     }
+=======
+        if (!validationResult.success) {
+            logger.warn('Validation failed', { details: validationResult.error });
+            return res.status(400).json(
+                apiResponse.errorResponse(
+                    'Validation failed',
+                    'VALIDATION_ERROR',
+                    400,
+                    extractValidationDetails(validationResult.error)
+                )
+            );
+        }
+>>>>>>> 4fff4ff5a54bc38bcfd2a4d1f9a2796f49cacbbd
 
     const { name, email, password, role } = validationResult.data;
 
@@ -229,6 +256,7 @@ const loginUser = async (req, res) => {
     // Validate request body
     const validationResult = loginSchema.safeParse(req.body);
 
+<<<<<<< HEAD
     if (!validationResult.success) {
       logger.warn("Validation failed", { details: validationResult.error });
       return res.status(400).json({
@@ -237,6 +265,42 @@ const loginUser = async (req, res) => {
         message: "Invalid email or password format.",
         details: validationResult.error,
       });
+=======
+        if (!validationResult.success) {
+            logger.warn('Validation failed', { details: validationResult.error });
+            return res.status(400).json(
+                apiResponse.errorResponse(
+                    'Validation failed',
+                    'VALIDATION_ERROR',
+                    400,
+                    extractValidationDetails(validationResult.error)
+                )
+            );
+        }
+
+        const { email, password } = validationResult.data;
+
+        // Find user with password
+        const user = await User.findOne({ email }).select('+password');
+
+        if (user && (await bcrypt.compare(password, user.password))) {
+            attachRefreshCookie(res, user);
+            const response = apiResponse.successResponse(
+                buildAuthPayload(user),
+                'Login successful'
+            );
+            return res.json(response);
+        } else {
+            return res.status(401).json(
+                apiResponse.unauthorizedResponse('Invalid email or password')
+            );
+        }
+
+    } catch (error) {
+        return res.status(500).json(
+            apiResponse.errorResponse('Login failed', 'LOGIN_FAILED', 500)
+        );
+>>>>>>> 4fff4ff5a54bc38bcfd2a4d1f9a2796f49cacbbd
     }
 
     const { email, password } = validationResult.data;
@@ -267,6 +331,7 @@ const updateProfile = async (req, res) => {
   try {
     const validationResult = updateProfileSchema.safeParse(req.body);
 
+<<<<<<< HEAD
     if (!validationResult.success) {
       return res.status(400).json({
         success: false,
@@ -275,6 +340,18 @@ const updateProfile = async (req, res) => {
         details: validationResult.error,
       });
     }
+=======
+        if (!validationResult.success) {
+            return res.status(400).json(
+                apiResponse.errorResponse(
+                    'Validation failed',
+                    'VALIDATION_ERROR',
+                    400,
+                    extractValidationDetails(validationResult.error)
+                )
+            );
+        }
+>>>>>>> 4fff4ff5a54bc38bcfd2a4d1f9a2796f49cacbbd
 
     const user = await User.findById(req.user._id);
 
@@ -405,6 +482,7 @@ const walletLogin = async (req, res) => {
     // Validate request body
     const validationResult = walletLoginSchema.safeParse(req.body);
 
+<<<<<<< HEAD
     if (!validationResult.success) {
       return res.status(400).json({
         success: false,
@@ -413,6 +491,18 @@ const walletLogin = async (req, res) => {
         details: validationResult.error,
       });
     }
+=======
+        if (!validationResult.success) {
+            return res.status(400).json(
+                apiResponse.errorResponse(
+                    'Validation failed',
+                    'VALIDATION_ERROR',
+                    400,
+                    extractValidationDetails(validationResult.error)
+                )
+            );
+        }
+>>>>>>> 4fff4ff5a54bc38bcfd2a4d1f9a2796f49cacbbd
 
     const { address, signature, nonce: providedNonce } = validationResult.data;
     const normalizedAddress = address.toLowerCase();
@@ -526,6 +616,7 @@ const walletRegister = async (req, res) => {
   try {
     const validationResult = walletRegisterSchema.safeParse(req.body);
 
+<<<<<<< HEAD
     if (!validationResult.success) {
       return res.status(400).json({
         success: false,
@@ -534,6 +625,18 @@ const walletRegister = async (req, res) => {
         details: validationResult.error,
       });
     }
+=======
+        if (!validationResult.success) {
+            return res.status(400).json(
+                apiResponse.errorResponse(
+                    'Validation failed',
+                    'VALIDATION_ERROR',
+                    400,
+                    extractValidationDetails(validationResult.error)
+                )
+            );
+        }
+>>>>>>> 4fff4ff5a54bc38bcfd2a4d1f9a2796f49cacbbd
 
     const {
       name,
@@ -1008,6 +1111,7 @@ const setFallbackPassword = async (req, res) => {
 };
 
 module.exports = {
+<<<<<<< HEAD
   registerUser,
   loginUser,
   walletLogin,
@@ -1021,3 +1125,18 @@ module.exports = {
   addFunds,
   setFallbackPassword,
 };
+=======
+    registerUser,
+    loginUser,
+    walletLogin,
+    walletRegister,
+    getNonce,
+    updateProfile,
+    refreshSession,
+    logoutUser,
+    forgotPassword,
+    resetPassword,
+    addFunds,
+    setFallbackPassword
+};
+>>>>>>> 4fff4ff5a54bc38bcfd2a4d1f9a2796f49cacbbd

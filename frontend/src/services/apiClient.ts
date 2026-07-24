@@ -3,11 +3,16 @@ import { tokenService } from "./token.service";
 import { sanitizeObject } from "../lib/sanitize";
 
 const baseApiUrl =
+<<<<<<< HEAD
   (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_URL) ||
   "http://localhost:3001";
 export const API_URL = baseApiUrl.endsWith("/api")
   ? baseApiUrl
   : `${baseApiUrl.replace(/\/$/, "")}/api`;
+=======
+  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+export const API_URL = baseApiUrl.endsWith('/api') ? baseApiUrl : `${baseApiUrl.replace(/\/$/, '')}/api`;
+>>>>>>> 4fff4ff5a54bc38bcfd2a4d1f9a2796f49cacbbd
 
 interface RetriableRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;

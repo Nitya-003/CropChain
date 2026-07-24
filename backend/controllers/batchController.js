@@ -483,6 +483,10 @@ exports.updateBatchStatus = async (req, res) => {
         );
 
         if (!batch) {
+<<<<<<< HEAD
+=======
+            // Previously: res.status(404).json({ error: 'Batch not found' }) — inconsistent shape.
+>>>>>>> 4fff4ff5a54bc38bcfd2a4d1f9a2796f49cacbbd
             return res.status(404).json(apiResponse.notFoundResponse('Batch', `ID: ${batchId}`));
         }
 
@@ -510,7 +514,12 @@ exports.updateBatchStatus = async (req, res) => {
         res.json(apiResponse.successResponse({ batch }, 'Batch status updated successfully'));
     } catch (err) {
         logger.error('Error updating batch status', { error: err.message, stack: err.stack });
+<<<<<<< HEAD
         res.status(500).json(apiResponse.errorResponse('Server error', 'SERVER_ERROR', 500, err.message));
+=======
+        // Previously: res.status(500).json({ error: 'Server error', details: err.message }) — inconsistent shape.
+        res.status(500).json(apiResponse.errorResponse('Failed to update batch status', 'BATCH_STATUS_UPDATE_ERROR', 500));
+>>>>>>> 4fff4ff5a54bc38bcfd2a4d1f9a2796f49cacbbd
     }
 };
 
