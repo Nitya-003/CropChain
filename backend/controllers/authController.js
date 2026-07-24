@@ -31,6 +31,14 @@ redis.on('error', (err) => {
 });
 }
 // Validation Schemas
+const passwordSchema = z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password too long')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
+    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character');
+
 const registerSchema = z.object({
     name: z.string()
         .min(2, 'Name must be at least 2 characters')
@@ -40,13 +48,7 @@ const registerSchema = z.object({
         .email('Please provide a valid email')
         .toLowerCase()
         .trim(),
-    password: z.string()
-        .min(8, 'Password must be at least 8 characters')
-        .max(128, 'Password too long')
-        .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-        .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-        .regex(/[0-9]/, 'Password must contain at least one number')
-        .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
+    password: passwordSchema,
     role: z.enum(VALID_ROLES, {
         errorMap: () => ({ 
             message: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}` 
@@ -65,14 +67,7 @@ const updateProfileSchema = z.object({
         .toLowerCase()
         .trim()
         .optional(),
-    password: z.string()
-        .min(8, 'Password must be at least 8 characters')
-        .max(128, 'Password too long')
-        .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-        .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-        .regex(/[0-9]/, 'Password must contain at least one number')
-        .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character')
-        .optional()
+    password: passwordSchema.optional()
 }).refine(data => Object.keys(data).length > 0, {
     message: "At least one field (name, email, or password) must be provided to update",
 });
@@ -717,19 +712,14 @@ const resetPassword = async (req, res) => {
             );
         }
 
-        if (password.length < 8) {
-            return res.status(400).json(
-                apiResponse.errorResponse('Password must be at least 8 characters long', 'INVALID_PASSWORD', 400)
-            );
-        }
-
-        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,128}$/;
-        if (!passwordRegex.test(password)) {
+        const passwordResult = passwordSchema.safeParse(password);
+        if (!passwordResult.success) {
             return res.status(400).json(
                 apiResponse.errorResponse(
                     'Password must be 8-128 characters and contain at least one uppercase letter, one lowercase letter, one number, and one special character',
                     'INVALID_PASSWORD',
-                    400
+                    400,
+                    extractValidationDetails(passwordResult.error)
                 )
             );
         }
@@ -751,7 +741,7 @@ const resetPassword = async (req, res) => {
         }
 
         const salt = await bcrypt.genSalt(12);
-        user.password = await bcrypt.hash(password, salt);
+        user.password = await bcrypt.hash(passwordResult.data, salt);
         user.resetPasswordToken = undefined;
         user.resetPasswordExpire = undefined;
         user.tokenVersion = (user.tokenVersion || 0) + 1;
@@ -810,10 +800,16 @@ const addFunds = async (req, res) => {
 const setFallbackPassword = async (req, res) => {
     try {
         const { password } = req.body;
-        
-        if (!password || password.length < 6) {
+
+        const passwordResult = passwordSchema.safeParse(password);
+        if (!passwordResult.success) {
             return res.status(400).json(
-                apiResponse.errorResponse('Password must be at least 6 characters long', 'INVALID_PASSWORD', 400)
+                apiResponse.errorResponse(
+                    'Password does not meet security requirements',
+                    'INVALID_PASSWORD',
+                    400,
+                    extractValidationDetails(passwordResult.error)
+                )
             );
         }
 
@@ -826,7 +822,7 @@ const setFallbackPassword = async (req, res) => {
 
         // Hash password with higher cost factor
         const salt = await bcrypt.genSalt(12);
-        const hashedPassword = await bcrypt.hash(password, salt);
+        const hashedPassword = await bcrypt.hash(passwordResult.data, salt);
 
         user.password = hashedPassword;
         await user.save();
