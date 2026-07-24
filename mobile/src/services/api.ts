@@ -1,7 +1,6 @@
 import { API_URL } from "../utils/constants";
 import * as SecureStore from "expo-secure-store";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3001/api";
 const TOKEN_KEY = "auth_token";
 
 export const DEFAULT_TIMEOUT = 15000;
