@@ -31,7 +31,46 @@ if (process.env.NODE_ENV !== "test") {
   });
 }
 // Validation Schemas
+const passwordSchema = z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password too long')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
+    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character');
+
 const registerSchema = z.object({
+    name: z.string()
+        .min(2, 'Name must be at least 2 characters')
+        .max(50, 'Name must be less than 50 characters')
+        .trim(),
+    email: z.string()
+        .email('Please provide a valid email')
+        .toLowerCase()
+        .trim(),
+    password: passwordSchema,
+    role: z.enum(VALID_ROLES, {
+        errorMap: () => ({ 
+            message: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}` 
+        })
+    }).default(ROLES.FARMER)
+});
+
+const updateProfileSchema = z.object({
+    name: z.string()
+        .min(2, 'Name must be at least 2 characters')
+        .max(50, 'Name must be less than 50 characters')
+        .trim()
+        .optional(),
+    email: z.string()
+        .email('Please provide a valid email')
+        .toLowerCase()
+        .trim()
+        .optional(),
+    password: passwordSchema.optional()
+}).refine(data => Object.keys(data).length > 0, {
+    message: "At least one field (name, email, or password) must be provided to update",
+});
   name: z
     .string()
     .min(2, "Name must be at least 2 characters")
@@ -819,6 +858,54 @@ const forgotPassword = async (req, res) => {
 };
 
 const resetPassword = async (req, res) => {
+    try {
+        const { token } = req.params;
+        const { password } = req.body;
+
+        if (!password) {
+            return res.status(400).json(
+                apiResponse.errorResponse('New password is required', 'PASSWORD_REQUIRED', 400)
+            );
+        }
+
+        const passwordResult = passwordSchema.safeParse(password);
+        if (!passwordResult.success) {
+            return res.status(400).json(
+                apiResponse.errorResponse(
+                    'Password must be 8-128 characters and contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+                    'INVALID_PASSWORD',
+                    400,
+                    extractValidationDetails(passwordResult.error)
+                )
+            );
+        }
+
+        const resetPasswordToken = crypto
+            .createHash('sha256')
+            .update(token)
+            .digest('hex');
+
+        const user = await User.findOne({
+            resetPasswordToken,
+            resetPasswordExpire: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json(
+                apiResponse.errorResponse('Invalid or expired password reset token', 'INVALID_TOKEN', 400)
+            );
+        }
+
+        const salt = await bcrypt.genSalt(12);
+        user.password = await bcrypt.hash(passwordResult.data, salt);
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpire = undefined;
+        user.tokenVersion = (user.tokenVersion || 0) + 1;
+
+        await user.save();
+
+        return res.json(
+            apiResponse.successResponse(null, 'Password reset successful')
   try {
     const { token } = req.params;
     const { password } = req.body;
@@ -971,6 +1058,44 @@ const addFunds = async (req, res) => {
 };
 
 const setFallbackPassword = async (req, res) => {
+    try {
+        const { password } = req.body;
+
+        const passwordResult = passwordSchema.safeParse(password);
+        if (!passwordResult.success) {
+            return res.status(400).json(
+                apiResponse.errorResponse(
+                    'Password does not meet security requirements',
+                    'INVALID_PASSWORD',
+                    400,
+                    extractValidationDetails(passwordResult.error)
+                )
+            );
+        }
+
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json(
+                apiResponse.notFoundResponse('User', req.user.id)
+            );
+        }
+
+        // Hash password with higher cost factor
+        const salt = await bcrypt.genSalt(12);
+        const hashedPassword = await bcrypt.hash(passwordResult.data, salt);
+
+        user.password = hashedPassword;
+        await user.save();
+
+        logger.info('Fallback password set successfully', { userId: user._id });
+
+        return res.json(
+            apiResponse.successResponse({ user: sanitizeUser(user) }, 'Fallback password set successfully')
+        );
+    } catch (error) {
+        logger.error('Error setting fallback password', { error: error.message });
+        return res.status(500).json(
+            apiResponse.errorResponse('Server error while setting fallback password', 'SERVER_ERROR', 500)
   try {
     const { password } = req.body;
 
