@@ -1,4 +1,4 @@
-const { ValidationError } = require('../utils/errorHandler');
+const { ValidationError } = require("../utils/errorHandler");
 
 const validateRequest = (schema) => {
   return (req, res, next) => {
@@ -33,6 +33,4 @@ const validateRequest = (schema) => {
 };
 
 module.exports = validateRequest;
-
-
 

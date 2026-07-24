@@ -21,17 +21,20 @@ Based on a thorough review of the project directory structure, dependencies, and
 ## 🚀 Features That Can Be Implemented
 
 ### Phase 1: High-Priority Enhancements (Immediate Action)
+
 1. **Real-time Updates (WebSockets)**: `socket.io` is installed in both backend and frontend. Implement real-time notifications for stakeholders when a batch changes stages (e.g., from "Growing" to "Harvested").
 2. **Background Jobs & Email Notifications**: `bullmq`, `redis`, and `nodemailer` are installed in the backend. Use them to build an async task queue that emails users when blockchain transactions confirm or when delayed supply chain alerts trigger.
 3. **PWA Integration (Offline-First)**: Since offline capabilities are a core feature, implement full Progressive Web App (PWA) support using `next-pwa` to allow farmers to cache data reliably in rural areas.
 
 ### Phase 2: System Expansion
+
 1. **Complete ML Integration for Crop Quality**: Finalize the `ml-service` to accept crop images/data, predict quality or shelf-life, and route this data back to the Node.js backend.
 2. **Finish React Native Mobile App**: Connect the Expo app in `mobile/` to the backend APIs. Use local device storage (AsyncStorage/SQLite) for mobile-first offline batch tracking.
 3. **Smart Contract Upgradability**: Refactor the current Solidity contracts to use the OpenZeppelin UUPS (Universal Upgradeable Proxy Standard) pattern to allow bug fixes in the smart contracts without losing supply chain state.
 4. **Internationalization (i18n)**: Fully implement `react-i18next` (already in `package.json`) to provide the UI in multiple regional languages (e.g., Hindi, Marathi) for farmers.
 
 ### Phase 3: Advanced Capabilities
+
 1. **IoT Sensor Ingestion API**: Create dedicated, high-throughput endpoints in the backend for IoT devices (e.g., temperature/humidity sensors in transport trucks) to post real-time transit data.
 2. **Carbon Footprint Tracking module**: Track emission estimates during the 'Transported' stage and write this environmental data to the Polygon blockchain.
 3. **Gasless Transactions (Meta-Transactions)**: Implement Biconomy or OpenZeppelin Relayers so farmers don't need to pay MATIC/ETH gas fees directly when logging crops.

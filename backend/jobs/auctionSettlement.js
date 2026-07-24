@@ -58,6 +58,14 @@ const claimAndSettleNextAuction = async (now, excludedAuctionIds = []) => {
       if (claimedAuction.highestBidder) {
         buyer = await User.findById(claimedAuction.highestBidder, null, { session });
         farmer = await User.findById(claimedAuction.farmerId, null, { session });
+        buyer = await User.findById(claimedAuction.highestBidder, null, {
+          session,
+        });
+        farmer = await User.findOneAndUpdate(
+          { _id: claimedAuction.farmerId },
+          { $inc: { balance: claimedAuction.currentHighestBid } },
+          { new: true, session },
+        );
         if (!farmer) {
           throw new Error("Auction farmer not found");
         }

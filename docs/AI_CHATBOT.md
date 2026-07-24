@@ -7,6 +7,7 @@ The CropChain AI Chatbot (CropAssistant) is an intelligent conversational interf
 ## Features
 
 ### Core Capabilities
+
 - **Natural Language Processing**: Understands user queries in plain English
 - **Function Calling**: Can search batches and retrieve real-time data
 - **Context Awareness**: Adapts responses based on current page and user context
@@ -14,6 +15,7 @@ The CropChain AI Chatbot (CropAssistant) is an intelligent conversational interf
 - **Real-time Chat**: Instant responses with typing indicators
 
 ### UI/UX Features
+
 - **Glassmorphic Design**: Modern backdrop-blur effects with transparency
 - **Smooth Animations**: Framer Motion powered transitions and micro-interactions
 - **Responsive Interface**: Works seamlessly on mobile, tablet, and desktop
@@ -65,6 +67,7 @@ sequenceDiagram
 **POST** `/api/ai/chat`
 
 **Request Body:**
+
 ```json
 {
   "message": "Where is batch CROP-2024-001?",
@@ -77,6 +80,7 @@ sequenceDiagram
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -98,29 +102,37 @@ sequenceDiagram
 ### Available Functions
 
 #### 1. search_batch
+
 Searches for a specific crop batch by ID.
 
 **Parameters:**
+
 - `batchId` (string): The batch ID to search for
 
 **Returns:**
+
 - Batch information including current stage, farmer details, and update count
 
 #### 2. get_batch_stats
+
 Retrieves overall system statistics.
 
 **Parameters:** None
 
 **Returns:**
+
 - Total batches, farmers, quantity, and recent batch count
 
 #### 3. explain_process
+
 Provides explanations for CropChain processes.
 
 **Parameters:**
+
 - `topic` (string): The topic to explain
 
 **Returns:**
+
 - Detailed explanation of the requested process
 
 ## Configuration
@@ -128,6 +140,7 @@ Provides explanations for CropChain processes.
 ### Environment Variables
 
 **Backend (.env):**
+
 ```env
 # Required for full AI functionality
 OPENAI_API_KEY=your_openai_api_key_here
@@ -139,6 +152,7 @@ AI_TEMPERATURE=0.7
 ```
 
 **Frontend (.env):**
+
 ```env
 # API endpoint for chat service
 NEXT_PUBLIC_API_URL=http://localhost:3001
@@ -162,24 +176,28 @@ If no OpenAI API key is provided, the chatbot operates in fallback mode with pre
 ## Usage Examples
 
 ### Basic Queries
+
 ```
 User: "How do I track a batch?"
 AI: "To track a batch, you can either scan the QR code or search by batch ID (format: CROP-YYYY-XXXX) on the Track Batch page. This will show you the complete supply chain journey."
 ```
 
 ### Batch Searches
+
 ```
 User: "Where is batch CROP-2024-001?"
 AI: "Batch CROP-2024-001 is currently at the Mandi stage in Punjab. It contains 1000 kg of rice from farmer Rajesh Kumar, harvested on 2024-01-15."
 ```
 
 ### Process Explanations
+
 ```
 User: "What is an immutable record?"
 AI: "An immutable record means the data cannot be changed or deleted once written to the blockchain. This ensures the integrity of crop tracking information and builds trust among farmers, retailers, and consumers."
 ```
 
 ### Context-Aware Responses
+
 ```
 # On Add Batch page
 User: "Help me"
@@ -191,6 +209,7 @@ AI: "I can help you create a new batch! Fill in the farmer details, crop type, q
 ### Adding New Functions
 
 1. **Define Function in aiService.js:**
+
 ```javascript
 {
   name: 'get_weather_data',
@@ -206,6 +225,7 @@ AI: "I can help you create a new batch! Fill in the farmer details, crop type, q
 ```
 
 2. **Implement Function Logic:**
+
 ```javascript
 case 'get_weather_data':
   const weatherData = await weatherService.getWeather(parameters.location);
@@ -225,7 +245,7 @@ getQuickActions(context?: ChatContext): Array<{ label: string; message: string; 
       icon: '🌤️'
     }
   ];
-  
+
   // Add context-specific actions
   if (context?.currentPage === 'add-batch') {
     actions.unshift({
@@ -234,7 +254,7 @@ getQuickActions(context?: ChatContext): Array<{ label: string; message: string; 
       icon: '⏰'
     });
   }
-  
+
   return actions;
 }
 ```
@@ -245,29 +265,32 @@ The chatbot uses Tailwind CSS classes. Key customization points:
 
 ```tsx
 // Chat window background
-className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl"
+className = "bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl";
 
 // Message bubbles
-className="bg-blue-500 text-white" // User messages
-className="bg-white dark:bg-gray-800" // AI messages
+className = "bg-blue-500 text-white"; // User messages
+className = "bg-white dark:bg-gray-800"; // AI messages
 
 // Floating action button
-className="bg-gradient-to-r from-green-500 to-green-600"
+className = "bg-gradient-to-r from-green-500 to-green-600";
 ```
 
 ## Security Considerations
 
 ### API Key Protection
+
 - Store OpenAI API key in environment variables only
 - Never expose API keys in frontend code
 - Use server-side proxy for all OpenAI requests
 
 ### Input Validation
+
 - Message length limited to 1000 characters
 - Input sanitization via Zod schemas
 - Rate limiting applied to chat endpoint
 
 ### Data Privacy
+
 - No sensitive user data sent to OpenAI
 - Batch information filtered before function calls
 - Chat history stored locally in browser only
@@ -275,6 +298,7 @@ className="bg-gradient-to-r from-green-500 to-green-600"
 ## Performance Optimization
 
 ### Response Caching
+
 Consider implementing response caching for common queries:
 
 ```javascript
@@ -282,24 +306,25 @@ const responseCache = new Map();
 
 async chat(message, batchService) {
   const cacheKey = message.toLowerCase().trim();
-  
+
   if (responseCache.has(cacheKey)) {
     return responseCache.get(cacheKey);
   }
-  
+
   const response = await this.callOpenAI(message, batchService);
   responseCache.set(cacheKey, response);
-  
+
   return response;
 }
 ```
 
 ### Integration in App
+
 The chatbot component is imported and rendered directly in the main application:
 
 ```tsx
 // In App.tsx
-import AIChatbot from './components/AIChatbot';
+import AIChatbot from "./components/AIChatbot";
 
 function App() {
   return (
@@ -316,16 +341,19 @@ function App() {
 ### Common Issues
 
 **1. Chat not responding**
+
 - Check OpenAI API key in backend/.env
 - Verify backend server is running
 - Check browser console for errors
 
 **2. Function calls failing**
+
 - Ensure batch service is properly connected
 - Check function parameter validation
 - Verify database connectivity
 
 **3. Animations not working**
+
 - Confirm framer-motion is installed
 - Check for CSS conflicts
 - Verify browser supports backdrop-filter
@@ -336,14 +364,15 @@ Enable debug logging:
 
 ```javascript
 // In aiService.js
-console.log('AI Request:', { message, context });
-console.log('OpenAI Response:', response.data);
-console.log('Function Result:', functionResult);
+console.log("AI Request:", { message, context });
+console.log("OpenAI Response:", response.data);
+console.log("Function Result:", functionResult);
 ```
 
 ## Testing
 
 ### Unit Tests
+
 ```bash
 # Frontend tests
 npm test -- --testPathPattern=AIChatbot
@@ -354,6 +383,7 @@ npm test -- --testPathPattern=aiService
 ```
 
 ### Manual Testing Checklist
+
 - [ ] Chat opens/closes smoothly
 - [ ] Messages send and receive correctly
 - [ ] Quick actions work
@@ -367,6 +397,7 @@ npm test -- --testPathPattern=aiService
 ## Future Enhancements
 
 ### Planned Features
+
 - **Voice Input**: Speech-to-text integration
 - **Image Recognition**: QR code scanning via camera
 - **Multi-language**: Support for regional languages
@@ -374,6 +405,7 @@ npm test -- --testPathPattern=aiService
 - **Analytics**: Chat interaction tracking and insights
 
 ### Integration Opportunities
+
 - **IoT Sensors**: Real-time environmental data queries
 - **Weather APIs**: Crop-specific weather information
 - **Market Prices**: Current commodity pricing data

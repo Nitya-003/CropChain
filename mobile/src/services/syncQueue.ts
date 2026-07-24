@@ -1,22 +1,25 @@
-import NetInfo from '@react-native-community/netinfo';
-import { offlineStorage } from './offlineStorage';
-import { batchService } from './batch.service';
-import type { BatchStageUpdatePayload, SyncQueueInput } from '../types';
+import NetInfo from "@react-native-community/netinfo";
+import { offlineStorage } from "./offlineStorage";
+import { batchService } from "./batch.service";
+import type { BatchStageUpdatePayload, SyncQueueInput } from "../types";
 
-type SyncStatus = 'idle' | 'syncing' | 'error';
+type SyncStatus = "idle" | "syncing" | "error";
 
 type SyncListener = (status: SyncStatus, pendingCount: number) => void;
 
-const batchStages = new Set(['farmer', 'mandi', 'transport', 'retailer']);
+const batchStages = new Set(["farmer", "mandi", "transport", "retailer"]);
 
 function isStageUpdatePayload(data: unknown): data is BatchStageUpdatePayload {
-  if (!data || typeof data !== 'object') return false;
+  if (!data || typeof data !== "object") return false;
   const payload = data as Partial<BatchStageUpdatePayload>;
   return (
-    typeof payload.stage === 'string' && batchStages.has(payload.stage) &&
-    typeof payload.actor === 'string' && payload.actor.trim().length >= 2 &&
-    typeof payload.location === 'string' && payload.location.trim().length >= 2 &&
-    (payload.notes === undefined || typeof payload.notes === 'string')
+    typeof payload.stage === "string" &&
+    batchStages.has(payload.stage) &&
+    typeof payload.actor === "string" &&
+    payload.actor.trim().length >= 2 &&
+    typeof payload.location === "string" &&
+    payload.location.trim().length >= 2 &&
+    (payload.notes === undefined || typeof payload.notes === "string")
   );
 }
 
@@ -51,9 +54,9 @@ class SyncQueueManager {
   async addToQueue(params: SyncQueueInput) {
     await offlineStorage.addToQueue({
       ...params,
-      priority: 'normal',
+      priority: "normal",
     });
-    this.notify('idle');
+    this.notify("idle");
 
     const netState = await NetInfo.fetch();
     if (netState.isConnected) {
@@ -64,16 +67,18 @@ class SyncQueueManager {
   async processQueue() {
     if (this.isSyncing) return;
     this.isSyncing = true;
-    this.notify('syncing');
+    this.notify("syncing");
 
     try {
       const queue = await offlineStorage.getQueue();
 
       for (const item of queue) {
         try {
-          if (item.action === 'stage_update') {
+          if (item.action === "stage_update") {
             if (!isStageUpdatePayload(item.data)) {
-              throw new Error(`Invalid stage update payload for queue item ${item.id}`);
+              throw new Error(
+                `Invalid stage update payload for queue item ${item.id}`,
+              );
             }
             await batchService.updateStage(item.batchId, item.data);
           }
@@ -86,9 +91,9 @@ class SyncQueueManager {
           }
         }
       }
-      this.notify('idle');
+      this.notify("idle");
     } catch {
-      this.notify('error');
+      this.notify("error");
     } finally {
       this.isSyncing = false;
     }

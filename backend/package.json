@@ -8,7 +8,7 @@
     "dev": "nodemon server.js",
     "build": "echo 'No build step required for serverless Node.js backend'",
     "test": "jest --watchAll",
-    "test:ci": "cross-env NODE_ENV=test jest --ci --coverage --watchAll=false",
+    "test:ci": "cross-env NODE_ENV=test jest --ci --coverage --watchAll=false --forceExit",
     "test:ai": "node test-ai-chat.js",
     "test:perf": "node scripts/verify-indexes.js"
   },

@@ -18,7 +18,15 @@ declare global {
       displayName?: string;
       context?: React.ContextType<S>;
     }
-    type ReactNode = React.ReactElement | string | number | React.ReactFragment | React.ReactPortal | boolean | null | undefined;
+    type ReactNode =
+      | React.ReactElement
+      | string
+      | number
+      | React.ReactFragment
+      | React.ReactPortal
+      | boolean
+      | null
+      | undefined;
     interface ReactElement<P = {}> {
       type: React.ElementType<P>;
       props: P;
@@ -30,8 +38,13 @@ declare global {
     interface ReactPortal {
       key: React.Key | null;
     }
-    type ElementType<P = any> = string | React.ComponentType<P> | React.FunctionComponent<P> | React.ExoticComponent<P>;
-    type ComponentType<P = any> = React.ComponentClass<P> | React.FunctionComponent<P>;
+    type ElementType<P = any> =
+      | string
+      | React.ComponentType<P>
+      | React.FunctionComponent<P>
+      | React.ExoticComponent<P>;
+    type ComponentType<P = any> =
+      React.ComponentClass<P> | React.FunctionComponent<P>;
     type Element = React.ReactElement;
     type Node = React.ReactNode;
     type Key = React.Key;
@@ -83,9 +96,12 @@ declare global {
   }
 }
 
-declare module 'react' {
+declare module "react" {
   export const useState: <T>(initial: T) => [T, (value: T) => void];
-  export const useEffect: (effect: () => void | (() => void), deps?: any[]) => void;
+  export const useEffect: (
+    effect: () => void | (() => void),
+    deps?: any[],
+  ) => void;
   export const useRef: <T>(initial: T) => { current: T };
   export const FormEvent: any;
   export const ChangeEvent: any;
@@ -94,15 +110,18 @@ declare module 'react' {
   export const CSSProperties: any;
 }
 
-declare module 'react-i18next' {
-  export const useTranslation: () => { t: (key: string, ...args: any[]) => string; i18n: any };
+declare module "react-i18next" {
+  export const useTranslation: () => {
+    t: (key: string, ...args: any[]) => string;
+    i18n: any;
+  };
 }
 
-declare module 'react-router-dom' {
+declare module "react-router-dom" {
   export const useNavigate: () => (to: string) => void;
 }
 
-declare module 'lucide-react' {
+declare module "lucide-react" {
   export const Plus: any;
   export const Upload: any;
   export const MapPin: any;
@@ -160,7 +179,7 @@ declare global {
         calls: Array<any[]>;
       };
     }
-    
+
     function mock<T>(moduleName: string, factory: () => T): void;
     function fn(): Mock;
     function spyOn(object: any, method: string): Mock;

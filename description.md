@@ -1,6 +1,7 @@
 ## 📌 Overview
 
 This PR fixes the floating-point precision bug where `balance`, `startPrice`, `currentHighestBid`, and `bidAmount` were stored as MongoDB `Number` (64-bit IEEE 754 double), which cannot represent many decimal values exactly. Repeated bid/refund cycles caused silent balance drift (e.g., `99999.99999999999` instead of `100000`).
+This PR fixes the inconsistent password validation in `setFallbackPassword` and `resetPassword` endpoints. The standard `registerSchema` enforces a strong password policy (min 8 chars, uppercase, lowercase, digit, special character), but the fallback password path only checked `password.length < 6`, allowing weak passwords like `"abc123"`.
 
 ## 🛠️ Type of Change
 - [ ] ⛓️ **Smart Contract** (Solidity changes, Gas optimization)
@@ -13,6 +14,7 @@ This PR fixes the floating-point precision bug where `balance`, `startPrice`, `c
 
 ## 🔗 Related Issue
 Closes #775
+Closes #776
 
 ---
 
@@ -70,3 +72,24 @@ Key changes:
 - **`backend/package.json`** — added `decimal.js` dependency
 
 All schemas include `toJSON` transforms that convert Decimal128 back to JavaScript numbers for API responses, so the frontend API contract remains unchanged.
+`setFallbackPassword` (line 814) only validated `password.length < 6`, ignoring the uppercase, lowercase, digit, and special character requirements enforced by `registerSchema`. A wallet-authenticated user could set a weak 6-character password like `"abc123"`, creating an inconsistent security boundary — the weakest link determined auth strength for wallet users.
+
+Similarly, `resetPassword` had duplicate inline validation logic that was functionally equivalent but maintained separately from the shared schema.
+
+### Fix
+Extracted a reusable `passwordSchema` from the `registerSchema` definition and applied it consistently across all three password-setting paths:
+
+- **`registerSchema`** — now references the shared `passwordSchema`
+- **`updateProfileSchema`** — now references `passwordSchema.optional()`
+- **`setFallbackPassword`** — validates via `passwordSchema.safeParse()` instead of `length < 6`
+- **`resetPassword`** — validates via `passwordSchema.safeParse()` instead of inline regex
+
+The `passwordSchema` enforces:
+- Minimum 8 characters
+- Maximum 128 characters
+- At least one uppercase letter
+- At least one lowercase letter
+- At least one digit
+- At least one special character
+
+This ensures a single source of truth for password policy across the entire application, eliminating the weak-link security gap.

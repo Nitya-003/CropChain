@@ -1,28 +1,43 @@
 "use client";
-import React, { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { LayoutDashboard, Wallet, Loader2, Mail, Lock, AlertCircle } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { useTranslation } from 'react-i18next';
+import React, { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import {
+  LayoutDashboard,
+  Wallet,
+  Loader2,
+  Mail,
+  Lock,
+  AlertCircle,
+} from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import { useTranslation } from "react-i18next";
 
 const LoginContent = () => {
-  const { login, connectWallet, walletLogin, isWalletConnected, user, isLoading } = useAuth();
+  const {
+    login,
+    connectWallet,
+    walletLogin,
+    isWalletConnected,
+    user,
+    isLoading,
+  } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useTranslation();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   // Validate the redirect path to prevent open redirect attacks.
   // Only allow relative internal paths (must start with '/' but not '//').
   // External URLs like 'https://evil.com' or protocol-relative '//evil.com' are rejected.
-  const rawRedirect = searchParams.get('from') || '/';
-  const isInternalPath = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//');
-  const redirectPath = isInternalPath ? rawRedirect : '/';
+  const rawRedirect = searchParams.get("from") || "/";
+  const isInternalPath =
+    rawRedirect.startsWith("/") && !rawRedirect.startsWith("//");
+  const redirectPath = isInternalPath ? rawRedirect : "/";
 
   useEffect(() => {
     if (user) {
@@ -32,13 +47,16 @@ const LoginContent = () => {
 
   const handleEmailLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setIsSubmitting(true);
     try {
       await login({ email, password });
     } catch (err: any) {
       console.error(err);
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+      setError(
+        err.response?.data?.message ||
+          "Login failed. Please check your credentials.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -52,10 +70,10 @@ const LoginContent = () => {
             <LayoutDashboard className="h-8 w-8 text-green-600 dark:text-green-400" />
           </div>
           <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
-            {t('auth.welcomeBack')}
+            {t("auth.welcomeBack")}
           </h2>
           <p className="text-gray-600 dark:text-gray-300">
-            {t('auth.loginSubtitle')}
+            {t("auth.loginSubtitle")}
           </p>
         </div>
 
@@ -69,7 +87,7 @@ const LoginContent = () => {
         <form onSubmit={handleEmailLogin} className="space-y-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t('auth.email')}
+              {t("auth.email")}
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -89,10 +107,13 @@ const LoginContent = () => {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                {t('auth.password')}
+                {t("auth.password")}
               </label>
-              <Link href="/forgot-password" className="text-sm font-medium text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300">
-                {t('auth.forgotPassword')}
+              <Link
+                href="/forgot-password"
+                className="text-sm font-medium text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300"
+              >
+                {t("auth.forgotPassword")}
               </Link>
             </div>
             <div className="relative">
@@ -118,10 +139,10 @@ const LoginContent = () => {
             {isSubmitting ? (
               <>
                 <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />
-                {t('common.loading')}
+                {t("common.loading")}
               </>
             ) : (
-              t('auth.loginButton')
+              t("auth.loginButton")
             )}
           </button>
         </form>
@@ -131,7 +152,9 @@ const LoginContent = () => {
             <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">Or continue with</span>
+            <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">
+              Or continue with
+            </span>
           </div>
         </div>
 
@@ -160,10 +183,9 @@ const LoginContent = () => {
               onClick={connectWallet}
               disabled={isLoading}
               type="button"
-              className={`w-full flex items-center justify-center space-x-2 py-2 px-4 rounded-lg font-medium transition-all duration-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 cursor-pointer ${isLoading
-                ? 'cursor-not-allowed opacity-70'
-                : ''
-                }`}
+              className={`w-full flex items-center justify-center space-x-2 py-2 px-4 rounded-lg font-medium transition-all duration-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 cursor-pointer ${
+                isLoading ? "cursor-not-allowed opacity-70" : ""
+              }`}
             >
               {isLoading && !isSubmitting ? (
                 <>
@@ -173,16 +195,21 @@ const LoginContent = () => {
               ) : (
                 <>
                   <Wallet className="h-5 w-5" />
-                  <span>{t('auth.connectWallet')}</span>
+                  <span>{t("auth.connectWallet")}</span>
                 </>
               )}
             </button>
           )}
 
           <div className="text-center text-sm">
-            <span className="text-gray-500 dark:text-gray-400">{t('auth.noAccount')}</span>{' '}
-            <Link href="/register" className="font-medium text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300">
-              {t('auth.register')}
+            <span className="text-gray-500 dark:text-gray-400">
+              {t("auth.noAccount")}
+            </span>{" "}
+            <Link
+              href="/register"
+              className="font-medium text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300"
+            >
+              {t("auth.register")}
             </Link>
           </div>
         </div>
@@ -193,11 +220,13 @@ const LoginContent = () => {
 
 export default function Login() {
   return (
-    <Suspense fallback={
-      <div className="flex justify-center items-center py-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+        </div>
+      }
+    >
       <LoginContent />
     </Suspense>
   );
