@@ -490,15 +490,6 @@ exports.exportBatch = async (req, res) => {
             delete batch.iotData;
         }
 
-        const sanitizeCSV = (str) => {
-            if (!str) return '';
-            const s = String(str);
-            if (/^[=+\-@\t\r]/.test(s)) {
-                return "'" + s;
-            }
-            return s;
-        };
-
         if (format === 'csv') {
             const csvData = [
                 'Field,Value',
@@ -510,14 +501,6 @@ exports.exportBatch = async (req, res) => {
                 `Farmer,${escapeCsvCell(batch.farmerName)}`,
                 `Current Stage,${escapeCsvCell(batch.currentStage)}`,
                 `Status,${escapeCsvCell(batch.isSpoiled ? 'Spoiled' : 'Active')}`,
-                `Batch ID,${sanitizeCSV(batch.batchId)}`,
-                `Crop Type,${sanitizeCSV(batch.cropType)}`,
-                `Quantity,${batch.quantity} kg`,
-                `Harvest Date,${batch.harvestDate || 'N/A'}`,
-                `Origin,${sanitizeCSV(batch.origin)}`,
-                `Farmer,${sanitizeCSV(batch.farmerName)}`,
-                `Current Stage,${sanitizeCSV(batch.currentStage)}`,
-                `Status,${batch.isSpoiled ? 'Spoiled' : 'Active'}`,
             ];
 
             if (batch.updates?.length) {
@@ -532,12 +515,6 @@ exports.exportBatch = async (req, res) => {
                         escapeCsvCell(u.timestamp),
                         escapeCsvCell(u.notes),
                     ].join(','));
-                    const stage = sanitizeCSV(u.stage || '').replace(/"/g, '""');
-                    const actor = sanitizeCSV(u.actor || '').replace(/"/g, '""');
-                    const location = sanitizeCSV(u.location || '').replace(/"/g, '""');
-                    const timestamp = sanitizeCSV(u.timestamp || '').replace(/"/g, '""');
-                    const notes = sanitizeCSV(u.notes || '').replace(/"/g, '""');
-                    csvData.push(`"${stage}","${actor}","${location}","${timestamp}","${notes}"`);
                 });
             }
 
