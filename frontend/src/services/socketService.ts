@@ -1,12 +1,8 @@
 import { io, Socket } from "socket.io-client";
 
 const SOCKET_URL =
-<<<<<<< HEAD
   (typeof process !== "undefined" && process.env.NEXT_PUBLIC_SOCKET_URL) ||
   `http://localhost:3001`;
-=======
-  process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
->>>>>>> 4fff4ff5a54bc38bcfd2a4d1f9a2796f49cacbbd
 
 let socketInstance: Socket | null = null;
 let authToken: string | null = null;

@@ -79,18 +79,9 @@ const recordIoTDataSchema = z.object({
     humidity: z.number().min(0).max(100),
 });
 
-<<<<<<< HEAD
-module.exports = { 
-  createBatchSchema, 
+module.exports = {
+  createBatchSchema,
   updateBatchSchema,
   updateBatchStatusSchema,
-  recordIoTDataSchema
+  recordIoTDataSchema,
 };
-=======
-module.exports = {
-    createBatchSchema,
-    updateBatchSchema,
-    updateBatchStatusSchema,
-    recordIoTDataSchema,
-};
->>>>>>> 4fff4ff5a54bc38bcfd2a4d1f9a2796f49cacbbd

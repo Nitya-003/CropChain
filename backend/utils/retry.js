@@ -6,12 +6,7 @@
  * default; pass a custom `isRetryable` to change that.
  */
 
-<<<<<<< HEAD
-    console.log(`[RETRY] DB write failed. Attempts left: ${retries}`);
-    await new Promise((r) => setTimeout(r, delay));
-=======
 const logger = require('./logger');
->>>>>>> 4fff4ff5a54bc38bcfd2a4d1f9a2796f49cacbbd
 
 const DEFAULT_RETRYABLE_CODES = new Set([
     'ETIMEDOUT',
