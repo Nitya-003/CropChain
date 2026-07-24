@@ -57,6 +57,8 @@ const VerificationDashboardComponent: React.FC = () => {
   >([]);
   const [uploading, setUploading] = useState(false);
 
+  const hasUploadErrors = uploadErrors.length > 0;
+
   const downloadTemplate = async () => {
     try {
       const response = await apiClient.get("/verification/bulk/template", {
@@ -120,6 +122,7 @@ const VerificationDashboardComponent: React.FC = () => {
   };
 
   const downloadErrorCsv = () => {
+    if (!hasUploadErrors) return;
     const headers = [
       "Row",
       ...Object.keys(uploadErrors[0]?.data || {}),
@@ -403,6 +406,7 @@ const VerificationDashboardComponent: React.FC = () => {
                   size="sm"
                   onClick={downloadErrorCsv}
                   className="gap-1.5"
+                  disabled={!hasUploadErrors}
                 >
                   <Download className="h-3 w-3" />
                   Download Error CSV
