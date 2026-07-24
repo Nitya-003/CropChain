@@ -22,8 +22,10 @@ export const CurrencyToggle = () => {
   return (
     <div className="flex shrink-0 items-center space-x-2">
       {(isFetching || showUpdated) && (
-        <span className={`hidden text-xs animate-pulse sm:inline ${isFetching ? 'text-yellow-500 dark:text-yellow-400' : 'text-green-500 dark:text-green-400'}`}>
-          {isFetching ? 'Updating...' : 'Price Updated'}
+        <span
+          className={`hidden text-xs animate-pulse sm:inline ${isFetching ? "text-yellow-500 dark:text-yellow-400" : "text-green-500 dark:text-green-400"}`}
+        >
+          {isFetching ? "Updating..." : "Price Updated"}
         </span>
       )}
       <select

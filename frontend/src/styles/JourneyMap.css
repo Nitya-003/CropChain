@@ -64,7 +64,11 @@
 
 /* Timeline Custom Styles */
 .journey-line-active {
-  background: linear-gradient(to bottom, var(--primary, #22c55e), var(--secondary, #3b82f6));
+  background: linear-gradient(
+    to bottom,
+    var(--primary, #22c55e),
+    var(--secondary, #3b82f6)
+  );
 }
 
 .journey-node-pulse {

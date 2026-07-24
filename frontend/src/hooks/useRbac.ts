@@ -1,6 +1,7 @@
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from "../context/AuthContext";
 
-export type UserRole = 'farmer' | 'mandi' | 'transporter' | 'retailer' | 'admin' | '';
+export type UserRole =
+  "farmer" | "mandi" | "transporter" | "retailer" | "admin" | "";
 
 export interface RBACPermissions {
   canCreateBatch: boolean;
@@ -17,20 +18,20 @@ export interface RBACPermissions {
  */
 export const useRbac = () => {
   const { user } = useAuth();
-  const userRole = user?.role || '';
+  const userRole = user?.role || "";
 
   const permissions: RBACPermissions = {
     // Batch creation permissions
-    canCreateBatch: userRole === 'farmer',
-    
+    canCreateBatch: userRole === "farmer",
+
     // Stage update permissions
-    canUpdateToMandi: userRole === 'mandi' || userRole === 'admin',
-    canUpdateToTransport: userRole === 'transporter' || userRole === 'admin',
-    canUpdateToRetailer: userRole === 'retailer' || userRole === 'admin',
-    
+    canUpdateToMandi: userRole === "mandi" || userRole === "admin",
+    canUpdateToTransport: userRole === "transporter" || userRole === "admin",
+    canUpdateToRetailer: userRole === "retailer" || userRole === "admin",
+
     // Admin permissions
-    canViewAdminDashboard: userRole === 'admin',
-    canRecallBatch: userRole === 'admin',
+    canViewAdminDashboard: userRole === "admin",
+    canRecallBatch: userRole === "admin",
   };
 
   /**
@@ -38,14 +39,14 @@ export const useRbac = () => {
    */
   const canUpdateToStage = (stage: string): boolean => {
     switch (stage.toLowerCase()) {
-      case 'farmer':
-        return userRole === 'farmer' || userRole === 'admin';
-      case 'mandi':
-        return userRole === 'mandi' || userRole === 'admin';
-      case 'transport':
-        return userRole === 'transporter' || userRole === 'admin';
-      case 'retailer':
-        return userRole === 'retailer' || userRole === 'admin';
+      case "farmer":
+        return userRole === "farmer" || userRole === "admin";
+      case "mandi":
+        return userRole === "mandi" || userRole === "admin";
+      case "transport":
+        return userRole === "transporter" || userRole === "admin";
+      case "retailer":
+        return userRole === "retailer" || userRole === "admin";
       default:
         return false;
     }
@@ -56,10 +57,10 @@ export const useRbac = () => {
    */
   const getNextAllowedStage = (currentStage: string): string | null => {
     const stageFlow = {
-      'farmer': 'mandi',
-      'mandi': 'transport',
-      'transport': 'retailer',
-      'retailer': null // Final stage
+      farmer: "mandi",
+      mandi: "transport",
+      transport: "retailer",
+      retailer: null, // Final stage
     };
 
     const nextStage = stageFlow[currentStage as keyof typeof stageFlow];
@@ -85,14 +86,14 @@ export const useRbac = () => {
    */
   const getRoleDisplayName = (): string => {
     const roleNames = {
-      'farmer': 'Farmer',
-      'mandi': 'Market',
-      'transporter': 'Transporter',
-      'retailer': 'Retailer',
-      'admin': 'Administrator',
-      '': 'Guest'
+      farmer: "Farmer",
+      mandi: "Market",
+      transporter: "Transporter",
+      retailer: "Retailer",
+      admin: "Administrator",
+      "": "Guest",
     };
-    return roleNames[userRole as keyof typeof roleNames] || 'Unknown';
+    return roleNames[userRole as keyof typeof roleNames] || "Unknown";
   };
 
   return {

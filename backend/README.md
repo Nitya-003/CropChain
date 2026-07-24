@@ -7,19 +7,25 @@ Production-ready Express.js API server for the CropChain blockchain crop trackin
 Here are the user interface designs for CropChain:
 
 ### Home Page
+
 ![Home Page](../ScreenShots/Home.png)
 
 ### Crop Tracking
+
 ![Track Batch](../ScreenShots/Track.png)
 
 ### Smart Planting & Crop Pricing Recommendation
+
 ![Pricing Page](../ScreenShots/Pricing.png)
 
 ### Authentication
+
 #### Sign In
+
 ![Sign In](../ScreenShots/Login.png)
 
 #### Sign Up
+
 ![Sign Up](../ScreenShots/Register.png)
 
 ## 🔒 Security Features
@@ -42,15 +48,17 @@ Here are the user interface designs for CropChain:
 ### Installation
 
 1. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 2. **Environment Setup**
+
    ```bash
    # Copy the example environment file
    cp .env.example .env
-   
+
    # Edit .env with your configuration
    nano .env
    ```
@@ -59,7 +67,7 @@ Here are the user interface designs for CropChain:
    ```bash
    # Development
    npm run dev
-   
+
    # Production
    npm start
    ```
@@ -112,6 +120,7 @@ CCIP_DEFAULT_FARMER_WALLET=0x...                            # Fallback farmer wa
 ```
 
 Notes:
+
 - Paymaster fees are debited from sender contract credits (`paymasterCredits[farmer]`).
 - If CCIP is not configured, the API continues to work and skips cross-chain dispatch.
 
@@ -187,6 +196,7 @@ All POST/PUT endpoints use Zod schemas for validation:
 ### NoSQL Injection Protection
 
 Automatic sanitization of dangerous MongoDB operators:
+
 - `$where`, `$ne`, `$gt`, `$lt`, `$regex`
 - JavaScript injection attempts
 - Script tag injection
@@ -270,20 +280,23 @@ curl -X POST http://localhost:3001/api/batches \
 ### Adding New Endpoints
 
 1. **Create validation schema**:
+
    ```javascript
    const newEndpointSchema = z.object({
-       field: z.string().min(1, 'Field is required')
+     field: z.string().min(1, "Field is required"),
    });
    ```
 
 2. **Apply security middleware**:
+
    ```javascript
-   app.post('/api/new-endpoint', 
-       rateLimiter, 
-       validateRequest(newEndpointSchema), 
-       async (req, res) => {
-           // Implementation
-       }
+   app.post(
+     "/api/new-endpoint",
+     rateLimiter,
+     validateRequest(newEndpointSchema),
+     async (req, res) => {
+       // Implementation
+     },
    );
    ```
 

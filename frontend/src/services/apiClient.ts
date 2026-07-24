@@ -1,10 +1,13 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { tokenService } from './token.service';
-import { sanitizeObject } from '../lib/sanitize';
+import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import { tokenService } from "./token.service";
+import { sanitizeObject } from "../lib/sanitize";
 
 const baseApiUrl =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-export const API_URL = baseApiUrl.endsWith('/api') ? baseApiUrl : `${baseApiUrl.replace(/\/$/, '')}/api`;
+  (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_URL) ||
+  "http://localhost:3001";
+export const API_URL = baseApiUrl.endsWith("/api")
+  ? baseApiUrl
+  : `${baseApiUrl.replace(/\/$/, "")}/api`;
 
 interface RetriableRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -12,7 +15,7 @@ interface RetriableRequestConfig extends InternalAxiosRequestConfig {
 
 export const apiClient = axios.create({
   baseURL: API_URL,
-  withCredentials: true
+  withCredentials: true,
 });
 
 apiClient.interceptors.request.use((config) => {
@@ -22,11 +25,11 @@ apiClient.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  if (config.data && typeof config.data === 'object') {
+  if (config.data && typeof config.data === "object") {
     config.data = sanitizeObject(config.data);
   }
 
-  if (config.params && typeof config.params === 'object') {
+  if (config.params && typeof config.params === "object") {
     config.params = sanitizeObject(config.params);
   }
 
@@ -39,9 +42,9 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as RetriableRequestConfig | undefined;
-    const requestUrl = originalRequest?.url || '';
-    const isAuthRefresh = requestUrl.includes('/auth/refresh');
-    const isAuthLogout = requestUrl.includes('/auth/logout');
+    const requestUrl = originalRequest?.url || "";
+    const isAuthRefresh = requestUrl.includes("/auth/refresh");
+    const isAuthLogout = requestUrl.includes("/auth/logout");
 
     if (
       error.response?.status !== 401 ||
@@ -58,7 +61,7 @@ apiClient.interceptors.response.use(
     if (!refreshPromise) {
       refreshPromise = (async () => {
         try {
-          const response = await apiClient.post('/auth/refresh');
+          const response = await apiClient.post("/auth/refresh");
           const nextToken = response.data?.data?.token;
 
           if (!nextToken) {
@@ -85,5 +88,5 @@ apiClient.interceptors.response.use(
 
     originalRequest.headers.Authorization = `Bearer ${nextToken}`;
     return apiClient(originalRequest);
-  }
+  },
 );

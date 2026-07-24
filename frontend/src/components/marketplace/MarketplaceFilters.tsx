@@ -1,16 +1,13 @@
 "use client";
 
-import React from 'react';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
+import React from "react";
+import { Button } from "../ui/button";
+import { Card } from "../ui/card";
 
 export type MarketplaceSortKey =
-  | 'latest'
-  | 'price_asc'
-  | 'price_desc'
-  | 'popular';
+  "latest" | "price_asc" | "price_desc" | "popular";
 
-export type AvailabilityStatus = 'active' | 'ended' | '';
+export type AvailabilityStatus = "active" | "ended" | "";
 
 export interface MarketplaceFilterState {
   productCategory: string; // cropType
@@ -30,13 +27,7 @@ export interface MarketplaceFiltersProps {
   onRequestClose?: () => void;
 }
 
-const cropOptions = [
-  '',
-  'rice',
-  'wheat',
-  'corn',
-  'tomato',
-];
+const cropOptions = ["", "rice", "wheat", "corn", "tomato"];
 
 export default function MarketplaceFilters({
   filters,
@@ -51,22 +42,29 @@ export default function MarketplaceFilters({
   };
 
   return (
-    <Card className={isMobile ? 'p-5' : 'p-6'}>
+    <Card className={isMobile ? "p-5" : "p-6"}>
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-bold">Filters</p>
           <p className="text-xs text-muted-foreground">
-            {activeFilterCount > 0 ? `${activeFilterCount} active` : 'No active filters'}
+            {activeFilterCount > 0
+              ? `${activeFilterCount} active`
+              : "No active filters"}
           </p>
         </div>
         {isMobile && onRequestClose && (
-          <Button type="button" variant="ghost" size="sm" onClick={onRequestClose}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onRequestClose}
+          >
             Close
           </Button>
         )}
       </div>
 
-      <div className={isMobile ? 'mt-4 space-y-5' : 'mt-6 space-y-5'}>
+      <div className={isMobile ? "mt-4 space-y-5" : "mt-6 space-y-5"}>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
             Product Category
@@ -78,13 +76,11 @@ export default function MarketplaceFilters({
             aria-label="Product category"
           >
             <option value="">All Categories</option>
-            {cropOptions
-              .filter(Boolean)
-              .map((c) => (
-                <option key={c} value={c}>
-                  {String(c).charAt(0).toUpperCase() + String(c).slice(1)}
-                </option>
-              ))}
+            {cropOptions.filter(Boolean).map((c) => (
+              <option key={c} value={c}>
+                {String(c).charAt(0).toUpperCase() + String(c).slice(1)}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -142,7 +138,9 @@ export default function MarketplaceFilters({
           <select
             className="rounded-xl border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary w-full"
             value={filters.availability}
-            onChange={(e) => set({ availability: e.target.value as AvailabilityStatus })}
+            onChange={(e) =>
+              set({ availability: e.target.value as AvailabilityStatus })
+            }
             aria-label="Availability status"
           >
             <option value="">Any</option>
@@ -158,7 +156,9 @@ export default function MarketplaceFilters({
           <select
             className="rounded-xl border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary w-full"
             value={filters.sortBy}
-            onChange={(e) => set({ sortBy: e.target.value as MarketplaceSortKey })}
+            onChange={(e) =>
+              set({ sortBy: e.target.value as MarketplaceSortKey })
+            }
             aria-label="Sort"
           >
             <option value="latest">Latest Listings</option>
@@ -183,4 +183,3 @@ export default function MarketplaceFilters({
     </Card>
   );
 }
-

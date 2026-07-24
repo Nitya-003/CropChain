@@ -1,22 +1,22 @@
-import React, { ReactElement } from 'react';
-import { render, RenderOptions } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider } from '../context/ThemeContext';
-import { AuthProvider } from '../context/AuthContext';
-import { CurrencyProvider } from '../context/CurrencyContext';
-import { ToastProvider } from '../context/ToastContext';
+import React, { ReactElement } from "react";
+import { render, RenderOptions } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider } from "../context/ThemeContext";
+import { AuthProvider } from "../context/AuthContext";
+import { CurrencyProvider } from "../context/CurrencyContext";
+import { ToastProvider } from "../context/ToastContext";
 
-vi.mock('react-i18next', () => ({
+vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string) => key,
     i18n: {
-      language: 'en',
+      language: "en",
       changeLanguage: vi.fn(),
     },
   }),
 }));
 
-vi.mock('react-hot-toast', () => ({
+vi.mock("react-hot-toast", () => ({
   default: {
     success: vi.fn(),
     error: vi.fn(),
@@ -49,9 +49,7 @@ export function AllProviders({ children }: { children: React.ReactNode }) {
       <ThemeProvider>
         <AuthProvider>
           <CurrencyProvider>
-            <ToastProvider>
-              {children}
-            </ToastProvider>
+            <ToastProvider>{children}</ToastProvider>
           </CurrencyProvider>
         </AuthProvider>
       </ThemeProvider>
@@ -61,15 +59,13 @@ export function AllProviders({ children }: { children: React.ReactNode }) {
 
 export function renderWithProviders(
   ui: ReactElement,
-  options?: Omit<RenderOptions, 'wrapper'>
+  options?: Omit<RenderOptions, "wrapper">,
 ) {
   return render(ui, {
-    wrapper: ({ children }) => (
-      <AllProviders>{children}</AllProviders>
-    ),
+    wrapper: ({ children }) => <AllProviders>{children}</AllProviders>,
     ...options,
   });
 }
 
-export * from '@testing-library/react';
-export { userEvent } from '@testing-library/user-event';
+export * from "@testing-library/react";
+export { userEvent } from "@testing-library/user-event";

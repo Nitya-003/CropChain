@@ -1,71 +1,111 @@
 "use client";
-import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, Sparkles, Leaf, User, Bot, Minimize2, Maximize2 } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { useTranslation } from 'react-i18next';
-import { aiChatService, ChatMessage } from '../services/aiChatService';
-import { sanitizeString } from '../lib/sanitize';
+import React, { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  MessageCircle,
+  X,
+  Send,
+  Sparkles,
+  Leaf,
+  User,
+  Bot,
+  Minimize2,
+  Maximize2,
+} from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { useTranslation } from "react-i18next";
+import { aiChatService, ChatMessage } from "../services/aiChatService";
+import { sanitizeString } from "../lib/sanitize";
 
 const formatCitations = (text: string): string => {
-  if (!text) return '';
-  
+  if (!text) return "";
+
   let formatted = text;
-  
+
   // 1. Replace CropChain batch IDs: CROP-YYYY-XXXX (e.g. CROP-2024-0001)
-  formatted = formatted.replace(/\b(CROP-\d{4}-\d{4})\b/g, (match, p1, offset, string) => {
-    const before = string.substring(Math.max(0, offset - 10), offset);
-    const after = string.substring(offset + match.length, offset + match.length + 10);
-    if (before.includes('[') && after.includes(']')) return match;
-    if (before.includes('(/') || before.includes('(')) return match;
-    return `[${match}](/batch/${match}/journey)`;
-  });
+  formatted = formatted.replace(
+    /\b(CROP-\d{4}-\d{4})\b/g,
+    (match, p1, offset, string) => {
+      const before = string.substring(Math.max(0, offset - 10), offset);
+      const after = string.substring(
+        offset + match.length,
+        offset + match.length + 10,
+      );
+      if (before.includes("[") && after.includes("]")) return match;
+      if (before.includes("(/") || before.includes("(")) return match;
+      return `[${match}](/batch/${match}/journey)`;
+    },
+  );
 
   // 2. Replace generic batch IDs: BATCHXXXXXX (e.g. BATCH000001)
-  formatted = formatted.replace(/\b(BATCH\d{6})\b/g, (match, p1, offset, string) => {
-    const before = string.substring(Math.max(0, offset - 10), offset);
-    const after = string.substring(offset + match.length, offset + match.length + 10);
-    if (before.includes('[') && after.includes(']')) return match;
-    if (before.includes('(/') || before.includes('(')) return match;
-    return `[${match}](/batch/${match}/journey)`;
-  });
+  formatted = formatted.replace(
+    /\b(BATCH\d{6})\b/g,
+    (match, p1, offset, string) => {
+      const before = string.substring(Math.max(0, offset - 10), offset);
+      const after = string.substring(
+        offset + match.length,
+        offset + match.length + 10,
+      );
+      if (before.includes("[") && after.includes("]")) return match;
+      if (before.includes("(/") || before.includes("(")) return match;
+      return `[${match}](/batch/${match}/journey)`;
+    },
+  );
 
   // 3. Replace blockchain transaction hashes: 0x followed by 64 hex characters
-  formatted = formatted.replace(/\b(0x[a-fA-F0-9]{64})\b/g, (match, p1, offset, string) => {
-    const before = string.substring(Math.max(0, offset - 10), offset);
-    const after = string.substring(offset + match.length, offset + match.length + 10);
-    if (before.includes('[') && after.includes(']')) return match;
-    if (before.includes('(/') || before.includes('(')) return match;
-    return `[${match.substring(0, 10)}...](https://sepolia.etherscan.io/tx/${match})`;
-  });
+  formatted = formatted.replace(
+    /\b(0x[a-fA-F0-9]{64})\b/g,
+    (match, p1, offset, string) => {
+      const before = string.substring(Math.max(0, offset - 10), offset);
+      const after = string.substring(
+        offset + match.length,
+        offset + match.length + 10,
+      );
+      if (before.includes("[") && after.includes("]")) return match;
+      if (before.includes("(/") || before.includes("(")) return match;
+      return `[${match.substring(0, 10)}...](https://sepolia.etherscan.io/tx/${match})`;
+    },
+  );
 
   return formatted;
 };
 
 const getLocalizedStatus = (status: string, t: any): string => {
-  if (!status) return '';
-  if (status === 'CropAssistant is thinking...') {
-    return t('chatbot.thinking');
+  if (!status) return "";
+  if (status === "CropAssistant is thinking...") {
+    return t("chatbot.thinking");
   }
-  if (status === 'Analyzing query...') {
-    return t('chatbot.analyzingQuery', 'Analyzing query...');
+  if (status === "Analyzing query...") {
+    return t("chatbot.analyzingQuery", "Analyzing query...");
   }
-  if (status === 'Generating response...') {
-    return t('chatbot.generatingResponse', 'Generating response...');
+  if (status === "Generating response...") {
+    return t("chatbot.generatingResponse", "Generating response...");
   }
-  if (status === 'Searching database for batch details...') {
-    return t('chatbot.searchingDatabase', 'Searching database for batch details...');
+  if (status === "Searching database for batch details...") {
+    return t(
+      "chatbot.searchingDatabase",
+      "Searching database for batch details...",
+    );
   }
-  if (status === 'Fetching general supply chain statistics...') {
-    return t('chatbot.fetchingStats', 'Fetching general supply chain statistics...');
+  if (status === "Fetching general supply chain statistics...") {
+    return t(
+      "chatbot.fetchingStats",
+      "Fetching general supply chain statistics...",
+    );
   }
-  
-  const transitMatch = status.match(/^Calculating transit statistics for (\w+)\.\.\.$/);
+
+  const transitMatch = status.match(
+    /^Calculating transit statistics for (\w+)\.\.\.$/,
+  );
   if (transitMatch) {
     const cropType = transitMatch[1].toLowerCase();
     const translatedCrop = t(`crops.${cropType}`, transitMatch[1]);
-    return t('chatbot.calculatingStats', 'Calculating transit statistics for {{crop}}...', { crop: translatedCrop });
+    return t(
+      "chatbot.calculatingStats",
+      "Calculating transit statistics for {{crop}}...",
+      { crop: translatedCrop },
+    );
   }
 
   return status;
@@ -76,15 +116,17 @@ const AIChatbot: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [inputMessage, setInputMessage] = useState('');
+  const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [fetchingStatus, setFetchingStatus] = useState('CropAssistant is thinking...');
+  const [fetchingStatus, setFetchingStatus] = useState(
+    "CropAssistant is thinking...",
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   // Focus input when chat opens
@@ -98,8 +140,8 @@ const AIChatbot: React.FC = () => {
   useEffect(() => {
     if (messages.length === 0) {
       const welcomeMessage = aiChatService.addMessage(
-        t('chatbot.welcomeMessage'),
-        'assistant'
+        t("chatbot.welcomeMessage"),
+        "assistant",
       );
       setMessages([welcomeMessage]);
     }
@@ -110,22 +152,22 @@ const AIChatbot: React.FC = () => {
     if (!messageToSend.trim() || isLoading) return;
 
     const userMessage = sanitizeString(messageToSend.trim());
-    setInputMessage('');
+    setInputMessage("");
 
     // Add user message
-    const userMsg = aiChatService.addMessage(userMessage, 'user');
-    setMessages(prev => [...prev, userMsg]);
+    const userMsg = aiChatService.addMessage(userMessage, "user");
+    setMessages((prev) => [...prev, userMsg]);
 
     setIsLoading(true);
-    setFetchingStatus('Analyzing query...');
+    setFetchingStatus("Analyzing query...");
 
     try {
       // Get current context
       const context = aiChatService.getCurrentPageContext();
-      const assistantMsg = aiChatService.addMessage('', 'assistant');
-      setMessages(prev => [...prev, assistantMsg]);
-      let streamedContent = '';
-      
+      const assistantMsg = aiChatService.addMessage("", "assistant");
+      setMessages((prev) => [...prev, assistantMsg]);
+      let streamedContent = "";
+
       const response = await aiChatService.sendMessageStreamWithContext(
         userMessage,
         context,
@@ -136,22 +178,18 @@ const AIChatbot: React.FC = () => {
         },
         (status) => {
           setFetchingStatus(status);
-        }
+        },
       );
 
       aiChatService.updateMessage(
         assistantMsg.id,
-        streamedContent || response.response
+        streamedContent || response.response,
       );
       setMessages(aiChatService.getMessages());
-
     } catch (error) {
-      console.error('Chat error:', error);
-      
-      aiChatService.addMessage(
-        t('chatbot.errorMessage'),
-        'assistant'
-      );
+      console.error("Chat error:", error);
+
+      aiChatService.addMessage(t("chatbot.errorMessage"), "assistant");
       setMessages(aiChatService.getMessages());
     } finally {
       setIsLoading(false);
@@ -163,16 +201,18 @@ const AIChatbot: React.FC = () => {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
 
-  const quickActions = aiChatService.getQuickActions(aiChatService.getCurrentPageContext());
+  const quickActions = aiChatService.getQuickActions(
+    aiChatService.getCurrentPageContext(),
+  );
 
   const renderMessageContent = (message: ChatMessage) => {
-    if (message.sender === 'user') {
+    if (message.sender === "user") {
       return (
         <p className="text-sm leading-relaxed whitespace-pre-wrap">
           {message.content}
@@ -192,7 +232,7 @@ const AIChatbot: React.FC = () => {
                 transition={{
                   duration: 0.6,
                   repeat: Infinity,
-                  delay: i * 0.1
+                  delay: i * 0.1,
                 }}
               />
             ))}
@@ -210,17 +250,26 @@ const AIChatbot: React.FC = () => {
           remarkPlugins={[remarkGfm]}
           components={{
             p: ({ children }) => <p className="my-1">{children}</p>,
-            ul: ({ children }) => <ul className="my-2 list-disc space-y-1 pl-5">{children}</ul>,
-            ol: ({ children }) => <ol className="my-2 list-decimal space-y-1 pl-5">{children}</ol>,
+            ul: ({ children }) => (
+              <ul className="my-2 list-disc space-y-1 pl-5">{children}</ul>
+            ),
+            ol: ({ children }) => (
+              <ol className="my-2 list-decimal space-y-1 pl-5">{children}</ol>
+            ),
             li: ({ children }) => <li className="pl-1">{children}</li>,
-            strong: ({ children }) => <strong className="font-semibold text-gray-900 dark:text-white">{children}</strong>,
+            strong: ({ children }) => (
+              <strong className="font-semibold text-gray-900 dark:text-white">
+                {children}
+              </strong>
+            ),
             a: ({ children, href }) => {
-              const isBatchLink = href?.includes('/batch/') && href?.includes('/journey');
-              const isTxLink = href?.includes('etherscan.io/tx/');
-              
+              const isBatchLink =
+                href?.includes("/batch/") && href?.includes("/journey");
+              const isTxLink = href?.includes("etherscan.io/tx/");
+
               if (isBatchLink) {
                 return (
-                  <a 
+                  <a
                     className="inline-flex items-center gap-1 mx-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700 dark:bg-green-900/40 dark:text-green-300 border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/60 transition-colors shadow-sm cursor-pointer align-middle"
                     href={href}
                   >
@@ -232,7 +281,7 @@ const AIChatbot: React.FC = () => {
 
               if (isTxLink) {
                 return (
-                  <a 
+                  <a
                     className="inline-flex items-center gap-1 mx-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors shadow-sm cursor-pointer align-middle"
                     href={href}
                     target="_blank"
@@ -245,10 +294,10 @@ const AIChatbot: React.FC = () => {
               }
 
               return (
-                <a 
-                  className="text-green-600 underline dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 transition-colors" 
-                  href={href} 
-                  target="_blank" 
+                <a
+                  className="text-green-600 underline dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 transition-colors"
+                  href={href}
+                  target="_blank"
                   rel="noreferrer"
                 >
                   {children}
@@ -257,12 +306,26 @@ const AIChatbot: React.FC = () => {
             },
             table: ({ children }) => (
               <div className="my-2 overflow-x-auto">
-                <table className="min-w-full border-collapse text-xs">{children}</table>
+                <table className="min-w-full border-collapse text-xs">
+                  {children}
+                </table>
               </div>
             ),
-            th: ({ children }) => <th className="border border-gray-200 px-2 py-1 text-left dark:border-gray-700">{children}</th>,
-            td: ({ children }) => <td className="border border-gray-200 px-2 py-1 dark:border-gray-700">{children}</td>,
-            code: ({ children }) => <code className="rounded bg-gray-100 px-1 py-0.5 text-xs dark:bg-gray-700">{children}</code>
+            th: ({ children }) => (
+              <th className="border border-gray-200 px-2 py-1 text-left dark:border-gray-700">
+                {children}
+              </th>
+            ),
+            td: ({ children }) => (
+              <td className="border border-gray-200 px-2 py-1 dark:border-gray-700">
+                {children}
+              </td>
+            ),
+            code: ({ children }) => (
+              <code className="rounded bg-gray-100 px-1 py-0.5 text-xs dark:bg-gray-700">
+                {children}
+              </code>
+            ),
           }}
         >
           {formatCitations(message.content)}
@@ -275,46 +338,46 @@ const AIChatbot: React.FC = () => {
   const fabVariants = {
     closed: { scale: 1, rotate: 0 },
     open: { scale: 1.1, rotate: 45 },
-    hover: { scale: 1.15 }
+    hover: { scale: 1.15 },
   };
 
   const chatWindowVariants = {
-    hidden: { 
-      opacity: 0, 
-      scale: 0.8, 
+    hidden: {
+      opacity: 0,
+      scale: 0.8,
       y: 50,
-      transition: { duration: 0.2 }
+      transition: { duration: 0.2 },
     },
-    visible: { 
-      opacity: 1, 
-      scale: 1, 
+    visible: {
+      opacity: 1,
+      scale: 1,
       y: 0,
-      transition: { 
+      transition: {
         type: "spring",
         stiffness: 300,
-        damping: 30
-      }
-    }
+        damping: 30,
+      },
+    },
   };
 
   const messageVariants = {
     hidden: { opacity: 0, y: 20, scale: 0.8 },
-    visible: { 
-      opacity: 1, 
-      y: 0, 
+    visible: {
+      opacity: 1,
+      y: 0,
       scale: 1,
-      transition: { 
+      transition: {
         type: "spring",
         stiffness: 500,
-        damping: 30
-      }
-    }
+        damping: 30,
+      },
+    },
   };
 
   return (
     <>
       {/* Floating Action Button */}
-      <motion.div 
+      <motion.div
         className="fixed bottom-6 right-6 z-50"
         whileHover="hover"
         whileTap={{ scale: 0.95 }}
@@ -325,14 +388,15 @@ const AIChatbot: React.FC = () => {
           animate={isOpen ? "open" : "closed"}
           className={`
             relative group transition-all duration-300 ease-out
-            ${isOpen 
-              ? 'bg-red-500 hover:bg-red-600' 
-              : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
+            ${
+              isOpen
+                ? "bg-red-500 hover:bg-red-600"
+                : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
             }
             text-white rounded-full p-4 shadow-2xl hover:shadow-green-500/25
             focus:outline-none focus:ring-4 focus:ring-green-500/30
           `}
-          aria-label={isOpen ? t('chatbot.close') : t('chatbot.open')}
+          aria-label={isOpen ? t("chatbot.close") : t("chatbot.open")}
         >
           <AnimatePresence mode="wait">
             {isOpen ? (
@@ -354,7 +418,7 @@ const AIChatbot: React.FC = () => {
                 transition={{ duration: 0.2 }}
               >
                 <MessageCircle className="h-6 w-6" />
-                <motion.div 
+                <motion.div
                   className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full"
                   animate={{ scale: [1, 1.2, 1] }}
                   transition={{ duration: 2, repeat: Infinity }}
@@ -368,25 +432,24 @@ const AIChatbot: React.FC = () => {
       {/* Chat Window */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div 
+          <motion.div
             className="fixed bottom-24 right-6 z-40 w-96 max-w-[calc(100vw-3rem)]"
             variants={chatWindowVariants}
             initial="hidden"
             animate="visible"
             exit="hidden"
           >
-            <motion.div 
+            <motion.div
               className={`
                 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl rounded-2xl shadow-2xl 
                 border border-white/20 dark:border-gray-700/30 flex flex-col overflow-hidden
-                ${isMinimized ? 'h-16' : 'h-[32rem] max-h-[calc(100vh-8rem)]'}
+                ${isMinimized ? "h-16" : "h-[32rem] max-h-[calc(100vh-8rem)]"}
               `}
               layout
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
             >
-              
               {/* Header */}
-              <motion.div 
+              <motion.div
                 className="bg-gradient-to-r from-green-500 to-green-600 p-4 text-white cursor-pointer"
                 onClick={() => setIsMinimized(!isMinimized)}
                 whileHover={{ scale: 1.02 }}
@@ -394,33 +457,49 @@ const AIChatbot: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <motion.div 
+                    <motion.div
                       className="relative"
                       animate={{ rotate: [0, 5, -5, 0] }}
-                      transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        repeatDelay: 3,
+                      }}
                     >
                       <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
                         <Leaf className="h-5 w-5" />
                       </div>
-                      <motion.div 
+                      <motion.div
                         className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white"
                         animate={{ scale: [1, 1.2, 1] }}
                         transition={{ duration: 1.5, repeat: Infinity }}
                       />
                     </motion.div>
                     <div>
-                      <h3 className="font-semibold text-lg">{t('chatbot.title')}</h3>
-                      <p className="text-green-100 text-sm">{t('chatbot.subtitle')}</p>
+                      <h3 className="font-semibold text-lg">
+                        {t("chatbot.title")}
+                      </h3>
+                      <p className="text-green-100 text-sm">
+                        {t("chatbot.subtitle")}
+                      </p>
                     </div>
                   </div>
-                  
+
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     className="p-1 hover:bg-white/20 rounded-lg transition-colors"
-                    aria-label={isMinimized ? t('chatbot.maximize') : t('chatbot.minimize')}
+                    aria-label={
+                      isMinimized
+                        ? t("chatbot.maximize")
+                        : t("chatbot.minimize")
+                    }
                   >
-                    {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                    {isMinimized ? (
+                      <Maximize2 className="h-4 w-4" />
+                    ) : (
+                      <Minimize2 className="h-4 w-4" />
+                    )}
                   </motion.button>
                 </div>
               </motion.div>
@@ -445,21 +524,24 @@ const AIChatbot: React.FC = () => {
                             animate="visible"
                             transition={{ delay: index * 0.1 }}
                             className={`flex items-start space-x-3 ${
-                              message.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''
+                              message.sender === "user"
+                                ? "flex-row-reverse space-x-reverse"
+                                : ""
                             }`}
                           >
                             {/* Avatar */}
-                            <motion.div 
+                            <motion.div
                               className={`
                                 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0
-                                ${message.sender === 'user' 
-                                  ? 'bg-blue-500 text-white' 
-                                  : 'bg-green-500 text-white'
+                                ${
+                                  message.sender === "user"
+                                    ? "bg-blue-500 text-white"
+                                    : "bg-green-500 text-white"
                                 }
                               `}
                               whileHover={{ scale: 1.1 }}
                             >
-                              {message.sender === 'user' ? (
+                              {message.sender === "user" ? (
                                 <User className="h-4 w-4" />
                               ) : (
                                 <Bot className="h-4 w-4" />
@@ -467,29 +549,36 @@ const AIChatbot: React.FC = () => {
                             </motion.div>
 
                             {/* Message Bubble */}
-                            <motion.div 
+                            <motion.div
                               className={`
                                 max-w-[80%] rounded-2xl px-4 py-3 shadow-sm
-                                ${message.sender === 'user'
-                                  ? 'bg-blue-500 text-white ml-auto'
-                                  : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-white border border-gray-200 dark:border-gray-700'
+                                ${
+                                  message.sender === "user"
+                                    ? "bg-blue-500 text-white ml-auto"
+                                    : "bg-white dark:bg-gray-800 text-gray-800 dark:text-white border border-gray-200 dark:border-gray-700"
                                 }
                               `}
                               whileHover={{ scale: 1.02 }}
                               layout
                             >
-                              {message.isTyping ? (
-                                renderMessageContent({ ...message, content: '' })
-                              ) : (
-                                renderMessageContent(message)
-                              )}
-                              
+                              {message.isTyping
+                                ? renderMessageContent({
+                                    ...message,
+                                    content: "",
+                                  })
+                                : renderMessageContent(message)}
+
                               {/* Timestamp */}
-                              <div className={`
+                              <div
+                                className={`
                                 text-xs mt-2 opacity-70
-                                ${message.sender === 'user' ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'}
-                              `}>
-                                {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                ${message.sender === "user" ? "text-blue-100" : "text-gray-500 dark:text-gray-400"}
+                              `}
+                              >
+                                {message.timestamp.toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
                               </div>
                             </motion.div>
                           </motion.div>
@@ -500,7 +589,7 @@ const AIChatbot: React.FC = () => {
 
                     {/* Quick Actions */}
                     {messages.length <= 2 && (
-                      <motion.div 
+                      <motion.div
                         className="px-4 py-2 border-t border-gray-200 dark:border-gray-700"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -520,10 +609,12 @@ const AIChatbot: React.FC = () => {
                               transition={{ delay: 0.7 + index * 0.1 }}
                             >
                               <span className="mr-1">{action.icon}</span>
-                              {(t as (key: string, options?: Record<string, string>) => string)(
-                                action.labelKey,
-                                action.labelParams
-                              )}
+                              {(
+                                t as (
+                                  key: string,
+                                  options?: Record<string, string>,
+                                ) => string
+                              )(action.labelKey, action.labelParams)}
                             </motion.button>
                           ))}
                         </div>
@@ -531,7 +622,7 @@ const AIChatbot: React.FC = () => {
                     )}
 
                     {/* Input Area */}
-                    <motion.div 
+                    <motion.div
                       className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50"
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -545,32 +636,36 @@ const AIChatbot: React.FC = () => {
                             value={inputMessage}
                             onChange={(e) => setInputMessage(e.target.value)}
                             onKeyPress={handleKeyPress}
-                            placeholder={t('chatbot.placeholder')}
+                            placeholder={t("chatbot.placeholder")}
                             className="w-full px-4 py-3 pr-12 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                             disabled={isLoading}
                             maxLength={1000}
                           />
-                          <motion.div 
+                          <motion.div
                             className="absolute right-3 top-1/2 transform -translate-y-1/2"
                             animate={{ rotate: [0, 10, -10, 0] }}
-                            transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                            transition={{
+                              duration: 2,
+                              repeat: Infinity,
+                              repeatDelay: 3,
+                            }}
                           >
                             <Sparkles className="h-4 w-4 text-green-500" />
                           </motion.div>
                         </div>
-                        
+
                         <motion.button
                           onClick={() => handleSendMessage()}
                           disabled={!inputMessage.trim() || isLoading}
                           className="p-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:cursor-not-allowed"
-                          aria-label={t('chatbot.sendMessage')}
+                          aria-label={t("chatbot.sendMessage")}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                         >
                           <Send className="h-4 w-4" />
                         </motion.button>
                       </div>
-                      
+
                       {/* Character count */}
                       <div className="text-xs text-gray-400 dark:text-gray-500 mt-2 text-right">
                         {inputMessage.length}/1000

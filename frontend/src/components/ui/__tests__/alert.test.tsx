@@ -1,35 +1,35 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
-import { Alert, AlertTitle, AlertDescription } from '../alert';
+import { render, screen } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
+import { Alert, AlertTitle, AlertDescription } from "../alert";
 
-describe('Alert', () => {
+describe("Alert", () => {
   it('renders Alert with role="alert"', () => {
     render(<Alert>Alert content</Alert>);
-    const alert = screen.getByRole('alert');
+    const alert = screen.getByRole("alert");
     expect(alert).toBeInTheDocument();
   });
 
-  it('renders AlertTitle', () => {
+  it("renders AlertTitle", () => {
     render(
       <Alert>
         <AlertTitle>Warning</AlertTitle>
-      </Alert>
+      </Alert>,
     );
-    expect(screen.getByText('Warning')).toBeInTheDocument();
+    expect(screen.getByText("Warning")).toBeInTheDocument();
   });
 
-  it('renders AlertDescription', () => {
+  it("renders AlertDescription", () => {
     render(
       <Alert>
         <AlertDescription>Something happened</AlertDescription>
-      </Alert>
+      </Alert>,
     );
-    expect(screen.getByText('Something happened')).toBeInTheDocument();
+    expect(screen.getByText("Something happened")).toBeInTheDocument();
   });
 
-  it('applies destructive variant classes', () => {
+  it("applies destructive variant classes", () => {
     render(<Alert variant="destructive">Destructive</Alert>);
-    const alert = screen.getByRole('alert');
-    expect(alert.className).toContain('destructive');
+    const alert = screen.getByRole("alert");
+    expect(alert.className).toContain("destructive");
   });
 });
