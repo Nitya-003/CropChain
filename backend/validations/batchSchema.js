@@ -6,14 +6,13 @@ const STAGES = require('../constants/stages');
 // days in some engines), so we gate on the regex first, then confirm the
 // parsed date round-trips to the same calendar date (catches "2022-13-01",
 // "2022-02-30", etc.).
-const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?)?$/;
 
 const isValidCalendarDate = (value) => {
+    if (typeof value !== 'string') return false;
     if (!ISO_DATE_RE.test(value)) return false;
-    const parsed = new Date(`${value}T00:00:00.000Z`);
-    if (isNaN(parsed.getTime())) return false;
-    // Round-trip check: rejects overflow dates like 2022-02-30 -> 2022-03-02
-    return parsed.toISOString().slice(0, 10) === value;
+    const parsed = new Date(value);
+    return !isNaN(parsed.getTime());
 };
 
 const isoDateField = (label) =>
