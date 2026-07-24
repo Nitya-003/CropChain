@@ -7,6 +7,12 @@ const { ethers } = require('ethers');
 const crypto = require('crypto');
 const blockchainConfig = require('../config/blockchain');
 const logger = require('../utils/logger');
+const { retryWithBackoff } = require('../utils/retry');
+
+// Shared retry policy for outbound RPC calls. 3 total attempts, base 500ms,
+// capped at 8s, full jitter — see utils/retry.js for the backoff/jitter math
+// and which errors are considered transient (network/timeout/5xx only).
+const RPC_RETRY_OPTIONS = { maxAttempts: 3, baseDelayMs: 500, maxDelayMs: 8000 };
 
 class BlockchainService {
     constructor() {
@@ -72,6 +78,36 @@ class BlockchainService {
     }
 
     /**
+     * Send a contract write call and wait for its receipt, with retry/backoff
+     * applied separately to each phase.
+     *
+     * IMPORTANT: submission and confirmation are retried independently.
+     * - If `sendFn()` itself throws a transient network error, nothing was
+     *   broadcast yet, so it's safe to retry the submission.
+     * - If submission succeeds but `tx.wait()` times out, the transaction is
+     *   already on the network — we must NOT resubmit it (that could double
+     *   the on-chain write or produce a confusing revert). Instead we just
+     *   retry the wait, which re-polls for the receipt of the SAME tx hash.
+     *
+     * @param {Function} sendFn - async () => tx (an ethers TransactionResponse)
+     * @param {string} label - used in retry log lines
+     * @returns {Promise<Object>} the transaction receipt
+     */
+    async sendAndConfirm(sendFn, label) {
+        const tx = await retryWithBackoff(() => sendFn(), {
+            ...RPC_RETRY_OPTIONS,
+            label: `${label}:submit`,
+        });
+
+        const receipt = await retryWithBackoff(() => tx.wait(), {
+            ...RPC_RETRY_OPTIONS,
+            label: `${label}:confirm`,
+        });
+
+        return receipt;
+    }
+
+    /**
      * Create a batch on the blockchain
      * @param {string} batchId - Batch identifier
      * @param {string} cropType - Type of crop
@@ -96,17 +132,18 @@ class BlockchainService {
             const batchIdBytes32 = ethers.id(batchId);
             const cropTypeHash = ethers.id(cropType);
 
-            const tx = await this.contract.createBatch(
-                batchIdBytes32,
-                cropTypeHash,
-                ipfsCID,
-                quantity,
-                actorName,
-                location,
-                notes
+            const receipt = await this.sendAndConfirm(
+                () => this.contract.createBatch(
+                    batchIdBytes32,
+                    cropTypeHash,
+                    ipfsCID,
+                    quantity,
+                    actorName,
+                    location,
+                    notes
+                ),
+                'blockchain:createBatch'
             );
-
-            const receipt = await tx.wait();
 
             return {
                 success: true,
@@ -147,15 +184,16 @@ class BlockchainService {
         try {
             const batchIdBytes32 = ethers.id(batchId);
 
-            const tx = await this.contract.updateBatch(
-                batchIdBytes32,
-                stage,
-                actorName,
-                location,
-                notes
+            const receipt = await this.sendAndConfirm(
+                () => this.contract.updateBatch(
+                    batchIdBytes32,
+                    stage,
+                    actorName,
+                    location,
+                    notes
+                ),
+                'blockchain:updateBatch'
             );
-
-            const receipt = await tx.wait();
 
             return {
                 success: true,
@@ -190,7 +228,11 @@ class BlockchainService {
 
         try {
             const batchIdBytes32 = ethers.id(batchId);
-            const batch = await this.contract.getBatch(batchIdBytes32);
+            // Read-only call — safe to retry as a whole, no side effects.
+            const batch = await retryWithBackoff(
+                () => this.contract.getBatch(batchIdBytes32),
+                { ...RPC_RETRY_OPTIONS, label: 'blockchain:getBatch' }
+            );
 
             return {
                 success: true,
@@ -253,8 +295,12 @@ class BlockchainService {
             
             logger.info(`[BlockchainService] Syncing role for ${walletAddress}: ${roleName} (mapped to on-chain: ${onChainRole})`);
             
-            // Check current on-chain role first to avoid redundant transactions
-            const currentOnChainRole = Number(await this.contract.roles(walletAddress));
+            // Check current on-chain role first to avoid redundant transactions.
+            // Read-only call — safe to retry as a whole.
+            const currentOnChainRole = Number(await retryWithBackoff(
+                () => this.contract.roles(walletAddress),
+                { ...RPC_RETRY_OPTIONS, label: 'blockchain:getRole' }
+            ));
             if (currentOnChainRole === onChainRole) {
                 logger.info(`[BlockchainService] Role for ${walletAddress} is already synced on-chain (${currentOnChainRole})`);
                 return {
@@ -264,8 +310,10 @@ class BlockchainService {
                 };
             }
 
-            const tx = await this.contract.setRole(walletAddress, onChainRole);
-            const receipt = await tx.wait();
+            const receipt = await this.sendAndConfirm(
+                () => this.contract.setRole(walletAddress, onChainRole),
+                'blockchain:setRole'
+            );
 
             logger.info(`[BlockchainService] Role synced on-chain for ${walletAddress}. Tx: ${receipt.hash}`);
 
@@ -321,5 +369,3 @@ class BlockchainService {
 
 // Export singleton instance
 module.exports = new BlockchainService();
-
-
