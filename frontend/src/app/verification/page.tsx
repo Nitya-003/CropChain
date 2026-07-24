@@ -130,14 +130,13 @@ const VerificationDashboardComponent: React.FC = () => {
     ];
     const rows = uploadErrors.map((e) =>
       [
-        String(e.row),
-        ...Object.values(e.data).map(
-          (v) => `"${String(v).replace(/"/g, '""')}"`,
-        ),
+        `"${e.row}"`,
+        ...Object.values(e.data).map((v) => `"${String(v).replace(/"/g, '""')}"`),
         `"${e.errors.join("; ").replace(/"/g, '""')}"`,
       ].join(","),
     );
-    const csv = [headers.join(","), ...rows, ""].join("\n");
+    const escapedHeaders = headers.map((h) => `"${h.replace(/"/g, '""')}"`);
+    const csv = [escapedHeaders.join(","), ...rows, ""].join("\n");
     const url = window.URL.createObjectURL(
       new Blob([csv], { type: "text/csv" }),
     );
