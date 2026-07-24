@@ -96,6 +96,15 @@ const sanitizeUser = (user) => ({
     createdAt: user.createdAt
 });
 
+// Pulls a flat array of human-readable messages out of a zod SafeParseError,
+// the same way batchController.js already does — keeps validation error
+// shape identical across every controller instead of leaking the raw
+// (non-JSON-friendly) ZodError object to the client.
+const extractValidationDetails = (zodError) => {
+    const issues = zodError.issues || zodError.errors || [];
+    return issues.map((issue) => issue.message);
+};
+
 const REFRESH_COOKIE_NAME = 'refreshToken';
 
 const getRefreshCookieOptions = () => ({
@@ -137,12 +146,14 @@ const registerUser = async (req, res) => {
 
         if (!validationResult.success) {
             logger.warn('Validation failed', { details: validationResult.error });
-            return res.status(400).json({
-                success: false,
-                error: 'Validation failed',
-                message: 'Invalid input data provided. Please check your fields.',
-                details: validationResult.error
-            });
+            return res.status(400).json(
+                apiResponse.errorResponse(
+                    'Validation failed',
+                    'VALIDATION_ERROR',
+                    400,
+                    extractValidationDetails(validationResult.error)
+                )
+            );
         }
 
         const { name, email, password, role } = validationResult.data;
@@ -204,12 +215,14 @@ const loginUser = async (req, res) => {
 
         if (!validationResult.success) {
             logger.warn('Validation failed', { details: validationResult.error });
-            return res.status(400).json({
-                success: false,
-                error: 'Validation failed',
-                message: 'Invalid email or password format.',
-                details: validationResult.error
-            });
+            return res.status(400).json(
+                apiResponse.errorResponse(
+                    'Validation failed',
+                    'VALIDATION_ERROR',
+                    400,
+                    extractValidationDetails(validationResult.error)
+                )
+            );
         }
 
         const { email, password } = validationResult.data;
@@ -242,12 +255,14 @@ const updateProfile = async (req, res) => {
         const validationResult = updateProfileSchema.safeParse(req.body);
 
         if (!validationResult.success) {
-            return res.status(400).json({
-                success: false,
-                error: 'Validation failed',
-                message: 'Invalid input data provided. Please check your fields.',
-                details: validationResult.error
-            });
+            return res.status(400).json(
+                apiResponse.errorResponse(
+                    'Validation failed',
+                    'VALIDATION_ERROR',
+                    400,
+                    extractValidationDetails(validationResult.error)
+                )
+            );
         }
 
         const user = await User.findById(req.user._id);
@@ -358,12 +373,14 @@ const walletLogin = async (req, res) => {
         const validationResult = walletLoginSchema.safeParse(req.body);
 
         if (!validationResult.success) {
-            return res.status(400).json({
-                success: false,
-                error: 'Validation failed',
-                message: 'Invalid input data',
-                details: validationResult.error
-            });
+            return res.status(400).json(
+                apiResponse.errorResponse(
+                    'Validation failed',
+                    'VALIDATION_ERROR',
+                    400,
+                    extractValidationDetails(validationResult.error)
+                )
+            );
         }
 
         const { address, signature, nonce: providedNonce } = validationResult.data;
@@ -460,12 +477,14 @@ const walletRegister = async (req, res) => {
         const validationResult = walletRegisterSchema.safeParse(req.body);
 
         if (!validationResult.success) {
-            return res.status(400).json({
-                success: false,
-                error: 'Validation failed',
-                message: 'Invalid input data',
-                details: validationResult.error
-            });
+            return res.status(400).json(
+                apiResponse.errorResponse(
+                    'Validation failed',
+                    'VALIDATION_ERROR',
+                    400,
+                    extractValidationDetails(validationResult.error)
+                )
+            );
         }
 
         const { name, email, walletAddress, signature, nonce: providedNonce, role } = validationResult.data;
