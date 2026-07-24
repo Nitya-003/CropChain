@@ -3,6 +3,7 @@
 ### ✅ What Has Been Implemented
 
 #### Step 1: Core Toast System Infrastructure
+
 - **Created `src/context/ToastContext.tsx`**
   - React Context for managing global toast state
   - `useToast()` hook for easy access from any component
@@ -28,6 +29,7 @@
   - Responsive design
 
 #### Step 2: App Integration
+
 - **Updated `src/App.tsx`**
   - Wrapped app with `ToastProvider` component
   - Added `ToastContainer` to render toasts globally
@@ -36,11 +38,13 @@
 #### Step 3: Key API Flows Integration
 
 **AddBatch Flow** (`src/pages/AddBatch.tsx`)
+
 - ✅ Success toast on batch creation
 - ✅ Error toast with readable error message on failure
 - ✅ Includes batch ID in success message
 
 **UpdateBatch Flow** (`src/pages/UpdateBatch.tsx`)
+
 - ✅ Success toast on batch search
 - ✅ Error toast when batch not found
 - ✅ Success toast on batch update
@@ -48,6 +52,7 @@
 - ✅ Includes stage information in success message
 
 **TrackBatch Flow** (`src/pages/TrackBatch.tsx`)
+
 - ✅ Success toast on batch load
 - ✅ Error toast when batch not found
 - ✅ Info toast on QR code scan
@@ -56,6 +61,7 @@
 - ✅ User-friendly error messages
 
 **VerificationDashboard Flow** (`src/pages/VerificationDashboard.tsx`)
+
 - ✅ Replaced browser `alert()` with `toast.success()`
 - ✅ Replaced browser `alert()` with `toast.error()`
 - ✅ Success toast on user verification
@@ -80,40 +86,49 @@
 ### 📝 Toast Messages Implemented
 
 #### AddBatch
+
 - Success: "Batch created successfully! ID: {batchId}"
 - Error: "[Error message from server]"
 
 #### UpdateBatch - Search
+
 - Success: "Batch {batchId} found successfully!"
 - Error: "[Error message from server]"
 
 #### UpdateBatch - Update
+
 - Success: "Batch updated successfully! New stage: {stage}"
 - Error: "[Error message from server]"
 
 #### TrackBatch - Search
+
 - Success: "Batch {batchId} loaded successfully!"
 - Error: "[Error message from server]"
 
 #### TrackBatch - QR Scan
+
 - Info: "QR code scanned! Searching for batch: {batchId}"
 - (Auto-triggers search with success/error toasts)
 
 #### TrackBatch - Copy
+
 - Success: "Batch ID copied to clipboard!"
 - Error: "Failed to copy to clipboard"
 
 #### VerificationDashboard - Verify
+
 - Success: "User verified successfully!"
 - Error: "[Error message from server]"
 
 #### VerificationDashboard - Revoke
+
 - Success: "Credential revoked successfully!"
 - Error: "[Error message from server]"
 
 ### 🧪 Testing Checklist (To Be Executed)
 
 #### Functional Testing
+
 - [ ] **AddBatch Flow**
   - [ ] Fill form and submit → Toast appears with batch ID
   - [ ] Submit with invalid data → Toast shows error message
@@ -139,6 +154,7 @@
   - [ ] Revocation fails → Error toast
 
 #### Visual Testing
+
 - [ ] Toasts appear in top-right corner
 - [ ] Icons display correctly
 - [ ] Text is readable and properly formatted
@@ -147,17 +163,20 @@
 - [ ] Multiple toasts stack vertically with spacing
 
 #### Dark Mode Testing
+
 - [ ] Switch to dark theme
 - [ ] Toast colors adapt properly
 - [ ] Text remains readable
 - [ ] Icons visible in dark mode
 
 #### Responsive Testing
+
 - [ ] Mobile (375px width): Toast fits without overlapping
 - [ ] Tablet (768px width): Toast positioned correctly
 - [ ] Desktop (1920px width): Toast maintains position
 
 #### Edge Cases
+
 - [ ] Multiple toasts at once → Stack properly
 - [ ] Click close button → Toast removes immediately
 - [ ] Long error messages → Wrap properly without overflow
@@ -166,6 +185,7 @@
 - [ ] Slow connections → Loading state, then feedback
 
 #### Accessibility Testing
+
 - [ ] Screen readers announce toast type and message
 - [ ] Keyboard navigation works (if applicable)
 - [ ] ARIA labels present
@@ -224,4 +244,3 @@
 - No memory leaks from timers
 - Minimal re-renders using React Context
 - Efficient DOM updates
-

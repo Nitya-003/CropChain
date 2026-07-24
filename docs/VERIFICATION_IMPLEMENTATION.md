@@ -97,27 +97,32 @@ Implemented a privacy-preserving verification system for CropChain using cryptog
 ## Key Features
 
 ### 1. Privacy-Preserving Verification
+
 - Zero-knowledge proof concepts
 - Credential hash instead of personal data
 - Public verification status without data exposure
 
 ### 2. MetaMask Integration
+
 - Wallet linking with signature proof
 - Admin signature for credential issuance
 - Cryptographic verification
 
 ### 3. Role-Based Access Control
+
 - Admin-only credential management
 - Protected wallet linking
 - Public verification checks
 
 ### 4. Comprehensive Admin Dashboard
+
 - Unverified/verified user management
 - One-click verification with MetaMask
 - Credential revocation with reason tracking
 - Real-time statistics
 
 ### 5. Security
+
 - JWT authentication
 - Signature verification
 - Input validation with Zod
@@ -151,14 +156,14 @@ verifySignature(message, signature, expectedAddress) {
 ```javascript
 // Verified users only
 const verifiedOnly = (req, res, next) => {
-    if (req.user && req.user.verification?.isVerified) {
-        next();
-    } else {
-        res.status(403).json({
-            error: 'Access denied',
-            message: 'Verified credential required',
-        });
-    }
+  if (req.user && req.user.verification?.isVerified) {
+    next();
+  } else {
+    res.status(403).json({
+      error: "Access denied",
+      message: "Verified credential required",
+    });
+  }
 };
 ```
 
@@ -188,10 +193,10 @@ const verifiedOnly = (req, res, next) => {
 
 ```javascript
 // Require verification for batch creation
-const { protect, verifiedOnly } = require('../middleware/auth');
+const { protect, verifiedOnly } = require("../middleware/auth");
 
-app.post('/api/batches', protect, verifiedOnly, async (req, res) => {
-    // Only verified users can create batches
+app.post("/api/batches", protect, verifiedOnly, async (req, res) => {
+  // Only verified users can create batches
 });
 ```
 
@@ -199,10 +204,10 @@ app.post('/api/batches', protect, verifiedOnly, async (req, res) => {
 
 ```tsx
 // Display in user profile
-<VerificationBadge 
-    isVerified={user.verification?.isVerified} 
-    size="md" 
-    showLabel={true}
+<VerificationBadge
+  isVerified={user.verification?.isVerified}
+  size="md"
+  showLabel={true}
 />
 ```
 
@@ -229,6 +234,7 @@ app.post('/api/batches', protect, verifiedOnly, async (req, res) => {
 ## Files Created/Modified
 
 ### Created
+
 - `backend/services/didService.js`
 - `backend/controllers/verificationController.js`
 - `backend/middleware/auth.js`
@@ -240,6 +246,7 @@ app.post('/api/batches', protect, verifiedOnly, async (req, res) => {
 - `VERIFICATION_IMPLEMENTATION.md`
 
 ### Modified
+
 - `backend/models/User.js` - Added verification fields
 - `backend/server.js` - Added verification routes
 - `src/services/auth.service.ts` - Extended User interface
@@ -248,6 +255,7 @@ app.post('/api/batches', protect, verifiedOnly, async (req, res) => {
 ## Dependencies
 
 All required dependencies are already installed:
+
 - `ethers` (v6.8.1) - Signature verification
 - `zod` (v4.3.6) - Input validation
 - `jsonwebtoken` (v9.0.3) - JWT authentication

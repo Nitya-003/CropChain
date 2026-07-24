@@ -12,6 +12,7 @@ CropChain API is a comprehensive REST API for blockchain-based crop tracking and
 ## Interactive Documentation
 
 Access the interactive Swagger/OpenAPI documentation at:
+
 - `http://localhost:3001/api/docs`
 
 ## Authentication
@@ -49,35 +50,36 @@ All API responses follow a standardized format:
   "error": "Error message",
   "code": "ERROR_CODE",
   "message": "Error message",
-  "details": []  // Optional
+  "details": [] // Optional
 }
 ```
 
 ## HTTP Status Codes
 
-| Code | Meaning |
-|------|---------|
-| 200 | OK - Request succeeded |
-| 201 | Created - Resource created successfully |
-| 400 | Bad Request - Invalid input or validation error |
-| 401 | Unauthorized - Authentication required or failed |
-| 403 | Forbidden - Authenticated but not authorized |
-| 404 | Not Found - Resource doesn't exist |
-| 409 | Conflict - Resource already exists or conflicts |
-| 429 | Too Many Requests - Rate limit exceeded |
-| 500 | Server Error - Internal server error |
+| Code | Meaning                                          |
+| ---- | ------------------------------------------------ |
+| 200  | OK - Request succeeded                           |
+| 201  | Created - Resource created successfully          |
+| 400  | Bad Request - Invalid input or validation error  |
+| 401  | Unauthorized - Authentication required or failed |
+| 403  | Forbidden - Authenticated but not authorized     |
+| 404  | Not Found - Resource doesn't exist               |
+| 409  | Conflict - Resource already exists or conflicts  |
+| 429  | Too Many Requests - Rate limit exceeded          |
+| 500  | Server Error - Internal server error             |
 
 ## Rate Limiting
 
 All endpoints are rate-limited to prevent abuse:
 
-| Endpoint Type | Limit | Window |
-|---------------|-------|--------|
-| General | 100 requests | 15 minutes |
-| Authentication | 5 requests | 15 minutes |
-| Batch Operations | 20 requests | 15 minutes |
+| Endpoint Type    | Limit        | Window     |
+| ---------------- | ------------ | ---------- |
+| General          | 100 requests | 15 minutes |
+| Authentication   | 5 requests   | 15 minutes |
+| Batch Operations | 20 requests  | 15 minutes |
 
 When rate limit is exceeded, you'll receive:
+
 - HTTP Status: **429**
 - Response: Includes `Retry-After` header indicating when to retry
 
@@ -94,6 +96,7 @@ GET /api/status
 Returns the current status of the API and database connection.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -120,16 +123,18 @@ POST /api/auth/register
 Create a new user account.
 
 **Request Body:**
+
 ```json
 {
   "name": "John Doe",
   "email": "john@example.com",
   "password": "password123",
-  "role": "farmer"  // "farmer" or "transporter"
+  "role": "farmer" // "farmer" or "transporter"
 }
 ```
 
 **Response (201):**
+
 ```json
 {
   "success": true,
@@ -148,6 +153,7 @@ Create a new user account.
 ```
 
 **Errors:**
+
 - **400**: Validation failed or user already exists
 - **500**: Server error during registration
 
@@ -162,6 +168,7 @@ POST /api/auth/login
 Authenticate a user and receive a JWT token.
 
 **Request Body:**
+
 ```json
 {
   "email": "john@example.com",
@@ -170,6 +177,7 @@ Authenticate a user and receive a JWT token.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -188,6 +196,7 @@ Authenticate a user and receive a JWT token.
 ```
 
 **Errors:**
+
 - **400**: Validation failed
 - **401**: Invalid email or password
 - **500**: Server error during login
@@ -206,6 +215,7 @@ Rate Limited: 20 requests per 15 minutes
 Create a new crop batch.
 
 **Request Body:**
+
 ```json
 {
   "farmerId": "FARM123",
@@ -221,6 +231,7 @@ Create a new crop batch.
 ```
 
 **Response (201):**
+
 ```json
 {
   "success": true,
@@ -243,6 +254,7 @@ Create a new crop batch.
 ```
 
 **Errors:**
+
 - **400**: Validation failed
 - **429**: Rate limit exceeded
 - **500**: Server error
@@ -259,6 +271,7 @@ Rate Limited: 20 requests per 15 minutes
 Retrieve details of a specific batch.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -286,6 +299,7 @@ Retrieve details of a specific batch.
 ```
 
 **Errors:**
+
 - **404**: Batch not found
 - **429**: Rate limit exceeded
 - **500**: Server error
@@ -302,6 +316,7 @@ Rate Limited: 20 requests per 15 minutes
 Retrieve all batches with statistics.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -331,6 +346,7 @@ Rate Limited: 20 requests per 15 minutes
 Update batch status or add supply chain update.
 
 **Request Body:**
+
 ```json
 {
   "stage": "transport",
@@ -342,6 +358,7 @@ Update batch status or add supply chain update.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -358,6 +375,7 @@ Update batch status or add supply chain update.
 ```
 
 **Errors:**
+
 - **400**: Batch is recalled or validation failed
 - **404**: Batch not found
 - **429**: Rate limit exceeded
@@ -375,6 +393,7 @@ Rate Limited: 20 requests per 15 minutes
 Mark a batch as recalled (for quality issues, etc.).
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -402,6 +421,7 @@ GET /api/verification/check/:userId
 Check if a user is verified (public endpoint).
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -426,6 +446,7 @@ Auth Required: Yes
 Link a blockchain wallet to user account.
 
 **Request Body:**
+
 ```json
 {
   "walletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f...",
@@ -469,6 +490,7 @@ Rate Limited: 20 requests per 15 minutes
 Send a message to the AI chatbot for assistance.
 
 **Request Body:**
+
 ```json
 {
   "message": "How do I create a new batch?",
@@ -480,6 +502,7 @@ Send a message to the AI chatbot for assistance.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -510,6 +533,7 @@ Retrieve a personalized, paginated chronological timeline of supply-chain events
 - **Admins/Quality Inspectors**: See all activities.
 
 **Query Parameters:**
+
 - `eventType`: Filter by event type (e.g. `crop_registered`, `harvest_completed`, `ownership_transferred`, `shipment_created`, `shipment_status_updated`, `delivery_confirmed`, `batch_verified`, `batch_recalled`, `iot_data_recorded`)
 - `batchId`: Filter by related batch ID
 - `startDate`: Filter events on or after this date (YYYY-MM-DD)
@@ -518,6 +542,7 @@ Retrieve a personalized, paginated chronological timeline of supply-chain events
 - `limit`: Number of items per page (default 10)
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -562,6 +587,7 @@ Retrieve a paginated list of all activities across the platform.
 **Response (200):** Same format as `/feed`.
 
 **Errors:**
+
 - **403**: Forbidden - Non-admin users attempting to access.
 
 ---
@@ -575,6 +601,7 @@ GET /api/activities/:id
 Retrieve details of a single activity. User must be authorized based on role rules.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -599,16 +626,16 @@ Retrieve details of a single activity. User must be authorized based on role rul
 
 ## Error Codes Reference
 
-| Code | Status | Meaning |
-|------|--------|---------|
-| SUCCESS | 200 | Operation succeeded |
-| VALIDATION_ERROR | 400 | Input validation failed |
-| UNAUTHORIZED | 401 | Authentication required |
-| FORBIDDEN | 403 | Not authorized for this action |
-| NOT_FOUND | 404 | Resource not found |
-| CONFLICT | 409 | Resource already exists |
-| RATE_LIMIT_EXCEEDED | 429 | Too many requests |
-| SERVER_ERROR | 500 | Internal server error |
+| Code                | Status | Meaning                        |
+| ------------------- | ------ | ------------------------------ |
+| SUCCESS             | 200    | Operation succeeded            |
+| VALIDATION_ERROR    | 400    | Input validation failed        |
+| UNAUTHORIZED        | 401    | Authentication required        |
+| FORBIDDEN           | 403    | Not authorized for this action |
+| NOT_FOUND           | 404    | Resource not found             |
+| CONFLICT            | 409    | Resource already exists        |
+| RATE_LIMIT_EXCEEDED | 429    | Too many requests              |
+| SERVER_ERROR        | 500    | Internal server error          |
 
 ---
 
@@ -619,7 +646,7 @@ Retrieve details of a single activity. User must be authorized based on role rul
 Always check the `success` field:
 
 ```typescript
-const response = await fetch('/api/batches');
+const response = await fetch("/api/batches");
 const data = await response.json();
 
 if (data.success) {
@@ -629,7 +656,7 @@ if (data.success) {
   // Handle error
   console.error(data.message, data.error);
   if (data.details) {
-    console.error('Details:', data.details);
+    console.error("Details:", data.details);
   }
 }
 ```
@@ -677,6 +704,7 @@ GET /api/docs/swagger.json
 ## Support
 
 For issues or questions:
+
 - Email: support@cropchain.com
 - GitHub Issues: https://github.com/NithinRegidi/CropChain-OSS/issues
 

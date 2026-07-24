@@ -1,5 +1,5 @@
-import React from 'react';
-import { Check, Loader2, Circle, MapPin, Calendar } from 'lucide-react';
+import React from "react";
+import { Check, Loader2, Circle, MapPin, Calendar } from "lucide-react";
 
 interface TimelineEvent {
   title: string;
@@ -21,16 +21,17 @@ const Timeline: React.FC<TimelineProps> = ({ events, currentStep }) => {
         const isCompleted = index < currentStep;
         const isCurrent = index === currentStep;
 
-
         return (
           <div key={index} className="mb-8 relative pl-8">
             {/* 1. The Vertical Connecting Line */}
             {index !== events.length - 1 && (
               <div
                 className={`absolute left-[11px] top-8 h-full w-0.5 ${
-                  isCompleted ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700 border-l-2 border-dotted border-gray-300'
+                  isCompleted
+                    ? "bg-green-500"
+                    : "bg-gray-200 dark:bg-gray-700 border-l-2 border-dotted border-gray-300"
                 }`}
-                style={{ height: 'calc(100% + 16px)' }} // Connect to next item
+                style={{ height: "calc(100% + 16px)" }} // Connect to next item
               />
             )}
 
@@ -38,10 +39,10 @@ const Timeline: React.FC<TimelineProps> = ({ events, currentStep }) => {
             <div
               className={`absolute left-0 top-0 flex h-6 w-6 items-center justify-center rounded-full border-2 ${
                 isCompleted
-                  ? 'border-green-500 bg-green-500'
+                  ? "border-green-500 bg-green-500"
                   : isCurrent
-                  ? 'border-green-500 bg-white dark:bg-gray-800 animate-pulse'
-                  : 'border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600'
+                    ? "border-green-500 bg-white dark:bg-gray-800 animate-pulse"
+                    : "border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600"
               }`}
             >
               {isCompleted ? (
@@ -57,18 +58,20 @@ const Timeline: React.FC<TimelineProps> = ({ events, currentStep }) => {
             <div
               className={`rounded-lg border p-4 shadow-sm transition-all duration-200 ${
                 isCurrent
-                  ? 'border-green-500 bg-green-50 dark:bg-green-900/10 scale-105'
-                  : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+                  ? "border-green-500 bg-green-50 dark:bg-green-900/10 scale-105"
+                  : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
               }`}
             >
               <h3
                 className={`font-bold text-lg ${
-                  isCurrent ? 'text-green-700 dark:text-green-400' : 'text-gray-800 dark:text-white'
+                  isCurrent
+                    ? "text-green-700 dark:text-green-400"
+                    : "text-gray-800 dark:text-white"
                 }`}
               >
                 {event.title}
               </h3>
-              
+
               <div className="mt-2 flex flex-col space-y-2 text-sm text-gray-600 dark:text-gray-300">
                 <div className="flex items-center">
                   <Calendar className="mr-2 h-4 w-4 text-gray-400" />

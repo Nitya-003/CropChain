@@ -7,17 +7,24 @@ This repository includes a root Jenkins pipeline in `Jenkinsfile` to automate li
 1. Checkout source code.
 2. Install dependencies for root and backend (`npm ci`).
 3. Lint and security checks:
+
 - ESLint (`npm run lint`)
 - Prettier check (`npx --yes prettier@3.3.3 --check .`)
 - npm audit for root and backend with high-severity threshold.
+
 4. Test matrix (parallel):
+
 - Smart contracts: `npx hardhat test`
 - Backend integration tests: `npm --prefix backend run test:ci`
 - Frontend unit tests: `npm run test:unit -- --ci --watchAll=false`
+
 5. Docker build verification:
+
 - Multi-stage production targets from root `Dockerfile`
 - Development Dockerfiles for frontend and backend.
+
 6. Post actions:
+
 - Archive test artifacts in `artifacts/test-results`
 - Emit success/failure status in Jenkins logs
 - Clean workspace.
@@ -25,12 +32,14 @@ This repository includes a root Jenkins pipeline in `Jenkinsfile` to automate li
 ## Jenkins Requirements
 
 Install Jenkins plugins:
+
 - Pipeline
 - Git
 - Workspace Cleanup
 - ANSI Color (for `ansiColor` option)
 
 Agent requirements:
+
 - Node.js 18+ and npm
 - Docker Engine with build permissions
 - Git

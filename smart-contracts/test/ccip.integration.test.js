@@ -44,7 +44,10 @@ describe("CCIP Cross-Chain Settlement", function () {
     nft = await deployAndWait(NFT, ["CropChain Proof of Delivery", "CPOD"]);
 
     const Receiver = await ethers.getContractFactory("CropChainCCIPReceiver");
-    receiver = await deployAndWait(Receiver, [await addressOf(router), await addressOf(nft)]);
+    receiver = await deployAndWait(Receiver, [
+      await addressOf(router),
+      await addressOf(nft),
+    ]);
 
     await sender.setDestination(DEST_SELECTOR, await addressOf(receiver));
     await receiver.setTrustedSource(SOURCE_SELECTOR, await addressOf(sender));
@@ -59,7 +62,9 @@ describe("CCIP Cross-Chain Settlement", function () {
   });
 
   it("dispatches retailer proof using paymaster credit and debits the farmer", async function () {
-    await sender.fundPaymasterCredit(farmer.address, { value: ethers.parseEther("0.05") });
+    await sender.fundPaymasterCredit(farmer.address, {
+      value: ethers.parseEther("0.05"),
+    });
 
     const payload = {
       batchId: ethers.id("CROP-2026-0001"),
@@ -69,17 +74,22 @@ describe("CCIP Cross-Chain Settlement", function () {
       notes: "Delivered and accepted",
       farmer: farmer.address,
       quantity: 500n,
-      ipfsCID: "ipfs://bafy-test"
+      ipfsCID: "ipfs://bafy-test",
     };
 
-    await expect(sender.connect(serviceWallet).syncRetailerProof(payload))
-      .to.emit(sender, "RetailerProofDispatched");
+    await expect(
+      sender.connect(serviceWallet).syncRetailerProof(payload),
+    ).to.emit(sender, "RetailerProofDispatched");
 
-    expect(await sender.paymasterCredits(farmer.address)).to.equal(ethers.parseEther("0.04"));
+    expect(await sender.paymasterCredits(farmer.address)).to.equal(
+      ethers.parseEther("0.04"),
+    );
   });
 
   it("mints proof NFT on destination chain when the receiver consumes a CCIP message", async function () {
-    await sender.fundPaymasterCredit(farmer.address, { value: ethers.parseEther("0.05") });
+    await sender.fundPaymasterCredit(farmer.address, {
+      value: ethers.parseEther("0.05"),
+    });
 
     const payload = {
       batchId: ethers.id("CROP-2026-0002"),
@@ -89,7 +99,7 @@ describe("CCIP Cross-Chain Settlement", function () {
       notes: "Shelf ready",
       farmer: farmer.address,
       quantity: 1200n,
-      ipfsCID: "ipfs://bafy-proof-0002"
+      ipfsCID: "ipfs://bafy-proof-0002",
     };
 
     const tx = await sender.connect(serviceWallet).syncRetailerProof(payload);
@@ -111,7 +121,7 @@ describe("CCIP Cross-Chain Settlement", function () {
       messageId,
       await addressOf(receiver),
       SOURCE_SELECTOR,
-      await addressOf(sender)
+      await addressOf(sender),
     );
 
     const tokenId = await nft.batchToTokenId(payload.batchId);

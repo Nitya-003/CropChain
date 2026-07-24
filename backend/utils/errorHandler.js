@@ -20,7 +20,7 @@ class CustomError extends Error {
  */
 class ValidationError extends CustomError {
   constructor(message, details = null) {
-    super(message, 400, 'VALIDATION_ERROR');
+    super(message, 400, "VALIDATION_ERROR");
     this.details = details;
   }
 }
@@ -30,8 +30,8 @@ class ValidationError extends CustomError {
  * When authentication fails
  */
 class UnauthorizedError extends CustomError {
-  constructor(message = 'Authentication required') {
-    super(message, 401, 'UNAUTHORIZED');
+  constructor(message = "Authentication required") {
+    super(message, 401, "UNAUTHORIZED");
   }
 }
 
@@ -40,8 +40,8 @@ class UnauthorizedError extends CustomError {
  * When authenticated but not authorized
  */
 class ForbiddenError extends CustomError {
-  constructor(message = 'Access denied') {
-    super(message, 403, 'FORBIDDEN');
+  constructor(message = "Access denied") {
+    super(message, 403, "FORBIDDEN");
   }
 }
 
@@ -50,7 +50,7 @@ class ForbiddenError extends CustomError {
  */
 class NotFoundError extends CustomError {
   constructor(resource, identifier) {
-    super(`${resource} with ${identifier} not found`, 404, 'NOT_FOUND');
+    super(`${resource} with ${identifier} not found`, 404, "NOT_FOUND");
     this.resource = resource;
     this.identifier = identifier;
   }
@@ -62,7 +62,7 @@ class NotFoundError extends CustomError {
  */
 class ConflictError extends CustomError {
   constructor(message) {
-    super(message, 409, 'CONFLICT');
+    super(message, 409, "CONFLICT");
   }
 }
 
@@ -70,8 +70,8 @@ class ConflictError extends CustomError {
  * Rate Limit Error - 429
  */
 class RateLimitError extends CustomError {
-  constructor(message = 'Too many requests', retryAfter = 900) {
-    super(message, 429, 'RATE_LIMIT_EXCEEDED');
+  constructor(message = "Too many requests", retryAfter = 900) {
+    super(message, 429, "RATE_LIMIT_EXCEEDED");
     this.retryAfter = retryAfter;
   }
 }
@@ -81,8 +81,8 @@ class RateLimitError extends CustomError {
  * When an unexpected server error occurs
  */
 class ServerError extends CustomError {
-  constructor(message = 'Internal server error', originalError = null) {
-    super(message, 500, 'SERVER_ERROR');
+  constructor(message = "Internal server error", originalError = null) {
+    super(message, 500, "SERVER_ERROR");
     this.originalError = originalError;
   }
 }
@@ -92,8 +92,8 @@ class ServerError extends CustomError {
  * When database operations fail
  */
 class DatabaseError extends CustomError {
-  constructor(message = 'Database operation failed', originalError = null) {
-    super(message, 500, 'DATABASE_ERROR');
+  constructor(message = "Database operation failed", originalError = null) {
+    super(message, 500, "DATABASE_ERROR");
     this.originalError = originalError;
   }
 }
@@ -103,8 +103,12 @@ class DatabaseError extends CustomError {
  * When external service is unavailable
  */
 class ServiceError extends CustomError {
-  constructor(serviceName, message = 'Service temporarily unavailable', statusCode = 503) {
-    super(`${serviceName}: ${message}`, statusCode, 'SERVICE_ERROR');
+  constructor(
+    serviceName,
+    message = "Service temporarily unavailable",
+    statusCode = 503,
+  ) {
+    super(`${serviceName}: ${message}`, statusCode, "SERVICE_ERROR");
     this.serviceName = serviceName;
   }
 }
@@ -119,5 +123,5 @@ module.exports = {
   RateLimitError,
   ServerError,
   DatabaseError,
-  ServiceError
+  ServiceError,
 };
