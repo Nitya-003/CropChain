@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { fromString } = require('../utils/decimalHelpers');
 
 const auctionSchema = new mongoose.Schema({
   cropId: {
@@ -17,12 +18,12 @@ const auctionSchema = new mongoose.Schema({
     required: true
   },
   startPrice: {
-    type: Number,
+    type: mongoose.Schema.Types.Decimal128,
     required: true,
     min: [0, 'Start price cannot be negative']
   },
   currentHighestBid: {
-    type: Number,
+    type: mongoose.Schema.Types.Decimal128,
     required: true,
     min: [0, 'Current bid cannot be negative']
   },
@@ -49,9 +50,20 @@ const auctionSchema = new mongoose.Schema({
     type: Date,
     default: null
   }
-}, { timestamps: true });
+}, { timestamps: true, toJSON: { getters: false, virtuals: false } });
 
-// Add compound indexes for pagination and state checks
 auctionSchema.index({ status: 1, endTime: 1 });
+
+auctionSchema.set('toJSON', {
+  transform: function (doc, ret) {
+    if (ret.startPrice && ret.startPrice._bsontype === 'Decimal128') {
+      ret.startPrice = parseFloat(ret.startPrice.toString());
+    }
+    if (ret.currentHighestBid && ret.currentHighestBid._bsontype === 'Decimal128') {
+      ret.currentHighestBid = parseFloat(ret.currentHighestBid.toString());
+    }
+    return ret;
+  }
+});
 
 module.exports = mongoose.model('Auction', auctionSchema);

@@ -11,6 +11,7 @@ const { VALID_ROLES, ROLES } = require('../constants/permissions');
 const logger = require('../utils/logger');
 require('dotenv').config();
 const Redis = require('ioredis');
+const { toNumber, toDecimal, fromDecimal } = require('../utils/decimalHelpers');
 
 let redis = null;
 
@@ -92,7 +93,7 @@ const sanitizeUser = (user) => ({
     name: user.name,
     email: user.email,
     role: user.role,
-    balance: user.balance || 0,
+    balance: toNumber(user.balance || 0),
     createdAt: user.createdAt
 });
 
@@ -791,10 +792,10 @@ const addFunds = async (req, res) => {
             );
         }
 
-        user.balance = (user.balance || 0) + amount;
+        user.balance = fromDecimal(toDecimal(user.balance).plus(toDecimal(amount)));
         await user.save();
 
-        logger.info('Funds added successfully', { adminId: req.user.id, targetUserId: user._id, amount, newBalance: user.balance });
+        logger.info('Funds added successfully', { adminId: req.user.id, targetUserId: user._id, amount, newBalance: toNumber(user.balance) });
 
         return res.json(
             apiResponse.successResponse({ user: sanitizeUser(user) }, 'Funds added successfully')

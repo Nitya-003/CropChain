@@ -6,6 +6,17 @@ const apiResponse = require('../utils/apiResponse');
 const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
 const mongoose = require('mongoose');
+const { toDecimal, fromDecimal, gte, gt, lt, lte, fromString, toNumber } = require('../utils/decimalHelpers');
+
+function convertDecimal128(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  for (const key of Object.keys(obj)) {
+    if (obj[key] && typeof obj[key] === 'object' && obj[key]._bsontype === 'Decimal128') {
+      obj[key] = parseFloat(obj[key].toString());
+    }
+  }
+  return obj;
+}
 
 // Create a new auction for a batch
 const createAuction = async (req, res) => {
@@ -63,12 +74,14 @@ const createAuction = async (req, res) => {
         const startTime = new Date();
         const endTime = new Date(startTime.getTime() + duration * 60 * 1000);
 
+        const decimalStartPrice = fromString(String(startPrice));
+
         const auction = new Auction({
             cropId: batch._id,
             batchId: batch.batchId,
             farmerId: req.user.id,
-            startPrice,
-            currentHighestBid: startPrice,
+            startPrice: decimalStartPrice,
+            currentHighestBid: decimalStartPrice,
             startTime,
             endTime,
             status: 'active'
@@ -88,7 +101,7 @@ const createAuction = async (req, res) => {
                 quantity: batch.quantity,
                 farmerName: batch.farmerName,
                 origin: batch.origin,
-                startPrice: auction.startPrice,
+                startPrice: toNumber(auction.startPrice),
                 endTime: auction.endTime
             });
         }
@@ -122,6 +135,7 @@ const getAllAuctions = async (req, res) => {
         // Populate batches and users details manually to avoid rigid ref dependencies if objects are deleted
         const populatedAuctions = [];
         for (const auction of auctions) {
+            convertDecimal128(auction);
             const batch = await Batch.findById(auction.cropId).select('cropType quantity farmerName origin').lean();
             const farmer = await User.findById(auction.farmerId).select('name').lean();
             const bidder = auction.highestBidder 
@@ -152,6 +166,7 @@ const getAuctionDetails = async (req, res) => {
     try {
         const { id } = req.params;
         const auction = await Auction.findById(id).lean();
+        convertDecimal128(auction);
 
         if (!auction) {
             return res.status(404).json(
@@ -190,6 +205,7 @@ const getAuctionBids = async (req, res) => {
         const bids = await Bid.find({ auctionId: id })
             .sort({ timestamp: -1 })
             .lean();
+        bids.forEach(convertDecimal128);
 
         return res.json(
             apiResponse.successResponse({ bids }, 'Bids retrieved successfully')
@@ -219,6 +235,8 @@ const placeBid = async (req, res) => {
             );
         }
 
+        const decimalBidAmount = fromString(String(bidAmount));
+
         const auction = await Auction.findById(id).session(session);
 
         if (!auction) {
@@ -245,17 +263,17 @@ const placeBid = async (req, res) => {
             );
         }
 
-        if (bidAmount <= auction.currentHighestBid) {
+        if (lte(decimalBidAmount, auction.currentHighestBid)) {
             await session.abortTransaction();
             session.endSession();
             return res.status(400).json(
-                apiResponse.errorResponse(`Bid amount must be greater than current highest bid (${auction.currentHighestBid})`, 'BID_TOO_LOW', 400)
+                apiResponse.errorResponse(`Bid amount must be greater than current highest bid (${toDecimal(auction.currentHighestBid).toString()})`, 'BID_TOO_LOW', 400)
             );
         }
 
         const user = await User.findById(req.user.id).session(session);
         
-        if (!user || user.balance < bidAmount) {
+        if (!user || lt(user.balance, decimalBidAmount)) {
             await session.abortTransaction();
             session.endSession();
             return res.status(400).json(
@@ -267,17 +285,19 @@ const placeBid = async (req, res) => {
         if (auction.highestBidder) {
             const previousBidder = await User.findById(auction.highestBidder).session(session);
             if (previousBidder) {
-                previousBidder.balance += auction.currentHighestBid;
+                const refundAmount = fromDecimal(toDecimal(previousBidder.balance).plus(toDecimal(auction.currentHighestBid)));
+                previousBidder.balance = refundAmount;
                 await previousBidder.save({ session });
             }
         }
 
         // Deduct new bid amount from current user
-        user.balance -= bidAmount;
+        const newBalance = fromDecimal(toDecimal(user.balance).minus(toDecimal(decimalBidAmount)));
+        user.balance = newBalance;
         await user.save({ session });
 
         // Update auction
-        auction.currentHighestBid = bidAmount;
+        auction.currentHighestBid = decimalBidAmount;
         auction.highestBidder = user._id;
         await auction.save({ session });
 
@@ -287,14 +307,14 @@ const placeBid = async (req, res) => {
             userId: user._id,
             userName: user.name,
             cropId: auction.batchId,
-            bidAmount: bidAmount
+            bidAmount: decimalBidAmount
         });
         await bid.save({ session });
 
         await session.commitTransaction();
         session.endSession();
 
-        logger.info('Bid placed successfully', { auctionId: auction._id, userId: user._id, amount: bidAmount });
+        logger.info('Bid placed successfully', { auctionId: auction._id, userId: user._id, amount: toDecimal(bidAmount).toString() });
 
         // Broadcast global bid event
         const io = socketService.getIO();
@@ -304,15 +324,15 @@ const placeBid = async (req, res) => {
                 bid: {
                     userId: user._id,
                     userName: user.name,
-                    bidAmount: bidAmount,
+                    bidAmount: toNumber(bidAmount),
                     timestamp: bid.timestamp
                 },
-                currentHighestBid: bidAmount
+                currentHighestBid: toNumber(bidAmount)
             });
         }
 
         return res.status(201).json(
-            apiResponse.successResponse({ bid }, 'Bid placed successfully', 201)
+            apiResponse.successResponse({ bid: { ...bid.toObject(), bidAmount: toNumber(bid.bidAmount) } }, 'Bid placed successfully', 201)
         );
 
     } catch (error) {

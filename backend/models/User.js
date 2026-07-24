@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { ROLES, VALID_ROLES } = require('../constants/permissions');
+const { fromString } = require('../utils/decimalHelpers');
 
 const userSchema = new mongoose.Schema({
     name: {
@@ -80,8 +81,8 @@ const userSchema = new mongoose.Schema({
         default: 0
     },
     balance: {
-        type: Number,
-        default: 100000
+        type: mongoose.Schema.Types.Decimal128,
+        default: () => fromString('100000')
     },
     lastLogin: { type: Date },
     resetPasswordToken: { type: String },
@@ -89,6 +90,15 @@ const userSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 }, { timestamps: true });
+
+userSchema.set('toJSON', {
+  transform: function (doc, ret) {
+    if (ret.balance && ret.balance._bsontype === 'Decimal128') {
+      ret.balance = parseFloat(ret.balance.toString());
+    }
+    return ret;
+  }
+});
 
 userSchema.index({ role: 1 });
 userSchema.index({ 'inspectorCredentials.certificationId': 1 }, { sparse: true });

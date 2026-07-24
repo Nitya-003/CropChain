@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 const Batch = require('../models/Batch');
 const { hasPermission, PERMISSIONS } = require('../constants/permissions');
+const { toDecimal, fromDecimal, lt, lte, gte, toNumber, fromString } = require('../utils/decimalHelpers');
 
 let io = null;
 
@@ -211,6 +212,7 @@ function initializeSocketIO(httpServer) {
 
           const bidderId = socket.user.id;
           const bidderName = socket.user.name;
+          const decimalBidAmount = fromString(String(bidAmount));
 
           // 1. Fetch user to verify balance
           const user = await User.findById(bidderId);
@@ -232,19 +234,20 @@ function initializeSocketIO(httpServer) {
             return socket.emit('bid_error', { message: 'Farmers cannot bid on their own auctions.' });
           }
 
-          if (bidAmount <= auction.currentHighestBid) {
-            return socket.emit('bid_error', { message: `Bid must be strictly higher than the current highest bid of ${auction.currentHighestBid} credits.` });
+          if (lte(decimalBidAmount, auction.currentHighestBid)) {
+            return socket.emit('bid_error', { message: `Bid must be strictly higher than the current highest bid of ${toNumber(auction.currentHighestBid)} credits.` });
           }
 
           // 3. Atomically update highest bid in database to prevent race conditions
-          // Optimistic locking approach using conditions
           const previousHighestBidder = auction.highestBidder;
           const previousHighestBid = auction.currentHighestBid;
           const isSelfOutbid = previousHighestBidder && previousHighestBidder.toString() === bidderId;
-          const amountToDeduct = isSelfOutbid ? bidAmount - previousHighestBid : bidAmount;
+          const amountToDeduct = isSelfOutbid
+            ? toDecimal(decimalBidAmount).minus(toDecimal(previousHighestBid))
+            : toDecimal(decimalBidAmount);
 
-          if (user.balance < amountToDeduct) {
-            return socket.emit('bid_error', { message: `Insufficient funds. Your balance is ${user.balance} credits.` });
+          if (lt(user.balance, amountToDeduct)) {
+            return socket.emit('bid_error', { message: `Insufficient funds. Your balance is ${toNumber(user.balance)} credits.` });
           }
 
           const updatedAuction = await Auction.findOneAndUpdate(
@@ -252,11 +255,11 @@ function initializeSocketIO(httpServer) {
               _id: auctionId,
               status: 'active',
               endTime: { $gt: new Date() },
-              currentHighestBid: { $lt: bidAmount }
+              currentHighestBid: { $lt: decimalBidAmount }
             },
             {
               $set: {
-                currentHighestBid: bidAmount,
+                currentHighestBid: decimalBidAmount,
                 highestBidder: bidderId
               }
             },
@@ -269,14 +272,18 @@ function initializeSocketIO(httpServer) {
 
           // 4. Refund previous highest bidder (if any) and deduct new highest bidder's balance
           if (previousHighestBidder && !isSelfOutbid) {
-            await User.findByIdAndUpdate(previousHighestBidder, {
-              $inc: { balance: previousHighestBid }
-            });
+            const prevBidder = await User.findById(previousHighestBidder);
+            if (prevBidder) {
+              prevBidder.balance = fromDecimal(toDecimal(prevBidder.balance).plus(toDecimal(previousHighestBid)));
+              await prevBidder.save();
+            }
           }
 
-          await User.findByIdAndUpdate(bidderId, {
-            $inc: { balance: -amountToDeduct }
-          });
+          const currentUser = await User.findById(bidderId);
+          if (currentUser) {
+            currentUser.balance = fromDecimal(toDecimal(currentUser.balance).minus(amountToDeduct));
+            await currentUser.save();
+          }
 
           // 5. Create new Bid record
           const newBid = new Bid({
@@ -284,16 +291,17 @@ function initializeSocketIO(httpServer) {
             userId: bidderId,
             userName: bidderName,
             cropId: auction.batchId,
-            bidAmount
+            bidAmount: decimalBidAmount
           });
           await newBid.save();
 
-          logger.info(`[SOCKET] Bid placed successfully on auction ${auctionId} by user ${bidderName}: ${bidAmount}`);
+          logger.info(`[SOCKET] Bid placed successfully on auction ${auctionId} by user ${bidderName}: ${toNumber(decimalBidAmount)}`);
 
           // 6. Broadcast auction_update to room
           const populatedBidder = await User.findById(updatedAuction.highestBidder).select('name').lean();
           const broadcastPayload = {
             ...updatedAuction.toObject(),
+            currentHighestBid: toNumber(updatedAuction.currentHighestBid),
             highestBidderName: populatedBidder ? populatedBidder.name : null
           };
           io.to(`auction:${auctionId}`).emit('auction_update', broadcastPayload);
