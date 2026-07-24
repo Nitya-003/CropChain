@@ -181,6 +181,55 @@ describe("Socket.IO Service", () => {
 
       expect(mockIo.to).toHaveBeenCalledWith("batch:BATCH001");
     });
+
+    test("emitToVerificationRoom should emit to the correct user room", () => {
+      const eventData = { status: "verified" };
+
+      socketService.emitToVerificationRoom(
+        "user-a",
+        "verification:updated",
+        eventData,
+      );
+
+      expect(mockIo.to).toHaveBeenCalledWith("verification:user:user-a");
+    });
+  });
+
+  describe("Verification Room Authorization", () => {
+    let joinVerificationRoomHandler;
+
+    beforeEach(() => {
+      const { Server } = require("socket.io");
+      socketService.initializeSocketIO({});
+
+      const connectionHandler = Server.onCallback.mock.calls.find(
+        ([eventName]) => eventName === "connection",
+      )[1];
+      mockSocket.user = { id: "user-a", role: "farmer" };
+      connectionHandler(mockSocket);
+      joinVerificationRoomHandler = mockSocket.on.mock.calls.find(
+        ([eventName]) => eventName === "join-verification-room",
+      )[1];
+    });
+
+    test("allows a user to join their own verification room", async () => {
+      await joinVerificationRoomHandler("user-a");
+
+      expect(mockSocket.join).toHaveBeenCalledWith("verification:user:user-a");
+      expect(mockSocket.emit).not.toHaveBeenCalledWith(
+        "error",
+        expect.any(Object),
+      );
+    });
+
+    test("denies a user from joining another user's verification room", async () => {
+      await joinVerificationRoomHandler("user-b");
+
+      expect(mockSocket.join).not.toHaveBeenCalledWith("verification:user:user-b");
+      expect(mockSocket.emit).toHaveBeenCalledWith("error", {
+        message: "Access denied: you can only join your own verification room",
+      });
+    });
   });
 
   describe("Auction Bidding", () => {

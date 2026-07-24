@@ -229,9 +229,23 @@ function initializeSocketIO(httpServer) {
       socket.on(
         "join-verification-room",
         withGuard("join-verification-room", (userId) => {
-          socket.join(`verification:user:${userId}`);
+          const authenticatedUserId = socket.user?.id;
+          if (
+            !authenticatedUserId ||
+            authenticatedUserId.toString() !== userId
+          ) {
+            socket.emit("error", {
+              message: "Access denied: you can only join your own verification room",
+            });
+            logger.warn(
+              `[SOCKET] Unauthorized attempt by ${socket.id} to join verification room`,
+            );
+            return;
+          }
+
+          socket.join(`verification:user:${authenticatedUserId}`);
           logger.info(
-            `[SOCKET] Client ${socket.id} joined verification room: ${userId}`,
+            `[SOCKET] Client ${socket.id} joined verification room: ${authenticatedUserId}`,
           );
         }),
       );
