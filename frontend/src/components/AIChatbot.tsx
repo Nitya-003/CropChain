@@ -428,11 +428,11 @@ const AIChatbot: React.FC = () => {
               <AnimatePresence>
                 {!isMinimized && (
                   <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                     transition={{ duration: 0.3 }}
-                    className="flex flex-col flex-1"
+                    className="flex flex-col flex-1 min-h-0"
                   >
                     {/* Messages Area */}
                     <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-green-200 dark:scrollbar-thumb-gray-600">
