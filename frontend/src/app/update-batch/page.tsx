@@ -192,11 +192,42 @@ const UpdateBatch: React.FC = () => {
     }));
   };
 
-  const getStageIndex = (stage: string) => {
+  const getStageIndex = (stage: string) => {const formatLastUpdated = (batchData: any) => {
+  if (!batchData?.updates?.length) return "Not Available";
+
+  const latestUpdate = batchData.updates.reduce((latest: any, current: any) =>
+    new Date(current.timestamp) > new Date(latest.timestamp) ? current : latest
+  );
+
+  return new Date(latestUpdate.timestamp).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
     const stagesList = ['farmer', 'mandi', 'transport', 'retailer'];
     const idx = stagesList.indexOf(stage?.toLowerCase());
     return idx >= 0 ? idx : 0;
   };
+  const formatLastUpdated = (batchData: any) => {
+  if (!batchData?.updates?.length) return "Not Available";
+
+  const latestUpdate = batchData.updates.reduce((latest: any, current: any) =>
+    new Date(current.timestamp) > new Date(latest.timestamp)
+      ? current
+      : latest
+  );
+
+  return new Date(latestUpdate.timestamp).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
 const handleCopyTransactionHash = async () => {
   if (!transactionDetails) return;
 
@@ -265,7 +296,7 @@ const handleCopyTransactionHash = async () => {
               <Package className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
               Batch Information
             </h2>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-4 gap-6">
               <div className="bg-green-50 dark:bg-green-900/30 rounded-xl p-4">
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Crop Type</p>
                 <p className="text-lg font-semibold text-gray-800 dark:text-white capitalize">{batch.cropType}</p>
@@ -278,6 +309,14 @@ const handleCopyTransactionHash = async () => {
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Farmer</p>
                 <p className="text-lg font-semibold text-gray-800 dark:text-white">{batch.farmerName}</p>
               </div>
+              <div className="bg-yellow-50 dark:bg-yellow-900/30 rounded-xl p-4">
+  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+    Last Updated
+  </p>
+  <p className="text-lg font-semibold text-gray-800 dark:text-white">
+    {formatLastUpdated(batch)}
+  </p>
+</div>
             </div>
           </div>
 
