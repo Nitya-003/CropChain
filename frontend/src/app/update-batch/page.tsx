@@ -435,9 +435,20 @@ const handleCopyTransactionHash = async () => {
                   value={updateData.notes}
                   onChange={handleUpdateChange}
                   rows={3}
+                  maxLength={500}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                   placeholder="Additional information about this update..."
-                />
+                /><p
+  className={`mt-2 text-sm text-right ${
+    updateData.notes.length >= 500
+      ? "text-red-600 dark:text-red-400 font-semibold"
+      : updateData.notes.length >= 450
+      ? "text-orange-500 dark:text-orange-400"
+      : "text-gray-500 dark:text-gray-400"
+  }`}
+>
+  {updateData.notes.length}/500
+</p>
               </div>
 
               <div className="flex justify-center">
