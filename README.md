@@ -164,6 +164,18 @@ This starts:
 
 ---
 
+## Automated AWS Deployment
+
+CropChain uses GitHub Actions to automate deployments to our AWS infrastructure. 
+
+When code is merged to the `main` branch and passes all CI tests, security scans, and SBOM generation, the `Deploy to AWS Production` workflow is triggered.
+
+- **Authentication**: Securely authenticates with AWS via OpenID Connect (OIDC) or Repository Secrets (`AWS_ROLE_ARN`).
+- **Deployment**: Uses the `deploy-aws.sh` script to package the codebase and deploy via AWS CloudFormation and Systems Manager (SSM) to an EC2 instance.
+- **Verification**: Automatically performs a health check on the deployed backend API to ensure successful deployment.
+
+---
+
 ## Access the Services
 
 | Service      | URL                       |
