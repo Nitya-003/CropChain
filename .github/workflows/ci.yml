@@ -161,3 +161,19 @@ jobs:
       - name: Run Frontend Tests
         working-directory: frontend/
         run: npm run test:ci
+
+  # Job 6: SBOM Generation
+  sbom-generation:
+    name: Generate Software Bill of Materials (SBOM)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate SBOM (SPDX)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          artifact-name: cropchain-sbom.spdx.json

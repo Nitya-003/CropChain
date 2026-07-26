@@ -84,6 +84,14 @@ mumbai: {
 - **Fail-Safe**: Empty accounts array prevents accidental transactions
 - **Hardhat Compliant**: Follows Hardhat best practices
 
+## Supply Chain Security (SBOM)
+
+To maintain visibility into our software supply chain and third-party dependencies, CropChain automatically generates a Software Bill of Materials (SBOM) during the CI pipeline.
+
+- **Standard**: We use the SPDX format for our generated SBOMs.
+- **Access**: The SBOM is automatically uploaded as a GitHub Actions artifact (`cropchain-sbom.spdx.json`) upon every build. It can be downloaded from the "Artifacts" section of any successful workflow run.
+- **Tooling**: We utilize the official `anchore/sbom-action` to ensure reproducible and accurate SBOM generation.
+
 ## Setup Instructions
 
 ### For Local Development
