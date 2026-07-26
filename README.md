@@ -1,5 +1,6 @@
 # CropChain - Blockchain Crop Supply Chain Tracker
 
+[![CI](https://github.com/AnzalKhan16/CropChain/actions/workflows/ci.yml/badge.svg)](https://github.com/AnzalKhan16/CropChain/actions/workflows/ci.yml)
 <p align="center">
   <img src="https://img.shields.io/badge/Apertre-3.0-orange?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Apertre 3.0 Badge">
   <img src="https://img.shields.io/badge/GSSoC-2026-ffd700?style=for-the-badge&logo=github&logoColor=black" alt="GSSoC 2026 Badge">
