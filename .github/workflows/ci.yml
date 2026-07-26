@@ -161,3 +161,44 @@ jobs:
       - name: Run Frontend Tests
         working-directory: frontend/
         run: npm run test:ci
+
+  # Job 6: Docker Security Scan
+  docker-security-scan:
+    name: Trivy Scan (${{ matrix.service.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: backend
+            context: backend/
+            dockerfile: backend/Dockerfile.dev
+          - name: frontend
+            context: frontend/
+            dockerfile: frontend/Dockerfile.dev
+          - name: ml-service
+            context: ml-service/
+            dockerfile: ml-service/Dockerfile
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Image
+        run: docker build -t cropchain/${{ matrix.service.name }}:latest -f ${{ matrix.service.dockerfile }} ${{ matrix.service.context }}
+
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'cropchain/${{ matrix.service.name }}:latest'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: ${{ matrix.service.name }}
