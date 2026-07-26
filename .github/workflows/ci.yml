@@ -19,29 +19,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Step 2: Setup Node.js 20
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
-          cache-dependency-path: smart-contracts/package-lock.json
 
-      # Step 3: Install dependencies
+      - name: Cache Node Modules (Smart Contracts)
+        id: cache-sc-node-modules
+        uses: actions/cache@v4
+        with:
+          path: smart-contracts/node_modules
+          key: ${{ runner.os }}-node-sc-${{ hashFiles('smart-contracts/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-sc-
+
       - name: Install dependencies
+        if: steps.cache-sc-node-modules.outputs.cache-hit != 'true'
         working-directory: smart-contracts/
         run: npm ci --legacy-peer-deps
 
-      # Step 4: Run Hardhat tests
       - name: Run Smart Contract Tests
         working-directory: smart-contracts/
         run: npm run test:ci
 
-      # Step 5: Compile contracts (additional verification)
       - name: Compile Smart Contracts
         working-directory: smart-contracts/
         run: npx hardhat compile
@@ -52,24 +55,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Step 2: Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
-          cache-dependency-path: smart-contracts/package-lock.json
 
-      # Step 3: Install dependencies
+      - name: Cache Node Modules (Smart Contracts)
+        id: cache-sc-node-modules
+        uses: actions/cache@v4
+        with:
+          path: smart-contracts/node_modules
+          key: ${{ runner.os }}-node-sc-${{ hashFiles('smart-contracts/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-sc-
+
       - name: Install dependencies
+        if: steps.cache-sc-node-modules.outputs.cache-hit != 'true'
         working-directory: smart-contracts/
         run: npm ci --legacy-peer-deps
 
-      # Step 4: Run Slither Security Analysis
       - name: Run Slither Security Analysis
         uses: crytic/slither-action@v0.4.0
         continue-on-error: true
@@ -84,24 +91,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Step 2: Setup Node.js 20
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
-          cache-dependency-path: backend/package-lock.json
 
-      # Step 3: Install backend dependencies
+      - name: Cache Node Modules (Backend)
+        id: cache-backend-node-modules
+        uses: actions/cache@v4
+        with:
+          path: backend/node_modules
+          key: ${{ runner.os }}-node-backend-${{ hashFiles('backend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-backend-
+
       - name: Install backend dependencies
+        if: steps.cache-backend-node-modules.outputs.cache-hit != 'true'
         working-directory: backend/
         run: npm ci --legacy-peer-deps
 
-      # Step 4: Run backend tests
       - name: Run Backend Tests
         working-directory: backend/
         run: npm run test:ci
@@ -112,24 +123,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Step 2: Setup Node.js 20
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
 
-      # Step 3: Install frontend dependencies
+      - name: Cache Node Modules (Frontend)
+        id: cache-frontend-node-modules
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ runner.os }}-node-frontend-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-frontend-
+
       - name: Install frontend dependencies
+        if: steps.cache-frontend-node-modules.outputs.cache-hit != 'true'
         working-directory: frontend/
         run: npm ci --legacy-peer-deps
 
-      # Step 4: Build frontend (TypeScript compilation check)
       - name: Build Frontend
         working-directory: frontend/
         run: npm run build
@@ -140,24 +155,55 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Step 2: Setup Node.js 20
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
 
-      # Step 3: Install frontend dependencies
+      - name: Cache Node Modules (Frontend)
+        id: cache-frontend-node-modules
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ runner.os }}-node-frontend-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-frontend-
+
       - name: Install frontend dependencies
+        if: steps.cache-frontend-node-modules.outputs.cache-hit != 'true'
         working-directory: frontend/
         run: npm ci --legacy-peer-deps
 
-      # Step 4: Run frontend tests
       - name: Run Frontend Tests
         working-directory: frontend/
         run: npm run test:ci
+
+  # Job 6: ML Service Tests
+  ml-service-tests:
+    name: ML Service Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Cache Python dependencies
+        id: cache-pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('ml-service/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install ML dependencies
+        working-directory: ml-service/
+        run: pip install -r requirements.txt
