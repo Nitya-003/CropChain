@@ -1,6 +1,6 @@
-import React from 'react';
-import Toast from './Toast';
-import { useToastContext } from '../context/ToastContext';
+import React from "react";
+import Toast from "./Toast";
+import { useToastContext } from "../context/ToastContext";
 
 /**
  * ToastContainer component

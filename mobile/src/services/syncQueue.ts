@@ -1,10 +1,27 @@
-import NetInfo from '@react-native-community/netinfo';
-import { offlineStorage } from './offlineStorage';
-import { batchService } from './batch.service';
+import NetInfo from "@react-native-community/netinfo";
+import { offlineStorage } from "./offlineStorage";
+import { batchService } from "./batch.service";
+import type { BatchStageUpdatePayload, SyncQueueInput } from "../types";
 
-type SyncStatus = 'idle' | 'syncing' | 'error';
+type SyncStatus = "idle" | "syncing" | "error";
 
 type SyncListener = (status: SyncStatus, pendingCount: number) => void;
+
+const batchStages = new Set(["farmer", "mandi", "transport", "retailer"]);
+
+function isStageUpdatePayload(data: unknown): data is BatchStageUpdatePayload {
+  if (!data || typeof data !== "object") return false;
+  const payload = data as Partial<BatchStageUpdatePayload>;
+  return (
+    typeof payload.stage === "string" &&
+    batchStages.has(payload.stage) &&
+    typeof payload.actor === "string" &&
+    payload.actor.trim().length >= 2 &&
+    typeof payload.location === "string" &&
+    payload.location.trim().length >= 2 &&
+    (payload.notes === undefined || typeof payload.notes === "string")
+  );
+}
 
 class SyncQueueManager {
   private listeners: Set<SyncListener> = new Set();
@@ -34,14 +51,12 @@ class SyncQueueManager {
     });
   }
 
-  async addToQueue(params: { batchId: string; action: string; data: Record<string, any> }) {
+  async addToQueue(params: SyncQueueInput) {
     await offlineStorage.addToQueue({
-      batchId: params.batchId,
-      action: params.action as any,
-      data: params.data,
-      priority: 'normal',
+      ...params,
+      priority: "normal",
     });
-    this.notify('idle');
+    this.notify("idle");
 
     const netState = await NetInfo.fetch();
     if (netState.isConnected) {
@@ -52,27 +67,33 @@ class SyncQueueManager {
   async processQueue() {
     if (this.isSyncing) return;
     this.isSyncing = true;
-    this.notify('syncing');
+    this.notify("syncing");
 
     try {
       const queue = await offlineStorage.getQueue();
 
       for (const item of queue) {
         try {
-          if (item.action === 'stage_update') {
-            await batchService.updateStage(item.batchId, item.data.stage);
+          if (item.action === "stage_update") {
+            if (!isStageUpdatePayload(item.data)) {
+              throw new Error(
+                `Invalid stage update payload for queue item ${item.id}`,
+              );
+            }
+            await batchService.updateStage(item.batchId, item.data);
           }
           await offlineStorage.removeFromQueue(item.id);
         } catch (error) {
+          console.error(`Failed to sync queue item ${item.id}`, error);
           await offlineStorage.incrementRetry(item.id);
           if (item.retries >= 4) {
             await offlineStorage.removeFromQueue(item.id);
           }
         }
       }
-      this.notify('idle');
+      this.notify("idle");
     } catch {
-      this.notify('error');
+      this.notify("error");
     } finally {
       this.isSyncing = false;
     }

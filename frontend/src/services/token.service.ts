@@ -1,15 +1,15 @@
 let accessToken: string | null = null;
 
 export const tokenService = {
-    getAccessToken(): string | null {
-        return accessToken;
-    },
+  getAccessToken(): string | null {
+    return accessToken;
+  },
 
-    setAccessToken(token: string | null) {
-        accessToken = token;
-    },
+  setAccessToken(token: string | null) {
+    accessToken = token;
+  },
 
-    clearAccessToken() {
-        accessToken = null;
-    }
+  clearAccessToken() {
+    accessToken = null;
+  },
 };

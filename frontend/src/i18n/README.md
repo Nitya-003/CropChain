@@ -23,15 +23,15 @@ src/i18n/
 ### In Components
 
 ```tsx
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from "react-i18next";
 
 function MyComponent() {
   const { t } = useTranslation();
-  
+
   return (
     <div>
-      <h1>{t('home.welcome')}</h1>
-      <p>{t('home.description')}</p>
+      <h1>{t("home.welcome")}</h1>
+      <p>{t("home.description")}</p>
     </div>
   );
 }
@@ -50,7 +50,7 @@ Language preference is automatically saved to `localStorage` and persists across
 3. Import the new translation in `src/i18n/config.ts`:
 
 ```typescript
-import taTranslations from './locales/ta.json';
+import taTranslations from "./locales/ta.json";
 ```
 
 4. Add it to the resources object:
@@ -67,15 +67,16 @@ resources: {
 
 ```typescript
 const languages = [
-  { code: 'en', name: 'English', nativeName: 'English' },
-  { code: 'hi', name: 'Hindi', nativeName: 'हिंदी' },
-  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்' }, // New language
+  { code: "en", name: "English", nativeName: "English" },
+  { code: "hi", name: "Hindi", nativeName: "हिंदी" },
+  { code: "ta", name: "Tamil", nativeName: "தமிழ்" }, // New language
 ];
 ```
 
 ## 🎨 Font Support
 
 The application uses:
+
 - **Inter** - For Latin scripts (English)
 - **Noto Sans Devanagari** - For Devanagari script (Hindi)
 
@@ -114,10 +115,11 @@ For additional scripts, add the appropriate Google Font or system font in the CS
 The language is set on the `<html>` element's `lang` attribute when changed:
 
 ```typescript
-document.documentElement.setAttribute('lang', languageCode);
+document.documentElement.setAttribute("lang", languageCode);
 ```
 
 For better SEO, consider adding:
+
 - `hreflang` tags in the HTML head
 - Language-specific meta descriptions
 - Sitemap with language variants

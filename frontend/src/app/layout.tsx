@@ -1,4 +1,4 @@
-import BackToTop from "../components/BackToTop"; 
+import BackToTop from "../components/BackToTop";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -26,7 +26,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "CropChain - Supply Chain Track & Trace",
-  description: "Secure, decentralized tracking and trace solution for agriculture crop supply chains.",
+  description:
+    "Secure, decentralized tracking and trace solution for agriculture crop supply chains.",
   manifest: "/manifest.json",
 };
 
@@ -46,9 +47,7 @@ export default function RootLayout({
           <div className="min-h-screen bg-gradient-to-br from-green-50/40 to-blue-50/40 dark:from-black dark:to-black text-foreground transition-colors duration-200">
             <OfflineIndicator />
             <Header />
-            <main className="container mx-auto px-4 py-8">
-              {children}
-            </main>
+            <main className="container mx-auto px-4 py-8">{children}</main>
             <BackToTop />
             <AIChatbot />
           </div>

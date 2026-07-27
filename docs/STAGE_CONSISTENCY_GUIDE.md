@@ -9,10 +9,11 @@ This document explains the critical importance of maintaining consistent stage m
 The CropChain application uses a 4-stage supply chain model that is represented differently in different layers:
 
 ### 1. MongoDB/Backend Layer (JavaScript)
+
 **File**: `backend/constants/stages.js`
 
 ```javascript
-STAGES = ['farmer', 'mandi', 'transport', 'retailer']
+STAGES = ["farmer", "mandi", "transport", "retailer"];
 ```
 
 - All lowercase strings
@@ -21,6 +22,7 @@ STAGES = ['farmer', 'mandi', 'transport', 'retailer']
 - Used in business logic
 
 ### 2. Blockchain Layer (Solidity)
+
 **File**: `contracts/CropChain.sol`
 
 ```solidity
@@ -38,15 +40,16 @@ enum Stage {
 - Immutable once deployed
 
 ### 3. Mapping Layer (JavaScript → Solidity)
+
 **File**: `backend/constants/stages.js`
 
 ```javascript
 STAGE_TO_NUMBER = {
-    'farmer': 0,
-    'mandi': 1,
-    'transport': 2,
-    'retailer': 3
-}
+  farmer: 0,
+  mandi: 1,
+  transport: 2,
+  retailer: 3,
+};
 ```
 
 - Converts JavaScript strings to Solidity enum numbers
@@ -88,6 +91,7 @@ If you need to add, remove, or modify stages:
 #### Step 1: Update All Files in This Exact Order
 
 1. **Smart Contract** (`contracts/CropChain.sol`)
+
    ```solidity
    enum Stage {
        Farmer,      // 0
@@ -99,15 +103,16 @@ If you need to add, remove, or modify stages:
    ```
 
 2. **Backend Constants** (`backend/constants/stages.js`)
+
    ```javascript
-   const STAGES = ['farmer', 'mandi', 'transport', 'retailer'];
-   
+   const STAGES = ["farmer", "mandi", "transport", "retailer"];
+
    const STAGE_TO_NUMBER = {
-       'farmer': 0,
-       'mandi': 1,
-       'transport': 2,
-       'retailer': 3
-       // 'newstage': 4 - Must match Solidity enum position
+     farmer: 0,
+     mandi: 1,
+     transport: 2,
+     retailer: 3,
+     // 'newstage': 4 - Must match Solidity enum position
    };
    ```
 
@@ -130,7 +135,7 @@ The application now has automatic validation on startup:
 
 ```javascript
 // backend/server.js
-const { validateStageMapping } = require('./constants/stages');
+const { validateStageMapping } = require("./constants/stages");
 validateStageMapping(); // Throws error if mismatch detected
 ```
 
@@ -183,10 +188,10 @@ grep -r "require.*stages" backend/
 ```javascript
 // WRONG - Don't do this in blockchainWorker.js or anywhere else
 const stageMap = {
-    'farmer': 0,
-    'mandi': 1,
-    'transport': 2,
-    'retailer': 3
+  farmer: 0,
+  mandi: 1,
+  transport: 2,
+  retailer: 3,
 };
 ```
 
@@ -194,15 +199,15 @@ const stageMap = {
 
 ```javascript
 // CORRECT - Import from constants
-const { getStageNumber } = require('../constants/stages');
-const stageNumber = getStageNumber('mandi');
+const { getStageNumber } = require("../constants/stages");
+const stageNumber = getStageNumber("mandi");
 ```
 
 ### ❌ DON'T: Modify Stages Without Testing
 
 ```javascript
 // WRONG - Adding a stage without updating contracts
-const STAGES = ['farmer', 'mandi', 'transport', 'retailer', 'consumer'];
+const STAGES = ["farmer", "mandi", "transport", "retailer", "consumer"];
 ```
 
 ✅ **DO**: Follow the complete change process above
@@ -225,6 +230,7 @@ This will cause blockchain sync failures.
 **Possible Cause**: Stage mapping changed in code but contract not redeployed
 
 **Solution**:
+
 1. Check `backend/constants/stages.js`
 2. Compare with deployed contract's Stage enum
 3. Redeploy contract if needed
@@ -235,6 +241,7 @@ This will cause blockchain sync failures.
 **Possible Cause**: Frontend has outdated stage list
 
 **Solution**:
+
 1. Check frontend stage constants
 2. Compare with backend `constants/stages.js`
 3. Update frontend to match
@@ -245,6 +252,7 @@ This will cause blockchain sync failures.
 **Possible Cause**: Accidental stage modification
 
 **Solution**:
+
 1. Read the error message carefully
 2. It will show expected vs actual values
 3. Revert recent changes to stages.js

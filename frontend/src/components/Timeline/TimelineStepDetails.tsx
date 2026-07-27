@@ -1,5 +1,5 @@
-import React from 'react';
-import { Clock, User, MapPin, Award } from 'lucide-react';
+import React from "react";
+import { Clock, User, MapPin, Award } from "lucide-react";
 
 interface TimelineStepDetailsProps {
   actor: string;

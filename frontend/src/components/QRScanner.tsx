@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Camera, X, Upload } from 'lucide-react';
+import React, { useState } from "react";
+import { Camera, X, Upload } from "lucide-react";
 
 interface QRScannerProps {
   onScan: (result: string) => void;
@@ -7,17 +7,18 @@ interface QRScannerProps {
 }
 
 const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
-  const [scannedResult, setScannedResult] = useState('');
+  const [scannedResult, setScannedResult] = useState("");
 
   // Simulate QR scanning - in a real app, you'd use a camera library
   const simulateScan = () => {
     const sampleBatchIds = [
-      'CROP-2024-001',
-      'CROP-2024-002', 
-      'CROP-2024-003',
-      'CROP-2024-004'
+      "CROP-2024-001",
+      "CROP-2024-002",
+      "CROP-2024-003",
+      "CROP-2024-004",
     ];
-    const randomId = sampleBatchIds[Math.floor(Math.random() * sampleBatchIds.length)];
+    const randomId =
+      sampleBatchIds[Math.floor(Math.random() * sampleBatchIds.length)];
     setScannedResult(randomId);
     setTimeout(() => {
       onScan(randomId);
@@ -35,7 +36,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
           <X className="h-5 w-5 text-gray-600" />
         </button>
       </div>
-      
+
       <div className="text-center space-y-6">
         <div className="bg-white rounded-lg p-8 border-2 border-gray-200">
           {scannedResult ? (
@@ -56,27 +57,27 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
             </div>
           )}
         </div>
-        
+
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <button
             onClick={simulateScan}
             disabled={!!scannedResult}
             className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center space-x-2 ${
               scannedResult
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700 transform hover:scale-105'
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700 transform hover:scale-105"
             } text-white`}
           >
             <Camera className="h-5 w-5" />
             <span>Simulate Scan</span>
           </button>
-          
+
           <button className="px-6 py-3 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition-colors flex items-center justify-center space-x-2">
             <Upload className="h-5 w-5" />
             <span>Upload Image</span>
           </button>
         </div>
-        
+
         <p className="text-sm text-gray-500">
           Demo mode: Click "Simulate Scan" to test with sample QR codes
         </p>

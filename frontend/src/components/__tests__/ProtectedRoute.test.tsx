@@ -1,108 +1,113 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockUseAuth = vi.fn();
 const mockRouterReplace = vi.fn();
 
-vi.mock('../../context/AuthContext', () => ({
+vi.mock("../../context/AuthContext", () => ({
   useAuth: () => mockUseAuth(),
 }));
 
-vi.mock('next/navigation', () => ({
+vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: mockRouterReplace }),
-  usePathname: () => '/dashboard',
+  usePathname: () => "/dashboard",
 }));
 
-describe('ProtectedRoute', () => {
+describe("ProtectedRoute", () => {
   beforeEach(() => {
     mockUseAuth.mockReset();
     mockRouterReplace.mockReset();
   });
 
-  it('shows loading spinner when isLoading is true', async () => {
+  it("shows loading spinner when isLoading is true", async () => {
     mockUseAuth.mockReturnValue({
       user: null,
       isLoading: true,
       isAuthenticated: false,
     });
 
-    const ProtectedRoute = (await import('../ProtectedRoute')).default;
+    const ProtectedRoute = (await import("../ProtectedRoute")).default;
     render(
       <ProtectedRoute>
         <div>Protected Content</div>
-      </ProtectedRoute>
+      </ProtectedRoute>,
     );
 
-    const spinner = document.querySelector('.animate-spin');
+    const spinner = document.querySelector(".animate-spin");
     expect(spinner).toBeInTheDocument();
-    expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
+    expect(screen.queryByText("Protected Content")).not.toBeInTheDocument();
   });
 
-  it('renders nothing when not authenticated (renders null before redirect effect)', async () => {
+  it("renders nothing when not authenticated (renders null before redirect effect)", async () => {
     mockUseAuth.mockReturnValue({
       user: null,
       isLoading: false,
       isAuthenticated: false,
     });
 
-    const ProtectedRoute = (await import('../ProtectedRoute')).default;
+    const ProtectedRoute = (await import("../ProtectedRoute")).default;
     render(
       <ProtectedRoute>
         <div>Protected Content</div>
-      </ProtectedRoute>
+      </ProtectedRoute>,
     );
 
-    expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
+    expect(screen.queryByText("Protected Content")).not.toBeInTheDocument();
   });
 
-  it('renders children when authenticated with no role restrictions', async () => {
+  it("renders children when authenticated with no role restrictions", async () => {
     mockUseAuth.mockReturnValue({
-      user: { id: '1', name: 'Test', email: 'test@test.com', role: 'farmer' },
+      user: { id: "1", name: "Test", email: "test@test.com", role: "farmer" },
       isLoading: false,
       isAuthenticated: true,
     });
 
-    const ProtectedRoute = (await import('../ProtectedRoute')).default;
+    const ProtectedRoute = (await import("../ProtectedRoute")).default;
     render(
       <ProtectedRoute>
         <div>Protected Content</div>
-      </ProtectedRoute>
+      </ProtectedRoute>,
     );
 
-    expect(screen.getByText('Protected Content')).toBeInTheDocument();
+    expect(screen.getByText("Protected Content")).toBeInTheDocument();
   });
 
-  it('renders children when user has allowed role', async () => {
+  it("renders children when user has allowed role", async () => {
     mockUseAuth.mockReturnValue({
-      user: { id: '1', name: 'Admin', email: 'admin@test.com', role: 'admin' },
+      user: { id: "1", name: "Admin", email: "admin@test.com", role: "admin" },
       isLoading: false,
       isAuthenticated: true,
     });
 
-    const ProtectedRoute = (await import('../ProtectedRoute')).default;
+    const ProtectedRoute = (await import("../ProtectedRoute")).default;
     render(
-      <ProtectedRoute allowedRoles={['admin']}>
+      <ProtectedRoute allowedRoles={["admin"]}>
         <div>Admin Content</div>
-      </ProtectedRoute>
+      </ProtectedRoute>,
     );
 
-    expect(screen.getByText('Admin Content')).toBeInTheDocument();
+    expect(screen.getByText("Admin Content")).toBeInTheDocument();
   });
 
-  it('renders nothing when user does not have allowed role', async () => {
+  it("renders nothing when user does not have allowed role", async () => {
     mockUseAuth.mockReturnValue({
-      user: { id: '1', name: 'Farmer', email: 'farmer@test.com', role: 'farmer' },
+      user: {
+        id: "1",
+        name: "Farmer",
+        email: "farmer@test.com",
+        role: "farmer",
+      },
       isLoading: false,
       isAuthenticated: true,
     });
 
-    const ProtectedRoute = (await import('../ProtectedRoute')).default;
+    const ProtectedRoute = (await import("../ProtectedRoute")).default;
     render(
-      <ProtectedRoute allowedRoles={['admin']}>
+      <ProtectedRoute allowedRoles={["admin"]}>
         <div>Admin Content</div>
-      </ProtectedRoute>
+      </ProtectedRoute>,
     );
 
-    expect(screen.queryByText('Admin Content')).not.toBeInTheDocument();
+    expect(screen.queryByText("Admin Content")).not.toBeInTheDocument();
   });
 });
