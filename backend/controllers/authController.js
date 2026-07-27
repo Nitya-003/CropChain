@@ -12,19 +12,6 @@ const logger = require('../utils/logger');
 require('dotenv').config();
 const Redis = require('ioredis');
 const { toNumber, toDecimal, fromDecimal } = require('../utils/decimalHelpers');
-const User = require("../models/User");
-const generateToken = require("../utils/generateToken");
-const { generateRefreshToken } = require("../utils/generateToken");
-const bcrypt = require("bcryptjs");
-const crypto = require("crypto");
-const jwt = require("jsonwebtoken");
-const { z } = require("zod");
-const apiResponse = require("../utils/apiResponse");
-const { verifyMessage } = require("ethers");
-const { VALID_ROLES, ROLES } = require("../constants/permissions");
-const logger = require("../utils/logger");
-require("dotenv").config();
-const Redis = require("ioredis");
 
 let redis = null;
 
@@ -44,6 +31,7 @@ if (process.env.NODE_ENV !== "test") {
     logger.error("Redis connection error", { error: err.message });
   });
 }
+
 // Validation Schemas
 const passwordSchema = z.string()
     .min(8, 'Password must be at least 8 characters')
@@ -85,63 +73,6 @@ const updateProfileSchema = z.object({
 }).refine(data => Object.keys(data).length > 0, {
     message: "At least one field (name, email, or password) must be provided to update",
 });
-  name: z
-    .string()
-    .min(2, "Name must be at least 2 characters")
-    .max(50, "Name must be less than 50 characters")
-    .trim(),
-  email: z.string().email("Please provide a valid email").toLowerCase().trim(),
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .max(128, "Password too long")
-    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-    .regex(/[0-9]/, "Password must contain at least one number")
-    .regex(
-      /[^A-Za-z0-9]/,
-      "Password must contain at least one special character",
-    ),
-  role: z
-    .enum(VALID_ROLES, {
-      errorMap: () => ({
-        message: `Invalid role. Must be one of: ${VALID_ROLES.join(", ")}`,
-      }),
-    })
-    .default(ROLES.FARMER),
-});
-
-const updateProfileSchema = z
-  .object({
-    name: z
-      .string()
-      .min(2, "Name must be at least 2 characters")
-      .max(50, "Name must be less than 50 characters")
-      .trim()
-      .optional(),
-    email: z
-      .string()
-      .email("Please provide a valid email")
-      .toLowerCase()
-      .trim()
-      .optional(),
-    password: z
-      .string()
-      .min(8, "Password must be at least 8 characters")
-      .max(128, "Password too long")
-      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-      .regex(/[0-9]/, "Password must contain at least one number")
-      .regex(
-        /[^A-Za-z0-9]/,
-        "Password must contain at least one special character",
-      )
-      .optional(),
-  })
-  .refine((data) => Object.keys(data).length > 0, {
-    message:
-      "At least one field (name, email, or password) must be provided to update",
-  });
 
 const loginSchema = z.object({
   email: z.string().email("Please provide a valid email").toLowerCase().trim(),
@@ -156,12 +87,6 @@ const sanitizeUser = (user) => ({
     role: user.role,
     balance: toNumber(user.balance || 0),
     createdAt: user.createdAt
-  id: user._id,
-  name: user.name,
-  email: user.email,
-  role: user.role,
-  balance: user.balance || 0,
-  createdAt: user.createdAt,
 });
 
 const extractValidationDetails = (zodError) => {
@@ -926,96 +851,18 @@ const resetPassword = async (req, res) => {
 
         return res.json(
             apiResponse.successResponse(null, 'Password reset successful')
-  try {
-    const { token } = req.params;
-    const { password } = req.body;
-
-    if (!password) {
-      return res
-        .status(400)
-        .json(
-          apiResponse.errorResponse(
-            "New password is required",
-            "PASSWORD_REQUIRED",
-            400,
-          ),
         );
+    } catch (error) {
+        return res
+            .status(500)
+            .json(
+                apiResponse.errorResponse(
+                    'Server error during password reset',
+                    'SERVER_ERROR',
+                    500,
+                ),
+            );
     }
-
-    if (password.length < 8) {
-      return res
-        .status(400)
-        .json(
-          apiResponse.errorResponse(
-            "Password must be at least 8 characters long",
-            "INVALID_PASSWORD",
-            400,
-          ),
-        );
-    }
-
-    const passwordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,128}$/;
-    if (!passwordRegex.test(password)) {
-      return res
-        .status(400)
-        .json(
-          apiResponse.errorResponse(
-            "Password must be 8-128 characters and contain at least one uppercase letter, one lowercase letter, one number, and one special character",
-            "INVALID_PASSWORD",
-            400,
-          ),
-        );
-    }
-
-    const resetPasswordToken = crypto
-      .createHash("sha256")
-      .update(token)
-      .digest("hex");
-
-    const user = await User.findOne({
-      resetPasswordToken,
-      resetPasswordExpire: { $gt: Date.now() },
-    });
-
-        user.balance = fromDecimal(toDecimal(user.balance).plus(toDecimal(amount)));
-        await user.save();
-
-        logger.info('Funds added successfully', { adminId: req.user.id, targetUserId: user._id, amount, newBalance: toNumber(user.balance) });
-    if (!user) {
-      return res
-        .status(400)
-        .json(
-          apiResponse.errorResponse(
-            "Invalid or expired password reset token",
-            "INVALID_TOKEN",
-            400,
-          ),
-        );
-    }
-
-    const salt = await bcrypt.genSalt(12);
-    user.password = await bcrypt.hash(password, salt);
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
-    user.tokenVersion = (user.tokenVersion || 0) + 1;
-
-    await user.save();
-
-    return res.json(
-      apiResponse.successResponse(null, "Password reset successful"),
-    );
-  } catch (error) {
-    return res
-      .status(500)
-      .json(
-        apiResponse.errorResponse(
-          "Server error during password reset",
-          "SERVER_ERROR",
-          500,
-        ),
-      );
-  }
 };
 
 const addFunds = async (req, res) => {
@@ -1051,14 +898,14 @@ const addFunds = async (req, res) => {
       return res.status(404).json(apiResponse.notFoundResponse("User", userId));
     }
 
-    user.balance = (user.balance || 0) + amount;
+    user.balance = fromDecimal(toDecimal(user.balance || 0).plus(toDecimal(amount)));
     await user.save();
 
     logger.info("Funds added successfully", {
       adminId: req.user.id,
       targetUserId: user._id,
       amount,
-      newBalance: user.balance,
+      newBalance: toNumber(user.balance),
     });
 
     return res.json(
@@ -1120,55 +967,8 @@ const setFallbackPassword = async (req, res) => {
         logger.error('Error setting fallback password', { error: error.message });
         return res.status(500).json(
             apiResponse.errorResponse('Server error while setting fallback password', 'SERVER_ERROR', 500)
-  try {
-    const { password } = req.body;
-
-    if (!password || password.length < 6) {
-      return res
-        .status(400)
-        .json(
-          apiResponse.errorResponse(
-            "Password must be at least 6 characters long",
-            "INVALID_PASSWORD",
-            400,
-          ),
         );
     }
-
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res
-        .status(404)
-        .json(apiResponse.notFoundResponse("User", req.user.id));
-    }
-
-    // Hash password with higher cost factor
-    const salt = await bcrypt.genSalt(12);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    user.password = hashedPassword;
-    await user.save();
-
-    logger.info("Fallback password set successfully", { userId: user._id });
-
-    return res.json(
-      apiResponse.successResponse(
-        { user: sanitizeUser(user) },
-        "Fallback password set successfully",
-      ),
-    );
-  } catch (error) {
-    logger.error("Error setting fallback password", { error: error.message });
-    return res
-      .status(500)
-      .json(
-        apiResponse.errorResponse(
-          "Server error while setting fallback password",
-          "SERVER_ERROR",
-          500,
-        ),
-      );
-  }
 };
 
 module.exports = {
