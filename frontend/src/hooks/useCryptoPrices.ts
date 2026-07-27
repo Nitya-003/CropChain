@@ -12,7 +12,6 @@ interface useCryptoPrices {
   };
 }
 
-
 export const useCryptoPrices = () => {
   return useQuery({
     queryKey: ["crypto-prices"],

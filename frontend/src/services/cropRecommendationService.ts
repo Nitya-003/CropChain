@@ -1,5 +1,5 @@
-import { apiClient } from './apiClient';
-import { AxiosError } from 'axios';
+import { apiClient } from "./apiClient";
+import { AxiosError } from "axios";
 
 export interface RecommendationRequest {
   N: number;
@@ -26,7 +26,10 @@ export interface RecommendationResult {
 const MAX_RETRIES = 3;
 const BASE_DELAY = 200;
 
-const cache = new Map<string, { data: RecommendationResult; timestamp: number }>();
+const cache = new Map<
+  string,
+  { data: RecommendationResult; timestamp: number }
+>();
 const CACHE_TTL = 5 * 60 * 1000;
 
 function cacheKey(params: RecommendationRequest): string {
@@ -49,7 +52,7 @@ function setCache(key: string, data: RecommendationResult): void {
 }
 
 export async function getCropRecommendation(
-  params: RecommendationRequest
+  params: RecommendationRequest,
 ): Promise<RecommendationResult> {
   const key = cacheKey(params);
   const cached = getCached(key);
@@ -58,17 +61,24 @@ export async function getCropRecommendation(
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const response = await apiClient.post('/recommend', params);
-      const result = (response.data?.data ?? response.data) as RecommendationResult;
+      const response = await apiClient.post("/recommend", params);
+      const result = (response.data?.data ??
+        response.data) as RecommendationResult;
       setCache(key, result);
       return result;
     } catch (err: any) {
       lastError = err;
       if (attempt < MAX_RETRIES - 1) {
-        await new Promise(r => setTimeout(r, BASE_DELAY * Math.pow(2, attempt)));
+        await new Promise((r) =>
+          setTimeout(r, BASE_DELAY * Math.pow(2, attempt)),
+        );
       }
     }
   }
   const axiosError = lastError as AxiosError<{ message?: string }> | null;
-  throw new Error(axiosError?.response?.data?.message || lastError?.message || 'Recommendation service unavailable');
+  throw new Error(
+    axiosError?.response?.data?.message ||
+      lastError?.message ||
+      "Recommendation service unavailable",
+  );
 }

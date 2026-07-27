@@ -1,13 +1,13 @@
-'use strict';
+"use strict";
 
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { optimizeRoute } = require('../services/logisticsService');
-const { optimizeRouteSchema } = require('../validations/logisticsSchema');
-const validateRequest = require('../middleware/validator');
-const apiResponse = require('../utils/apiResponse');
-const { protect } = require('../middleware/auth');
-const logger = require('../utils/logger');
+const { optimizeRoute } = require("../services/logisticsService");
+const { optimizeRouteSchema } = require("../validations/logisticsSchema");
+const validateRequest = require("../middleware/validator");
+const apiResponse = require("../utils/apiResponse");
+const { protect } = require("../middleware/auth");
+const logger = require("../utils/logger");
 
 /**
  * @swagger
@@ -60,35 +60,40 @@ const logger = require('../utils/logger');
  *       500:
  *         description: Optimization service failed
  */
-router.post('/optimize-route', protect, validateRequest(optimizeRouteSchema), async (req, res, next) => {
-  try {
-    const { coordinates } = req.body;
-    
-    logger.info('Optimizing route for transporter', { 
-      userId: req.user.id, 
-      stopsCount: coordinates.length 
-    });
+router.post(
+  "/optimize-route",
+  protect,
+  validateRequest(optimizeRouteSchema),
+  async (req, res, next) => {
+    try {
+      const { coordinates } = req.body;
 
-    const result = await optimizeRoute(coordinates);
+      logger.info("Optimizing route for transporter", {
+        userId: req.user.id,
+        stopsCount: coordinates.length,
+      });
 
-    const response = apiResponse.successResponse(
-      result,
-      'Multi-stop route optimized successfully'
-    );
-    res.json(response);
-  } catch (error) {
-    logger.error('Error optimizing logistics route', { 
-      error: error.message, 
-      stack: error.stack 
-    });
-    
-    const response = apiResponse.errorResponse(
-      error.message || 'Failed to optimize route',
-      'ROUTE_OPTIMIZATION_FAILED',
-      500
-    );
-    res.status(500).json(response);
-  }
-});
+      const result = await optimizeRoute(coordinates);
+
+      const response = apiResponse.successResponse(
+        result,
+        "Multi-stop route optimized successfully",
+      );
+      res.json(response);
+    } catch (error) {
+      logger.error("Error optimizing logistics route", {
+        error: error.message,
+        stack: error.stack,
+      });
+
+      const response = apiResponse.errorResponse(
+        error.message || "Failed to optimize route",
+        "ROUTE_OPTIMIZATION_FAILED",
+        500,
+      );
+      res.status(500).json(response);
+    }
+  },
+);
 
 module.exports = router;

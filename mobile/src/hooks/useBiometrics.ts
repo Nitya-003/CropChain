@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import * as LocalAuthentication from 'expo-local-authentication';
+import { useState, useCallback } from "react";
+import * as LocalAuthentication from "expo-local-authentication";
 
 export function useBiometrics() {
   const [isAvailable, setIsAvailable] = useState(false);
@@ -16,9 +16,9 @@ export function useBiometrics() {
   const authenticate = useCallback(async (): Promise<boolean> => {
     try {
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Authenticate to access CropChain',
-        fallbackLabel: 'Use passcode',
-        cancelLabel: 'Cancel',
+        promptMessage: "Authenticate to access CropChain",
+        fallbackLabel: "Use passcode",
+        cancelLabel: "Cancel",
       });
       const success = result.success;
       setIsAuthenticated(success);

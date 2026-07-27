@@ -1,11 +1,36 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const bidSchema = new mongoose.Schema({
-  auctionId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Auction',
-    required: true,
-    index: true
+const bidSchema = new mongoose.Schema(
+  {
+    auctionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Auction",
+      required: true,
+      index: true,
+    },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    userName: {
+      type: String,
+      required: true,
+    },
+    cropId: {
+      type: String,
+      required: true,
+    },
+    bidAmount: {
+      type: Number,
+      required: true,
+      min: [0, "Bid amount cannot be negative"],
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now,
+      index: true,
+    },
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -21,7 +46,7 @@ const bidSchema = new mongoose.Schema({
     required: true
   },
   bidAmount: {
-    type: Number,
+    type: mongoose.Schema.Types.Decimal128,
     required: true,
     min: [0, 'Bid amount cannot be negative']
   },
@@ -30,6 +55,17 @@ const bidSchema = new mongoose.Schema({
     default: Date.now,
     index: true
   }
-}, { timestamps: true });
+}, { timestamps: true, toJSON: { getters: false, virtuals: false } });
 
-module.exports = mongoose.model('Bid', bidSchema);
+bidSchema.set('toJSON', {
+  transform: function (doc, ret) {
+    if (ret.bidAmount && ret.bidAmount._bsontype === 'Decimal128') {
+      ret.bidAmount = parseFloat(ret.bidAmount.toString());
+    }
+    return ret;
+  }
+});
+  { timestamps: true },
+);
+
+module.exports = mongoose.model("Bid", bidSchema);

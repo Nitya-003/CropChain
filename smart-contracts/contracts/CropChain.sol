@@ -94,6 +94,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event ListingCreated(uint256 indexed listingId, bytes32 indexed batchId, address indexed seller, uint256 quantity, uint256 unitPriceWei);
     event ListingPurchased(uint256 indexed listingId, address indexed buyer, uint256 quantity, uint256 totalPaidWei);
+    event SubBatchCreated(bytes32 indexed parentBatchId, bytes32 indexed subBatchId, address indexed owner, uint256 quantity);
     event ListingCancelled(uint256 indexed listingId, address indexed cancelledBy);
     event ProceedsWithdrawn(address indexed account, uint256 amountWei);
     event SpotPriceRecorded(bytes32 indexed cropTypeHash, uint256 priceWei, uint256 timestamp);
@@ -297,7 +298,9 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         // Clear approval after use
         nextCustodianApproval[batchId] = address(0);
 
-        // Reset batchListedQuantity to invalidate active ghost listings from previous custodian
+        // Reset batchListedQuantity to 0 on custody transfer because the new custodian
+        // now holds the full physical batch and any prior active listings are invalidated
+        // (they can no longer be bought).
         batchListedQuantity[batchId] = 0;
 
         // Dynamic role checks based on stage transition
@@ -363,10 +366,12 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         uint256 listingId = nextListingId;
         nextListingId = listingId + 1;
 
+        address listingSeller = _getCurrentCustodian(batchId);
+        
         listings[listingId] = MarketListing({
             listingId: listingId,
             batchId: batchId,
-            seller: msg.sender,
+            seller: listingSeller,
             quantity: quantity,
             quantityAvailable: quantity,
             unitPriceWei: unitPriceWei,
@@ -374,7 +379,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
             createdAt: block.timestamp
         });
 
-        emit ListingCreated(listingId, batchId, msg.sender, quantity, unitPriceWei);
+        emit ListingCreated(listingId, batchId, listingSeller, quantity, unitPriceWei);
 
         return listingId;
     }
@@ -413,6 +418,38 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
             listing.active = false;
         }
 
+        // Mint a sub-batch for the buyer to preserve traceability
+        bytes32 subBatchId = keccak256(abi.encodePacked(listing.batchId, msg.sender, block.timestamp, listingId, allBatchIds.length));
+        
+        cropBatches[subBatchId] = CropBatch({
+            batchId: subBatchId,
+            cropTypeHash: batch.cropTypeHash,
+            ipfsCID: batch.ipfsCID,
+            quantity: quantity,
+            createdAt: block.timestamp,
+            creator: msg.sender,
+            exists: true,
+            isRecalled: false,
+            currentTemperature: batch.currentTemperature,
+            currentHumidity: batch.currentHumidity,
+            isSpoiled: false
+        });
+
+        _batchUpdates[subBatchId].push(
+            SupplyChainUpdate({
+                // Inherit the stage from the parent's latest update, or default to Transport/Retailer?
+                // For simplicity, we assign it to the buyer as the new custodian at the current stage
+                stage: _batchUpdates[listing.batchId].length > 0 ? _batchUpdates[listing.batchId][_batchUpdates[listing.batchId].length - 1].stage : Stage.Farmer,
+                actorName: "Buyer",
+                location: "Marketplace",
+                timestamp: block.timestamp,
+                notes: "Purchased and split from parent batch",
+                updatedBy: msg.sender
+            })
+        );
+
+        allBatchIds.push(subBatchId);
+
         pendingWithdrawals[listing.seller] += totalCost;
 
         uint256 refund = msg.value - totalCost;
@@ -421,6 +458,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         }
 
         emit ListingPurchased(listingId, msg.sender, quantity, totalCost);
+        emit SubBatchCreated(listing.batchId, subBatchId, msg.sender, quantity);
     }
 
     function cancelListing(uint256 listingId) external whenNotPaused nonReentrant {
@@ -428,8 +466,9 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         require(listing.active, "Listing inactive");
         require(msg.sender == listing.seller || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Not allowed");
 
-        // Restore the listing's remaining available quantity back to the batch's tracker
-        // ONLY if the seller is still the current custodian.
+        // Only restore the listed quantity if the seller is still the current custodian.
+        // If custody has transferred, the batchListedQuantity was already reset to 0
+        // during updateBatch, and deducting here would corrupt the new custodian's tracker.
         if (listing.seller == _getCurrentCustodian(listing.batchId)) {
             batchListedQuantity[listing.batchId] -= listing.quantityAvailable;
         }
@@ -561,6 +600,14 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
             role == FARMER_ROLE || role == MANDI_ROLE || role == TRANSPORTER_ROLE || role == RETAILER_ROLE || role == ORACLE_ROLE,
             "Invalid stakeholder role"
         );
+
+        // Revoke all possible OZ AccessControl stakeholder roles for this user
+        // to ensure complete revocation even if multiple roles were previously granted
+        _revokeRole(FARMER_ROLE, account);
+        _revokeRole(MANDI_ROLE, account);
+        _revokeRole(TRANSPORTER_ROLE, account);
+        _revokeRole(RETAILER_ROLE, account);
+        _revokeRole(ORACLE_ROLE, account);
 
         // Sync the legacy roles mapping so onlyAuthorized and createListing checks work
         if (role == FARMER_ROLE) roles[account] = ActorRole.Farmer;
