@@ -39,6 +39,7 @@ const UpdateBatch: React.FC = () => {
   });
   const [isUpdating, setIsUpdating] = useState(false);
   const [isRequestingIoT, setIsRequestingIoT] = useState(false);
+  const [batchIdCopied, setBatchIdCopied] = useState(false);
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState("");
   const [transactionLocked, setTransactionLocked] = useState(false);
@@ -311,6 +312,32 @@ const UpdateBatch: React.FC = () => {
     const idx = stagesList.indexOf(stage?.toLowerCase());
     return idx >= 0 ? idx : 0;
   };
+const handleCopyTransactionHash = async () => {
+  if (!transactionDetails) return;
+
+  try {
+    await navigator.clipboard.writeText(transactionDetails.hash);
+    toast.success("Transaction hash copied!");
+  } catch {
+    toast.error("Failed to copy transaction hash.");
+  }
+};
+ const handleCopyBatchId = async () => {
+  if (!batch?.batchId) return;
+
+  try {
+    await navigator.clipboard.writeText(batch.batchId);
+
+setBatchIdCopied(true);
+toast.success("Batch ID copied successfully!");
+
+setTimeout(() => {
+  setBatchIdCopied(false);
+}, 2000);
+  } catch {
+    toast.error("Failed to copy Batch ID.");
+  }
+};
   const handleCopyTransactionHash = async () => {
     if (!transactionDetails) return;
 
@@ -453,8 +480,29 @@ const UpdateBatch: React.FC = () => {
               <Package className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
               {t("updateBatch.batchInformation")}
             </h2>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-4 gap-6">
               <div className="bg-green-50 dark:bg-green-900/30 rounded-xl p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Crop Type</p>
+                <div className="bg-gray-50 dark:bg-gray-900/30 rounded-xl p-4">
+  <div className="flex items-center justify-between mb-1">
+    <p className="text-sm text-gray-600 dark:text-gray-400">
+      Batch ID
+    </p>
+
+    <button
+      type="button"
+      onClick={handleCopyBatchId}
+      className="text-blue-600 hover:text-blue-700 text-xs font-medium"
+    >
+      {batchIdCopied ? "Copied!" : "Copy"}
+    </button>
+  </div>
+
+  <p className="text-lg font-semibold text-gray-800 dark:text-white break-all">
+    {batch.batchId}
+  </p>
+</div>
+                <p className="text-lg font-semibold text-gray-800 dark:text-white capitalize">{batch.cropType}</p>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
                   {t("updateBatch.cropType")}
                 </p>
@@ -494,8 +542,29 @@ const UpdateBatch: React.FC = () => {
               <Package className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
               {t("updateBatch.batchInformation")}
             </h2>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-4 gap-6">
               <div className="bg-green-50 dark:bg-green-900/30 rounded-xl p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Crop Type</p>
+                <div className="bg-gray-50 dark:bg-gray-900/30 rounded-xl p-4">
+  <div className="flex items-center justify-between mb-1">
+    <p className="text-sm text-gray-600 dark:text-gray-400">
+      Batch ID
+    </p>
+
+    <button
+      type="button"
+      onClick={handleCopyBatchId}
+      className="text-blue-600 hover:text-blue-700 text-xs font-medium"
+    >
+      {batchIdCopied ? "Copied!" : "Copy"}
+    </button>
+  </div>
+
+  <p className="text-lg font-semibold text-gray-800 dark:text-white break-all">
+    {batch.batchId}
+  </p>
+</div>
+                <p className="text-lg font-semibold text-gray-800 dark:text-white capitalize">{batch.cropType}</p>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
                   {t("updateBatch.cropType")}
                 </p>
