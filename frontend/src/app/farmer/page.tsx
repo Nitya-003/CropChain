@@ -306,12 +306,22 @@ const FarmerDashboardComponent: React.FC = () => {
 
       {/* My Batches Table */}
       <Card className="border border-border bg-card">
-        <CardHeader className="pb-3 border-b border-border/40">
-          <div className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg font-semibold text-foreground">My Batches</CardTitle>
-          </div>
-        </CardHeader>
+       <CardHeader className="pb-3 border-b border-border/40">
+  <div className="flex items-center justify-between">
+    <div className="flex items-center gap-2">
+      <Package className="h-5 w-5 text-primary" />
+      <CardTitle className="text-lg font-semibold text-foreground">
+        My Batches
+      </CardTitle>
+    </div>
+
+    <p className="text-xs text-muted-foreground">
+      {filters.search
+        ? `Showing ${batches.length} matching batch${batches.length !== 1 ? "es" : ""}`
+        : `Showing all ${batches.length} batch${batches.length !== 1 ? "es" : ""}`}
+    </p>
+  </div>
+</CardHeader>
         <CardContent className="p-0">
           {isLoading && batches.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
@@ -328,8 +338,17 @@ const FarmerDashboardComponent: React.FC = () => {
                 <Package className="h-8 w-8 text-muted-foreground" />
               </div>
               <div>
-                <p className="font-semibold text-foreground">No batches found</p>
-                <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters or create a new batch</p>
+                <p className="font-semibold text-foreground">
+  {filters.search
+    ? `No batches match "${filters.search}"`
+    : "No batches found"}
+</p>
+
+<p className="text-sm text-muted-foreground mt-1">
+  {filters.search
+    ? "Try a different search term or clear the filters."
+    : "Try adjusting your filters or create a new batch."}
+</p>
               </div>
               <Link href="/add-batch">
                 <Button size="sm" className="gap-1.5 mt-2">
