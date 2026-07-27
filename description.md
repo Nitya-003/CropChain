@@ -1,27 +1,25 @@
 ## 📌 Overview
 
-This PR fixes the duplicate wallet authentication routes in ackend/routes/authRoutes.js that were bypassing rate limiters. Three wallet authentication routes (/nonce, /wallet-login, /wallet-register) were registered twice — once with rate-limit middleware and once without. Since Express executes all matching handlers for a route, the unguarded duplicates bypassed uthLimiter and egisterLimiter, allowing brute-force attacks on wallet-login and unlimited account creation via wallet-register.
+This PR fixes the corrupted `backend/controllers/auctionController.js` which had duplicate imports (lines 111-118) and a duplicate `createAuction` function declaration (line 121) causing `SyntaxError: missing ) after argument list`. The same corruption pattern affected `authController.js`, `batchController.js`, `Auction.js`, `Bid.js`, and `User.js` — each had duplicate imports, duplicate schema/function definitions, and improperly closed blocks from a bad merge.
 
-## 🛠 Type of Change
-- [ ] ⛓ **Smart Contract** (Solidity changes, Gas optimization)
+## 🛠️ Type of Change
+- [ ] ⛓️ **Smart Contract** (Solidity changes, Gas optimization)
 - [ ] 💻 **Frontend** (UI/UX, React components, Tailwind)
-- [x] ⚙ **Backend** (API routes, middleware)
+- [x] ⚙️ **Backend** (API routes, MongoDB schemas, Middleware)
 - [ ] 📄 **Documentation** (README, Roadmap updates)
-- [ ] 🧪 **Testing** (Hardhat tests, Jest/Vitest)
+- [x] 🧪 **Testing** (Hardhat tests, Jest/Vitest)
 
 ---
 
 ## 🔗 Related Issue
-Closes #775
-Closes #776
+Closes #827
 
 ---
 
 ## 🧪 Testing & Verification
-- [ ] **Smart Contracts:** 
-px hardhat test passed? (Yes/No/NA)
+- [ ] **Smart Contracts:** `npx hardhat test` passed? (Yes/No/NA)
 - [ ] **Frontend:** Verified on Mobile/Desktop responsiveness? (Yes/No/NA)
-- [x] **Integration:** Verified rate limiters correctly apply to all wallet auth endpoints? (Yes/No/NA)
+- [x] **Integration:** Verified all 6 files load without syntax errors via `node -e "require(...)"`
 
 ---
 
@@ -32,8 +30,8 @@ N/A
 ---
 
 ## ✅ PR Checklist
-- [x] My code follows the project style guidelines.
-- [x] I have commented my code, particularly in complex areas.
+- [x] My code follows the project's style guidelines.
+- [ ] I have commented my code, particularly in complex areas (e.g., Smart Contract logic).
 - [ ] I have updated the documentation accordingly.
 - [x] My changes generate no new warnings.
 
@@ -41,33 +39,4 @@ N/A
 
 ## 💬 Additional Notes
 
-### Root Cause
-ackend/routes/authRoutes.js registered wallet authentication routes twice:
-
-`js
-// With rate limiters (lines 30-37)
-router.get("/nonce", authLimiter, getNonce);
-router.post("/wallet-login", authLimiter, walletLogin);
-router.post(
-  "/wallet-register",
-  registerLimiter,
-  validateRegistration,
-  walletRegister,
-);
-
-// Duplicate WITHOUT rate limiters (lines 38-40)
-router.get("/nonce", getNonce);
-router.post("/wallet-login", walletLogin);
-router.post("/wallet-register", validateRegistration, walletRegister);
-`
-
-Express stores handlers in an array per path and iterates through all matching handlers. The rate limiter on the first handler increments the counter and calls 
-ext(), but the second unguarded handler then executes the business logic unimpeded.
-
-### Impact
-- An attacker can call GET /api/auth/nonce unlimited times per second, bypassing uthLimiter (5 per 15 min).
-- Brute-force POST /api/auth/wallet-login attempts bypass rate limiting entirely.
-- POST /api/auth/wallet-register bypasses egisterLimiter (3 per hour), allowing unlimited account creation.
-
-### Fix
-Removed the three duplicate route registrations that lacked rate-limiting middleware (the second set). All wallet authentication requests now go through the single rate-limited handler per route.
+The corruption was introduced by a merge that duplicated every code block with an alternative double-quoted version. The fix retains the original single-quoted style with proper Decimal128 helper usage (`toDecimal`, `fromDecimal`, `fromString`, `toNumber`) and removes all duplicated blocks, restoring all auction, auth, and batch endpoints to working order.
