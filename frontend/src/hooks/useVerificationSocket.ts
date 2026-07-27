@@ -1,24 +1,24 @@
-import { useEffect, useState, useCallback } from 'react';
-import { 
-  getSocket, 
-  joinVerificationRoom, 
-  leaveVerificationRoom, 
+import { useEffect, useState, useCallback } from "react";
+import {
+  getSocket,
+  joinVerificationRoom,
+  leaveVerificationRoom,
   onVerificationStatusUpdated,
-  isConnected 
-} from '../services/socketService';
+  isConnected,
+} from "../services/socketService";
 
 interface UseVerificationSocketOptions {
-  userId?: string;             // Optional user ID to auto-join room
-  userIds?: string[];          // Optional array of user IDs to auto-join rooms (useful for dashboards)
-  enabled?: boolean;            // Enable/disable socket connection (default: true)
-  onVerificationUpdate?: (data: any) => void;  // Callback for verification updates
+  userId?: string; // Optional user ID to auto-join room
+  userIds?: string[]; // Optional array of user IDs to auto-join rooms (useful for dashboards)
+  enabled?: boolean; // Enable/disable socket connection (default: true)
+  onVerificationUpdate?: (data: any) => void; // Callback for verification updates
 }
 
 interface UseVerificationSocketReturn {
-  isConnected: boolean;         // Whether socket is connected
-  isConnecting: boolean;        // Whether socket is connecting
-  lastUpdate: Date | null;      // Timestamp of last update
-  error: Error | null;          // Connection error if any
+  isConnected: boolean; // Whether socket is connected
+  isConnecting: boolean; // Whether socket is connecting
+  lastUpdate: Date | null; // Timestamp of last update
+  error: Error | null; // Connection error if any
   refreshConnection: () => void; // Manually refresh connection
 }
 
@@ -30,7 +30,7 @@ export const useVerificationSocket = ({
   userId,
   userIds,
   enabled = true,
-  onVerificationUpdate
+  onVerificationUpdate,
 }: UseVerificationSocketOptions = {}): UseVerificationSocketReturn => {
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -42,29 +42,29 @@ export const useVerificationSocket = ({
     if (!enabled) return;
 
     const socket = getSocket();
-    
+
     const handleConnect = () => {
       setConnected(true);
       setConnecting(false);
       setError(null);
-      console.log('[HOOK] Verification Socket connected');
+      console.log("[HOOK] Verification Socket connected");
     };
 
     const handleDisconnect = () => {
       setConnected(false);
-      console.log('[HOOK] Verification Socket disconnected');
+      console.log("[HOOK] Verification Socket disconnected");
     };
 
     const handleError = (err: Error) => {
       setError(err);
       setConnected(false);
       setConnecting(false);
-      console.error('[HOOK] Verification Socket error:', err);
+      console.error("[HOOK] Verification Socket error:", err);
     };
 
-    socket.on('connect', handleConnect);
-    socket.on('disconnect', handleDisconnect);
-    socket.on('connect_error', handleError);
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("connect_error", handleError);
 
     // Set initial connection state
     if (socket.connected) {
@@ -74,9 +74,9 @@ export const useVerificationSocket = ({
     }
 
     return () => {
-      socket.off('connect', handleConnect);
-      socket.off('disconnect', handleDisconnect);
-      socket.off('connect_error', handleError);
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("connect_error", handleError);
     };
   }, [enabled]);
 
@@ -88,7 +88,7 @@ export const useVerificationSocket = ({
       joinVerificationRoom(userId);
     }
     if (userIds && userIds.length > 0) {
-      userIds.forEach(id => joinVerificationRoom(id));
+      userIds.forEach((id) => joinVerificationRoom(id));
     }
 
     return () => {
@@ -96,7 +96,7 @@ export const useVerificationSocket = ({
         leaveVerificationRoom(userId);
       }
       if (userIds && userIds.length > 0) {
-        userIds.forEach(id => leaveVerificationRoom(id));
+        userIds.forEach((id) => leaveVerificationRoom(id));
       }
     };
   }, [userId, userIds, connected, enabled]);
@@ -116,10 +116,10 @@ export const useVerificationSocket = ({
   // Manual refresh function
   const refreshConnection = useCallback(() => {
     if (!enabled) return;
-    
+
     setConnecting(true);
     setError(null);
-    
+
     const socket = getSocket();
     if (!socket.connected) {
       socket.connect();
@@ -131,6 +131,6 @@ export const useVerificationSocket = ({
     isConnecting: connecting,
     lastUpdate,
     error,
-    refreshConnection
+    refreshConnection,
   };
 };

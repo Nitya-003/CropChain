@@ -1,7 +1,7 @@
-'use strict';
+"use strict";
 
-const axios = require('axios');
-const logger = require('../utils/logger');
+const axios = require("axios");
+const logger = require("../utils/logger");
 
 // Haversine formula to compute great-circle distance between two coordinates in meters
 function haversineDistance(coord1, coord2) {
@@ -13,8 +13,10 @@ function haversineDistance(coord1, coord2) {
 
   const a =
     Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
-    Math.cos(phi1) * Math.cos(phi2) *
-    Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+    Math.cos(phi1) *
+      Math.cos(phi2) *
+      Math.sin(deltaLambda / 2) *
+      Math.sin(deltaLambda / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c; // meters
@@ -54,9 +56,9 @@ function solveTSP(matrix, coordinates) {
   const dependencies = {};
   for (let i = 1; i < n; i++) {
     const node = coordinates[i];
-    if (node.type === 'dropoff' && node.batchId) {
+    if (node.type === "dropoff" && node.batchId) {
       const pickupIndex = coordinates.findIndex(
-        (c) => c.batchId === node.batchId && c.type === 'pickup'
+        (c) => c.batchId === node.batchId && c.type === "pickup",
       );
       if (pickupIndex !== -1 && pickupIndex !== i) {
         dependencies[i] = pickupIndex;
@@ -167,7 +169,7 @@ function solveTSP(matrix, coordinates) {
  */
 async function optimizeRoute(coordinates) {
   if (!coordinates || coordinates.length < 2) {
-    throw new Error('At least two coordinates are required');
+    throw new Error("At least two coordinates are required");
   }
 
   const n = coordinates.length;
@@ -176,26 +178,31 @@ async function optimizeRoute(coordinates) {
   let isFallback = false;
 
   // Format coordinates for OSRM: lng,lat separated by semicolon
-  const coordString = coordinates.map((c) => `${c.lng},${c.lat}`).join(';');
+  const coordString = coordinates.map((c) => `${c.lng},${c.lat}`).join(";");
   const osrmUrl = `http://router.project-osrm.org/table/v1/driving/${coordString}`;
 
   try {
-    logger.info('Requesting duration table from OSRM', { url: osrmUrl });
+    logger.info("Requesting duration table from OSRM", { url: osrmUrl });
     const response = await axios.get(osrmUrl, {
       params: {
-        annotations: 'duration,distance'
+        annotations: "duration,distance",
       },
-      timeout: 5000 // 5 seconds timeout
+      timeout: 5000, // 5 seconds timeout
     });
 
-    if (response.data && response.data.code === 'Ok') {
+    if (response.data && response.data.code === "Ok") {
       durationsMatrix = response.data.durations;
       distancesMatrix = response.data.distances;
     } else {
-      throw new Error(`OSRM Table API returned code: ${response.data ? response.data.code : 'unknown'}`);
+      throw new Error(
+        `OSRM Table API returned code: ${response.data ? response.data.code : "unknown"}`,
+      );
     }
   } catch (error) {
-    logger.warn('OSRM Table API failed, falling back to Haversine calculation', { error: error.message });
+    logger.warn(
+      "OSRM Table API failed, falling back to Haversine calculation",
+      { error: error.message },
+    );
     const local = buildLocalMatrix(coordinates);
     durationsMatrix = local.durations;
     distancesMatrix = local.distances;
@@ -214,34 +221,46 @@ async function optimizeRoute(coordinates) {
   let geometry = []; // Array of [lat, lng] coordinates
 
   if (!isFallback) {
-    const orderedCoordString = orderedCoordinates.map((c) => `${c.lng},${c.lat}`).join(';');
+    const orderedCoordString = orderedCoordinates
+      .map((c) => `${c.lng},${c.lat}`)
+      .join(";");
     const routeUrl = `http://router.project-osrm.org/route/v1/driving/${orderedCoordString}`;
 
     try {
-      logger.info('Requesting route geometry from OSRM', { url: routeUrl });
+      logger.info("Requesting route geometry from OSRM", { url: routeUrl });
       const response = await axios.get(routeUrl, {
         params: {
-          overview: 'full',
-          geometries: 'geojson'
+          overview: "full",
+          geometries: "geojson",
         },
-        timeout: 5000
+        timeout: 5000,
       });
 
-      if (response.data && response.data.code === 'Ok' && response.data.routes && response.data.routes.length > 0) {
+      if (
+        response.data &&
+        response.data.code === "Ok" &&
+        response.data.routes &&
+        response.data.routes.length > 0
+      ) {
         const route = response.data.routes[0];
         totalDistance = route.distance; // in meters
         totalDuration = route.duration; // in seconds
-        
+
         // OSRM GeoJSON format returns coordinates as [lng, lat].
         // We map them to [lat, lng] for Leaflet mapping compatibility.
         if (route.geometry && route.geometry.coordinates) {
-          geometry = route.geometry.coordinates.map((coord) => [coord[1], coord[0]]);
+          geometry = route.geometry.coordinates.map((coord) => [
+            coord[1],
+            coord[0],
+          ]);
         }
       } else {
-        throw new Error('OSRM Route API invalid response structure');
+        throw new Error("OSRM Route API invalid response structure");
       }
     } catch (error) {
-      logger.warn('OSRM Route API failed, using straight-line calculations', { error: error.message });
+      logger.warn("OSRM Route API failed, using straight-line calculations", {
+        error: error.message,
+      });
       isFallback = true;
     }
   }
@@ -270,13 +289,13 @@ async function optimizeRoute(coordinates) {
     optimalOrder,
     totalDistance, // meters
     totalDuration, // seconds
-    geometry,      // [[lat, lng], ...]
-    isFallback
+    geometry, // [[lat, lng], ...]
+    isFallback,
   };
 }
 
 module.exports = {
   optimizeRoute,
   haversineDistance,
-  solveTSP
+  solveTSP,
 };

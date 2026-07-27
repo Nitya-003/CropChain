@@ -31,16 +31,19 @@ RUN mkdir -p /usr/src/app/logs
 # Copy production dependencies and source from builder with correct ownership
 COPY --from=builder --chown=node:node /usr/src/app/package*.json ./
 COPY --from=builder --chown=node:node /usr/src/app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /usr/src/app/app.js ./app.js
 COPY --from=builder --chown=node:node /usr/src/app/server.js ./server.js
 COPY --from=builder --chown=node:node /usr/src/app/swagger.js ./swagger.js
 COPY --from=builder --chown=node:node /usr/src/app/config ./config
 COPY --from=builder --chown=node:node /usr/src/app/constants ./constants
 COPY --from=builder --chown=node:node /usr/src/app/controllers ./controllers
+COPY --from=builder --chown=node:node /usr/src/app/jobs ./jobs
 COPY --from=builder --chown=node:node /usr/src/app/middleware ./middleware
 COPY --from=builder --chown=node:node /usr/src/app/models ./models
 COPY --from=builder --chown=node:node /usr/src/app/routes ./routes
 COPY --from=builder --chown=node:node /usr/src/app/scripts ./scripts
 COPY --from=builder --chown=node:node /usr/src/app/services ./services
+COPY --from=builder --chown=node:node /usr/src/app/startup ./startup
 COPY --from=builder --chown=node:node /usr/src/app/utils ./utils
 COPY --from=builder --chown=node:node /usr/src/app/validations ./validations
 

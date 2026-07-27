@@ -16,21 +16,24 @@ interface CurrencyContextType {
 }
 
 const CurrencyContext = createContext<CurrencyContextType | undefined>(
-  undefined
+  undefined,
 );
 
 export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
   const [currency, setCurrency] = useState<Currency>("CRYPTO");
 
   useEffect(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem("currency") as Currency : null;
+    const saved =
+      typeof window !== "undefined"
+        ? (localStorage.getItem("currency") as Currency)
+        : null;
     if (saved) {
       setCurrency(saved);
     }
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       localStorage.setItem("currency", currency);
     }
   }, [currency]);

@@ -1,7 +1,6 @@
 const Joi = require("joi");
 
 const chatSchema = Joi.object({
-
   message: Joi.string().min(1).max(1000).required().messages({
     "string.empty": "Message cannot be empty",
     "string.max": "Message is too long (max 1000 characters)",
