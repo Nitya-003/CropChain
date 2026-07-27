@@ -1,35 +1,35 @@
 /**
  * Shared Stage Enum Constants
- * 
+ *
  * ⚠️ CRITICAL: This MUST match the Stage enum in contracts/CropChain.sol
  * Any changes here require corresponding changes in:
  * - contracts/CropChain.sol (Solidity enum)
  * - blockchainWorker.js mapStageToNumber() function
  * - Frontend components using stages
- * 
+ *
  * Current mapping:
  * - farmer: 0 (Farmer in Solidity)
  * - mandi: 1 (Mandi in Solidity)
  * - transport: 2 (Transport in Solidity)
  * - retailer: 3 (Retailer in Solidity)
- * 
+ *
  * Used by:
  * - Mongoose models (Batch.js)
  * - Joi validations (batchSchema.js)
  * - Blockchain worker (blockchainWorker.js)
  * - Any other stage-related logic
- * 
+ *
  * All stages are lowercase to ensure consistency.
  * Mongoose models should use lowercase: true to normalize input.
  */
 
-const STAGES = ['farmer', 'mandi', 'transport', 'retailer'];
+const STAGES = ["farmer", "mandi", "transport", "retailer"];
 
 /**
  * Ordered stage flow for supply chain transition validation
  * A batch must advance sequentially: farmer → mandi → transport → retailer
  */
-const STAGE_ORDER = ['farmer', 'mandi', 'transport', 'retailer'];
+const STAGE_ORDER = ["farmer", "mandi", "transport", "retailer"];
 
 /**
  * Check whether a stage transition is valid according to supply chain flow
@@ -61,28 +61,28 @@ const getNextStage = (currentStage) => {
  * MUST match the order in CropChain.sol Stage enum
  */
 const STAGE_TO_NUMBER = {
-    'farmer': 0,
-    'mandi': 1,
-    'transport': 2,
-    'retailer': 3
+  farmer: 0,
+  mandi: 1,
+  transport: 2,
+  retailer: 3,
 };
 
 /**
  * Get stages as a comma-separated string for error messages
  * @returns {string}
  */
-const getStagesString = () => STAGES.join(', ');
+const getStagesString = () => STAGES.join(", ");
 
 /**
  * Check if a value is a valid stage
- * @param {string} value 
+ * @param {string} value
  * @returns {boolean}
  */
 const isValidStage = (value) => STAGES.includes(value?.toLowerCase());
 
 /**
  * Normalize a stage value to lowercase
- * @param {string} value 
+ * @param {string} value
  * @returns {string}
  */
 const normalizeStage = (value) => value?.toLowerCase();
@@ -94,11 +94,13 @@ const normalizeStage = (value) => value?.toLowerCase();
  * @throws {Error} If stage is invalid
  */
 const getStageNumber = (stage) => {
-    const normalizedStage = stage?.toLowerCase();
-    if (!isValidStage(normalizedStage)) {
-        throw new Error(`Invalid stage: ${stage}. Must be one of: ${STAGES.join(', ')}`);
-    }
-    return STAGE_TO_NUMBER[normalizedStage];
+  const normalizedStage = stage?.toLowerCase();
+  if (!isValidStage(normalizedStage)) {
+    throw new Error(
+      `Invalid stage: ${stage}. Must be one of: ${STAGES.join(", ")}`,
+    );
+  }
+  return STAGE_TO_NUMBER[normalizedStage];
 };
 
 /**
@@ -108,37 +110,39 @@ const getStageNumber = (stage) => {
  * @throws {Error} If validation fails
  */
 const validateStageMapping = () => {
-    const expectedStages = ['farmer', 'mandi', 'transport', 'retailer'];
-    const expectedNumbers = [0, 1, 2, 3];
-    
-    // Check STAGES array
-    if (JSON.stringify(STAGES) !== JSON.stringify(expectedStages)) {
-        throw new Error(
-            `Stage mismatch detected!\n` +
-            `Expected: [${expectedStages.join(', ')}]\n` +
-            `Got: [${STAGES.join(', ')}]\n` +
-            `This will cause blockchain sync failures. Please verify contracts/CropChain.sol`
-        );
+  const expectedStages = ["farmer", "mandi", "transport", "retailer"];
+  const expectedNumbers = [0, 1, 2, 3];
+
+  // Check STAGES array
+  if (JSON.stringify(STAGES) !== JSON.stringify(expectedStages)) {
+    throw new Error(
+      `Stage mismatch detected!\n` +
+        `Expected: [${expectedStages.join(", ")}]\n` +
+        `Got: [${STAGES.join(", ")}]\n` +
+        `This will cause blockchain sync failures. Please verify contracts/CropChain.sol`,
+    );
+  }
+
+  // Check STAGE_TO_NUMBER mapping
+  for (const [stage, number] of Object.entries(STAGE_TO_NUMBER)) {
+    const expectedIndex = expectedStages.indexOf(stage);
+    if (expectedIndex === -1) {
+      throw new Error(`Unexpected stage in STAGE_TO_NUMBER: ${stage}`);
     }
-    
-    // Check STAGE_TO_NUMBER mapping
-    for (const [stage, number] of Object.entries(STAGE_TO_NUMBER)) {
-        const expectedIndex = expectedStages.indexOf(stage);
-        if (expectedIndex === -1) {
-            throw new Error(`Unexpected stage in STAGE_TO_NUMBER: ${stage}`);
-        }
-        if (number !== expectedNumbers[expectedIndex]) {
-            throw new Error(
-                `Stage number mismatch for ${stage}!\n` +
-                `Expected: ${expectedNumbers[expectedIndex]}\n` +
-                `Got: ${number}\n` +
-                `This will cause incorrect blockchain transactions.`
-            );
-        }
+    if (number !== expectedNumbers[expectedIndex]) {
+      throw new Error(
+        `Stage number mismatch for ${stage}!\n` +
+          `Expected: ${expectedNumbers[expectedIndex]}\n` +
+          `Got: ${number}\n` +
+          `This will cause incorrect blockchain transactions.`,
+      );
     }
-    
-    console.log('✅ Stage mapping validation passed - blockchain sync will work correctly');
-    return true;
+  }
+
+  console.log(
+    "✅ Stage mapping validation passed - blockchain sync will work correctly",
+  );
+  return true;
 };
 
 module.exports = STAGES;

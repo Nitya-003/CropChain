@@ -1,13 +1,25 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { authService } from '../services/auth.service';
-import type { User } from '../types';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from "react";
+import { authService } from "../services/auth.service";
+import type { User } from "../types";
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, role: string) => Promise<void>;
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    role: string,
+  ) => Promise<void>;
   connectWallet: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -26,7 +38,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const refreshed = await authService.refreshSession();
           setUser(refreshed);
         }
-      } catch {} finally {
+      } catch {
+      } finally {
         setIsLoading(false);
       }
     })();
@@ -42,27 +55,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const register = useCallback(async (name: string, email: string, password: string, role: string) => {
-    setIsLoading(true);
-    try {
-      const { user } = await authService.register(name, email, password, role);
-      setUser(user);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const register = useCallback(
+    async (name: string, email: string, password: string, role: string) => {
+      setIsLoading(true);
+      try {
+        const { user } = await authService.register(
+          name,
+          email,
+          password,
+          role,
+        );
+        setUser(user);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [],
+  );
 
   const connectWallet = useCallback(async () => {
     setIsLoading(true);
     try {
       const { ethereum } = window as any;
-      if (!ethereum) throw new Error('MetaMask not found');
-      const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+      if (!ethereum) throw new Error("MetaMask not found");
+      const accounts = await ethereum.request({
+        method: "eth_requestAccounts",
+      });
       setUser({
-        id: '',
-        name: '',
-        email: '',
-        role: '',
+        id: "",
+        name: "",
+        email: "",
+        role: "",
         walletAddress: accounts[0],
       });
     } finally {
@@ -76,7 +99,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isAuthenticated: !!user, login, register, connectWallet, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        isAuthenticated: !!user,
+        login,
+        register,
+        connectWallet,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -84,6 +117,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
   return context;
 }

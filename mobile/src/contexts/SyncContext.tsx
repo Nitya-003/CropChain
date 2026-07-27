@@ -1,17 +1,25 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { syncQueue } from '../services/syncQueue';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from "react";
+import { syncQueue } from "../services/syncQueue";
+import type { SyncQueueInput } from "../types";
 
 interface SyncContextType {
-  status: 'idle' | 'syncing' | 'error';
+  status: "idle" | "syncing" | "error";
   pendingCount: number;
-  addToQueue: (params: { batchId: string; action: string; data: Record<string, any> }) => Promise<void>;
+  addToQueue: (params: SyncQueueInput) => Promise<void>;
   processNow: () => Promise<void>;
 }
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
 
 export function SyncProvider({ children }: { children: ReactNode }) {
-  const [status, setStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
+  const [status, setStatus] = useState<"idle" | "syncing" | "error">("idle");
   const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
@@ -23,7 +31,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, []);
 
-  const addToQueue = useCallback(async (params: { batchId: string; action: string; data: Record<string, any> }) => {
+  const addToQueue = useCallback(async (params: SyncQueueInput) => {
     await syncQueue.addToQueue(params);
   }, []);
 
@@ -32,7 +40,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <SyncContext.Provider value={{ status, pendingCount, addToQueue, processNow }}>
+    <SyncContext.Provider
+      value={{ status, pendingCount, addToQueue, processNow }}
+    >
       {children}
     </SyncContext.Provider>
   );
@@ -40,6 +50,6 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
 export function useSync() {
   const context = useContext(SyncContext);
-  if (!context) throw new Error('useSync must be used within SyncProvider');
+  if (!context) throw new Error("useSync must be used within SyncProvider");
   return context;
 }
