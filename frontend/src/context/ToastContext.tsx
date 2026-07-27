@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback } from "react";
 
 /**
  * Toast types for different notification levels
  */
-export type ToastType = 'success' | 'error' | 'info' | 'warning';
+export type ToastType = "success" | "error" | "info" | "warning";
 
 /**
  * Toast object structure
@@ -42,7 +42,9 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 /**
  * ToastProvider component that wraps the app and manages toast state
  */
-export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   /**
@@ -83,7 +85,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Return cleanup function in case manual removal is needed before auto-dismiss
       return () => clearTimeout(timer);
     },
-    [generateId, removeToast]
+    [generateId, removeToast],
   );
 
   /**
@@ -91,9 +93,9 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
    */
   const success = useCallback(
     (message: string) => {
-      addToast('success', 'Success', message);
+      addToast("success", "Success", message);
     },
-    [addToast]
+    [addToast],
   );
 
   /**
@@ -101,9 +103,9 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
    */
   const error = useCallback(
     (message: string) => {
-      addToast('error', 'Error', message);
+      addToast("error", "Error", message);
     },
-    [addToast]
+    [addToast],
   );
 
   /**
@@ -111,9 +113,9 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
    */
   const info = useCallback(
     (message: string) => {
-      addToast('info', 'Info', message);
+      addToast("info", "Info", message);
     },
-    [addToast]
+    [addToast],
   );
 
   /**
@@ -121,9 +123,9 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
    */
   const warning = useCallback(
     (message: string) => {
-      addToast('warning', 'Warning', message);
+      addToast("warning", "Warning", message);
     },
-    [addToast]
+    [addToast],
   );
 
   const value: ToastContextType = {
@@ -136,7 +138,9 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     warning,
   };
 
-  return <ToastContext.Provider value={value}>{children}</ToastContext.Provider>;
+  return (
+    <ToastContext.Provider value={value}>{children}</ToastContext.Provider>
+  );
 };
 
 /**
@@ -153,7 +157,7 @@ export const useToast = (): {
   const context = useContext(ToastContext);
 
   if (!context) {
-    throw new Error('useToast must be used within a ToastProvider');
+    throw new Error("useToast must be used within a ToastProvider");
   }
 
   return {
@@ -171,7 +175,7 @@ export const useToastContext = (): ToastContextType => {
   const context = useContext(ToastContext);
 
   if (!context) {
-    throw new Error('useToastContext must be used within a ToastProvider');
+    throw new Error("useToastContext must be used within a ToastProvider");
   }
 
   return context;

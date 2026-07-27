@@ -1,11 +1,15 @@
-const Batch = require('../models/Batch');
-const notificationService = require('./notificationService');
+const Batch = require("../models/Batch");
+const notificationService = require("./notificationService");
+const logger = require("../utils/logger");
+
+const TELEMETRY_HISTORY_LIMIT = 500;
+const TELEMETRY_HISTORY_WARNING_THRESHOLD = 450;
 
 const SPOILAGE_THRESHOLDS = {
-  rice:      { maxTemp: 77, maxHumidity: 70 },
-  wheat:     { maxTemp: 86, maxHumidity: 65 },
-  tomato:    { maxTemp: 50, maxHumidity: 85 },
-  corn:      { maxTemp: 82, maxHumidity: 75 },
+  rice: { maxTemp: 77, maxHumidity: 70 },
+  wheat: { maxTemp: 86, maxHumidity: 65 },
+  tomato: { maxTemp: 50, maxHumidity: 85 },
+  corn: { maxTemp: 82, maxHumidity: 75 },
 };
 
 const DEFAULT_THRESHOLD = { maxTemp: 85, maxHumidity: 80 };
@@ -23,37 +27,59 @@ function checkSpoiled(temperature, humidity, cropType) {
 async function recordIoTData(batchId, temperature, humidity) {
   const batch = await Batch.findOne({ batchId });
   if (!batch) {
-    const err = new Error('Batch not found');
+    const err = new Error("Batch not found");
     err.statusCode = 404;
     throw err;
   }
 
   const wasSpoiled = batch.iotData?.isSpoiled;
   const isSpoiled = checkSpoiled(temperature, humidity, batch.cropType);
+  const telemetryHistoryLength = batch.iotData?.telemetryHistory?.length || 0;
+  const timestamp = new Date();
 
   if (isSpoiled && !wasSpoiled && batch.farmerId) {
-    notificationService.createInAppNotification(
-      batch.farmerId,
-      'Spoilage Alert!',
-      `Critical thresholds exceeded for batch ${batch.batchId} (${batch.cropType}). Temp: ${temperature}, Humidity: ${humidity}`,
-      'alert',
-      { batchId: batch.batchId, temperature, humidity }
-    ).catch(err => console.error('Failed to send spoilage alert:', err));
+    notificationService
+      .createInAppNotification(
+        batch.farmerId,
+        "Spoilage Alert!",
+        `Critical thresholds exceeded for batch ${batch.batchId} (${batch.cropType}). Temp: ${temperature}, Humidity: ${humidity}`,
+        "alert",
+        { batchId: batch.batchId, temperature, humidity },
+      )
+      .catch((err) => console.error("Failed to send spoilage alert:", err));
   }
 
-  batch.iotData = {
-    currentTemperature: temperature,
-    currentHumidity: humidity,
-    isSpoiled,
-    lastUpdated: new Date(),
-    telemetryHistory: [
-      ...((batch.iotData && batch.iotData.telemetryHistory) || []),
-      { temperature, humidity, timestamp: new Date() }
-    ]
-  };
+  if (telemetryHistoryLength >= TELEMETRY_HISTORY_WARNING_THRESHOLD) {
+    logger.warn(
+      "Batch IoT telemetry history near cap; oldest readings will be trimmed on write",
+      {
+        batchId,
+        telemetryHistoryLength,
+        telemetryHistoryLimit: TELEMETRY_HISTORY_LIMIT,
+      },
+    );
+  }
 
-  await batch.save();
-  return batch;
+  const updatedBatch = await Batch.findOneAndUpdate(
+    { batchId },
+    {
+      $set: {
+        "iotData.currentTemperature": temperature,
+        "iotData.currentHumidity": humidity,
+        "iotData.isSpoiled": isSpoiled,
+        "iotData.lastUpdated": timestamp,
+      },
+      $push: {
+        "iotData.telemetryHistory": {
+          $each: [{ temperature, humidity, timestamp }],
+          $slice: -TELEMETRY_HISTORY_LIMIT,
+        },
+      },
+    },
+    { new: true, runValidators: true },
+  );
+
+  return updatedBatch || batch;
 }
 
 async function getIoTData(batchId) {
@@ -65,7 +91,7 @@ async function getIoTData(batchId) {
   });
 
   if (!batch) {
-    const err = new Error('Batch not found');
+    const err = new Error("Batch not found");
     err.statusCode = 404;
     throw err;
   }
@@ -84,6 +110,8 @@ async function getIoTData(batchId) {
 
 module.exports = {
   SPOILAGE_THRESHOLDS,
+  TELEMETRY_HISTORY_LIMIT,
+  TELEMETRY_HISTORY_WARNING_THRESHOLD,
   getThreshold,
   checkSpoiled,
   recordIoTData,

@@ -1,58 +1,90 @@
-const logger = require('./logger');
-const mongoose = require('mongoose');
-const socketService = require('../services/socketService');
-const blockchainQueue = require('../services/blockchainQueue');
-const blockchainWorker = require('../services/blockchainWorker');
-const notificationQueue = require('../services/notificationQueue');
-const notificationWorker = require('../services/notificationWorker');
+const logger = require("./logger");
+const mongoose = require("mongoose");
+const socketService = require("../services/socketService");
+const blockchainQueue = require("../services/blockchainQueue");
+const blockchainWorker = require("../services/blockchainWorker");
+const notificationQueue = require("../jobs/queue");
+const notificationWorker = require("../jobs/worker");
+const { closeRedisConnection } = require("../config/redis");
 
-const gracefulShutdown = (server, signal) => {
-    logger.info(`Received ${signal} signal, starting graceful shutdown`);
+const SHUTDOWN_TIMEOUT_MS = 10000;
 
-    if (server) {
-        server.close(async () => {
-            logger.info('HTTP server closed');
+const gracefulShutdown = async (server, signal) => {
+  logger.info(`Received ${signal} signal, starting graceful shutdown`);
 
-            // Close all Socket.IO connections
-            const io = socketService.getIO();
-            if (io) {
-                await io.close();
-                logger.info('Socket.IO server closed');
-            }
+  if (!server) {
+    process.exit(0);
+  }
 
-            // Close MongoDB connection
-            if (mongoose.connection.readyState === 1) {
-                try {
-                    await mongoose.connection.close();
-                    logger.info('MongoDB connection closed');
-                } catch (err) {
-                    logger.error('Error closing MongoDB connection', { error: err.message });
-                }
-            }
+  let shutdownTimer;
 
-            // Close BullMQ Queues and Workers
-            try {
-                await blockchainWorker.stopWorker();
-                await blockchainQueue.closeQueue();
-                await notificationWorker.stopWorker();
-                await notificationQueue.closeQueue();
-                logger.info('BullMQ Queues and Workers closed');
-            } catch (err) {
-                logger.error('Error closing BullMQ components', { error: err.message });
-            }
+  const forceExitTimer = new Promise((_, reject) => {
+    shutdownTimer = setTimeout(() => {
+      logger.error("Graceful shutdown timed out, forcing exit");
+      reject(new Error("Shutdown timed out"));
+    }, SHUTDOWN_TIMEOUT_MS);
+  });
 
-            logger.info('Graceful shutdown complete');
-            process.exit(0);
+  try {
+    await Promise.race([
+      (async () => {
+        await new Promise((resolve) => {
+          server.close(resolve);
         });
+        logger.info("HTTP server closed");
 
-        // Force exit after 10 seconds if graceful shutdown fails
-        setTimeout(() => {
-            logger.error('Graceful shutdown timed out, forcing exit');
-            process.exit(1);
-        }, 10000);
-    } else {
-        process.exit(0);
+        const io = socketService.getIO();
+        if (io) {
+          await io.close();
+          logger.info("Socket.IO server closed");
+        }
+
+        if (mongoose.connection.readyState === 1) {
+          try {
+            await mongoose.connection.close();
+            logger.info("MongoDB connection closed");
+          } catch (err) {
+            logger.error("Error closing MongoDB connection", {
+              error: err.message,
+            });
+          }
+        }
+
+        try {
+          await blockchainWorker.stopWorker();
+          await blockchainQueue.closeQueue();
+          await notificationWorker.stopWorker();
+          await notificationQueue.closeQueue();
+          logger.info("BullMQ Queues and Workers closed");
+        } catch (err) {
+          logger.error("Error closing BullMQ components", {
+            error: err.message,
+          });
+        }
+
+        try {
+          await closeRedisConnection();
+          logger.info("Redis connection closed");
+        } catch (err) {
+          logger.error("Error closing Redis connection", {
+            error: err.message,
+          });
+        }
+
+        logger.info("Graceful shutdown complete");
+      })(),
+      forceExitTimer,
+    ]);
+
+    clearTimeout(shutdownTimer);
+    process.exit(0);
+  } catch (err) {
+    if (err.message === "Shutdown timed out") {
+      process.exit(1);
     }
+    logger.error("Error during graceful shutdown", { error: err.message });
+    process.exit(1);
+  }
 };
 
 module.exports = { gracefulShutdown };

@@ -31,23 +31,27 @@ pipeline {
     stage('Install Dependencies') {
       steps {
         script {
-          runCmd('npm ci')
+          runCmd('npm --prefix frontend ci')
           runCmd('npm --prefix backend ci')
+          runCmd('npm --prefix smart-contracts ci')
         }
-        stash name: 'root-node-modules', includes: 'node_modules/**', useDefaultExcludes: false
+        stash name: 'frontend-node-modules', includes: 'frontend/node_modules/**', useDefaultExcludes: false
         stash name: 'backend-node-modules', includes: 'backend/node_modules/**', useDefaultExcludes: false
+        stash name: 'smart-contracts-node-modules', includes: 'smart-contracts/node_modules/**', useDefaultExcludes: false
       }
     }
 
     stage('Lint & Security Scan') {
       steps {
-        unstash 'root-node-modules'
+        unstash 'frontend-node-modules'
         unstash 'backend-node-modules'
+        unstash 'smart-contracts-node-modules'
         script {
-          runCmd('npm run lint')
+          runCmd('npm --prefix frontend run lint')
           runCmd('npx --yes prettier@3.3.3 --check .')
-          runCmd('npm audit --audit-level=high --omit=dev')
+          runCmd('npm --prefix frontend audit --audit-level=high --omit=dev')
           runCmd('npm --prefix backend audit --audit-level=high --omit=dev')
+          runCmd('npm --prefix smart-contracts audit --audit-level=high --omit=dev')
         }
       }
     }
@@ -56,12 +60,12 @@ pipeline {
       parallel {
         stage('Smart Contract Tests') {
           steps {
-            unstash 'root-node-modules'
+            unstash 'smart-contracts-node-modules'
             script {
               runCmd(isUnix() ? 'mkdir -p artifacts/test-results' : 'if not exist artifacts\\test-results mkdir artifacts\\test-results')
               runCmd(isUnix()
-                ? 'npx hardhat test --reporter json > artifacts/test-results/hardhat-test.json'
-                : 'npx hardhat test --reporter json > artifacts\\test-results\\hardhat-test.json')
+                ? 'cd smart-contracts && npx hardhat test --reporter json > ../artifacts/test-results/hardhat-test.json'
+                : 'cd smart-contracts && npx hardhat test --reporter json > ..\\artifacts\\test-results\\hardhat-test.json')
             }
           }
         }
@@ -78,10 +82,10 @@ pipeline {
 
         stage('Frontend Unit Tests') {
           steps {
-            unstash 'root-node-modules'
+            unstash 'frontend-node-modules'
             script {
               runCmd(isUnix() ? 'mkdir -p artifacts/test-results' : 'if not exist artifacts\\test-results mkdir artifacts\\test-results')
-              runCmd('npm run test:unit -- --ci --watchAll=false --json --outputFile=artifacts/test-results/frontend-test.json')
+              runCmd('npm --prefix frontend run test:ci -- --reporter=json --outputFile=../artifacts/test-results/frontend-test.json')
             }
           }
         }
@@ -92,9 +96,9 @@ pipeline {
       steps {
         script {
           def buildTag = env.BUILD_NUMBER ?: 'local'
-          runCmd("docker build --target frontend-runner -t cropchain/frontend-ci:${buildTag} .")
-          runCmd("docker build --target backend-runner -t cropchain/backend-ci:${buildTag} .")
-          runCmd("docker build -f Dockerfile.dev -t cropchain/frontend-dev-ci:${buildTag} .")
+          runCmd("docker build -f docker/Dockerfile --target frontend-runner -t cropchain/frontend-ci:${buildTag} .")
+          runCmd("docker build -f docker/Dockerfile --target backend-runner -t cropchain/backend-ci:${buildTag} .")
+          runCmd("docker build -f frontend/Dockerfile.dev -t cropchain/frontend-dev-ci:${buildTag} frontend")
           runCmd("docker build -f backend/Dockerfile.dev -t cropchain/backend-dev-ci:${buildTag} backend")
         }
       }
