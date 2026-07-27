@@ -39,6 +39,7 @@ const UpdateBatch: React.FC = () => {
   });
   const [isUpdating, setIsUpdating] = useState(false);
   const [isRequestingIoT, setIsRequestingIoT] = useState(false);
+  const [highlightBatchInfo, setHighlightBatchInfo] = useState(false);
   const [batchIdCopied, setBatchIdCopied] = useState(false);
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState("");
@@ -166,6 +167,12 @@ const UpdateBatch: React.FC = () => {
       );
 
       setBatch(updatedBatch);
+      setHighlightBatchInfo(true);
+
+setTimeout(() => {
+  setHighlightBatchInfo(false);
+}, 3000);
+      toast.success(`Batch updated successfully! New stage: ${updateData.stage}`);
       toast.success(
         `Batch updated successfully! New stage: ${updateData.stage}`,
       );
@@ -578,7 +585,13 @@ setTimeout(() => {
       {!isSearching && !isUpdating && batch && (
         <>
           {/* Batch Info */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+          <div
+  className={`rounded-2xl shadow-xl p-6 transition-all duration-700 ${
+    highlightBatchInfo
+      ? "bg-green-50 dark:bg-green-900/20 ring-2 ring-green-500"
+      : "bg-white dark:bg-gray-800"
+  }`}
+>
             <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
               <Package className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
               {t("updateBatch.batchInformation")}
