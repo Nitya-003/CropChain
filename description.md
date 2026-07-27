@@ -1,27 +1,25 @@
 ## 📌 Overview
 
-This PR fixes the duplicate wallet authentication routes in ackend/routes/authRoutes.js that were bypassing rate limiters. Three wallet authentication routes (/nonce, /wallet-login, /wallet-register) were registered twice — once with rate-limit middleware and once without. Since Express executes all matching handlers for a route, the unguarded duplicates bypassed uthLimiter and egisterLimiter, allowing brute-force attacks on wallet-login and unlimited account creation via wallet-register.
+This PR fixes the duplicate `balance` field definition in `backend/models/User.js` where the field was declared twice with conflicting types — first as `mongoose.Schema.Types.Decimal128` with a `fromString('100000')` default, immediately followed by `type: Number` with `default: 100000`. Mongoose silently used only the last definition, causing all balance operations to use raw JavaScript `Number` with floating-point precision instead of `Decimal128`, resulting in silent financial rounding errors.
 
-## 🛠 Type of Change
-- [ ] ⛓ **Smart Contract** (Solidity changes, Gas optimization)
+## 🛠️ Type of Change
+- [ ] ⛓️ **Smart Contract** (Solidity changes, Gas optimization)
 - [ ] 💻 **Frontend** (UI/UX, React components, Tailwind)
-- [x] ⚙ **Backend** (API routes, middleware)
+- [x] ⚙️ **Backend** (API routes, MongoDB schemas, Middleware)
 - [ ] 📄 **Documentation** (README, Roadmap updates)
 - [ ] 🧪 **Testing** (Hardhat tests, Jest/Vitest)
 
 ---
 
 ## 🔗 Related Issue
-Closes #775
-Closes #776
+Closes #828
 
 ---
 
 ## 🧪 Testing & Verification
-- [ ] **Smart Contracts:** 
-px hardhat test passed? (Yes/No/NA)
+- [ ] **Smart Contracts:** `npx hardhat test` passed? (Yes/No/NA)
 - [ ] **Frontend:** Verified on Mobile/Desktop responsiveness? (Yes/No/NA)
-- [x] **Integration:** Verified rate limiters correctly apply to all wallet auth endpoints? (Yes/No/NA)
+- [x] **Integration:** Verified `User.js` loads without errors and balance uses `Decimal128` type
 
 ---
 
@@ -32,8 +30,8 @@ N/A
 ---
 
 ## ✅ PR Checklist
-- [x] My code follows the project style guidelines.
-- [x] I have commented my code, particularly in complex areas.
+- [x] My code follows the project's style guidelines.
+- [ ] I have commented my code, particularly in complex areas (e.g., Smart Contract logic).
 - [ ] I have updated the documentation accordingly.
 - [x] My changes generate no new warnings.
 
@@ -41,33 +39,4 @@ N/A
 
 ## 💬 Additional Notes
 
-### Root Cause
-ackend/routes/authRoutes.js registered wallet authentication routes twice:
-
-`js
-// With rate limiters (lines 30-37)
-router.get("/nonce", authLimiter, getNonce);
-router.post("/wallet-login", authLimiter, walletLogin);
-router.post(
-  "/wallet-register",
-  registerLimiter,
-  validateRegistration,
-  walletRegister,
-);
-
-// Duplicate WITHOUT rate limiters (lines 38-40)
-router.get("/nonce", getNonce);
-router.post("/wallet-login", walletLogin);
-router.post("/wallet-register", validateRegistration, walletRegister);
-`
-
-Express stores handlers in an array per path and iterates through all matching handlers. The rate limiter on the first handler increments the counter and calls 
-ext(), but the second unguarded handler then executes the business logic unimpeded.
-
-### Impact
-- An attacker can call GET /api/auth/nonce unlimited times per second, bypassing uthLimiter (5 per 15 min).
-- Brute-force POST /api/auth/wallet-login attempts bypass rate limiting entirely.
-- POST /api/auth/wallet-register bypasses egisterLimiter (3 per hour), allowing unlimited account creation.
-
-### Fix
-Removed the three duplicate route registrations that lacked rate-limiting middleware (the second set). All wallet authentication requests now go through the single rate-limited handler per route.
+The duplicate field was introduced during a previous merge conflict resolution that left both old (`Number`) and new (`Decimal128`) balance definitions in the schema. Removing the duplicate `Number` definition ensures all balance operations use consistent `Decimal128` precision for accurate financial calculations across bids, fund transfers, and balance queries.
