@@ -86,6 +86,15 @@ The system is live and deployed across production services:
 ````md
 ## Docker Setup
 
+### Published Images (GHCR)
+
+Validated Docker images are automatically published to the GitHub Container Registry (GHCR) upon merging to the `main` branch or creating a release tag.
+
+Available images include:
+- `ghcr.io/<repository-owner>/backend:latest` (or `:main`, `:sha-<commit>`)
+- `ghcr.io/<repository-owner>/frontend:latest`
+- `ghcr.io/<repository-owner>/ml-service:latest`
+
 ### Prerequisites
 
 Make sure the following are installed on your system:
