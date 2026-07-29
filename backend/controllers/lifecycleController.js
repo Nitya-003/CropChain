@@ -146,11 +146,12 @@ exports.updateLifecycle = async (req, res) => {
       const batchFarmerId = batch.farmerId?.toString().trim().toLowerCase();
       const isOwner = userId === batchFarmerId;
 
-      if (!isOwner) {
-        logger.warn("Lifecycle update rejected: user does not own this batch", {
+      if (!isOwner && !isAuthorizedForStage(req.user.role, stage)) {
+        logger.warn("Lifecycle update rejected: user does not own this batch and role is not authorized for target stage", {
           userId,
           role: req.user.role,
           batchId: batch.batchId,
+          targetStage: stage,
           batchOwner: batch.farmerId
         });
         return res.status(403).json(apiResponse.errorResponse(
