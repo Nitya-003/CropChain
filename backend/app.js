@@ -128,17 +128,17 @@ app.use("/api/verification", generalLimiter, verificationRoutes);
 app.use("/api/recommend", aiLimiter, recommendRoutes);
 app.use("/api/activities", generalLimiter, activityRoutes);
 app.use("/api/approvals", batchLimiter, approvalRoutes);
-app.use("/api/auctions", auctionRoutes);
+app.use("/api/auctions", generalLimiter, auctionRoutes);
 
 // Batches & Lifecycle
 app.use("/api/batches", generalLimiter, lifecycleRoutes);
 app.use("/api/batches", batchLimiter, batchRoutes);
 
 // AI Chat
-app.use("/api/ai", aiRoutes);
+app.use("/api/ai", aiLimiter, aiRoutes);
 
 // Notifications & Logistics
-app.use("/api/notifications", notificationRoutes);
+app.use("/api/notifications", generalLimiter, notificationRoutes);
 app.use("/api/logistics", generalLimiter, logisticsRoutes);
 
 // 404 handler

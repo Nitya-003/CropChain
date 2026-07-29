@@ -1,0 +1,55 @@
+name: Terraform Validation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infrastructure/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'infrastructure/**'
+
+jobs:
+  validate:
+    name: Terraform Validation Checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infrastructure/
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.7"
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -diff
+        continue-on-error: false
+
+      - name: Terraform Initialize
+        id: init
+        run: terraform init -backend=false
+        continue-on-error: false
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+        continue-on-error: false
+
+      - name: Generate Terraform Plan (Dry-Run without credentials)
+        id: plan
+        # Because we don't have AWS credentials in this workflow by default,
+        # we configure AWS providers to mock or skip execution, or handle failure gracefully.
+        # Running `terraform plan` without credentials will fail if it tries to connect to AWS.
+        # To just validate the configuration without connecting, `terraform validate` is sufficient.
+        # If credentials were provided:
+        # run: terraform plan -no-color
+        run: echo "Skipping plan generation as cloud credentials are not provided for basic validation."
