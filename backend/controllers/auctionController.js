@@ -154,6 +154,13 @@ const getAllAuctions = async (req, res) => {
 const getAuctionDetails = async (req, res) => {
     try {
         const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json(
+                apiResponse.errorResponse('Invalid auction ID format', 'INVALID_AUCTION_ID', 400)
+            );
+        }
+
         const auction = await Auction.findById(id).lean();
         convertDecimal128(auction);
 
@@ -190,6 +197,13 @@ const getAuctionDetails = async (req, res) => {
 const getAuctionBids = async (req, res) => {
     try {
         const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json(
+                apiResponse.errorResponse('Invalid auction ID format', 'INVALID_AUCTION_ID', 400)
+            );
+        }
+
         const bids = await Bid.find({ auctionId: id })
             .sort({ timestamp: -1 })
             .lean();
@@ -213,6 +227,14 @@ const placeBid = async (req, res) => {
     try {
         const { id } = req.params;
         const { bidAmount } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json(
+                apiResponse.errorResponse('Invalid auction ID format', 'INVALID_AUCTION_ID', 400)
+            );
+        }
 
         if (!bidAmount || bidAmount <= 0) {
             await session.abortTransaction();
