@@ -8,7 +8,7 @@ const {
   recordIoTData,
   getIoTData,
 } = require("../controllers/batchController");
-const { protect, adminOnly } = require("../middleware/auth");
+const { protect, adminOnly, authorizeIoTSubmission } = require("../middleware/auth");
 const { batchLimiter, iotLimiter } = require("../middleware/rateLimiters");
 
 router.get("/status", (req, res) => {
@@ -40,8 +40,8 @@ router.patch(
   updateBatchStatus,
 );
 
-// IoT sensor data
-router.post("/batches/:batchId/iot", iotLimiter, protect, recordIoTData);
+// IoT sensor data — POST requires ownership/role check (fix for issue #809)
+router.post("/batches/:batchId/iot", iotLimiter, protect, authorizeIoTSubmission, recordIoTData);
 router.get("/batches/:batchId/iot", iotLimiter, protect, getIoTData);
 router.get("/batches/:batchId/iot/history", iotLimiter, protect, getIoTData);
 

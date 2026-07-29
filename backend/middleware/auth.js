@@ -437,6 +437,99 @@ const checkBatchSafetyStatus = async (req, res, next) => {
   }
 };
 
+/**
+ * Authorize IoT telemetry submission for a specific batch.
+ *
+ * Rules (applied in order):
+ *  1. No authenticated user  → 401
+ *  2. Role lacks iot:submit  → 403 (short-circuit, no DB hit)
+ *  3. Batch not found        → 404
+ *  4. User is admin/super_admin → pass (bypass ownership check)
+ *  5. User is batch owner    → pass
+ *  6. Otherwise              → 403
+ *
+ * On success, attaches the batch document to `req.batch`.
+ *
+ * @route  POST /api/batches/:batchId/iot
+ * @access farmer (own batch) | transporter (own batch) | admin | super_admin
+ */
+const authorizeIoTSubmission = async (req, res, next) => {
+  try {
+    if (!req.user) {
+      return res
+        .status(401)
+        .json({ error: "Not authorized", message: "Authentication required" });
+    }
+
+    const userId = req.user.id || req.user._id;
+    const { batchId } = req.params;
+
+    // Step 1: role-permission gate — no DB query needed for this check
+    const rolePermissions = PERMISSIONS.IOT_SUBMIT;
+    const userRolePermissions =
+      require("../constants/permissions").getRolePermissions(req.user.role);
+
+    if (!userRolePermissions.includes(rolePermissions)) {
+      logger.warn("IoT submit blocked: insufficient permission", {
+        userId,
+        role: req.user.role,
+        batchId,
+        reason: "insufficient permission",
+      });
+      return res
+        .status(403)
+        .json({ error: "Access denied", message: "Insufficient permissions to submit IoT data" });
+    }
+
+    // Step 2: fetch the batch
+    const batch = await Batch.findOne({ batchId });
+    if (!batch) {
+      return res
+        .status(404)
+        .json({ error: "Not Found", message: "Batch not found" });
+    }
+
+    // Step 3: admins bypass ownership check
+    if (isAdminRole(req.user.role)) {
+      req.batch = batch;
+      return next();
+    }
+
+    // Step 4: ownership check
+    const userFarmerId = req.user.farmerId || userId;
+    const batchOwnerStr = batch.farmerId?.toString().trim().toLowerCase() || "";
+    const userFarmerIdStr = userFarmerId?.toString().trim().toLowerCase() || "";
+    const userIdStr = userId?.toString().trim().toLowerCase() || "";
+
+    const isOwner =
+      batchOwnerStr === userFarmerIdStr || batchOwnerStr === userIdStr;
+
+    if (!isOwner) {
+      logger.warn("IoT submit blocked: ownership check failed", {
+        userId,
+        role: req.user.role,
+        batchId,
+        batchOwner: batch.farmerId?.toString(),
+        reason: "ownership check failed",
+      });
+      return res
+        .status(403)
+        .json({ error: "Access denied", message: "Unauthorized access to batch" });
+    }
+
+    req.batch = batch;
+    return next();
+  } catch (error) {
+    logger.error("IoT authorization error", {
+      error: error.message,
+      stack: error.stack,
+    });
+    return res
+      .status(500)
+      .json({ error: "Server Error", message: "Authorization check failed" });
+  }
+};
+
 module.exports = {
   protect,
   adminOnly,
@@ -450,4 +543,5 @@ module.exports = {
   inspectorOnly,
   requireMultisigOrAdmin,
   checkBatchSafetyStatus,
+  authorizeIoTSubmission,
 };
