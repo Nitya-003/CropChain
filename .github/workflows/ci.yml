@@ -162,6 +162,9 @@ jobs:
         working-directory: frontend/
         run: npm run test:ci
 
+  # Job 6: SBOM Generation
+  sbom-generation:
+    name: Generate Software Bill of Materials (SBOM)
   # Job 6: ML Service Checks
   ml-service-checks:
     name: ML Service Checks
@@ -171,6 +174,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Generate SBOM (SPDX)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          artifact-name: cropchain-sbom.spdx.json
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
