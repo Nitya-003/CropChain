@@ -1,0 +1,33 @@
+name: Benchmarks
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential libbenchmark-dev
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build benchmark binary
+        run: cmake --build build --target CinderPeak_bench
+
+      - name: Run benchmarks
+        run: ./build/CinderPeak_bench --benchmark_format=json | tee benchmark_results.json
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark_results.json
