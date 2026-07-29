@@ -630,6 +630,46 @@ The tracker renders dynamically as the `CropLifecycleTracker` component:
   - _Relative Timestamps_: Displayed as "3 hours ago", "Yesterday", or "5 days ago".
   - _Tooltip cards_: Displays complete metadata, blockchain transaction links, and timestamps on hover/focus.
 
+## 🔐 Secure Key Management
+
+CropChain uses a blockchain signing wallet to write supply chain records on-chain.
+The private key for this wallet **must never be stored as a plaintext environment variable in production**.
+
+### Local development
+
+For local testing only, add your dev wallet key to `.env`:
+
+```env
+PRIVATE_KEY=0x...your_local_dev_key...
+```
+
+> ⚠️ Never commit a real private key. Use a throwaway dev wallet with no real funds.
+
+### Production deployment
+
+In production, the private key is fetched from **AWS Secrets Manager** at startup:
+
+1. Create a secret in AWS Secrets Manager:
+   - **Secret name:** `cropchain/blockchain-private-key`
+   - **Secret value (JSON):**
+```json
+     { "private_key": "0x...your_production_key..." }
+```
+
+2. Grant your EC2 / ECS task role `secretsmanager:GetSecretValue` on that ARN.
+
+3. Set these environment variables on your server (not `.env`):
+
+NODE_ENV=production
+AWS_SECRET_ARN=arn:aws:secretsmanager:REGION:ACCOUNT:secret:cropchain/blockchain-private-key
+AWS_REGION=us-east-1
+
+
+4. Do **not** set `PRIVATE_KEY` — the server will refuse to start if it is present.
+
+The server performs a startup check and exits immediately if production is
+misconfigured, preventing accidental deploys with an exposed key.
+
 ---
 
 ## Roadmap

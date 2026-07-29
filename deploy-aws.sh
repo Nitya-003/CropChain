@@ -1,4 +1,24 @@
 #!/bin/bash
+set -euo pipefail
+
+# ─── Security check ──────────────────────────────────────────────────────────
+# Block deployment if PRIVATE_KEY is set directly — use AWS_SECRET_ARN instead.
+if [[ -n "${PRIVATE_KEY:-}" ]]; then
+  echo "[ERROR] PRIVATE_KEY is set as an environment variable."
+  echo "        This is not permitted in production deployments."
+  echo "        Store your key in AWS Secrets Manager and set AWS_SECRET_ARN instead."
+  exit 1
+fi
+
+if [[ -z "${AWS_SECRET_ARN:-}" ]]; then
+  echo "[ERROR] AWS_SECRET_ARN is not set."
+  echo "        Set it to your Secrets Manager ARN before deploying."
+  exit 1
+fi
+echo "[OK] Key management check passed — using AWS Secrets Manager."
+# ─────────────────────────────────────────────────────────────────────────────
+
+
 set -e
 
 echo "🚀 Starting CropChain AWS Deployment (Free-Tier EC2 + Docker Compose)..."
@@ -8,7 +28,7 @@ if [ -z "$ETH_PRIVATE_KEY" ]; then
     if [ "$CI" = "true" ]; then
         ETH_PRIVATE_KEY="dummy_private_key_for_ci_builds_00000000000000000000000000"
     else
-        echo "⚠️  ETH_PRIVATE_KEY environment variable is not set. Reading from interactive shell..."
+        # echo "⚠️  ETH_PRIVATE_KEY environment variable is not set. Reading from interactive shell..."
         read -sp "Enter your Ethereum Private Key (Sepolia): " ETH_PRIVATE_KEY
         echo ""
     fi
