@@ -28,7 +28,7 @@ function normalizeBatchId(batchIdBytes32) {
 async function reconcile() {
   console.log("🔄 Starting reconciliation...");
 
-  const contract = getContract();
+  const contract = await getContract();
   if (!contract) {
     console.error("❌ Blockchain contract not available. Check configuration.");
     process.exit(1);
