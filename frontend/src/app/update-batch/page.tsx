@@ -39,6 +39,8 @@ const UpdateBatch: React.FC = () => {
   });
   const [isUpdating, setIsUpdating] = useState(false);
   const [isRequestingIoT, setIsRequestingIoT] = useState(false);
+  const [highlightBatchInfo, setHighlightBatchInfo] = useState(false);
+  const [batchIdCopied, setBatchIdCopied] = useState(false);
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState("");
   const [transactionLocked, setTransactionLocked] = useState(false);
@@ -165,6 +167,12 @@ const UpdateBatch: React.FC = () => {
       );
 
       setBatch(updatedBatch);
+      setHighlightBatchInfo(true);
+
+setTimeout(() => {
+  setHighlightBatchInfo(false);
+}, 3000);
+      toast.success(`Batch updated successfully! New stage: ${updateData.stage}`);
       toast.success(
         `Batch updated successfully! New stage: ${updateData.stage}`,
       );
@@ -306,11 +314,70 @@ const UpdateBatch: React.FC = () => {
     }));
   };
 
+  const getStageIndex = (stage: string) => {const formatLastUpdated = (batchData: any) => {
+  if (!batchData?.updates?.length) return "Not Available";
+
+  const latestUpdate = batchData.updates.reduce((latest: any, current: any) =>
+    new Date(current.timestamp) > new Date(latest.timestamp) ? current : latest
+  );
+
+  return new Date(latestUpdate.timestamp).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+    const stagesList = ['farmer', 'mandi', 'transport', 'retailer'];
   const getStageIndex = (stage: string) => {
     const stagesList = ["farmer", "mandi", "transport", "retailer"];
     const idx = stagesList.indexOf(stage?.toLowerCase());
     return idx >= 0 ? idx : 0;
   };
+  const formatLastUpdated = (batchData: any) => {
+  if (!batchData?.updates?.length) return "Not Available";
+
+  const latestUpdate = batchData.updates.reduce((latest: any, current: any) =>
+    new Date(current.timestamp) > new Date(latest.timestamp)
+      ? current
+      : latest
+  );
+
+  return new Date(latestUpdate.timestamp).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+const handleCopyTransactionHash = async () => {
+  if (!transactionDetails) return;
+
+  try {
+    await navigator.clipboard.writeText(transactionDetails.hash);
+    toast.success("Transaction hash copied!");
+  } catch {
+    toast.error("Failed to copy transaction hash.");
+  }
+};
+ const handleCopyBatchId = async () => {
+  if (!batch?.batchId) return;
+
+  try {
+    await navigator.clipboard.writeText(batch.batchId);
+
+setBatchIdCopied(true);
+toast.success("Batch ID copied successfully!");
+
+setTimeout(() => {
+  setBatchIdCopied(false);
+}, 2000);
+  } catch {
+    toast.error("Failed to copy Batch ID.");
+  }
+};
   const handleCopyTransactionHash = async () => {
     if (!transactionDetails) return;
 
@@ -453,8 +520,29 @@ const UpdateBatch: React.FC = () => {
               <Package className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
               {t("updateBatch.batchInformation")}
             </h2>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-4 gap-6">
               <div className="bg-green-50 dark:bg-green-900/30 rounded-xl p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Crop Type</p>
+                <div className="bg-gray-50 dark:bg-gray-900/30 rounded-xl p-4">
+  <div className="flex items-center justify-between mb-1">
+    <p className="text-sm text-gray-600 dark:text-gray-400">
+      Batch ID
+    </p>
+
+    <button
+      type="button"
+      onClick={handleCopyBatchId}
+      className="text-blue-600 hover:text-blue-700 text-xs font-medium"
+    >
+      {batchIdCopied ? "Copied!" : "Copy"}
+    </button>
+  </div>
+
+  <p className="text-lg font-semibold text-gray-800 dark:text-white break-all">
+    {batch.batchId}
+  </p>
+</div>
+                <p className="text-lg font-semibold text-gray-800 dark:text-white capitalize">{batch.cropType}</p>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
                   {t("updateBatch.cropType")}
                 </p>
@@ -478,6 +566,14 @@ const UpdateBatch: React.FC = () => {
                   {batch.farmerName}
                 </p>
               </div>
+              <div className="bg-yellow-50 dark:bg-yellow-900/30 rounded-xl p-4">
+  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+    Last Updated
+  </p>
+  <p className="text-lg font-semibold text-gray-800 dark:text-white">
+    {formatLastUpdated(batch)}
+  </p>
+</div>
             </div>
           </div>
 
@@ -489,13 +585,40 @@ const UpdateBatch: React.FC = () => {
       {!isSearching && !isUpdating && batch && (
         <>
           {/* Batch Info */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+          <div
+  className={`rounded-2xl shadow-xl p-6 transition-all duration-700 ${
+    highlightBatchInfo
+      ? "bg-green-50 dark:bg-green-900/20 ring-2 ring-green-500"
+      : "bg-white dark:bg-gray-800"
+  }`}
+>
             <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
               <Package className="h-6 w-6 mr-3 text-green-600 dark:text-green-400" />
               {t("updateBatch.batchInformation")}
             </h2>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-4 gap-6">
               <div className="bg-green-50 dark:bg-green-900/30 rounded-xl p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Crop Type</p>
+                <div className="bg-gray-50 dark:bg-gray-900/30 rounded-xl p-4">
+  <div className="flex items-center justify-between mb-1">
+    <p className="text-sm text-gray-600 dark:text-gray-400">
+      Batch ID
+    </p>
+
+    <button
+      type="button"
+      onClick={handleCopyBatchId}
+      className="text-blue-600 hover:text-blue-700 text-xs font-medium"
+    >
+      {batchIdCopied ? "Copied!" : "Copy"}
+    </button>
+  </div>
+
+  <p className="text-lg font-semibold text-gray-800 dark:text-white break-all">
+    {batch.batchId}
+  </p>
+</div>
+                <p className="text-lg font-semibold text-gray-800 dark:text-white capitalize">{batch.cropType}</p>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
                   {t("updateBatch.cropType")}
                 </p>
@@ -724,7 +847,20 @@ const UpdateBatch: React.FC = () => {
                   value={updateData.notes}
                   onChange={handleUpdateChange}
                   rows={3}
+                  maxLength={500}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                  placeholder="Additional information about this update..."
+                /><p
+  className={`mt-2 text-sm text-right ${
+    updateData.notes.length >= 500
+      ? "text-red-600 dark:text-red-400 font-semibold"
+      : updateData.notes.length >= 450
+      ? "text-orange-500 dark:text-orange-400"
+      : "text-gray-500 dark:text-gray-400"
+  }`}
+>
+  {updateData.notes.length}/500
+</p>
                   placeholder={t("updateBatch.notesPlaceholder")}
                 />
               </div>

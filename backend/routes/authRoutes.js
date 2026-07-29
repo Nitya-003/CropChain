@@ -35,9 +35,6 @@ router.post(
   validateRegistration,
   walletRegister,
 );
-router.get("/nonce", getNonce);
-router.post("/wallet-login", walletLogin);
-router.post("/wallet-register", validateRegistration, walletRegister);
 router.post("/set-fallback-password", protect, setFallbackPassword);
 router.put("/profile", protect, updateProfile);
 

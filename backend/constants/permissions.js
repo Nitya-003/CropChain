@@ -61,6 +61,9 @@ const PERMISSIONS = {
   // Cross-chain permissions
   CROSSCHAIN_DISPATCH: "crosschain:dispatch",
   CROSSCHAIN_VIEW: "crosschain:view",
+
+  // IoT permissions
+  IOT_SUBMIT: "iot:submit",
 };
 
 // ==================== ROLES ====================
@@ -93,6 +96,7 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.BATCH_UPDATE,
     PERMISSIONS.STAGE_FARMER,
     PERMISSIONS.BLOCKCHAIN_TRANSACTION,
+    PERMISSIONS.IOT_SUBMIT,
   ],
 
   [ROLES.MANDI]: [
@@ -107,6 +111,7 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.BATCH_UPDATE,
     PERMISSIONS.STAGE_TRANSPORT,
     PERMISSIONS.BLOCKCHAIN_TRANSACTION,
+    PERMISSIONS.IOT_SUBMIT,
   ],
 
   [ROLES.RETAILER]: [
@@ -162,6 +167,9 @@ const ROLE_PERMISSIONS = {
     // Cross-chain permissions
     PERMISSIONS.CROSSCHAIN_DISPATCH,
     PERMISSIONS.CROSSCHAIN_VIEW,
+
+    // IoT permissions
+    PERMISSIONS.IOT_SUBMIT,
   ],
 
   [ROLES.SUPER_ADMIN]: [
