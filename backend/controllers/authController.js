@@ -373,7 +373,7 @@ const getNonce = async (req, res) => {
     }
 
     // Generate a unique nonce
-    const nonce = `CropChain Authentication ${Date.now()}`;
+    const nonce = crypto.randomBytes(32).toString('hex');
 
     // Store nonce with expiration (5 minutes)
     await redis.set(`nonce:${address.toLowerCase()}`, nonce, "EX", 300);
