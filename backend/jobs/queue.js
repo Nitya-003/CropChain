@@ -95,10 +95,10 @@ function getQueue() {
  * Add an email job to the queue
  * @param {string} to - Recipient email address
  * @param {string} subject - Email subject
- * @param {string} html - HTML content of the email
+ * @param {Object} templateData - Object containing templateName and context { templateName, context }
  * @param {Object} options - Job options
  */
-async function addEmailJob(to, subject, html, options = {}) {
+async function addEmailJob(to, subject, templateData, options = {}) {
   const queue = getQueue();
   if (!queue) {
     console.warn(
@@ -112,7 +112,7 @@ async function addEmailJob(to, subject, html, options = {}) {
     {
       to,
       subject,
-      html,
+      templateData,
     },
     {
       priority: 10,
