@@ -504,6 +504,21 @@ npx hardhat test
 
 ## Deployment
 
+### AWS EC2 + Docker Compose Deployment
+
+We provide an automated script to deploy the full stack to AWS using CloudFormation and Systems Manager (SSM). This script sets up an EC2 instance, configures Docker, and starts the services.
+
+```bash
+./deploy-aws.sh
+```
+
+**Post-Deployment Verification:**
+The deployment script includes automated health checks to verify that services have started correctly before completing. It polls the following endpoints with retry logic:
+- Backend Health Check: `http://<EC2_IP>:3001/api/health`
+- ML Service Health Check: `http://<EC2_IP>:5001/health`
+
+The deployment will automatically fail if the services do not become healthy within the timeout period.
+
 ### Frontend Deployment (Netlify/Vercel)
 
 ```bash

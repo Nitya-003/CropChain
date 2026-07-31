@@ -1,4 +1,6 @@
 'use strict';
+const { ethers } = require("ethers");
+const { loadWallet } = require("../utils/keystore");
 
 const { ethers } = require('ethers');
 const {
@@ -91,6 +93,70 @@ async function getSigningKey() {
   }
 
   return devKey;
+let contractInstance = null;
+let provider = null;
+let wallet = null;
+let _initPromise = null;
+
+/**
+ * Initialize the blockchain connection.
+ *
+ * Signing credentials are resolved via utils/keystore (encrypted JSON keystore,
+ * AWS KMS, HashiCorp Vault, or plaintext env var as a deprecated fallback) so
+ * the raw private key is never read directly from an environment variable.
+ *
+ * @returns {Promise<ethers.Contract|null>} Contract instance or null if not configured
+ */
+function initialize() {
+  if (_initPromise) {
+    return _initPromise;
+  }
+
+  _initPromise = (async () => {
+    if (!PROVIDER_URL || !CONTRACT_ADDRESS) {
+      console.warn(
+        "Blockchain not configured: Missing INFURA_URL/SEPOLIA_URL or CONTRACT_ADDRESS",
+      );
+      return null;
+    }
+
+    try {
+      provider = getProvider();
+      wallet = await loadWallet(provider, "default");
+      if (!wallet) {
+        console.warn(
+          "Blockchain not configured: no signing credentials found. Set " +
+            "WALLET_KEYSTORE_PATH + WALLET_KEYSTORE_PASSWORD (recommended), " +
+            "AWS KMS, HashiCorp Vault, or PRIVATE_KEY (deprecated).",
+        );
+        return null;
+      }
+      contractInstance = new ethers.Contract(
+        CONTRACT_ADDRESS,
+        contractABI,
+        wallet,
+      );
+      console.log("✓ Blockchain contract initialized");
+      return contractInstance;
+    } catch (error) {
+      console.error("Failed to initialize blockchain connection:", error.message);
+      return null;
+    }
+  })();
+
+  return _initPromise;
+}
+
+// Kick off initialization early so keystore-backed signers are ready shortly
+// after boot, even before the async startup tasks are awaited.
+initialize();
+
+/**
+ * Get contract instance
+ * @returns {ethers.Contract|null} Contract instance or null if not ready/configured
+ */
+function getContract() {
+  return contractInstance;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -167,5 +233,17 @@ module.exports = {
   getContract,   // async — await it
   getWallet,     // async — await it
   getProvider,   // sync  — no await needed
+ * Get wallet instance
+ * @returns {ethers.Wallet|null} Wallet instance or null if not ready/configured
+ */
+function getWallet() {
+  return wallet;
+}
+
+module.exports = {
+  initialize,
+  getContract,
+  getProvider,
+  getWallet,
   contractABI,
 };

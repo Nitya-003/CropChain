@@ -11,6 +11,7 @@
  */
 
 const Redis = require("ioredis");
+const logger = require("../utils/logger");
 
 // Redis connection settings
 const REDIS_HOST = process.env.REDIS_HOST || "localhost";
@@ -30,11 +31,11 @@ const connectionOptions = {
   maxRetriesPerRequest: MAX_RETRIES,
   retryStrategy: (times) => {
     if (times > MAX_RETRIES) {
-      console.error("[Redis] Max connection retries reached");
+      logger.error("[Redis] Max connection retries reached");
       return null; // Stop retrying
     }
     const delay = Math.min(times * 100, 3000);
-    console.log(
+    logger.warn(
       `[Redis] Retrying connection in ${delay}ms (attempt ${times}/${MAX_RETRIES})`,
     );
     return delay;
@@ -45,7 +46,7 @@ const connectionOptions = {
   reconnectOnError: (err) => {
     const targetErrors = ["READONLY", "ECONNRESET", "ECONNREFUSED"];
     if (targetErrors.some((e) => err.message.includes(e))) {
-      console.log("[Redis] Reconnecting due to error:", err.message);
+      logger.warn("[Redis] Reconnecting due to error", { error: err.message });
       return true;
     }
     return false;
@@ -64,23 +65,23 @@ function getRedisConnection() {
     redisConnection = new Redis(connectionOptions);
 
     redisConnection.on("connect", () => {
-      console.log("✓ Redis connection established");
+      logger.info("✓ Redis connection established");
     });
 
     redisConnection.on("ready", () => {
-      console.log("✓ Redis connection ready");
+      logger.info("✓ Redis connection ready");
     });
 
     redisConnection.on("error", (err) => {
-      console.error("❌ Redis connection error:", err.message);
+      logger.error("❌ Redis connection error", { error: err.message });
     });
 
     redisConnection.on("close", () => {
-      console.log("⚠️ Redis connection closed");
+      logger.warn("⚠️ Redis connection closed");
     });
 
     redisConnection.on("reconnecting", () => {
-      console.log("🔄 Redis reconnecting...");
+      logger.warn("🔄 Redis reconnecting...");
     });
   }
 
@@ -106,10 +107,10 @@ async function closeRedisConnection() {
   if (redisConnection) {
     try {
       await redisConnection.quit();
-      console.log("✓ Redis connection closed gracefully");
+      logger.info("✓ Redis connection closed gracefully");
       redisConnection = null;
     } catch (err) {
-      console.error("❌ Error closing Redis connection:", err.message);
+      logger.error("❌ Error closing Redis connection", { error: err.message });
       redisConnection.disconnect(false);
       redisConnection = null;
     }
@@ -126,7 +127,7 @@ async function checkRedisHealth() {
     const result = await connection.ping();
     return result === "PONG";
   } catch (err) {
-    console.error("❌ Redis health check failed:", err.message);
+    logger.error("❌ Redis health check failed", { error: err.message });
     return false;
   }
 }

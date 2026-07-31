@@ -81,7 +81,7 @@ const generateQRCode = async (batchId) => {
       },
     });
   } catch (error) {
-    console.error("Failed to generate QR code:", error);
+    logger.error("Failed to generate QR code", { error: error.message, stack: error.stack });
     return "";
   }
 };
@@ -594,7 +594,7 @@ exports.exportBatch = async (req, res) => {
     res.setHeader("Content-Length", pdfBuffer.length);
     return res.send(pdfBuffer);
   } catch (error) {
-    console.error("Export failed:", error);
+    logger.error("Export failed", { error: error.message, stack: error.stack });
     return res
       .status(500)
       .json(apiResponse.errorResponse("Export failed", "EXPORT_ERROR", 500));
@@ -649,7 +649,7 @@ exports.recordIoTData = async (req, res) => {
                 apiResponse.errorResponse('Batch not found', 'BATCH_NOT_FOUND', 404)
             );
         }
-        console.error('Error recording IoT data:', error);
+        logger.error('Error recording IoT data', { error: error.message, stack: error.stack });
         res.status(500).json(
             apiResponse.errorResponse('Failed to record IoT data', 'IOT_RECORD_ERROR', 500)
         );
@@ -689,7 +689,7 @@ exports.getIoTData = async (req, res) => {
           apiResponse.errorResponse("Batch not found", "BATCH_NOT_FOUND", 404),
         );
     }
-    console.error("Error getting IoT data:", error);
+    logger.error("Error getting IoT data", { error: error.message, stack: error.stack });
     res
       .status(500)
       .json(
