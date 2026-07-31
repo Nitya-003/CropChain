@@ -147,7 +147,7 @@ const VerificationDashboardComponent: React.FC = () => {
 
 
     const handleVerificationSocketUpdate = useCallback((data: any) => {
-        console.log('[SOCKET EVENT] Verification update:', data);
+
         if (data?.userId && data?.newState) {
             setRowStatuses(prev => ({
                 ...prev,

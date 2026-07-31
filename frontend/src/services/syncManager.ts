@@ -42,7 +42,7 @@ class SyncManager {
   }
 
   private handleOnline(): void {
-    console.log('[SyncManager] Connection restored, updating online state and starting sync...');
+
     this._isOnline = true;
     
     // Show notification that connection is restored
@@ -62,7 +62,7 @@ class SyncManager {
   }
 
   private handleOffline(): void {
-    console.log('[SyncManager] Connection lost, updating online state');
+
     this._isOnline = false;
     this.updateStatus('idle');
     // Clear any pending retry timeout when going offline
@@ -76,19 +76,19 @@ class SyncManager {
   private async checkAndSync(): Promise<void> {
     const counts = await offlineStorage.getPendingCount();
     if (counts.batches > 0 || counts.updates > 0) {
-      console.log(`[SyncManager] Found ${counts.batches} batches and ${counts.updates} updates to sync`);
+
       await this.triggerSync();
     }
   }
 
   async triggerSync(): Promise<void> {
     if (this.syncInProgress) {
-      console.log('[SyncManager] Sync already in progress');
+
       return;
     }
 
     if (!this._isOnline) {
-      console.log('[SyncManager] Cannot sync while offline');
+
       return;
     }
 
@@ -128,7 +128,7 @@ class SyncManager {
 
   private scheduleRetryWithBackoff(): void {
     if (this.currentRetryAttempt >= this.MAX_RETRIES) {
-      console.log('[SyncManager] Max retries reached, giving up');
+
       this.updateStatus('idle');
       
       // Show permanent failure notification to user
@@ -145,7 +145,7 @@ class SyncManager {
     );
 
     this.currentRetryAttempt++;
-    console.log(`[SyncManager] Scheduling retry attempt ${this.currentRetryAttempt} in ${delay}ms`);
+
 
     this.retryTimeoutId = setTimeout(() => {
       this.retryTimeoutId = null;
@@ -225,7 +225,7 @@ class SyncManager {
         status: 'success',
       });
 
-      console.log(`[SyncManager] Successfully synced batch ${id}`);
+
     } catch (error) {
       await offlineStorage.updateBatchStatus(id, 'pending');
       throw error;
@@ -252,7 +252,7 @@ class SyncManager {
         status: 'success',
       });
 
-      console.log(`[SyncManager] Successfully synced update ${id}`);
+
     } catch (error) {
       await offlineStorage.updateUpdateStatus(id, 'pending');
       throw error;

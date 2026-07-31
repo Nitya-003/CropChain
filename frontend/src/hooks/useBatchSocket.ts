@@ -48,12 +48,12 @@ export const useBatchSocket = ({
       setConnected(true);
       setConnecting(false);
       setError(null);
-      console.log('[HOOK] Socket connected');
+
     };
 
     const handleDisconnect = () => {
       setConnected(false);
-      console.log('[HOOK] Socket disconnected');
+
     };
 
     const handleError = (err: Error) => {
