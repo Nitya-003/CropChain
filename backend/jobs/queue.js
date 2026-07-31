@@ -1,4 +1,5 @@
 const { Queue, QueueEvents } = require("bullmq");
+const logger = require("../utils/logger");
 const { createQueueConnection } = require("../config/redis");
 
 // Queue names
@@ -52,14 +53,16 @@ function initializeQueue() {
   });
 
   queueEvents.on("completed", ({ jobId }) => {
-    console.log(`[NotificationQueue] Job ${jobId} completed.`);
+    logger.info(`[NotificationQueue] Job ${jobId} completed.`);
   });
 
   queueEvents.on("failed", ({ jobId, failedReason }) => {
-    console.error(`[NotificationQueue] Job ${jobId} failed:`, failedReason);
+    logger.error(`[NotificationQueue] Job ${jobId} failed:`, {
+      error: failedReason,
+    });
   });
 
-  console.log("✓ Notification queue initialized");
+  logger.info("✓ Notification queue initialized");
 
   // Add a repeatable job for checking delayed supply chain alerts once per day
   notificationQueue
@@ -74,7 +77,7 @@ function initializeQueue() {
       },
     )
     .catch((err) =>
-      console.error(
+      logger.error(
         "[NotificationQueue] Error setting up repeatable alert check:",
         err,
       ),
@@ -101,7 +104,7 @@ function getQueue() {
 async function addEmailJob(to, subject, templateData, options = {}) {
   const queue = getQueue();
   if (!queue) {
-    console.warn(
+    logger.warn(
       "[NotificationQueue] Queue not initialized, cannot add email job.",
     );
     return null;
@@ -120,7 +123,7 @@ async function addEmailJob(to, subject, templateData, options = {}) {
     },
   );
 
-  console.log(`[NotificationQueue] Added email job ${job.id} for ${to}`);
+  logger.info(`[NotificationQueue] Added email job ${job.id} for ${to}`);
   return job;
 }
 
@@ -136,7 +139,7 @@ async function closeQueue() {
   if (notificationQueue) {
     await notificationQueue.close();
     notificationQueue = null;
-    console.log("✓ Notification queue closed");
+    logger.info("✓ Notification queue closed");
   }
 }
 

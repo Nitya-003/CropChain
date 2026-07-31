@@ -59,6 +59,8 @@ if (!isServerless) {
       }),
     );
   } catch (err) {
+    // Keep this one console.warn: it fires while the logger itself is being
+    // created, before the Winston instance (and any transport) is available.
     console.warn(
       "Winston file transports initialization failed (filesystem might be read-only):",
       err.message,

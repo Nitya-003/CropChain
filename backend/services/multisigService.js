@@ -3,6 +3,7 @@
  */
 
 const crypto = require("crypto");
+const logger = require("../utils/logger");
 const MultiSigApproval = require("../models/MultiSigApproval");
 const Batch = require("../models/Batch");
 const User = require("../models/User");
@@ -79,7 +80,7 @@ class MultisigService {
       await batch.save();
     }
 
-    console.log(
+    logger.info(
       `[Multisig] Created approval request ${requestId} for ${actionType} on batch ${batchId}`,
     );
     return {
@@ -154,7 +155,7 @@ class MultisigService {
       "approvalStats.lastApprovalAt": new Date(),
     });
 
-    console.log(
+    logger.info(
       `[Multisig] Signature added to ${requestId} by ${signer.email}: ${decision}`,
     );
 
@@ -240,7 +241,7 @@ class MultisigService {
     }
     await batch.save();
     await approval.markExecuted(approval.initiatedBy, null, result);
-    console.log(
+    logger.info(
       `[Multisig] Executed approved action ${approval.actionType} for batch ${batch.batchId}`,
     );
     return result;
@@ -269,7 +270,7 @@ class MultisigService {
         });
       await batch.save();
     }
-    console.log(`[Multisig] Cancelled approval request ${requestId}`);
+    logger.info(`[Multisig] Cancelled approval request ${requestId}`);
     return { requestId, status: "cancelled", reason };
   }
 

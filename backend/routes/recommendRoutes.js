@@ -1,6 +1,7 @@
 "use strict";
 
 const express = require("express");
+const logger = require("../utils/logger");
 const router = express.Router();
 const {
   getCropRecommendation,
@@ -82,7 +83,9 @@ router.post(
       );
       res.json(response);
     } catch (error) {
-      console.error("Error fetching crop recommendation:", error.message);
+      logger.error("Error fetching crop recommendation:", {
+        error: error.message,
+      });
 
       const isConnectionError =
         error.code === "ECONNREFUSED" ||

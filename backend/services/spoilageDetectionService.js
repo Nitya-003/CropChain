@@ -46,7 +46,7 @@ async function recordIoTData(batchId, temperature, humidity) {
         "alert",
         { batchId: batch.batchId, temperature, humidity },
       )
-      .catch((err) => console.error("Failed to send spoilage alert:", err));
+      .catch((err) => logger.error("Failed to send spoilage alert:", err));
   }
 
   if (telemetryHistoryLength >= TELEMETRY_HISTORY_WARNING_THRESHOLD) {

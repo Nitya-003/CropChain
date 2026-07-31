@@ -1,6 +1,6 @@
 'use strict';
 const { ethers } = require("ethers");
-const { loadWallet } = require("../utils/keystore");
+const logger = require("../utils/logger");
 
 const { ethers } = require('ethers');
 const {
@@ -112,51 +112,29 @@ function initialize() {
     return _initPromise;
   }
 
-  _initPromise = (async () => {
-    if (!PROVIDER_URL || !CONTRACT_ADDRESS) {
-      console.warn(
-        "Blockchain not configured: Missing INFURA_URL/SEPOLIA_URL or CONTRACT_ADDRESS",
-      );
-      return null;
-    }
+  if (!PROVIDER_URL || !CONTRACT_ADDRESS || !PRIVATE_KEY) {
+    logger.warn(
+      "Blockchain not configured: Missing INFURA_URL, CONTRACT_ADDRESS, or PRIVATE_KEY",
+    );
+    return null;
+  }
 
-    try {
-      provider = getProvider();
-      wallet = await loadWallet(provider, "default");
-      if (!wallet) {
-        console.warn(
-          "Blockchain not configured: no signing credentials found. Set " +
-            "WALLET_KEYSTORE_PATH + WALLET_KEYSTORE_PASSWORD (recommended), " +
-            "AWS KMS, HashiCorp Vault, or PRIVATE_KEY (deprecated).",
-        );
-        return null;
-      }
-      contractInstance = new ethers.Contract(
-        CONTRACT_ADDRESS,
-        contractABI,
-        wallet,
-      );
-      console.log("✓ Blockchain contract initialized");
-      return contractInstance;
-    } catch (error) {
-      console.error("Failed to initialize blockchain connection:", error.message);
-      return null;
-    }
-  })();
-
-  return _initPromise;
-}
-
-// Kick off initialization early so keystore-backed signers are ready shortly
-// after boot, even before the async startup tasks are awaited.
-initialize();
-
-/**
- * Get contract instance
- * @returns {ethers.Contract|null} Contract instance or null if not ready/configured
- */
-function getContract() {
-  return contractInstance;
+  try {
+    provider = new ethers.JsonRpcProvider(PROVIDER_URL);
+    wallet = new ethers.Wallet(PRIVATE_KEY, provider);
+    contractInstance = new ethers.Contract(
+      CONTRACT_ADDRESS,
+      contractABI,
+      wallet,
+    );
+    logger.info("✓ Blockchain contract initialized");
+    return contractInstance;
+  } catch (error) {
+    logger.error("Failed to initialize blockchain connection:", {
+      error: error.message,
+    });
+    return null;
+  }
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
