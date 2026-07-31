@@ -16,6 +16,7 @@ const { Worker } = require("bullmq");
 const logger = require("../utils/logger");
 const { ethers } = require("ethers");
 const { createQueueConnection } = require("../config/redis");
+const { loadWallet } = require("../utils/keystore");
 const { QUEUE_NAMES, JOB_TYPES } = require("./blockchainQueue");
 const Batch = require("../models/Batch");
 const User = require("../models/User");
@@ -79,6 +80,7 @@ let worker = null;
 let provider = null;
 let wallet = null;
 let contract = null;
+let initPromise = null;
 
 // Contract ABI
 const contractABI = [
@@ -90,12 +92,12 @@ const contractABI = [
 ];
 
 /**
- * Initialize blockchain connection
+ * Initialize blockchain connection.
+ * Async because the signer may come from an encrypted keystore / KMS / Vault.
+ * @returns {Promise<boolean>} True when the worker has a connected contract
  */
 function initializeBlockchain() {
-  const PROVIDER_URL = process.env.INFURA_URL;
-  const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
-  const PRIVATE_KEY = process.env.PRIVATE_KEY;
+  if (initPromise) return initPromise;
 
   if (!PROVIDER_URL || !CONTRACT_ADDRESS || !PRIVATE_KEY) {
     logger.warn(
@@ -731,14 +733,23 @@ function initializeWorker() {
 
   const connection = createQueueConnection();
 
-  worker = new Worker(QUEUE_NAMES.BLOCKCHAIN, processJob, {
-    connection,
-    concurrency: parseInt(process.env.BLOCKCHAIN_WORKER_CONCURRENCY, 10) || 3,
-    limiter: {
-      max: parseInt(process.env.BLOCKCHAIN_RATE_LIMIT_MAX, 10) || 10,
-      duration: parseInt(process.env.BLOCKCHAIN_RATE_LIMIT_WINDOW, 10) || 60000, // 10 transactions per minute
+  worker = new Worker(
+    QUEUE_NAMES.BLOCKCHAIN,
+    async (job) => {
+      // Ensure the signer/contract is ready before processing any job.
+      await initializeBlockchain();
+      return processJob(job);
     },
-  });
+    {
+      connection,
+      concurrency: parseInt(process.env.BLOCKCHAIN_WORKER_CONCURRENCY, 10) || 3,
+      limiter: {
+        max: parseInt(process.env.BLOCKCHAIN_RATE_LIMIT_MAX, 10) || 10,
+        duration:
+          parseInt(process.env.BLOCKCHAIN_RATE_LIMIT_WINDOW, 10) || 60000, // 10 transactions per minute
+      },
+    },
+  );
 
   // Worker event handlers
   worker.on("completed", (job, result) => {

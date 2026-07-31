@@ -1,6 +1,7 @@
 const { ethers } = require("ethers");
 require("dotenv").config();
 const logger = require("../utils/logger");
+const { loadWallet } = require("../utils/keystore");
 
 class OracleService {
   constructor() {
@@ -25,14 +26,6 @@ class OracleService {
     try {
       logger.info("🔮 Initializing Oracle Service...");
 
-      // Setup oracle wallet and check environment variables first
-      const privateKey = process.env.ORACLE_PRIVATE_KEY;
-      if (!privateKey) {
-        throw new Error(
-          "ORACLE_PRIVATE_KEY not found in environment variables",
-        );
-      }
-
       const contractAddress = process.env.CONTRACT_ADDRESS;
       if (!contractAddress) {
         throw new Error("CONTRACT_ADDRESS not found in environment variables");
@@ -42,7 +35,15 @@ class OracleService {
       const providerUrl = process.env.PROVIDER_URL || "http://localhost:8545";
       this.provider = await this._createProvider(providerUrl);
 
-      this.oracleWallet = new ethers.Wallet(privateKey, this.provider);
+      // Credentials are resolved via utils/keystore (encrypted keystore, AWS
+      // KMS, Vault, or deprecated ORACLE_PRIVATE_KEY env var).
+      this.oracleWallet = await loadWallet(this.provider, "oracle");
+      if (!this.oracleWallet) {
+        throw new Error(
+          "No oracle signing credentials found: set ORACLE_KEYSTORE_PATH + " +
+            "ORACLE_KEYSTORE_PASSWORD, AWS KMS, Vault, or ORACLE_PRIVATE_KEY (deprecated)",
+        );
+      }
       logger.info(`🔑 Oracle wallet address: ${this.oracleWallet.address}`);
 
       this.contract = new ethers.Contract(
@@ -122,8 +123,7 @@ class OracleService {
         this.provider = await this._createProvider(providerUrl);
 
         // Reconnect wallet and contract to the new provider
-        const privateKey = process.env.ORACLE_PRIVATE_KEY;
-        this.oracleWallet = new ethers.Wallet(privateKey, this.provider);
+        this.oracleWallet = await loadWallet(this.provider, "oracle");
         const contractAddress = process.env.CONTRACT_ADDRESS;
         this.contract = new ethers.Contract(
           contractAddress,
