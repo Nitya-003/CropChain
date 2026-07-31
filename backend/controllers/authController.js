@@ -627,6 +627,33 @@ const logoutUser = (req, res) => {
     );
 };
 
+const deleteAccount = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return res.status(404).json(
+                apiResponse.errorResponse('User not found', 'USER_NOT_FOUND', 404)
+            );
+        }
+
+        await User.findByIdAndDelete(req.user._id);
+        
+        clearRefreshCookie(res);
+
+        logger.info('User account deleted', { userId: req.user._id });
+
+        return res.status(200).json(
+            apiResponse.successResponse(null, 'Account deleted successfully')
+        );
+    } catch (error) {
+        logger.error('Account deletion error', { error: error.message, stack: error.stack });
+        return res.status(500).json(
+            apiResponse.errorResponse('Failed to delete account', 'DELETE_ACCOUNT_FAILED', 500)
+        );
+    }
+};
+
 const forgotPassword = async (req, res) => {
     try {
         const { email } = req.body;
@@ -837,5 +864,6 @@ module.exports = {
     forgotPassword,
     resetPassword,
     addFunds,
-    setFallbackPassword
+    setFallbackPassword,
+    deleteAccount
 };

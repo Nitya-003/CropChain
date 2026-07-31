@@ -12,7 +12,8 @@ const {
     forgotPassword,
     resetPassword,
     addFunds,
-    setFallbackPassword
+    setFallbackPassword,
+    deleteAccount
 } = require('../controllers/authController');
 const { protect, adminOnly } = require('../middleware/auth');
 const validateRegistration = require('../middleware/validateRegistration');
@@ -35,5 +36,6 @@ router.post('/wallet-login', walletLogin);
 router.post('/wallet-register', validateRegistration, walletRegister);
 router.post('/set-fallback-password', protect, setFallbackPassword);
 router.put('/profile', protect, updateProfile);
+router.delete('/profile', protect, deleteAccount);
 
 module.exports = router;
