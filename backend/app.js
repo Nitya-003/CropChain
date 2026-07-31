@@ -37,10 +37,10 @@ if (process.env.NODE_ENV !== "test") {
 }
 
 const { validateEnv } = require("./utils/envValidator");
+const keystore = require("./utils/keystore");
 const REQUIRED_ENV_VARS = [
   "INFURA_URL",
   "CONTRACT_ADDRESS",
-  "PRIVATE_KEY",
   "JWT_SECRET",
   "MONGODB_URI",
 ];
@@ -51,8 +51,12 @@ if (process.env.NODE_ENV !== "test") {
     }
   });
 
-  if (!/^0x[a-fA-F0-9]{64}$/.test(process.env.PRIVATE_KEY)) {
-    throw new Error("Invalid PRIVATE_KEY format");
+  if (!keystore.hasSigningMaterial("default")) {
+    throw new Error(
+      "Missing blockchain signing credentials: set WALLET_KEYSTORE_PATH + " +
+        "WALLET_KEYSTORE_PASSWORD (recommended), AWS KMS, HashiCorp Vault, or " +
+        "PRIVATE_KEY (deprecated).",
+    );
   }
   validateEnv();
 }

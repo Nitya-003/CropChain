@@ -6,8 +6,6 @@ const socketService = require("./services/socketService");
 const setupErrorHandling = require("./startup/errorHandling");
 const { gracefulShutdown } = require("./utils/shutdown");
 const { runStartupTasks } = require("./startup/bootstrap");
-const { ethers } = require("ethers");
-const blockchainService = require("./services/blockchainService");
 const blockchainQueue = require("./services/blockchainQueue");
 const blockchainWorker = require("./services/blockchainWorker");
 const notificationQueue = require("./jobs/queue");
@@ -26,6 +24,21 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY;
 let provider;
 let contractInstance;
 let wallet;
+
+// ─── Production safety guard ─────────────────────────────────────────────────
+// Refuse to start if production is configured without secure key management.
+// This prevents accidental deploys with a plaintext PRIVATE_KEY.
+if (process.env.NODE_ENV === 'production' && !process.env.AWS_SECRET_ARN) {
+  console.error(
+    '\n[FATAL] Production startup blocked.\n' +
+    'Reason: PRIVATE_KEY as a plaintext environment variable is not ' +
+    'permitted in production.\n' +
+    'Fix: Set AWS_SECRET_ARN to your Secrets Manager ARN and remove ' +
+    'PRIVATE_KEY from your environment.\n'
+  );
+  process.exit(1);
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY) {
   try {
