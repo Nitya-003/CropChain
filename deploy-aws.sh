@@ -4,12 +4,19 @@ set -e
 echo "🚀 Starting CropChain AWS Deployment (Free-Tier EC2 + Docker Compose)..."
 
 # Read user interactive variables
-if [ -z "$ETH_PRIVATE_KEY" ]; then
+# Signing credentials: an ENCRYPTED keystore is strongly preferred
+# (ETH_KEYSTORE_JSON = base64 of the Web3 Secret Storage JSON, plus
+# WALLET_KEYSTORE_PASSWORD). The plaintext ETH_PRIVATE_KEY path is deprecated
+# and only kept for backward compatibility.
+if [ -z "$WALLET_KEYSTORE_PASSWORD" ] && [ -z "$ETH_KEYSTORE_JSON" ] && [ -z "$ETH_PRIVATE_KEY" ]; then
     if [ "$CI" = "true" ]; then
         ETH_PRIVATE_KEY="dummy_private_key_for_ci_builds_00000000000000000000000000"
     else
-        echo "⚠️  ETH_PRIVATE_KEY environment variable is not set. Reading from interactive shell..."
-        read -sp "Enter your Ethereum Private Key (Sepolia): " ETH_PRIVATE_KEY
+        echo "⚠️  No blockchain signing credentials set."
+        echo "    Recommended: export ETH_KEYSTORE_JSON=\"\$(base64 -w0 keystore.json)\""
+        echo "    Recommended: export WALLET_KEYSTORE_PASSWORD=\"...\""
+        echo "    (Deprecated) export ETH_PRIVATE_KEY=0x... stores the key in plaintext."
+        read -sp "Enter your Ethereum private key (only if not using an encrypted keystore): " ETH_PRIVATE_KEY
         echo ""
     fi
 fi
@@ -116,9 +123,14 @@ rm repo.tar.gz
 
 cd CropChain
 
-# Create .env file for docker-compose interpolation
+# Create .env file for docker-compose interpolation.
+# The raw private key is NEVER written here — if an encrypted keystore is
+# provided it is passed through as base64 (ETH_KEYSTORE_JSON) and decrypted at
+# runtime by utils/keystore via Wallet.fromEncryptedJson.
 cat <<EOT > .env
 ETH_PRIVATE_KEY=$ETH_PRIVATE_KEY
+WALLET_KEYSTORE_JSON=$ETH_KEYSTORE_JSON
+WALLET_KEYSTORE_PASSWORD=$WALLET_KEYSTORE_PASSWORD
 GEMINI_API_KEY=$GEMINI_API_KEY
 JWT_SECRET=$JWT_SECRET
 JWT_REFRESH_SECRET=$JWT_REFRESH_SECRET

@@ -7,6 +7,7 @@ const { ethers } = require("ethers");
 const crypto = require("crypto");
 const blockchainConfig = require("../config/blockchain");
 const logger = require("../utils/logger");
+const keystore = require("../utils/keystore");
 const { retryWithBackoff } = require("../utils/retry");
 
 // Shared retry policy for outbound RPC calls. 3 total attempts, base 500ms,
@@ -22,10 +23,12 @@ class BlockchainService {
   }
 
   /**
-   * Initialize blockchain connection
+   * Initialize blockchain connection.
+   * Async because encrypted-keystore signers require an await to decrypt.
    */
-  initialize() {
+  async initialize() {
     try {
+      await blockchainConfig.initialize();
       this.contract = blockchainConfig.getContract();
       this.isInitialized = this.contract !== null;
 
@@ -46,14 +49,16 @@ class BlockchainService {
    */
   validateEnvironment() {
     const hasUrl = process.env.INFURA_URL || process.env.SEPOLIA_URL;
-    const hasPrivateKey =
-      process.env.PRIVATE_KEY || process.env.ETH_PRIVATE_KEY;
     const hasContract = process.env.CONTRACT_ADDRESS;
 
     const missing = [];
     if (!hasUrl) missing.push("INFURA_URL / SEPOLIA_URL");
     if (!hasContract) missing.push("CONTRACT_ADDRESS");
-    if (!hasPrivateKey) missing.push("PRIVATE_KEY / ETH_PRIVATE_KEY");
+    if (!keystore.hasSigningMaterial("default")) {
+      missing.push(
+        "signing credentials (WALLET_KEYSTORE_PATH + WALLET_KEYSTORE_PASSWORD, AWS KMS, Vault, or PRIVATE_KEY / ETH_PRIVATE_KEY)",
+      );
+    }
 
     if (missing.length > 0) {
       throw new Error(
@@ -61,10 +66,10 @@ class BlockchainService {
       );
     }
 
-    const pk = process.env.PRIVATE_KEY || process.env.ETH_PRIVATE_KEY;
-    const formattedPk = pk.startsWith("0x") ? pk : "0x" + pk;
-    if (!/^0x[a-fA-F0-9]{64}$/.test(formattedPk)) {
-      throw new Error("Invalid PRIVATE_KEY format");
+    // Validate the plaintext key format early when the deprecated env-var path is used.
+    const pk = keystore.resolvePlaintextKey("default");
+    if (pk) {
+      keystore.normalizePrivateKey(pk);
     }
   }
 

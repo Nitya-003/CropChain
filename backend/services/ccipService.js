@@ -1,4 +1,5 @@
 const { ethers } = require("ethers");
+const { loadWallet } = require("../utils/keystore");
 
 const SENDER_ABI = [
   "function syncRetailerProof((bytes32 batchId,string actorName,string location,uint64 deliveredAt,string notes,address farmer,uint256 quantity,string ipfsCID) payload) external returns (bytes32)",
@@ -29,27 +30,42 @@ class CCIPService {
     this.destinationLabel = process.env.CCIP_DESTINATION_LABEL || "ethereum";
   }
 
-  initialize() {
+  async initialize() {
     const rpcUrl = process.env.CCIP_SOURCE_RPC_URL || process.env.INFURA_URL;
     const contractAddress = process.env.CCIP_SENDER_CONTRACT_ADDRESS;
-    const privateKey =
-      process.env.CCIP_SENDER_PRIVATE_KEY || process.env.PRIVATE_KEY;
 
-    if (!rpcUrl || !contractAddress || !privateKey) {
+    if (!rpcUrl || !contractAddress) {
       this.enabled = false;
       return false;
     }
 
-    this.provider = new ethers.JsonRpcProvider(rpcUrl);
-    this.wallet = new ethers.Wallet(privateKey, this.provider);
-    this.senderContract = new ethers.Contract(
-      contractAddress,
-      SENDER_ABI,
-      this.wallet,
-    );
-    this.enabled = true;
+    try {
+      this.provider = new ethers.JsonRpcProvider(rpcUrl);
+      // Credentials are resolved via utils/keystore (encrypted keystore, AWS
+      // KMS, Vault, or deprecated CCIP_SENDER_PRIVATE_KEY env var).
+      this.wallet = await loadWallet(this.provider, "ccip");
+      if (!this.wallet) {
+        console.warn(
+          "CCIP service not configured: no signing credentials found. Set " +
+            "CCIP_KEYSTORE_PATH + CCIP_KEYSTORE_PASSWORD, AWS KMS, Vault, or " +
+            "CCIP_SENDER_PRIVATE_KEY (deprecated).",
+        );
+        this.enabled = false;
+        return false;
+      }
+      this.senderContract = new ethers.Contract(
+        contractAddress,
+        SENDER_ABI,
+        this.wallet,
+      );
+      this.enabled = true;
 
-    return true;
+      return true;
+    } catch (error) {
+      console.error("CCIP service initialization failed:", error.message);
+      this.enabled = false;
+      return false;
+    }
   }
 
   isEnabled() {
