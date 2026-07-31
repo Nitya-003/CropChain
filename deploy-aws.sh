@@ -5,15 +5,21 @@ echo "🚀 Starting CropChain AWS Deployment (Free-Tier EC2 + Docker Compose)...
 
 # Read user interactive variables
 if [ -z "$ETH_PRIVATE_KEY" ]; then
-    echo "⚠️  ETH_PRIVATE_KEY environment variable is not set. Reading from interactive shell..."
-    read -sp "Enter your Ethereum Private Key (Sepolia): " ETH_PRIVATE_KEY
-    echo ""
+    if [ "$CI" = "true" ]; then
+        ETH_PRIVATE_KEY="dummy_private_key_for_ci_builds_00000000000000000000000000"
+    else
+        echo "⚠️  ETH_PRIVATE_KEY environment variable is not set. Reading from interactive shell..."
+        read -sp "Enter your Ethereum Private Key (Sepolia): " ETH_PRIVATE_KEY
+        echo ""
+    fi
 fi
 
 # Load Cloudflare token if present
 if [ -z "$CLOUDFLARE_TUNNEL_TOKEN" ]; then
-    read -sp "Enter your Cloudflare Tunnel Token (optional, press Enter to skip): " CLOUDFLARE_TUNNEL_TOKEN
-    echo ""
+    if [ "$CI" != "true" ]; then
+        read -sp "Enter your Cloudflare Tunnel Token (optional, press Enter to skip): " CLOUDFLARE_TUNNEL_TOKEN
+        echo ""
+    fi
 fi
 
 # Load JWT/HMAC secrets or generate them if they are not set

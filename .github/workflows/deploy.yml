@@ -11,6 +11,25 @@ jobs:
     name: Deploy Application
     runs-on: ubuntu-latest
 
+name: Deploy to AWS Production
+
+on:
+  workflow_run:
+    workflows: ["CropChain CI/CD & Security Audit"]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy Application to AWS
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      id-token: write # Required for AWS OIDC authentication
+      contents: read
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -75,3 +94,49 @@ jobs:
           | **Health Checks** | ❌ Failed |
           | **Failure Details** | Deployment or post-deployment health verification encountered an error. Please inspect the workflow logs for precise error details. |
           EOF
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Make deployment script executable
+        run: chmod +x deploy-aws.sh
+
+      - name: Run AWS Deployment Script
+        env:
+          CI: "true"
+          ETH_PRIVATE_KEY: ${{ secrets.ETH_PRIVATE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          MULTISIG_HMAC_SECRET: ${{ secrets.MULTISIG_HMAC_SECRET }}
+          ML_API_KEY: ${{ secrets.ML_API_KEY }}
+          CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+        run: ./deploy-aws.sh
+
+      - name: Post-Deployment Health Check
+        run: |
+          echo "Fetching EC2 Public IP from CloudFormation..."
+          EC2_PUBLIC_IP=$(aws cloudformation describe-stacks --stack-name cropchain-infra --query "Stacks[0].Outputs[?OutputKey=='EC2PublicIP'].OutputValue" --output text)
+          
+          if [ -z "$EC2_PUBLIC_IP" ] || [ "$EC2_PUBLIC_IP" == "None" ]; then
+            echo "Failed to retrieve EC2 Public IP."
+            exit 1
+          fi
+          
+          echo "Checking Backend Health Endpoint: http://$EC2_PUBLIC_IP:3001/api/health"
+          
+          # Wait up to 120 seconds for the service to become responsive (retry every 10 seconds)
+          for i in {1..12}; do
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://$EC2_PUBLIC_IP:3001/api/health || true)
+            if [ "$HTTP_STATUS" == "200" ]; then
+              echo "✅ Health check passed! Application is responsive."
+              exit 0
+            fi
+            echo "Attempt $i: Application not yet ready (HTTP $HTTP_STATUS). Waiting 10 seconds..."
+            sleep 10
+          done
+          
+          echo "❌ Health check failed after 120 seconds."
+          exit 1

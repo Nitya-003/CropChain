@@ -3,6 +3,7 @@ const router = express.Router();
 const oracleService = require("../services/oracleService");
 const { protect, authorizeRoles } = require("../middleware/auth");
 const apiResponse = require("../utils/apiResponse");
+const logger = require("../utils/logger");
 
 /**
  * Get oracle service status
@@ -28,7 +29,7 @@ router.get("/status", (req, res) => {
 
     res.json(response);
   } catch (error) {
-    console.error("Error getting oracle status:", error);
+    logger.error("Error getting oracle status", { error: error.message, stack: error.stack });
     const response = apiResponse.errorResponse(
       "Failed to get oracle status",
       "ORACLE_STATUS_ERROR",
@@ -81,9 +82,9 @@ router.get("/batch/:batchId/iot-data", protect, async (req, res) => {
 
     res.json(response);
   } catch (error) {
-    console.error(
-      `Error getting IoT data for batch ${req.params.batchId}:`,
-      error,
+    logger.error(
+      `Error getting IoT data for batch ${req.params.batchId}`,
+      { error: error.message, stack: error.stack },
     );
     const response = apiResponse.errorResponse(
       "Failed to retrieve IoT data",
@@ -128,7 +129,7 @@ router.get(
 
       res.json(response);
     } catch (error) {
-      console.error("Error getting oracle stats:", error);
+      logger.error("Error getting oracle stats", { error: error.message, stack: error.stack });
       const response = apiResponse.errorResponse(
         "Failed to retrieve oracle statistics",
         "ORACLE_STATS_ERROR",

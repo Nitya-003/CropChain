@@ -57,6 +57,8 @@ const VerificationDashboardComponent: React.FC = () => {
   >([]);
   const [uploading, setUploading] = useState(false);
 
+  const hasUploadErrors = uploadErrors.length > 0;
+
   const downloadTemplate = async () => {
     try {
       const response = await apiClient.get("/verification/bulk/template", {
@@ -120,6 +122,7 @@ const VerificationDashboardComponent: React.FC = () => {
   };
 
   const downloadErrorCsv = () => {
+    if (!hasUploadErrors) return;
     const headers = [
       "Row",
       ...Object.keys(uploadErrors[0]?.data || {}),
@@ -127,14 +130,13 @@ const VerificationDashboardComponent: React.FC = () => {
     ];
     const rows = uploadErrors.map((e) =>
       [
-        String(e.row),
-        ...Object.values(e.data).map(
-          (v) => `"${String(v).replace(/"/g, '""')}"`,
-        ),
+        `"${e.row}"`,
+        ...Object.values(e.data).map((v) => `"${String(v).replace(/"/g, '""')}"`),
         `"${e.errors.join("; ").replace(/"/g, '""')}"`,
       ].join(","),
     );
-    const csv = [headers.join(","), ...rows, ""].join("\n");
+    const escapedHeaders = headers.map((h) => `"${h.replace(/"/g, '""')}"`);
+    const csv = [escapedHeaders.join(","), ...rows, ""].join("\n");
     const url = window.URL.createObjectURL(
       new Blob([csv], { type: "text/csv" }),
     );
@@ -403,6 +405,7 @@ const VerificationDashboardComponent: React.FC = () => {
                   size="sm"
                   onClick={downloadErrorCsv}
                   className="gap-1.5"
+                  disabled={!hasUploadErrors}
                 >
                   <Download className="h-3 w-3" />
                   Download Error CSV
