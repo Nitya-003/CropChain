@@ -1,5 +1,6 @@
 # CropChain - Blockchain Crop Supply Chain Tracker
 
+[![CI](https://github.com/AnzalKhan16/CropChain/actions/workflows/ci.yml/badge.svg)](https://github.com/AnzalKhan16/CropChain/actions/workflows/ci.yml)
 <p align="center">
   <img src="https://img.shields.io/badge/Apertre-3.0-orange?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Apertre 3.0 Badge">
   <img src="https://img.shields.io/badge/GSSoC-2026-ffd700?style=for-the-badge&logo=github&logoColor=black" alt="GSSoC 2026 Badge">
@@ -85,6 +86,15 @@ The system is live and deployed across production services:
 ````md
 ## Docker Setup
 
+### Published Images (GHCR)
+
+Validated Docker images are automatically published to the GitHub Container Registry (GHCR) upon merging to the `main` branch or creating a release tag.
+
+Available images include:
+- `ghcr.io/<repository-owner>/backend:latest` (or `:main`, `:sha-<commit>`)
+- `ghcr.io/<repository-owner>/frontend:latest`
+- `ghcr.io/<repository-owner>/ml-service:latest`
+
 ### Prerequisites
 
 Make sure the following are installed on your system:
@@ -161,6 +171,18 @@ This starts:
 - ML Service (Python + Flask)
 - MongoDB Database
 - Hardhat Blockchain Node
+
+---
+
+## Automated AWS Deployment
+
+CropChain uses GitHub Actions to automate deployments to our AWS infrastructure. 
+
+When code is merged to the `main` branch and passes all CI tests, security scans, and SBOM generation, the `Deploy to AWS Production` workflow is triggered.
+
+- **Authentication**: Securely authenticates with AWS via OpenID Connect (OIDC) or Repository Secrets (`AWS_ROLE_ARN`).
+- **Deployment**: Uses the `deploy-aws.sh` script to package the codebase and deploy via AWS CloudFormation and Systems Manager (SSM) to an EC2 instance.
+- **Verification**: Automatically performs a health check on the deployed backend API to ensure successful deployment.
 
 ---
 

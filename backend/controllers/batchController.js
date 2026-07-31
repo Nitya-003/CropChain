@@ -515,52 +515,6 @@ exports.updateBatchStatus = async (req, res) => {
 };
 
 exports.exportBatch = async (req, res) => {
-    try {
-        const { batchId } = req.params;
-        const { format = 'pdf' } = req.query;
-
-        const batch = await Batch.findOne({ batchId }).lean();
-        if (!batch) {
-            return res.status(404).json(
-                apiResponse.errorResponse('Batch not found', 'BATCH_NOT_FOUND', 404)
-            );
-        }
-
-        if (batch.iotData) {
-            batch.currentTemperature = batch.iotData.currentTemperature ?? null;
-            batch.currentHumidity = batch.iotData.currentHumidity ?? null;
-            batch.isSpoiled = batch.iotData.isSpoiled ?? false;
-            batch.iotTimestamp = batch.iotData.lastUpdated ?? null;
-            delete batch.iotData;
-        }
-
-        if (format === 'csv') {
-            const csvData = [
-                'Field,Value',
-                `Batch ID,${escapeCsvCell(batch.batchId)}`,
-                `Crop Type,${escapeCsvCell(batch.cropType)}`,
-                `Quantity,${escapeCsvCell(batch.quantity + ' kg')}`,
-                `Harvest Date,${escapeCsvCell(batch.harvestDate || 'N/A')}`,
-                `Origin,${escapeCsvCell(batch.origin)}`,
-                `Farmer,${escapeCsvCell(batch.farmerName)}`,
-                `Current Stage,${escapeCsvCell(batch.currentStage)}`,
-                `Status,${escapeCsvCell(batch.isSpoiled ? 'Spoiled' : 'Active')}`,
-            ];
-
-            if (batch.updates?.length) {
-                csvData.push('');
-                csvData.push('Timeline');
-                csvData.push('Stage,Actor,Location,Date,Notes');
-                batch.updates.forEach(u => {
-                    csvData.push([
-                        escapeCsvCell(u.stage),
-                        escapeCsvCell(u.actor),
-                        escapeCsvCell(u.location),
-                        escapeCsvCell(u.timestamp),
-                        escapeCsvCell(u.notes),
-                    ].join(','));
-                });
-            }
   try {
     const { batchId } = req.params;
     const { format = "pdf" } = req.query;
@@ -602,14 +556,6 @@ exports.exportBatch = async (req, res) => {
         `Farmer,${escapeCsvCell(batch.farmerName)}`,
         `Current Stage,${escapeCsvCell(batch.currentStage)}`,
         `Status,${escapeCsvCell(batch.isSpoiled ? "Spoiled" : "Active")}`,
-        `Batch ID,${sanitizeCSV(batch.batchId)}`,
-        `Crop Type,${sanitizeCSV(batch.cropType)}`,
-        `Quantity,${batch.quantity} kg`,
-        `Harvest Date,${batch.harvestDate || "N/A"}`,
-        `Origin,${sanitizeCSV(batch.origin)}`,
-        `Farmer,${sanitizeCSV(batch.farmerName)}`,
-        `Current Stage,${sanitizeCSV(batch.currentStage)}`,
-        `Status,${batch.isSpoiled ? "Spoiled" : "Active"}`,
       ];
 
       if (batch.updates?.length) {
@@ -625,14 +571,6 @@ exports.exportBatch = async (req, res) => {
               escapeCsvCell(u.timestamp),
               escapeCsvCell(u.notes),
             ].join(","),
-          );
-          const stage = sanitizeCSV(u.stage || "").replace(/"/g, '""');
-          const actor = sanitizeCSV(u.actor || "").replace(/"/g, '""');
-          const location = sanitizeCSV(u.location || "").replace(/"/g, '""');
-          const timestamp = sanitizeCSV(u.timestamp || "").replace(/"/g, '""');
-          const notes = sanitizeCSV(u.notes || "").replace(/"/g, '""');
-          csvData.push(
-            `"${stage}","${actor}","${location}","${timestamp}","${notes}"`,
           );
         });
       }
