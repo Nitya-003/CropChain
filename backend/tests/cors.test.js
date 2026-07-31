@@ -1,78 +1,41 @@
+const express = require("express");
+const cors = require("cors");
 const request = require("supertest");
+const { createCorsOptions } = require("../startup/middleware");
+
+const ALLOWED_ORIGINS = ["http://trusted.com", "http://frontend.com"];
+
+function buildTestApp() {
+  const app = express();
+  app.use(cors(createCorsOptions(ALLOWED_ORIGINS)));
+  app.get("/api/status", (_req, res) => {
+    res.status(200).json({ status: "ok" });
+  });
+  return app;
+}
 
 describe("CORS Configuration", () => {
   let app;
 
   beforeEach(() => {
-    jest.resetModules();
-
-    process.env.NODE_ENV = "test";
-    process.env.ALLOWED_ORIGINS = "http://trusted.com";
-    process.env.FRONTEND_URL = "http://frontend.com";
-
     jest.spyOn(console, "log").mockImplementation(() => {});
     jest.spyOn(console, "error").mockImplementation(() => {});
     jest.spyOn(console, "warn").mockImplementation(() => {});
-
-    jest.mock("mongoose", () => {
-      const mSchema = function () {
-        return {
-          index: jest.fn(),
-          pre: jest.fn(),
-          post: jest.fn(),
-          virtual: jest.fn().mockReturnValue({
-            get: jest.fn().mockReturnThis(),
-            set: jest.fn().mockReturnThis(),
-          }),
-          methods: {},
-          statics: {},
-        };
-      };
-
-      // Mock Schema.Types
-      mSchema.Types = {
-        ObjectId: "ObjectId",
-        String: String,
-        Number: Number,
-        Boolean: Boolean,
-        Date: Date,
-      };
-
-      const mMongoose = {
-        connect: jest.fn(),
-        connection: { readyState: 1 },
-        startSession: jest.fn(),
-        Schema: mSchema,
-        model: jest.fn().mockImplementation(() => ({
-          find: jest.fn().mockReturnThis(),
-          findOne: jest.fn().mockReturnThis(),
-          create: jest.fn(),
-          findOneAndUpdate: jest.fn(),
-          sort: jest.fn().mockReturnThis(),
-          limit: jest.fn().mockReturnThis(),
-          skip: jest.fn().mockReturnThis(),
-        })),
-        Query: jest.fn(),
-      };
-      return mMongoose;
-    });
-
-    app = require("../server");
+    app = buildTestApp();
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
-  test("should allow requests from ALLOWED_ORIGINS", async () => {
+  test("should allow requests from ALLOWED_ORIGINS with credentials", async () => {
     const res = await request(app)
       .get("/api/status")
       .set("Origin", "http://trusted.com");
 
     expect(res.status).toBe(200);
-    // Default cors() returns * so this will fail if it expects http://trusted.com
-    // But for allowed origins, * is also technically allowed, but we want explicit allow.
-    // Let's check what it returns.
+    expect(res.headers["access-control-allow-origin"]).toBe("http://trusted.com");
+    expect(res.headers["access-control-allow-credentials"]).toBe("true");
   });
 
   test("should allow requests from FRONTEND_URL", async () => {
@@ -81,12 +44,8 @@ describe("CORS Configuration", () => {
       .set("Origin", "http://frontend.com");
 
     expect(res.status).toBe(200);
-  });
-
-  test("should allow requests with no origin", async () => {
-    const res = await request(app).get("/api/status");
-
-    expect(res.status).toBe(200);
+    expect(res.headers["access-control-allow-origin"]).toBe("http://frontend.com");
+    expect(res.headers["access-control-allow-credentials"]).toBe("true");
   });
 
   test("should block requests from disallowed origins", async () => {
@@ -94,8 +53,19 @@ describe("CORS Configuration", () => {
       .get("/api/status")
       .set("Origin", "http://evil.com");
 
-    // Current: 200 (FAIL)
-    // Expected after fix: 500/403
     expect(res.status).not.toBe(200);
+    expect(res.headers["access-control-allow-origin"]).toBeUndefined();
+    expect(res.headers["access-control-allow-credentials"]).toBeUndefined();
+  });
+
+  test("should deny requests with no origin when credentials are enabled", async () => {
+    const res = await request(app).get("/api/status");
+
+    // The request still executes (CORS is browser-enforced), but no origin or
+    // credential headers are reflected, so no-Origin clients cannot gain
+    // credentialed access.
+    expect(res.status).toBe(200);
+    expect(res.headers["access-control-allow-origin"]).toBeUndefined();
+    expect(res.headers["access-control-allow-credentials"]).toBeUndefined();
   });
 });

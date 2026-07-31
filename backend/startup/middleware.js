@@ -6,6 +6,30 @@ const createNoSqlSanitizer = require("../middleware/nosqlSanitizer");
 const { generalLimiter } = require("../middleware/rateLimiters");
 const notificationService = require("../services/notificationService");
 
+/**
+ * Build the CORS options for the express `cors` middleware.
+ *
+ * @param {string[]} uniqueAllowedOrigins - whitelisted origins
+ */
+function createCorsOptions(uniqueAllowedOrigins) {
+  return {
+    origin: function (origin, callback) {
+      // Deny requests that send no Origin header when credentials are enabled.
+      // Browsers always send an Origin header on cross-origin/credentialed
+      // requests; allowing no-Origin would reflect
+      // `Access-Control-Allow-Credentials: true` to non-browser clients.
+      if (!origin) return callback(null, false);
+      if (uniqueAllowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        logger.warn("CORS blocked", { origin });
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  };
+}
+
 module.exports = (app) => {
   // Security logging middleware
   const securityLogger = (req, res, next) => {
@@ -100,19 +124,7 @@ module.exports = (app) => {
     allowedOrigins.push("http://localhost:3000", "http://localhost:5173");
   const uniqueAllowedOrigins = [...new Set(allowedOrigins)];
 
-  const corsOptions = {
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true);
-      if (uniqueAllowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        logger.warn("CORS blocked", { origin });
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-  };
-  app.use(cors(corsOptions));
+  app.use(cors(createCorsOptions(uniqueAllowedOrigins)));
 
   const maxFileSize = parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024;
   app.use(express.json({ limit: maxFileSize }));
@@ -157,3 +169,5 @@ module.exports = (app) => {
     next();
   });
 };
+
+module.exports.createCorsOptions = createCorsOptions;
