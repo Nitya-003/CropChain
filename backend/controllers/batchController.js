@@ -285,14 +285,7 @@ exports.recallBatch = async (req, res) => {
   }
 };
 
-// Helper function to simulate blockchain hash (replace with actual blockchain integration)
-const simulateBlockchainHash = (data) => {
-  const crypto = require("crypto");
-  return crypto
-    .createHash("sha256")
-    .update(JSON.stringify(data) + Date.now() + crypto.randomBytes(16).toString("hex"))
-    .digest("hex");
-};
+
 
 exports.getBatches = async (req, res) => {
   try {

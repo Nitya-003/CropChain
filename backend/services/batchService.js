@@ -92,8 +92,32 @@ class BatchService {
         const batchId = await this.generateBatchId(session);
         const qrCode = await this.generateQRCode(batchId);
 
-        const blockchainHash =
-          batchData.blockchainHash || blockchainService.simulateHash(batchData);
+        let blockchainHash = batchData.blockchainHash || "";
+        let syncStatus = "pending";
+
+        // Perform actual synchronous blockchain interaction
+        if (blockchainService.isAvailable()) {
+            const txResult = await blockchainService.createBatchOnChain(
+                batchId,
+                batchData.cropType,
+                blockchainHash, // ipfsCID placeholder
+                batchData.quantity,
+                batchData.farmerName || user.name,
+                batchData.origin,
+                batchData.description || "Initial harvest recorded"
+            );
+            
+            if (txResult.success) {
+                blockchainHash = txResult.transactionHash;
+                syncStatus = "synced";
+            } else {
+                throw new Error(`Blockchain transaction failed: ${txResult.error || txResult.message}`);
+            }
+        } else {
+            // Fallback for demo mode
+            blockchainHash = blockchainService.simulateHash(batchData);
+            logger.warn(`Blockchain not available. Using simulated hash: ${blockchainHash}`);
+        }
 
         const initialUpdate = {
           stage: "farmer",
@@ -122,7 +146,7 @@ class BatchService {
               isRecalled: false,
               qrCode,
               blockchainHash,
-              syncStatus: batchData.blockchainHash ? "synced" : "pending",
+              syncStatus,
               updates: [initialUpdate],
               lifecycle: {
                 currentStage: "Registered",
@@ -146,10 +170,8 @@ class BatchService {
         await session.commitTransaction();
         session.endSession();
 
-        // Try to sync with blockchain (non-blocking)
-        if (createdBatch.syncStatus !== "synced") {
-          this.syncToBlockchain(createdBatch, "create");
-        }
+        // Sync to blockchain (update) is still async if needed, but create is now synchronous.
+        // We only call syncToBlockchain for updates or if we specifically decided to fall back.
 
         // Log platform activities
         await activityService.logActivity({
@@ -774,20 +796,9 @@ class BatchService {
 
     try {
       if (action === "create") {
-        const batchData = {
-          batchId: batch.batchId,
-          cropType: batch.cropType,
-          ipfsCID: batch.blockchainHash || "",
-          quantity: batch.quantity,
-          farmerName: batch.farmerName,
-          origin: batch.origin,
-          description: batch.description || "",
-        };
-
-        await blockchainQueue.addCreateBatchJob(batchData);
-        logger.info(
-          `[BatchService] Queued createBatch job for ${batch.batchId}`,
-        );
+        // Create is now handled synchronously in createBatch(). 
+        // This block is preserved just in case demo-mode batches need manual syncing later.
+        logger.info(`[BatchService] Batch ${batch.batchId} create sync is handled synchronously now.`);
       } else if (action === "update") {
         const lastUpdate =
           batch.updates && batch.updates.length > 0
