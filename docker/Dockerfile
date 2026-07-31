@@ -18,6 +18,8 @@ ENV NODE_ENV=production
 RUN npm install -g serve@14.2.4
 COPY --from=frontend-builder /app/frontend/dist ./dist
 EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 CMD ["serve", "-s", "dist", "-l", "3000"]
 
 # Backend dependency stage
@@ -36,4 +38,6 @@ COPY --from=backend-builder /app/backend .
 RUN chown -R node:node /app/backend
 USER node
 EXPOSE 3001
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/api/health || exit 1
 CMD ["node", "server.js"]

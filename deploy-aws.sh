@@ -168,6 +168,34 @@ while true; do
     sleep 10
 done
 
+echo "⏳ Running Post-Deployment Health Checks..."
+MAX_RETRIES=12
+RETRY_COUNT=0
+HEALTHY=false
+
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    echo "   ... Checking services (Attempt $((RETRY_COUNT+1))/$MAX_RETRIES)"
+    BACKEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://$EC2_PUBLIC_IP:3001/api/health || echo "000")
+    ML_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://$EC2_PUBLIC_IP:5001/health || echo "000")
+    
+    if [ "$BACKEND_STATUS" = "200" ] && [ "$ML_STATUS" = "200" ]; then
+        echo "✅ All required services are healthy!"
+        HEALTHY=true
+        break
+    fi
+    
+    echo "   ... Backend HTTP Status: $BACKEND_STATUS"
+    echo "   ... ML Service HTTP Status: $ML_STATUS"
+    echo "   ... Retrying in 10 seconds..."
+    sleep 10
+    RETRY_COUNT=$((RETRY_COUNT+1))
+done
+
+if [ "$HEALTHY" = "false" ]; then
+    echo "❌ Post-Deployment Health Check Failed! Services are not reachable."
+    exit 1
+fi
+
 echo "🎉 AWS Backend Service deployed successfully!"
 echo "📡 Access API directly: http://$EC2_PUBLIC_IP:3001"
 echo "📊 Health Check endpoint: http://$EC2_PUBLIC_IP:3001/api/health"
