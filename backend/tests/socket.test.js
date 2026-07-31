@@ -62,10 +62,13 @@ describe("Socket.IO Service", () => {
         headers: {},
       },
       user: undefined,
+      connected: true,
+      id: "socket-1",
       join: jest.fn(),
       leave: jest.fn(),
       on: jest.fn(),
       emit: jest.fn(),
+      removeAllListeners: jest.fn(),
     };
     mockNext = jest.fn();
   });
@@ -405,6 +408,142 @@ describe("Socket.IO Service", () => {
         "bid_error",
         expect.any(Object),
       );
+    });
+  });
+
+  describe("Rate Limiter Cleanup", () => {
+    test("checkRate allows up to maxPerSecond then rejects", () => {
+      const { createRateLimiter } = require("../services/socketService");
+      const limiter = createRateLimiter();
+
+      for (let i = 0; i < 10; i++) {
+        expect(limiter.checkRate("place_bid", "socket-1")).toBe(true);
+      }
+      expect(limiter.checkRate("place_bid", "socket-1")).toBe(false);
+      expect(limiter.checkRate("join-batch-room", "socket-1")).toBe(true);
+    });
+
+    test("clearSocket removes buckets for that socket only", () => {
+      const { createRateLimiter } = require("../services/socketService");
+      const limiter = createRateLimiter();
+
+      for (let i = 0; i < 10; i++) {
+        limiter.checkRate("place_bid", "socket-1");
+        limiter.checkRate("place_bid", "socket-2");
+      }
+      expect(limiter.checkRate("place_bid", "socket-1")).toBe(false);
+      expect(limiter.checkRate("place_bid", "socket-2")).toBe(false);
+
+      limiter.clearSocket("socket-1");
+
+      for (let i = 0; i < 10; i++) {
+        expect(limiter.checkRate("place_bid", "socket-1")).toBe(true);
+      }
+      expect(limiter.checkRate("place_bid", "socket-2")).toBe(false);
+    });
+  });
+
+  describe("Disconnect Cleanup", () => {
+    test("disconnect prunes rate limiter buckets and removes all listeners", () => {
+      const { Server } = require("socket.io");
+      socketService.initializeSocketIO({});
+
+      const connectionHandler = Server.onCallback.mock.calls.find(
+        ([eventName]) => eventName === "connection",
+      )[1];
+      mockSocket.user = { id: "user-a", role: "farmer" };
+      connectionHandler(mockSocket);
+
+      const joinBatchRoomHandler = mockSocket.on.mock.calls.find(
+        ([eventName]) => eventName === "join-batch-room",
+      )[1];
+
+      for (let i = 0; i < 10; i++) {
+        joinBatchRoomHandler("batch-1");
+      }
+      joinBatchRoomHandler("batch-1");
+      expect(mockSocket.emit).toHaveBeenCalledWith("error", {
+        message: "Too many requests. Please slow down.",
+      });
+      mockSocket.emit.mockClear();
+
+      const disconnectHandler = mockSocket.on.mock.calls.find(
+        ([eventName]) => eventName === "disconnect",
+      )[1];
+      disconnectHandler();
+
+      expect(mockSocket.removeAllListeners).toHaveBeenCalled();
+    });
+  });
+
+  describe("Disconnected Socket Guards", () => {
+    test("withGuard skips the handler when the socket is disconnected", async () => {
+      const { Server } = require("socket.io");
+      socketService.initializeSocketIO({});
+
+      const connectionHandler = Server.onCallback.mock.calls.find(
+        ([eventName]) => eventName === "connection",
+      )[1];
+      mockSocket.user = { id: "user-a", role: "farmer" };
+      mockSocket.connected = false;
+      connectionHandler(mockSocket);
+      mockSocket.join.mockClear();
+      mockSocket.emit.mockClear();
+
+      const joinBatchRoomHandler = mockSocket.on.mock.calls.find(
+        ([eventName]) => eventName === "join-batch-room",
+      )[1];
+      await joinBatchRoomHandler("batch-1");
+
+      expect(mockSocket.join).not.toHaveBeenCalled();
+      expect(mockSocket.emit).not.toHaveBeenCalled();
+    });
+
+    test("safeEmit does not emit after the socket disconnects mid-handler", async () => {
+      const { Server } = require("socket.io");
+      socketService.initializeSocketIO({});
+
+      const connectionHandler = Server.onCallback.mock.calls.find(
+        ([eventName]) => eventName === "connection",
+      )[1];
+      mockSocket.user = { id: "user-a", name: "User A" };
+      connectionHandler(mockSocket);
+
+      const placeBidHandler = mockSocket.on.mock.calls.find(
+        ([eventName]) => eventName === "place_bid",
+      )[1];
+
+      mockAuction.findById.mockReset();
+      mockAuction.findOneAndUpdate.mockReset();
+      mockUser.findById.mockReset();
+      mockUser.findByIdAndUpdate.mockReset();
+      mockBid.mockClear();
+      mockBidSave.mockReset();
+      mockBidSave.mockResolvedValue({});
+
+      mockAuction.findById.mockImplementation(() => {
+        mockSocket.connected = false;
+        return Promise.resolve({
+          _id: "auction-1",
+          farmerId: { toString: () => "farmer-1" },
+          batchId: "BATCH001",
+          status: "active",
+          endTime: new Date(Date.now() + 60000),
+          currentHighestBid: 0,
+          highestBidder: null,
+        });
+      });
+      mockUser.findById.mockResolvedValue({ _id: "user-a", balance: 1000 });
+      mockAuction.findOneAndUpdate.mockResolvedValue({
+        _id: "auction-1",
+        currentHighestBid: 50,
+        highestBidder: "user-a",
+        toObject: () => ({}),
+      });
+
+      await placeBidHandler({ auctionId: "auction-1", bidAmount: 50 });
+
+      expect(mockSocket.emit).not.toHaveBeenCalled();
     });
   });
 });
