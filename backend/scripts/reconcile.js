@@ -1,7 +1,7 @@
 require("dotenv").config();
 const { ethers } = require("ethers");
 const Batch = require("../models/Batch");
-const { getContract, initialize } = require("../config/blockchain");
+const { initialize } = require("../config/blockchain");
 
 const STAGE_NAMES = ["farmer", "mandi", "transport", "retailer"];
 
@@ -28,7 +28,6 @@ function normalizeBatchId(batchIdBytes32) {
 async function reconcile() {
   console.log("🔄 Starting reconciliation...");
 
-  const contract = await getContract();
   const contract = await initialize();
   if (!contract) {
     console.error("❌ Blockchain contract not available. Check configuration.");
