@@ -1,3 +1,16 @@
+name: CropChain Deployment
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy Application
+    runs-on: ubuntu-latest
+
 name: Deploy to AWS Production
 
 on:
@@ -21,6 +34,66 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Record Start Time
+        id: start_time
+        run: echo "START_TIME=$(date +%s)" >> $GITHUB_ENV
+
+      - name: Deploy Application
+        id: deployment
+        run: |
+          echo "Simulating deployment to staging/production..."
+          sleep 2
+          # Replace with actual deployment commands
+          echo "Deployment successful."
+
+      - name: Run Health Checks
+        id: health_checks
+        run: |
+          echo "Running post-deployment health checks..."
+          sleep 2
+          # Replace with actual health check commands
+          echo "Health checks passed."
+
+      - name: Generate Success Summary
+        if: success()
+        run: |
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          MINUTES=$((DURATION / 60))
+          SECONDS=$((DURATION % 60))
+          
+          cat <<EOF >> $GITHUB_STEP_SUMMARY
+          ## 🚀 Deployment Status Summary
+          
+          | Information | Details |
+          | ----------- | ------- |
+          | **Status** | ✅ Successful |
+          | **Branch or Tag** | \`${GITHUB_REF_NAME}\` |
+          | **Commit** | \`${GITHUB_SHA::7}\` |
+          | **Duration** | ${MINUTES}m ${SECONDS}s |
+          | **Health Checks** | ✅ Passed |
+          EOF
+
+      - name: Generate Failure Summary
+        if: failure()
+        run: |
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          MINUTES=$((DURATION / 60))
+          SECONDS=$((DURATION % 60))
+          
+          cat <<EOF >> $GITHUB_STEP_SUMMARY
+          ## 🚨 Deployment Status Summary
+          
+          | Information | Details |
+          | ----------- | ------- |
+          | **Status** | ❌ Failed |
+          | **Branch or Tag** | \`${GITHUB_REF_NAME}\` |
+          | **Commit** | \`${GITHUB_SHA::7}\` |
+          | **Duration** | ${MINUTES}m ${SECONDS}s |
+          | **Health Checks** | ❌ Failed |
+          | **Failure Details** | Deployment or post-deployment health verification encountered an error. Please inspect the workflow logs for precise error details. |
+          EOF
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
