@@ -1,27 +1,31 @@
 ## 📌 Overview
 
-This PR fixes the floating-point precision bug where `balance`, `startPrice`, `currentHighestBid`, and `bidAmount` were stored as MongoDB `Number` (64-bit IEEE 754 double), which cannot represent many decimal values exactly. Repeated bid/refund cycles caused silent balance drift (e.g., `99999.99999999999` instead of `100000`).
-This PR fixes the inconsistent password validation in `setFallbackPassword` and `resetPassword` endpoints. The standard `registerSchema` enforces a strong password policy (min 8 chars, uppercase, lowercase, digit, special character), but the fallback password path only checked `password.length < 6`, allowing weak passwords like `"abc123"`.
+This PR fixes the corrupted `backend/controllers/auctionController.js` which had duplicate imports (lines 111-118) and a duplicate `createAuction` function declaration (line 121) causing `SyntaxError: missing ) after argument list`. The same corruption pattern affected `authController.js`, `batchController.js`, `Auction.js`, `Bid.js`, and `User.js` — each had duplicate imports, duplicate schema/function definitions, and improperly closed blocks from a bad merge.
+This PR fixes the duplicate `balance` field definition in `backend/models/User.js` where the field was declared twice with conflicting types — first as `mongoose.Schema.Types.Decimal128` with a `fromString('100000')` default, immediately followed by `type: Number` with `default: 100000`. Mongoose silently used only the last definition, causing all balance operations to use raw JavaScript `Number` with floating-point precision instead of `Decimal128`, resulting in silent financial rounding errors.
+This PR fixes the badly merged `backend/controllers/authController.js` which had fully duplicated imports (lines 1-14 and 15-27), duplicate schema definitions producing unreachable dead code (lines 88-112), a duplicate `sanitizeUser` helper (lines 152-158 vs 159-165) where the second version returned raw `user.balance` instead of `toNumber(user.balance || 0)`, and a duplicate `resetPassword` function (lines 880-928 vs 929-1019) where the second version used a weaker `password.length < 8` string-length check instead of the proper Zod `passwordSchema`.
 
 ## 🛠️ Type of Change
 - [ ] ⛓️ **Smart Contract** (Solidity changes, Gas optimization)
 - [ ] 💻 **Frontend** (UI/UX, React components, Tailwind)
 - [x] ⚙️ **Backend** (API routes, MongoDB schemas, Middleware)
 - [ ] 📄 **Documentation** (README, Roadmap updates)
-- [ ] 🧪 **Testing** (Hardhat tests, Jest/Vitest)
+- [x] 🧪 **Testing** (Hardhat tests, Jest/Vitest)
 
 ---
 
 ## 🔗 Related Issue
-Closes #775
-Closes #776
+Closes #827
+Closes #828
+Closes #829
 
 ---
 
 ## 🧪 Testing & Verification
 - [ ] **Smart Contracts:** `npx hardhat test` passed? (Yes/No/NA)
 - [ ] **Frontend:** Verified on Mobile/Desktop responsiveness? (Yes/No/NA)
-- [x] **Integration:** Verified `ethers.js` connectivity with local/testnet node? (Yes/No/NA)
+- [x] **Integration:** Verified all 6 files load without syntax errors via `node -e "require(...)"`
+- [x] **Integration:** Verified `User.js` loads without errors and balance uses `Decimal128` type
+- [x] **Integration:** Verified `authController.js` loads without syntax errors and uses Zod validation consistently
 
 ---
 
@@ -33,7 +37,7 @@ N/A
 
 ## ✅ PR Checklist
 - [x] My code follows the project's style guidelines.
-- [x] I have commented my code, particularly in complex areas (e.g., Smart Contract logic).
+- [ ] I have commented my code, particularly in complex areas (e.g., Smart Contract logic).
 - [ ] I have updated the documentation accordingly.
 - [x] My changes generate no new warnings.
 
@@ -41,55 +45,6 @@ N/A
 
 ## 💬 Additional Notes
 
-### Root cause
-Mongoose `Number` maps to a 64-bit IEEE 754 double-precision floating-point value in both MongoDB and JavaScript. Floating-point arithmetic cannot represent many decimal values exactly:
-
-```
-0.1 + 0.2 = 0.30000000000000004  (not 0.3)
-```
-
-The auction controller (`placeBid`) performed:
-
-```js
-previousBidder.balance += auction.currentHighestBid;  // addition
-user.balance -= bidAmount;                             // subtraction
-```
-
-With repeated bids, refunds, and balance transfers, rounding errors accumulated silently. For large balances (above 2⁵³ ≈ 9×10¹⁵), integer precision was lost entirely.
-
-### Fix
-Changed `balance`, `startPrice`, `currentHighestBid`, and `bidAmount` from `Number` to `mongoose.Schema.Types.Decimal128` (MongoDB's exact decimal type, 34-digit precision). All arithmetic operations now use the `decimal.js` library via a shared utility module (`backend/utils/decimalHelpers.js`), ensuring exact decimal arithmetic.
-
-Key changes:
-- **`backend/models/User.js`** — `balance` → `mongoose.Schema.Types.Decimal128`
-- **`backend/models/Auction.js`** — `startPrice`, `currentHighestBid` → `mongoose.Schema.Types.Decimal128`
-- **`backend/models/Bid.js`** — `bidAmount` → `mongoose.Schema.Types.Decimal128`
-- **`backend/controllers/auctionController.js`** — `placeBid` and `createAuction` use Decimal128 arithmetic
-- **`backend/controllers/authController.js`** — `addFunds` and `sanitizeUser` use Decimal128
-- **`backend/jobs/auctionSettlement.js`** — farmer credit uses `decimal.js` instead of `$inc`
-- **`backend/services/socketService.js`** — real-time `place_bid` handler uses Decimal128
-- **`backend/utils/decimalHelpers.js`** — shared utility for Decimal128 ↔ decimal.js conversion and comparison
-- **`backend/package.json`** — added `decimal.js` dependency
-
-All schemas include `toJSON` transforms that convert Decimal128 back to JavaScript numbers for API responses, so the frontend API contract remains unchanged.
-`setFallbackPassword` (line 814) only validated `password.length < 6`, ignoring the uppercase, lowercase, digit, and special character requirements enforced by `registerSchema`. A wallet-authenticated user could set a weak 6-character password like `"abc123"`, creating an inconsistent security boundary — the weakest link determined auth strength for wallet users.
-
-Similarly, `resetPassword` had duplicate inline validation logic that was functionally equivalent but maintained separately from the shared schema.
-
-### Fix
-Extracted a reusable `passwordSchema` from the `registerSchema` definition and applied it consistently across all three password-setting paths:
-
-- **`registerSchema`** — now references the shared `passwordSchema`
-- **`updateProfileSchema`** — now references `passwordSchema.optional()`
-- **`setFallbackPassword`** — validates via `passwordSchema.safeParse()` instead of `length < 6`
-- **`resetPassword`** — validates via `passwordSchema.safeParse()` instead of inline regex
-
-The `passwordSchema` enforces:
-- Minimum 8 characters
-- Maximum 128 characters
-- At least one uppercase letter
-- At least one lowercase letter
-- At least one digit
-- At least one special character
-
-This ensures a single source of truth for password policy across the entire application, eliminating the weak-link security gap.
+The corruption was introduced by a merge that duplicated every code block with an alternative double-quoted version. The fix retains the original single-quoted style with proper Decimal128 helper usage (`toDecimal`, `fromDecimal`, `fromString`, `toNumber`) and removes all duplicated blocks, restoring all auction, auth, and batch endpoints to working order.
+The duplicate field was introduced during a previous merge conflict resolution that left both old (`Number`) and new (`Decimal128`) balance definitions in the schema. Removing the duplicate `Number` definition ensures all balance operations use consistent `Decimal128` precision for accurate financial calculations across bids, fund transfers, and balance queries.
+The corruption was introduced by a merge that duplicated every code block in the file. The second `resetPassword` silently overrode the first, using `password.length < 8` instead of the Zod schema with full character-class requirements (uppercase, lowercase, digit, special char). Similarly, the second `sanitizeUser` overrode the first and returned raw `Number` balance instead of the `toNumber()`-converted value. All duplicate blocks have been removed and the single remaining implementations use consistent validation and Decimal128 handling.

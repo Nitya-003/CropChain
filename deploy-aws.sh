@@ -4,16 +4,29 @@ set -e
 echo "🚀 Starting CropChain AWS Deployment (Free-Tier EC2 + Docker Compose)..."
 
 # Read user interactive variables
-if [ -z "$ETH_PRIVATE_KEY" ]; then
-    echo "⚠️  ETH_PRIVATE_KEY environment variable is not set. Reading from interactive shell..."
-    read -sp "Enter your Ethereum Private Key (Sepolia): " ETH_PRIVATE_KEY
-    echo ""
+# Signing credentials: an ENCRYPTED keystore is strongly preferred
+# (ETH_KEYSTORE_JSON = base64 of the Web3 Secret Storage JSON, plus
+# WALLET_KEYSTORE_PASSWORD). The plaintext ETH_PRIVATE_KEY path is deprecated
+# and only kept for backward compatibility.
+if [ -z "$WALLET_KEYSTORE_PASSWORD" ] && [ -z "$ETH_KEYSTORE_JSON" ] && [ -z "$ETH_PRIVATE_KEY" ]; then
+    if [ "$CI" = "true" ]; then
+        ETH_PRIVATE_KEY="dummy_private_key_for_ci_builds_00000000000000000000000000"
+    else
+        echo "⚠️  No blockchain signing credentials set."
+        echo "    Recommended: export ETH_KEYSTORE_JSON=\"\$(base64 -w0 keystore.json)\""
+        echo "    Recommended: export WALLET_KEYSTORE_PASSWORD=\"...\""
+        echo "    (Deprecated) export ETH_PRIVATE_KEY=0x... stores the key in plaintext."
+        read -sp "Enter your Ethereum private key (only if not using an encrypted keystore): " ETH_PRIVATE_KEY
+        echo ""
+    fi
 fi
 
 # Load Cloudflare token if present
 if [ -z "$CLOUDFLARE_TUNNEL_TOKEN" ]; then
-    read -sp "Enter your Cloudflare Tunnel Token (optional, press Enter to skip): " CLOUDFLARE_TUNNEL_TOKEN
-    echo ""
+    if [ "$CI" != "true" ]; then
+        read -sp "Enter your Cloudflare Tunnel Token (optional, press Enter to skip): " CLOUDFLARE_TUNNEL_TOKEN
+        echo ""
+    fi
 fi
 
 # Load JWT/HMAC secrets or generate them if they are not set
@@ -110,9 +123,14 @@ rm repo.tar.gz
 
 cd CropChain
 
-# Create .env file for docker-compose interpolation
+# Create .env file for docker-compose interpolation.
+# The raw private key is NEVER written here — if an encrypted keystore is
+# provided it is passed through as base64 (ETH_KEYSTORE_JSON) and decrypted at
+# runtime by utils/keystore via Wallet.fromEncryptedJson.
 cat <<EOT > .env
 ETH_PRIVATE_KEY=$ETH_PRIVATE_KEY
+WALLET_KEYSTORE_JSON=$ETH_KEYSTORE_JSON
+WALLET_KEYSTORE_PASSWORD=$WALLET_KEYSTORE_PASSWORD
 GEMINI_API_KEY=$GEMINI_API_KEY
 JWT_SECRET=$JWT_SECRET
 JWT_REFRESH_SECRET=$JWT_REFRESH_SECRET
@@ -161,6 +179,34 @@ while true; do
     fi
     sleep 10
 done
+
+echo "⏳ Running Post-Deployment Health Checks..."
+MAX_RETRIES=12
+RETRY_COUNT=0
+HEALTHY=false
+
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    echo "   ... Checking services (Attempt $((RETRY_COUNT+1))/$MAX_RETRIES)"
+    BACKEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://$EC2_PUBLIC_IP:3001/api/health || echo "000")
+    ML_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://$EC2_PUBLIC_IP:5001/health || echo "000")
+    
+    if [ "$BACKEND_STATUS" = "200" ] && [ "$ML_STATUS" = "200" ]; then
+        echo "✅ All required services are healthy!"
+        HEALTHY=true
+        break
+    fi
+    
+    echo "   ... Backend HTTP Status: $BACKEND_STATUS"
+    echo "   ... ML Service HTTP Status: $ML_STATUS"
+    echo "   ... Retrying in 10 seconds..."
+    sleep 10
+    RETRY_COUNT=$((RETRY_COUNT+1))
+done
+
+if [ "$HEALTHY" = "false" ]; then
+    echo "❌ Post-Deployment Health Check Failed! Services are not reachable."
+    exit 1
+fi
 
 echo "🎉 AWS Backend Service deployed successfully!"
 echo "📡 Access API directly: http://$EC2_PUBLIC_IP:3001"

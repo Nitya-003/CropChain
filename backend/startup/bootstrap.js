@@ -2,10 +2,10 @@ const logger = require("../utils/logger");
 const blockchainService = require("../services/blockchainService");
 const ccipService = require("../services/ccipService");
 const oracleService = require("../services/oracleService");
+const keystore = require("../utils/keystore");
 const startListener = require("../services/blockchainListener");
 const createAdmin = require("../scripts/create-admin");
 const { startAuctionSettlementJob } = require("../jobs/auctionSettlement");
-const { ethers } = require("ethers");
 
 const runStartupTasks = async (port) => {
   logger.info(`CropChain API server running on port ${port}`);
@@ -41,29 +41,9 @@ const runStartupTasks = async (port) => {
 
   logger.info("Server startup complete");
 
-  // Initialize blockchain provider and contract directly here as well if needed.
-  // Notice: `blockchainService` initializes internally, but server.js used to also do:
-  const PROVIDER_URL = process.env.INFURA_URL;
-  const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
-  const PRIVATE_KEY = process.env.PRIVATE_KEY;
-
-  let contractInstance;
-  if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY) {
-    try {
-      const provider = new ethers.JsonRpcProvider(PROVIDER_URL);
-      const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
-      contractInstance = new ethers.Contract(
-        CONTRACT_ADDRESS,
-        blockchainService.getContractABI(),
-        wallet,
-      );
-      logger.info("Blockchain contract instance initialized (legacy setup)");
-    } catch (error) {
-      logger.error("Failed to initialize blockchain connection", {
-        error: error.message,
-      });
-    }
-  }
+  // Ensure the blockchain signer (encrypted keystore / KMS / Vault / legacy env)
+  // has been resolved before starting any consumers of the contract.
+  await blockchainService.initialize();
 
   // Start background auction settlement check
   startAuctionSettlementJob();
@@ -84,7 +64,7 @@ const runStartupTasks = async (port) => {
   }
 
   // Initialize CCIP dispatch service.
-  if (ccipService.initialize()) {
+  if (await ccipService.initialize()) {
     logger.info("CCIP service initialized");
   } else {
     logger.info("CCIP service not configured - cross-chain dispatch disabled");
@@ -94,7 +74,7 @@ const runStartupTasks = async (port) => {
   if (
     process.env.ORACLE_ENABLED === "true" &&
     blockchainService.isAvailable() &&
-    process.env.ORACLE_PRIVATE_KEY
+    keystore.hasSigningMaterial("oracle")
   ) {
     try {
       await oracleService.initialize();

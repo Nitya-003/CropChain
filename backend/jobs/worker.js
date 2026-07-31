@@ -4,6 +4,7 @@ const { QUEUE_NAMES, JOB_TYPES, addEmailJob } = require("./queue");
 const { sendEmail } = require("../services/emailService");
 const Batch = require("../models/Batch");
 const User = require("../models/User");
+const logger = require("../utils/logger");
 
 let worker = null;
 
@@ -13,7 +14,7 @@ let worker = null;
  */
 async function processSendEmail(job) {
   const { to, subject, html } = job.data;
-  console.log(`[NotificationWorker] Sending email to ${to}`);
+  logger.info(`[NotificationWorker] Sending email to ${to}`);
 
   await job.updateProgress(10);
   const result = await sendEmail(to, subject, html);
@@ -31,7 +32,7 @@ async function processSendEmail(job) {
  * @param {Object} job
  */
 async function processDelayedAlertCheck(job) {
-  console.log(`[NotificationWorker] Running delayed alert check...`);
+  logger.info(`[NotificationWorker] Running delayed alert check...`);
 
   const thresholdDays = parseInt(process.env.DELAYED_ALERT_DAYS, 10) || 3;
   const thresholdDate = new Date();
@@ -44,7 +45,7 @@ async function processDelayedAlertCheck(job) {
     updatedAt: { $lt: thresholdDate },
   }).lean();
 
-  console.log(
+  logger.info(
     `[NotificationWorker] Found ${delayedBatches.length} delayed batches.`,
   );
   await job.updateProgress(50);
@@ -111,18 +112,18 @@ function initializeWorker() {
   });
 
   worker.on("completed", (job, result) => {
-    console.log(`[NotificationWorker] Job ${job.id} completed.`, result);
+    logger.info(`[NotificationWorker] Job ${job.id} completed`, { result });
   });
 
   worker.on("failed", (job, err) => {
-    console.error(`[NotificationWorker] Job ${job?.id} failed:`, err.message);
+    logger.error(`[NotificationWorker] Job ${job?.id} failed`, { error: err.message });
   });
 
   worker.on("error", (err) => {
-    console.error("[NotificationWorker] Worker error:", err.message);
+    logger.error("[NotificationWorker] Worker error", { error: err.message });
   });
 
-  console.log("✓ Notification worker started");
+  logger.info("✓ Notification worker started");
   return worker;
 }
 
@@ -134,7 +135,7 @@ async function stopWorker() {
   if (worker) {
     await worker.close();
     worker = null;
-    console.log("✓ Notification worker stopped");
+    logger.info("✓ Notification worker stopped");
   }
 }
 
