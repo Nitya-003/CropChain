@@ -15,6 +15,7 @@
 const { Worker } = require("bullmq");
 const { ethers } = require("ethers");
 const { createQueueConnection } = require("../config/redis");
+const { loadWallet } = require("../utils/keystore");
 const { QUEUE_NAMES, JOB_TYPES } = require("./blockchainQueue");
 const Batch = require("../models/Batch");
 const User = require("../models/User");
@@ -78,6 +79,7 @@ let worker = null;
 let provider = null;
 let wallet = null;
 let contract = null;
+let initPromise = null;
 
 // Contract ABI
 const contractABI = [
@@ -89,30 +91,43 @@ const contractABI = [
 ];
 
 /**
- * Initialize blockchain connection
+ * Initialize blockchain connection.
+ * Async because the signer may come from an encrypted keystore / KMS / Vault.
+ * @returns {Promise<boolean>} True when the worker has a connected contract
  */
 function initializeBlockchain() {
-  const PROVIDER_URL = process.env.INFURA_URL;
-  const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
-  const PRIVATE_KEY = process.env.PRIVATE_KEY;
+  if (initPromise) return initPromise;
 
-  if (!PROVIDER_URL || !CONTRACT_ADDRESS || !PRIVATE_KEY) {
-    console.warn(
-      "[Worker] Blockchain not configured - running in simulation mode",
-    );
-    return false;
-  }
+  initPromise = (async () => {
+    const PROVIDER_URL = process.env.INFURA_URL;
+    const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
 
-  try {
-    provider = new ethers.JsonRpcProvider(PROVIDER_URL);
-    wallet = new ethers.Wallet(PRIVATE_KEY, provider);
-    contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, wallet);
-    console.log("✓ Worker blockchain connection initialized");
-    return true;
-  } catch (error) {
-    console.error("[Worker] Failed to initialize blockchain:", error.message);
-    return false;
-  }
+    if (!PROVIDER_URL || !CONTRACT_ADDRESS) {
+      console.warn(
+        "[Worker] Blockchain not configured - running in simulation mode",
+      );
+      return false;
+    }
+
+    try {
+      provider = new ethers.JsonRpcProvider(PROVIDER_URL);
+      wallet = await loadWallet(provider, "default");
+      if (!wallet) {
+        console.warn(
+          "[Worker] No signing credentials configured - running in simulation mode",
+        );
+        return false;
+      }
+      contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, wallet);
+      console.log("✓ Worker blockchain connection initialized");
+      return true;
+    } catch (error) {
+      console.error("[Worker] Failed to initialize blockchain:", error.message);
+      return false;
+    }
+  })();
+
+  return initPromise;
 }
 
 /**
@@ -720,14 +735,23 @@ function initializeWorker() {
 
   const connection = createQueueConnection();
 
-  worker = new Worker(QUEUE_NAMES.BLOCKCHAIN, processJob, {
-    connection,
-    concurrency: parseInt(process.env.BLOCKCHAIN_WORKER_CONCURRENCY, 10) || 3,
-    limiter: {
-      max: parseInt(process.env.BLOCKCHAIN_RATE_LIMIT_MAX, 10) || 10,
-      duration: parseInt(process.env.BLOCKCHAIN_RATE_LIMIT_WINDOW, 10) || 60000, // 10 transactions per minute
+  worker = new Worker(
+    QUEUE_NAMES.BLOCKCHAIN,
+    async (job) => {
+      // Ensure the signer/contract is ready before processing any job.
+      await initializeBlockchain();
+      return processJob(job);
     },
-  });
+    {
+      connection,
+      concurrency: parseInt(process.env.BLOCKCHAIN_WORKER_CONCURRENCY, 10) || 3,
+      limiter: {
+        max: parseInt(process.env.BLOCKCHAIN_RATE_LIMIT_MAX, 10) || 10,
+        duration:
+          parseInt(process.env.BLOCKCHAIN_RATE_LIMIT_WINDOW, 10) || 60000, // 10 transactions per minute
+      },
+    },
+  );
 
   // Worker event handlers
   worker.on("completed", (job, result) => {
