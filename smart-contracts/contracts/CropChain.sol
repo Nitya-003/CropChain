@@ -620,13 +620,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         emit RoleUpdated(account, roles[account]);
     }
 
-    function _canUpdate(Stage stage, ActorRole role) internal pure returns (bool) {
-        if (stage == Stage.Farmer && role == ActorRole.Farmer) return true;
-        if (stage == Stage.Mandi && role == ActorRole.Mandi) return true;
-        if (stage == Stage.Transport && role == ActorRole.Transporter) return true;
-        if (stage == Stage.Retailer && role == ActorRole.Retailer) return true;
-        return false;
-    }
+
 
     function _getCurrentCustodian(bytes32 batchId) internal view returns (address) {
         SupplyChainUpdate[] storage updates = _batchUpdates[batchId];
