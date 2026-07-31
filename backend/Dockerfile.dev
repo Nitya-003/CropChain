@@ -24,5 +24,9 @@ USER nodejs
 # Expose port 3001
 EXPOSE 3001
 
+# Healthcheck to monitor container status
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/api/health || exit 1
+
 # Default command for development (assuming nodemon/watch mode)
 CMD ["npm", "run", "dev"]
