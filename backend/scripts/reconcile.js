@@ -1,5 +1,6 @@
 require("dotenv").config();
 const { ethers } = require("ethers");
+const logger = require("../utils/logger");
 const Batch = require("../models/Batch");
 const { getContract } = require("../config/blockchain");
 
@@ -26,18 +27,18 @@ function normalizeBatchId(batchIdBytes32) {
 }
 
 async function reconcile() {
-  console.log("🔄 Starting reconciliation...");
+  logger.info("🔄 Starting reconciliation...");
 
   const contract = getContract();
   if (!contract) {
-    console.error("❌ Blockchain contract not available. Check configuration.");
+    logger.error("❌ Blockchain contract not available. Check configuration.");
     process.exit(1);
   }
 
   try {
     const totalBatches = await contract.getTotalBatches();
     const total = toNumber(totalBatches);
-    console.log(`📊 Found ${total} batches on blockchain`);
+    logger.info(`📊 Found ${total} batches on blockchain`);
 
     let synced = 0;
     let skipped = 0;
@@ -78,43 +79,43 @@ async function reconcile() {
 
         if (updateResult.matchedCount === 0) {
           skipped++;
-          console.log(`  - Skipped batch not found locally: ${batchId}`);
+          logger.info(`  - Skipped batch not found locally: ${batchId}`);
           continue;
         }
 
         synced++;
-        console.log(`  ✓ Synced batch: ${batchId}`);
+        logger.info(`  ✓ Synced batch: ${batchId}`);
       } catch (batchError) {
         errors++;
-        console.error(
+        logger.error(
           `  ✗ Error processing batch at index ${index}:`,
-          batchError.message,
+          { error: batchError.message },
         );
       }
     }
 
-    console.log(`\n✅ Batch Reconciliation complete:`);
-    console.log(`   - Synced: ${synced}`);
-    console.log(`   - Skipped: ${skipped}`);
-    console.log(`   - Errors: ${errors}`);
+    logger.info(`\n✅ Batch Reconciliation complete:`);
+    logger.info(`   - Synced: ${synced}`);
+    logger.info(`   - Skipped: ${skipped}`);
+    logger.info(`   - Errors: ${errors}`);
 
     // Reconcile user roles
     await reconcileRoles(contract);
   } catch (error) {
-    console.error("❌ Reconciliation failed:", error.message);
+    logger.error("❌ Reconciliation failed:", { error: error.message });
     process.exit(1);
   }
 }
 
 async function reconcileRoles(contract) {
-  console.log("\n🔄 Starting role reconciliation...");
+  logger.info("\n🔄 Starting role reconciliation...");
   const User = require("../models/User");
 
   try {
     const users = await User.find({
       walletAddress: { $exists: true, $ne: null },
     });
-    console.log(
+    logger.info(
       `📊 Found ${users.length} users with linked wallets in database`,
     );
 
@@ -126,7 +127,7 @@ async function reconcileRoles(contract) {
       try {
         const walletAddress = user.walletAddress;
         if (!ethers.isAddress(walletAddress)) {
-          console.log(
+          logger.info(
             `  - Invalid wallet address for user ${user.email}: ${walletAddress}`,
           );
           roleErrors++;
@@ -156,35 +157,35 @@ async function reconcileRoles(contract) {
 
         if (currentOnChainRole !== expectedOnChainRole) {
           roleMismatches++;
-          console.log(
+          logger.info(
             `  ⚠ Role mismatch for ${user.email} (${walletAddress}): expected ${expectedRoleName} (${expectedOnChainRole}), got on-chain ${currentOnChainRole}. Syncing...`,
           );
 
           const tx = await contract.setRole(walletAddress, expectedOnChainRole);
           await tx.wait();
 
-          console.log(`  ✓ Synced role for ${user.email} on-chain`);
+          logger.info(`  ✓ Synced role for ${user.email} on-chain`);
           roleSynced++;
         } else {
-          console.log(
+          logger.info(
             `  ✓ User ${user.email} (${walletAddress}) in sync: ${expectedRoleName} (${expectedOnChainRole})`,
           );
         }
       } catch (userError) {
         roleErrors++;
-        console.error(
+        logger.error(
           `  ✗ Error processing user ${user.email}:`,
-          userError.message,
+          { error: userError.message },
         );
       }
     }
 
-    console.log(`\n✅ Role Reconciliation complete:`);
-    console.log(`   - Synced/Updated: ${roleSynced}`);
-    console.log(`   - Mismatches corrected: ${roleMismatches}`);
-    console.log(`   - Errors/Skipped: ${roleErrors}`);
+    logger.info(`\n✅ Role Reconciliation complete:`);
+    logger.info(`   - Synced/Updated: ${roleSynced}`);
+    logger.info(`   - Mismatches corrected: ${roleMismatches}`);
+    logger.info(`   - Errors/Skipped: ${roleErrors}`);
   } catch (error) {
-    console.error("❌ Role reconciliation failed:", error.message);
+    logger.error("❌ Role reconciliation failed:", { error: error.message });
   }
 }
 
@@ -198,7 +199,7 @@ if (require.main === module) {
     })
     .then(() => process.exit(0))
     .catch((error) => {
-      console.error("Fatal error:", error);
+      logger.error("Fatal error:", error);
       process.exit(1);
     });
 }

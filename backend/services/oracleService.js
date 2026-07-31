@@ -1,4 +1,4 @@
-﻿const { ethers } = require("ethers");
+const { ethers } = require("ethers");
 require("dotenv").config();
 const logger = require("../utils/logger");
 
@@ -57,7 +57,9 @@ class OracleService {
       logger.info("✅ Oracle Service initialized successfully");
       return true;
     } catch (error) {
-      logger.error("❌ Failed to initialize Oracle Service:", error.message);
+      logger.error("❌ Failed to initialize Oracle Service:", {
+        error: error.message,
+      });
       throw error;
     }
   }
@@ -71,13 +73,13 @@ class OracleService {
     const ws = provider._websocket;
     if (ws) {
       ws.addEventListener("close", () => {
-        console.log(
+        logger.info(
           "⚠️ Oracle WebSocket disconnected. Initiating reconnection...",
         );
         this._scheduleReconnect();
       });
       ws.addEventListener("error", (err) => {
-        console.error("⚠️ Oracle WebSocket error:", err.message || err);
+        logger.error("⚠️ Oracle WebSocket error:", { error: err.message || err });
       });
     }
 
@@ -98,7 +100,7 @@ class OracleService {
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const delay = baseDelay * Math.pow(2, attempt - 1);
-      console.log(
+      logger.info(
         `🔄 Reconnection attempt ${attempt}/${maxAttempts} in ${delay}ms...`,
       );
 
@@ -132,18 +134,18 @@ class OracleService {
         // Re-register event listeners
         await this.startEventListening();
 
-        console.log("✅ Oracle reconnected successfully");
+        logger.info("✅ Oracle reconnected successfully");
         this._reconnecting = false;
         return;
       } catch (error) {
-        console.error(
+        logger.error(
           `❌ Reconnection attempt ${attempt} failed:`,
-          error.message,
+          { error: error.message },
         );
       }
     }
 
-    console.error("❌ All reconnection attempts exhausted. Oracle is offline.");
+    logger.error("❌ All reconnection attempts exhausted. Oracle is offline.");
     this._reconnecting = false;
   }
 
@@ -167,7 +169,9 @@ class OracleService {
       this.isListening = true;
       logger.info("✅ Event listening started successfully");
     } catch (error) {
-      logger.error("❌ Failed to start event listening:", error.message);
+      logger.error("❌ Failed to start event listening:", {
+        error: error.message,
+      });
       throw error;
     }
   }
@@ -210,7 +214,7 @@ class OracleService {
     } catch (error) {
       logger.error(
         `❌ Failed to handle IoT request for batch ${batchId}:`,
-        error.message,
+        { error: error.message },
       );
 
       // Remove from queue even on failure
@@ -259,7 +263,7 @@ class OracleService {
 
       return receipt;
     } catch (error) {
-      logger.error("❌ Failed to fulfill IoT data:", error.message);
+      logger.error("❌ Failed to fulfill IoT data:", { error: error.message });
       throw error;
     }
   }
@@ -293,7 +297,7 @@ class OracleService {
         await this.provider.destroy();
       }
     } catch (error) {
-      logger.error("❌ Error stopping oracle service:", error.message);
+      logger.error("❌ Error stopping oracle service:", { error: error.message });
     }
   }
 
@@ -320,7 +324,7 @@ class OracleService {
     } catch (error) {
       logger.error(
         `❌ Failed to get IoT data for batch ${batchId}:`,
-        error.message,
+        { error: error.message },
       );
       throw error;
     }

@@ -1,4 +1,5 @@
 const { ethers } = require("ethers");
+const logger = require("../utils/logger");
 
 const PROVIDER_URL =
   process.env.INFURA_URL ||
@@ -34,7 +35,7 @@ function getContract() {
   }
 
   if (!PROVIDER_URL || !CONTRACT_ADDRESS || !PRIVATE_KEY) {
-    console.warn(
+    logger.warn(
       "Blockchain not configured: Missing INFURA_URL, CONTRACT_ADDRESS, or PRIVATE_KEY",
     );
     return null;
@@ -48,10 +49,12 @@ function getContract() {
       contractABI,
       wallet,
     );
-    console.log("✓ Blockchain contract initialized");
+    logger.info("✓ Blockchain contract initialized");
     return contractInstance;
   } catch (error) {
-    console.error("Failed to initialize blockchain connection:", error.message);
+    logger.error("Failed to initialize blockchain connection:", {
+      error: error.message,
+    });
     return null;
   }
 }

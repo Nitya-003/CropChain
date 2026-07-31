@@ -1,4 +1,5 @@
 const apiResponse = require("./apiResponse");
+const logger = require("./logger");
 const { mapHttpError } = require("./httpErrorMapper");
 
 const {
@@ -29,7 +30,7 @@ const handleZodValidation = (res, schema, reqBody) => {
 };
 
 const handleServerError = (res, error, fallbackMeta) => {
-  console.error(fallbackMeta?.message || "Server error", error);
+  logger.error(fallbackMeta?.message || "Server error", error);
   const { statusCode, body } = mapHttpError(error, fallbackMeta);
   return res.status(statusCode).json(body);
 };
@@ -258,7 +259,7 @@ const executeAndFinalizeIdempotency = async ({
         req,
       });
     } catch (eventErr) {
-      console.error("Failed to log verification_attempt event:", eventErr);
+      logger.error("Failed to log verification_attempt event:", eventErr);
     }
 
     // Emit socket status in_progress
@@ -276,9 +277,9 @@ const executeAndFinalizeIdempotency = async ({
           },
         );
       } catch (sockErr) {
-        console.error(
+        logger.error(
           "Failed to emit socket verification status (in_progress):",
-          sockErr.message,
+          { error: sockErr.message },
         );
       }
     }
@@ -298,7 +299,7 @@ const executeAndFinalizeIdempotency = async ({
         req,
       });
     } catch (eventErr) {
-      console.error("Failed to log verification_success event:", eventErr);
+      logger.error("Failed to log verification_success event:", eventErr);
     }
 
     // Emit socket status success (verified or linked)
@@ -315,9 +316,9 @@ const executeAndFinalizeIdempotency = async ({
           },
         );
       } catch (sockErr) {
-        console.error(
+        logger.error(
           "Failed to emit socket verification status (success):",
-          sockErr.message,
+          { error: sockErr.message },
         );
       }
     }
@@ -349,7 +350,7 @@ const executeAndFinalizeIdempotency = async ({
         req,
       });
     } catch (eventErr) {
-      console.error("Failed to log verification_failure event:", eventErr);
+      logger.error("Failed to log verification_failure event:", eventErr);
     }
 
     // Emit socket status failure
@@ -367,9 +368,9 @@ const executeAndFinalizeIdempotency = async ({
           },
         );
       } catch (sockErr) {
-        console.error(
+        logger.error(
           "Failed to emit socket verification status (failed):",
-          sockErr.message,
+          { error: sockErr.message },
         );
       }
     }

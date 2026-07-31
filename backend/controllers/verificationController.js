@@ -1,4 +1,5 @@
 const didService = require("../services/didService");
+const logger = require("../utils/logger");
 const User = require("../models/User");
 const VerificationEvent = require("../models/VerificationEvent");
 const { appendAuditEvent } = require("../utils/auditLogger");
@@ -787,7 +788,7 @@ const bulkIssueCredentials = async (req, res) => {
     bulkVerificationService
       .processJob(job._id, normalizedRecords, adminId, { dryRun })
       .catch((err) => {
-        console.error(
+        logger.error(
           `Error processing bulk verification job ${job._id}:`,
           err,
         );
