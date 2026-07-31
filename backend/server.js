@@ -17,6 +17,47 @@ const PORT = process.env.PORT || 3001;
 
 const server = http.createServer(app);
 
+const PROVIDER_URL = process.env.INFURA_URL;
+const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
+
+let provider;
+let contractInstance;
+let wallet;
+
+// ─── Production safety guard ─────────────────────────────────────────────────
+// Refuse to start if production is configured without secure key management.
+// This prevents accidental deploys with a plaintext PRIVATE_KEY.
+if (process.env.NODE_ENV === 'production' && !process.env.AWS_SECRET_ARN) {
+  console.error(
+    '\n[FATAL] Production startup blocked.\n' +
+    'Reason: PRIVATE_KEY as a plaintext environment variable is not ' +
+    'permitted in production.\n' +
+    'Fix: Set AWS_SECRET_ARN to your Secrets Manager ARN and remove ' +
+    'PRIVATE_KEY from your environment.\n'
+  );
+  process.exit(1);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+if (PROVIDER_URL && CONTRACT_ADDRESS && PRIVATE_KEY) {
+  try {
+    provider = new ethers.JsonRpcProvider(PROVIDER_URL);
+    wallet = new ethers.Wallet(PRIVATE_KEY, provider);
+    contractInstance = new ethers.Contract(
+      CONTRACT_ADDRESS,
+      blockchainService.getContractABI(),
+      wallet,
+    );
+    logger.info("Blockchain contract instance initialized");
+  } catch (error) {
+    logger.error("Failed to initialize blockchain connection", {
+      error: error.message,
+    });
+    contractInstance = null;
+  }
+}
+
 socketService.initializeSocketIO(server);
 logger.info("Socket.IO integration complete");
 
