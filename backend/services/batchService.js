@@ -11,6 +11,7 @@ const blockchainService = require("./blockchainService");
 const blockchainQueue = require("./blockchainQueue");
 const notificationService = require("./notificationService");
 const { emitToBatchRoom, emitGlobal } = require("./socketService");
+const carbonService = require("./carbonService");
 const apiResponse = require("../utils/apiResponse");
 const {
   getStageNumber,
@@ -308,6 +309,7 @@ class BatchService {
         timestamp: update.timestamp,
       })),
       qrCode: batchData.qrCode,
+      carbonFootprint: batchData.carbonFootprint,
       isSpoiled: batchData.isSpoiled ?? iotData.isSpoiled,
       currentTemperature:
         batchData.currentTemperature ?? iotData.currentTemperature,
@@ -447,16 +449,46 @@ class BatchService {
       const blockchainHash =
         updateData.blockchainHash || blockchainService.simulateHash(updateData);
 
+      const previousLocation = previousBatch.updates && previousBatch.updates.length > 0
+        ? previousBatch.updates[previousBatch.updates.length - 1].location
+        : previousBatch.origin;
+
+      const updatePayload = {
+        $push: {
+          updates: newUpdate,
+        },
+        currentStage: normalizedStage,
+        blockchainHash,
+        syncStatus: updateData.blockchainHash ? "synced" : "pending",
+      };
+
+      if (
+        previousLocation.toLowerCase().trim() !== updateData.location.toLowerCase().trim() &&
+        ["transport", "retailer"].includes(normalizedStage)
+      ) {
+        const emissionsData = carbonService.calculateEmissions(
+          previousLocation,
+          updateData.location,
+          previousBatch.quantity
+        );
+
+        if (emissionsData.emissionsKgCO2 > 0) {
+          updatePayload.$push["carbonFootprint.transportLegs"] = {
+            origin: previousLocation,
+            destination: updateData.location,
+            distanceKm: emissionsData.distanceKm,
+            emissionsKgCO2: emissionsData.emissionsKgCO2,
+            timestamp: new Date(),
+          };
+          updatePayload.$inc = {
+            "carbonFootprint.totalEmissions": emissionsData.emissionsKgCO2,
+          };
+        }
+      }
+
       const batch = await Batch.findOneAndUpdate(
         { batchId },
-        {
-          $push: {
-            updates: newUpdate,
-          },
-          currentStage: normalizedStage,
-          blockchainHash,
-          syncStatus: updateData.blockchainHash ? "synced" : "pending",
-        },
+        updatePayload,
         { new: true, runValidators: true },
       );
 
