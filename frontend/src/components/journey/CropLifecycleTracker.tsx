@@ -147,6 +147,7 @@ export const CropLifecycleTracker: React.FC<CropLifecycleTrackerProps> = ({
     batchId,
     enabled: !!batchId,
     onBatchUpdate: (updatedBatch) => {
+
       console.log(
         "[CropLifecycleTracker] Real-time batch update received:",
         updatedBatch,
@@ -155,6 +156,7 @@ export const CropLifecycleTracker: React.FC<CropLifecycleTrackerProps> = ({
       if (onRefresh) onRefresh();
     },
     onStageChange: (data) => {
+
       console.log(
         "[CropLifecycleTracker] Real-time stage change received:",
         data,

@@ -47,11 +47,13 @@ export const useVerificationSocket = ({
       setConnected(true);
       setConnecting(false);
       setError(null);
+
       console.log("[HOOK] Verification Socket connected");
     };
 
     const handleDisconnect = () => {
       setConnected(false);
+
       console.log("[HOOK] Verification Socket disconnected");
     };
 

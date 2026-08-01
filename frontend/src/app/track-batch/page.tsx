@@ -47,6 +47,7 @@ const TrackBatchContent: React.FC = () => {
     batchId: batch?.batchId || batch?.id,
     enabled: !!batch,
     onBatchUpdate: async (data) => {
+
       console.log("[TrackBatch] Real-time batch update received:", data);
       if (data.batch) {
         if (data.batch.updates) {

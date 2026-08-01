@@ -78,6 +78,8 @@ class OfflineCropBatchService {
     }
 
     // Offline mode or online creation failed
+
+    
     console.log("[OfflineCropBatchService] Creating batch in offline mode");
 
     // Generate temporary batch ID and QR code
@@ -156,6 +158,7 @@ class OfflineCropBatchService {
     }
 
     // Offline mode or online update failed
+
     console.log("[OfflineCropBatchService] Updating batch in offline mode");
 
     // Save update to IndexedDB

@@ -57,6 +57,7 @@ class SyncManager {
   }
 
   private handleOnline(): void {
+
     console.log(
       "[SyncManager] Connection restored, updating online state and starting sync...",
     );
@@ -82,6 +83,7 @@ class SyncManager {
   }
 
   private handleOffline(): void {
+
     console.log("[SyncManager] Connection lost, updating online state");
     this._isOnline = false;
     this.updateStatus("idle");
@@ -96,6 +98,7 @@ class SyncManager {
   private async checkAndSync(): Promise<void> {
     const counts = await offlineStorage.getPendingCount();
     if (counts.batches > 0 || counts.updates > 0) {
+
       console.log(
         `[SyncManager] Found ${counts.batches} batches and ${counts.updates} updates to sync`,
       );
@@ -105,11 +108,13 @@ class SyncManager {
 
   async triggerSync(): Promise<void> {
     if (this.syncInProgress) {
+
       console.log("[SyncManager] Sync already in progress");
       return;
     }
 
     if (!this._isOnline) {
+
       console.log("[SyncManager] Cannot sync while offline");
       return;
     }
@@ -150,6 +155,9 @@ class SyncManager {
 
   private scheduleRetryWithBackoff(): void {
     if (this.currentRetryAttempt >= this.MAX_RETRIES) {
+
+      this.updateStatus('idle');
+      
       console.log("[SyncManager] Max retries reached, giving up");
       this.updateStatus("idle");
 
@@ -170,6 +178,7 @@ class SyncManager {
     );
 
     this.currentRetryAttempt++;
+
     console.log(
       `[SyncManager] Scheduling retry attempt ${this.currentRetryAttempt} in ${delay}ms`,
     );
@@ -255,7 +264,7 @@ class SyncManager {
         status: "success",
       });
 
-      console.log(`[SyncManager] Successfully synced batch ${id}`);
+
     } catch (error) {
       await offlineStorage.updateBatchStatus(id, "pending");
       throw error;
@@ -285,7 +294,7 @@ class SyncManager {
         status: "success",
       });
 
-      console.log(`[SyncManager] Successfully synced update ${id}`);
+
     } catch (error) {
       await offlineStorage.updateUpdateStatus(id, "pending");
       throw error;
