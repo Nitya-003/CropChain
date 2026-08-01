@@ -75,6 +75,7 @@ const batchRoutes = require("./routes/batchRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const logisticsRoutes = require("./routes/logisticsRoutes");
+const iotRoutes = require("./routes/iotRoutes");
 const {
   authLimiter,
   registerLimiter,
@@ -144,6 +145,9 @@ app.use("/api/ai", aiLimiter, aiRoutes);
 // Notifications & Logistics
 app.use("/api/notifications", generalLimiter, notificationRoutes);
 app.use("/api/logistics", generalLimiter, logisticsRoutes);
+
+// IoT Data Ingestion
+app.use("/api/iot", generalLimiter, iotRoutes);
 
 // 404 handler
 app.use("*", (req, res) => {
