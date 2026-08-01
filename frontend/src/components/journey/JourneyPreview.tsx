@@ -1,8 +1,16 @@
 "use client";
-import React from 'react';
-import { useRouter } from 'next/navigation';
-import { Compass, CheckCircle2, ChevronRight, Sprout, Building2, Truck, Store } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import React from "react";
+import { useRouter } from "next/navigation";
+import {
+  Compass,
+  CheckCircle2,
+  ChevronRight,
+  Sprout,
+  Building2,
+  Truck,
+  Store,
+} from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface JourneyPreviewProps {
   batchId: string;
@@ -12,20 +20,34 @@ interface JourneyPreviewProps {
 
 export const JourneyPreview: React.FC<JourneyPreviewProps> = ({
   batchId,
-  currentStage
+  currentStage,
 }) => {
   const router = useRouter();
   const { t } = useTranslation();
 
   const stages = [
-    { value: 'farmer', label: t('status.harvested', 'Harvested'), icon: Sprout },
-    { value: 'mandi', label: t('status.atMandi', 'At Mandi'), icon: Building2 },
-    { value: 'transport', label: t('status.inTransit', 'In Transit'), icon: Truck },
-    { value: 'retailer', label: t('status.atRetailer', 'At Retailer'), icon: Store }
+    {
+      value: "farmer",
+      label: t("status.harvested", "Harvested"),
+      icon: Sprout,
+    },
+    { value: "mandi", label: t("status.atMandi", "At Mandi"), icon: Building2 },
+    {
+      value: "transport",
+      label: t("status.inTransit", "In Transit"),
+      icon: Truck,
+    },
+    {
+      value: "retailer",
+      label: t("status.atRetailer", "At Retailer"),
+      icon: Store,
+    },
   ];
 
   // Determine active step index
-  const currentStepIndex = stages.findIndex(s => s.value === currentStage.toLowerCase());
+  const currentStepIndex = stages.findIndex(
+    (s) => s.value === currentStage.toLowerCase(),
+  );
 
   return (
     <div className="bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-800/40 dark:to-gray-700/20 border border-green-100 dark:border-gray-800 rounded-2xl p-6 shadow-sm text-left">
@@ -36,10 +58,10 @@ export const JourneyPreview: React.FC<JourneyPreviewProps> = ({
           </div>
           <div>
             <h3 className="font-bold text-gray-800 dark:text-white text-base">
-              {t('journey.title', 'Leaf-to-Shelf Journey Map')}
+              {t("journey.title", "Leaf-to-Shelf Journey Map")}
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              {t('journey.subtitle', 'Complete immutable supply chain history')}
+              {t("journey.subtitle", "Complete immutable supply chain history")}
             </p>
           </div>
         </div>
@@ -48,7 +70,7 @@ export const JourneyPreview: React.FC<JourneyPreviewProps> = ({
           onClick={() => router.push(`/batch/${batchId}/journey`)}
           className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 rounded-xl transition-all duration-200 hover:shadow-md transform hover:scale-[1.02]"
         >
-          <span>{t('journey.view_full_journey', 'View Full Journey Map')}</span>
+          <span>{t("journey.view_full_journey", "View Full Journey Map")}</span>
           <ChevronRight className="h-3.5 w-3.5" />
         </button>
       </div>
@@ -57,12 +79,15 @@ export const JourneyPreview: React.FC<JourneyPreviewProps> = ({
       <div className="relative py-4 px-2">
         {/* Horizontal Line connector */}
         <div className="absolute top-[34px] left-8 right-8 h-0.5 bg-gray-200 dark:bg-gray-850" />
-        
+
         {/* Completed portion of Line */}
-        <div 
-          className="absolute top-[34px] left-8 h-0.5 bg-green-500 transition-all duration-500" 
-          style={{ 
-            width: currentStepIndex > 0 ? `calc(${(currentStepIndex / (stages.length - 1)) * 100}% - 3rem)` : '0%' 
+        <div
+          className="absolute top-[34px] left-8 h-0.5 bg-green-500 transition-all duration-500"
+          style={{
+            width:
+              currentStepIndex > 0
+                ? `calc(${(currentStepIndex / (stages.length - 1)) * 100}% - 3rem)`
+                : "0%",
           }}
         />
 
@@ -73,19 +98,19 @@ export const JourneyPreview: React.FC<JourneyPreviewProps> = ({
             const IconComponent = stage.icon;
 
             return (
-              <div 
-                key={stage.value} 
+              <div
+                key={stage.value}
                 className="flex flex-col items-center cursor-pointer group"
                 onClick={() => router.push(`/batch/${batchId}/journey`)}
               >
                 {/* Node icon / indicator */}
-                <div 
+                <div
                   className={`h-10 w-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
-                    isCurrent 
-                      ? 'border-green-500 bg-white dark:bg-gray-800 text-base shadow-md ring-4 ring-green-500/20 scale-110'
+                    isCurrent
+                      ? "border-green-500 bg-white dark:bg-gray-800 text-base shadow-md ring-4 ring-green-500/20 scale-110"
                       : isCompleted
-                      ? 'border-green-500 bg-green-500 text-white text-xs'
-                      : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-400 opacity-60'
+                        ? "border-green-500 bg-green-500 text-white text-xs"
+                        : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-400 opacity-60"
                   }`}
                 >
                   {isCompleted ? (
@@ -95,18 +120,18 @@ export const JourneyPreview: React.FC<JourneyPreviewProps> = ({
                   )}
                 </div>
 
-                <span 
+                <span
                   className={`text-[10px] sm:text-xs font-bold mt-2.5 transition-colors ${
-                    isCurrent 
-                      ? 'text-green-600 dark:text-green-400 font-extrabold'
+                    isCurrent
+                      ? "text-green-600 dark:text-green-400 font-extrabold"
                       : isCompleted
-                      ? 'text-gray-800 dark:text-gray-200'
-                      : 'text-gray-400 dark:text-gray-600'
+                        ? "text-gray-800 dark:text-gray-200"
+                        : "text-gray-400 dark:text-gray-600"
                   }`}
                 >
                   {stage.label}
                 </span>
-                
+
                 {isCurrent && (
                   <span className="text-[8px] font-black uppercase text-green-500 mt-0.5 tracking-wider">
                     Current

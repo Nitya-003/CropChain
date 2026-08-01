@@ -1,11 +1,11 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Batch, SyncQueueInput, SyncQueueItem } from '../types';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { Batch, SyncQueueInput, SyncQueueItem } from "../types";
 
 const KEYS = {
-  BATCHES: '@cropchain/batches',
-  QUEUE: '@cropchain/sync_queue',
-  USER: '@cropchain/user',
-  PENDING_COUNT: '@cropchain/pending_count',
+  BATCHES: "@cropchain/batches",
+  QUEUE: "@cropchain/sync_queue",
+  USER: "@cropchain/user",
+  PENDING_COUNT: "@cropchain/pending_count",
 };
 
 export const offlineStorage = {
@@ -41,7 +41,9 @@ export const offlineStorage = {
     return data ? JSON.parse(data) : [];
   },
 
-  async addToQueue(item: SyncQueueInput & { priority: SyncQueueItem['priority'] }): Promise<void> {
+  async addToQueue(
+    item: SyncQueueInput & { priority: SyncQueueItem["priority"] },
+  ): Promise<void> {
     const queue = await this.getQueue();
     const newItem: SyncQueueItem = {
       ...item,

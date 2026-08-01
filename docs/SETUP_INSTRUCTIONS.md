@@ -3,27 +3,30 @@
 ## Quick Setup
 
 1. **Install Dependencies**
+
    ```bash
    npm install --legacy-peer-deps
    cd backend && npm install
    ```
 
 2. **Configure Environment**
+
    ```bash
    # Copy environment files
    cp backend/.env.example backend/.env
    cp .env.example .env
-   
+
    # Add your OpenAI API key to backend/.env (optional)
    echo "OPENAI_API_KEY=your_key_here" >> backend/.env
    ```
 
 3. **Start Development Servers**
+
    ```bash
    # Terminal 1: Frontend
    npm run dev
-   
-   # Terminal 2: Backend  
+
+   # Terminal 2: Backend
    cd backend && npm run dev
    ```
 
@@ -49,6 +52,7 @@
 ## Troubleshooting
 
 If you encounter issues:
+
 1. Check that both servers are running
 2. Verify CORS settings in backend/.env
 3. Test API directly: `curl http://localhost:3001/api/health`

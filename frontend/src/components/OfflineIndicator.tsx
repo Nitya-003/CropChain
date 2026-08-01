@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from "react-i18next";
 import { WifiOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -38,7 +38,9 @@ export default function OfflineIndicator() {
         >
           <div className="bg-red-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center space-x-2 text-sm font-medium">
             <WifiOff size={16} />
-            <span>{t('offline.youAreOffline')}. {t('offline.limitedFunctionality')}</span>
+            <span>
+              {t("offline.youAreOffline")}. {t("offline.limitedFunctionality")}
+            </span>
           </div>
         </motion.div>
       )}

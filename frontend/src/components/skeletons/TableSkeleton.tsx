@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 const TableSkeleton: React.FC = () => {
   return (
@@ -10,9 +10,12 @@ const TableSkeleton: React.FC = () => {
           </div>
         ))}
       </div>
-      
+
       {[1, 2, 3, 4, 5].map((row) => (
-        <div key={row} className="flex items-center py-4 border-b border-gray-100 dark:border-gray-700">
+        <div
+          key={row}
+          className="flex items-center py-4 border-b border-gray-100 dark:border-gray-700"
+        >
           <div className="flex-1 mr-4">
             <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-24"></div>
           </div>

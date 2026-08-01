@@ -1,11 +1,22 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import toast from 'react-hot-toast';
-import { authService, LoginCredentials, RegisterCredentials, User } from '../services/auth.service';
-import { sanitizeString } from '../lib/sanitize';
-import { setAuthToken } from '../services/socketService';
-import { apiClient } from '../services/apiClient';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import toast from "react-hot-toast";
+import {
+  authService,
+  LoginCredentials,
+  RegisterCredentials,
+  User,
+} from "../services/auth.service";
+import { sanitizeString } from "../lib/sanitize";
+import { setAuthToken } from "../services/socketService";
+import { apiClient } from "../services/apiClient";
 
 interface AuthContextType {
   user: User | null;
@@ -18,7 +29,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isWalletConnected: boolean;
   updateUser: (updatedUser: User) => void;
-  addFunds: (amount: number) => Promise<void>;
+  addFunds: (amount: number, userId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,11 +37,18 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Persist only non-sensitive fields needed for UI rendering.
 // email, walletAddress, and verification are omitted to limit XSS exposure.
 const persistUser = (user: User) => {
-  const safe = { id: user.id, name: sanitizeString(user.name), role: user.role, balance: user.balance };
-  localStorage.setItem('user', JSON.stringify(safe));
+  const safe = {
+    id: user.id,
+    name: sanitizeString(user.name),
+    role: user.role,
+    balance: user.balance,
+  };
+  localStorage.setItem("user", JSON.stringify(safe));
 };
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true); // Start true to check persistence
   const [isWalletConnected, setIsWalletConnected] = useState(false);
@@ -43,7 +61,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         persistUser(response.user);
         setAuthToken(response.token);
       } catch {
-        localStorage.removeItem('user');
+        localStorage.removeItem("user");
         setAuthToken(null);
         await checkWalletConnected();
       } finally {
@@ -61,12 +79,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Role must come from backend after signature verification
         setIsWalletConnected(true);
         setUser({
-          id: '',
-          name: '',
-          email: '',
-          role: '', // No role assigned - requires backend authentication
+          id: "",
+          name: "",
+          email: "",
+          role: "", // No role assigned - requires backend authentication
           walletAddress: ethereum.selectedAddress,
-          balance: 0
+          balance: 0,
         });
       }
     } catch (error) {
@@ -81,9 +99,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(response.user);
       persistUser(response.user);
       setAuthToken(response.token);
-      toast.success('Login successful!');
+      toast.success("Login successful!");
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Login failed';
+      const message = error.response?.data?.message || "Login failed";
       toast.error(message);
       throw error;
     } finally {
@@ -98,9 +116,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(response.user);
       persistUser(response.user);
       setAuthToken(response.token);
-      toast.success('Registration successful!');
+      toast.success("Registration successful!");
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Registration failed';
+      const message = error.response?.data?.message || "Registration failed";
       toast.error(message);
       throw error;
     } finally {
@@ -119,16 +137,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     try {
-      const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+      const accounts = await ethereum.request({
+        method: "eth_requestAccounts",
+      });
       // Wallet connected but NOT authenticated
       // User must sign a message to authenticate and get role from backend
       setIsWalletConnected(true);
       setUser({
-        id: '',
-        name: '',
-        email: '',
-        role: '', // No role assigned - requires backend authentication
-        walletAddress: accounts[0]
+        id: "",
+        name: "",
+        email: "",
+        role: "", // No role assigned - requires backend authentication
+        walletAddress: accounts[0],
       });
       toast.success("Wallet Connected! Please sign in to authenticate.");
     } catch (error: any) {
@@ -144,13 +164,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   /**
    * Wallet Login with Signature Verification
-   * 
+   *
    * Flow:
    * 1. Get nonce from backend
    * 2. User signs nonce with wallet
    * 3. Send signature to backend
    * 4. Backend verifies signature and returns JWT with user role
-   * 
+   *
    * This ensures role is ALWAYS assigned by backend, never by frontend.
    */
   const walletLogin = async () => {
@@ -174,7 +194,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       // Step 2: Ask user to sign the nonce
       const signature = await ethereum.request({
-        method: 'personal_sign',
+        method: "personal_sign",
         params: [nonce, ethereum.selectedAddress],
       });
 
@@ -182,7 +202,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const response = await authService.walletLogin({
         address: ethereum.selectedAddress,
         signature,
-        nonce
+        nonce,
       });
 
       // Step 4: Store JWT and user data
@@ -190,13 +210,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       persistUser(response.user);
       setAuthToken(response.token);
 
-      toast.success('Wallet authentication successful!');
+      toast.success("Wallet authentication successful!");
     } catch (error: any) {
-      console.error('Wallet login error:', error);
+      console.error("Wallet login error:", error);
       if (error.code === 4001) {
         toast.error("Signature rejected");
       } else {
-        const message = error.response?.data?.message || 'Wallet authentication failed';
+        const message =
+          error.response?.data?.message || "Wallet authentication failed";
         toast.error(message);
       }
       throw error;
@@ -220,19 +241,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       email: sanitizeString(updatedUser.email),
     };
     setUser(sanitized);
-    localStorage.setItem('user', JSON.stringify(sanitized));
+    localStorage.setItem("user", JSON.stringify(sanitized));
   };
 
-  const addFunds = async (amount: number) => {
+  /**
+   * Add funds to a user's balance.
+   *
+   * `userId` identifies the target account (an admin may add funds to any
+   * user, not just themselves). The backend requires both `amount` and
+   * `userId` — sending amount alone results in a "Please provide a target
+   * userId" error.
+   *
+   * Note: the response contains the *target* user's updated record, which
+   * may not be the currently logged-in admin. We only update local auth
+   * state (`user`) when the target matches the logged-in user, so an admin
+   * crediting someone else's account doesn't get their own session
+   * overwritten with the other user's data.
+   */
+  const addFunds = async (amount: number, userId: string) => {
     setIsLoading(true);
     try {
-      const response = await apiClient.post('/auth/add-funds', { amount });
+      const response = await apiClient.post("/auth/add-funds", {
+        amount,
+        userId,
+      });
       const updatedUser = response.data.data.user;
-      setUser(updatedUser);
-      persistUser(updatedUser);
-      toast.success(`${amount.toLocaleString()} credits added to your balance!`);
+
+      if (user && updatedUser.id === user.id) {
+        setUser(updatedUser);
+        persistUser(updatedUser);
+      }
+
+      toast.success(
+        `${amount.toLocaleString()} credits added to the account!`,
+      );
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Failed to add funds';
+      const message = error.response?.data?.message || "Failed to add funds";
       toast.error(message);
       throw error;
     } finally {
@@ -241,19 +285,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      login, 
-      register, 
-      connectWallet, 
-      walletLogin, 
-      logout, 
-      isLoading,
-      isAuthenticated: !!user && !!user.role,
-      isWalletConnected,
-      updateUser,
-      addFunds
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        register,
+        connectWallet,
+        walletLogin,
+        logout,
+        isLoading,
+        isAuthenticated: !!user && !!user.role,
+        isWalletConnected,
+        updateUser,
+        addFunds,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -262,7 +308,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

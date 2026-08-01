@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
-import { useTranslation } from 'react-i18next';
-import { AlertCircle, X, RotateCcw, Send } from 'lucide-react';
-import { syncManager } from '../services/syncManager';
+import React, { useState } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { useTranslation } from "react-i18next";
+import { AlertCircle, X, RotateCcw, Send } from "lucide-react";
+import { syncManager } from "../services/syncManager";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -44,19 +44,16 @@ const JsonBlock: React.FC<{ data: unknown }> = ({ data }) => (
 // Component
 // ---------------------------------------------------------------------------
 
-export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
-  open,
-  onOpenChange,
-  conflict,
-  onResolve,
-}) => {
+export const ConflictResolutionModal: React.FC<
+  ConflictResolutionModalProps
+> = ({ open, onOpenChange, conflict, onResolve }) => {
   const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editedData, setEditedData] = useState<string>(
-    JSON.stringify(conflict.data ?? {}, null, 2)
+    JSON.stringify(conflict.data ?? {}, null, 2),
   );
-  const [mode, setMode] = useState<'review' | 'edit'>('review');
+  const [mode, setMode] = useState<"review" | "edit">("review");
 
   const serverState =
     conflict.conflictDetails?.serverState ??
@@ -72,7 +69,9 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
       onResolve();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to discard update.');
+      setError(
+        err instanceof Error ? err.message : "Failed to discard update.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -89,7 +88,9 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
       onOpenChange(false);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Failed to resubmit. Check JSON syntax.'
+        err instanceof Error
+          ? err.message
+          : "Failed to resubmit. Check JSON syntax.",
       );
     } finally {
       setIsLoading(false);
@@ -121,18 +122,20 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
               <AlertCircle className="h-5 w-5 text-orange-400 shrink-0" />
               <div>
                 <Dialog.Title className="text-base font-semibold text-white">
-                  {t('sync.conflictTitle', 'Sync Conflict Detected')}
+                  {t("sync.conflictTitle", "Sync Conflict Detected")}
                 </Dialog.Title>
                 <p className="text-xs text-gray-400 mt-0.5">
                   Batch&nbsp;
-                  <span className="font-mono text-orange-300">{conflict.batchId}</span>
+                  <span className="font-mono text-orange-300">
+                    {conflict.batchId}
+                  </span>
                 </p>
               </div>
             </div>
             <Dialog.Close asChild>
               <button
                 className="rounded-lg p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
-                aria-label={t('common.close', 'Close')}
+                aria-label={t("common.close", "Close")}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -148,38 +151,38 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
 
           {/* ── Mode tabs ── */}
           <div className="flex gap-2 px-6 mt-4">
-            {(['review', 'edit'] as const).map((m) => (
+            {(["review", "edit"] as const).map((m) => (
               <button
                 key={m}
                 onClick={() => setMode(m)}
                 className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
                   mode === m
-                    ? 'bg-orange-600 text-white'
-                    : 'bg-gray-700 text-gray-400 hover:text-white'
+                    ? "bg-orange-600 text-white"
+                    : "bg-gray-700 text-gray-400 hover:text-white"
                 }`}
               >
-                {m === 'review'
-                  ? t('sync.reviewChanges', 'Review Changes')
-                  : t('sync.editResubmit', 'Edit & Resubmit')}
+                {m === "review"
+                  ? t("sync.reviewChanges", "Review Changes")
+                  : t("sync.editResubmit", "Edit & Resubmit")}
               </button>
             ))}
           </div>
 
           {/* ── Body ── */}
           <div className="px-6 py-4 space-y-4">
-            {mode === 'review' ? (
+            {mode === "review" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Local state */}
                 <div>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                    {t('sync.yourLocalState', 'Your Local Changes')}
+                    {t("sync.yourLocalState", "Your Local Changes")}
                   </p>
                   <JsonBlock data={conflict.data} />
                 </div>
                 {/* Server / on-chain state */}
                 <div>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                    {t('sync.serverState', 'Current Server State')}
+                    {t("sync.serverState", "Current Server State")}
                   </p>
                   <JsonBlock data={serverState} />
                 </div>
@@ -187,7 +190,7 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
             ) : (
               <div>
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                  {t('sync.editPayload', 'Edit payload before resubmitting')}
+                  {t("sync.editPayload", "Edit payload before resubmitting")}
                 </p>
                 <textarea
                   value={editedData}
@@ -215,19 +218,19 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium transition-colors disabled:opacity-50"
             >
               <RotateCcw className="h-4 w-4" />
-              {t('sync.discardLocal', 'Discard My Changes')}
+              {t("sync.discardLocal", "Discard My Changes")}
             </button>
 
             <button
               onClick={handleResubmit}
-              disabled={isLoading || mode === 'review'}
+              disabled={isLoading || mode === "review"}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium transition-colors disabled:opacity-50"
-              title={mode === 'review' ? 'Switch to Edit tab first' : undefined}
+              title={mode === "review" ? "Switch to Edit tab first" : undefined}
             >
               <Send className="h-4 w-4" />
               {isLoading
-                ? t('common.loading', 'Loading...')
-                : t('sync.resubmit', 'Resubmit Changes')}
+                ? t("common.loading", "Loading...")
+                : t("sync.resubmit", "Resubmit Changes")}
             </button>
           </div>
         </Dialog.Content>

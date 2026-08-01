@@ -1,9 +1,9 @@
 "use client";
 
-import React from 'react';
+import React from "react";
 
-import type { MarketplaceFilterState } from './MarketplaceFilters';
-import MarketplaceFilters from './MarketplaceFilters';
+import type { MarketplaceFilterState } from "./MarketplaceFilters";
+import MarketplaceFilters from "./MarketplaceFilters";
 
 export default function MarketplaceFilterDrawer({
   open,
@@ -21,7 +21,7 @@ export default function MarketplaceFilterDrawer({
   activeFilterCount: number;
 }) {
   return (
-    <div className={open ? 'fixed inset-0 z-50' : 'hidden'} aria-hidden={!open}>
+    <div className={open ? "fixed inset-0 z-50" : "hidden"} aria-hidden={!open}>
       <button
         type="button"
         className="absolute inset-0 bg-black/50"
@@ -40,7 +40,9 @@ export default function MarketplaceFilterDrawer({
             <div>
               <p className="text-sm font-bold">Filters</p>
               <p className="text-xs text-muted-foreground">
-                {activeFilterCount > 0 ? `${activeFilterCount} active` : 'No active filters'}
+                {activeFilterCount > 0
+                  ? `${activeFilterCount} active`
+                  : "No active filters"}
               </p>
             </div>
             <button
@@ -68,5 +70,3 @@ export default function MarketplaceFilterDrawer({
     </div>
   );
 }
-
-

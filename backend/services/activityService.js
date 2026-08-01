@@ -1,5 +1,5 @@
-const Activity = require('../models/Activity');
-const logger = require('../utils/logger');
+const Activity = require("../models/Activity");
+const logger = require("../utils/logger");
 
 /**
  * Log a platform activity
@@ -11,21 +11,37 @@ const logger = require('../utils/logger');
  * @param {string} params.description - Human-readable explanation
  * @param {Object} [params.metadata] - Optional additional details
  */
-exports.logActivity = async ({ userId, userRole, eventType, batchId, description, metadata = {} }) => {
-    try {
-        const activity = await Activity.create({
-            userId: String(userId),
-            userRole,
-            eventType,
-            batchId,
-            description,
-            metadata
-        });
-        logger.info('Activity logged successfully', { activityId: activity._id, eventType, batchId });
-        return activity;
-    } catch (error) {
-        logger.error('Failed to log activity', { error: error.message, userId, eventType, batchId });
-        // Don't throw error to prevent interrupting the main transaction
-        return null;
-    }
+exports.logActivity = async ({
+  userId,
+  userRole,
+  eventType,
+  batchId,
+  description,
+  metadata = {},
+}) => {
+  try {
+    const activity = await Activity.create({
+      userId: String(userId),
+      userRole,
+      eventType,
+      batchId,
+      description,
+      metadata,
+    });
+    logger.info("Activity logged successfully", {
+      activityId: activity._id,
+      eventType,
+      batchId,
+    });
+    return activity;
+  } catch (error) {
+    logger.error("Failed to log activity", {
+      error: error.message,
+      userId,
+      eventType,
+      batchId,
+    });
+    // Don't throw error to prevent interrupting the main transaction
+    return null;
+  }
 };

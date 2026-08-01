@@ -36,7 +36,9 @@ describe("auction settlement transaction integration", () => {
       instanceOpts: [{ launchTimeout: 60000 }],
       replSet: { count: 1, storageEngine: "wiredTiger" },
     });
-    await mongoose.connect(replSet.getUri(), { dbName: "auction-settlement-test" });
+    await mongoose.connect(replSet.getUri(), {
+      dbName: "auction-settlement-test",
+    });
   });
 
   afterAll(async () => {
@@ -107,10 +109,12 @@ describe("auction settlement transaction integration", () => {
     expect(farmer.balance).toBe(225);
     expect(batch.currentStage).toBe("mandi");
     expect(batch.updates).toHaveLength(1);
-    expect(batch.updates[0]).toEqual(expect.objectContaining({
-      stage: "mandi",
-      actor: "Buyer One",
-    }));
+    expect(batch.updates[0]).toEqual(
+      expect.objectContaining({
+        stage: "mandi",
+        actor: "Buyer One",
+      }),
+    );
 
     expect(mockCreateInAppNotification).toHaveBeenCalledTimes(2);
     expect(mockSendEmail).toHaveBeenCalledTimes(2);
@@ -121,7 +125,9 @@ describe("auction settlement transaction integration", () => {
       mockSocketEmit.mock.calls.filter(([event]) => event === "batch-updated"),
     ).toHaveLength(1);
     expect(
-      mockGlobalEmit.mock.calls.filter(([event]) => event === "batch-stage-changed"),
+      mockGlobalEmit.mock.calls.filter(
+        ([event]) => event === "batch-stage-changed",
+      ),
     ).toHaveLength(1);
   });
 });

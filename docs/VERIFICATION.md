@@ -57,6 +57,7 @@ await verificationService.linkWallet();
 ```
 
 This:
+
 - Requests MetaMask account access
 - Signs a message to prove wallet ownership
 - Stores wallet address in user profile
@@ -71,6 +72,7 @@ await verificationService.issueCredential(userId, walletAddress);
 ```
 
 This:
+
 - Admin signs a verification message via MetaMask
 - Backend generates a credential hash
 - User receives verified status
@@ -102,6 +104,7 @@ await verificationService.revokeCredential(userId, reason);
 ```
 
 This:
+
 - Marks credential as revoked
 - Records revocation timestamp and reason
 - User loses verified status
@@ -175,10 +178,10 @@ Extend batch creation to require verification:
 
 ```javascript
 // Backend - Add to batch creation endpoint
-const { verifiedOnly } = require('../middleware/auth');
+const { verifiedOnly } = require("../middleware/auth");
 
-app.post('/api/batches', protect, verifiedOnly, async (req, res) => {
-    // Batch creation logic
+app.post("/api/batches", protect, verifiedOnly, async (req, res) => {
+  // Batch creation logic
 });
 ```
 
@@ -187,12 +190,9 @@ app.post('/api/batches', protect, verifiedOnly, async (req, res) => {
 Show verification badge in user profiles:
 
 ```tsx
-import VerificationBadge from './components/VerificationBadge';
+import VerificationBadge from "./components/VerificationBadge";
 
-<VerificationBadge 
-    isVerified={user.verification?.isVerified} 
-    size="md" 
-/>
+<VerificationBadge isVerified={user.verification?.isVerified} size="md" />;
 ```
 
 ## Future Enhancements

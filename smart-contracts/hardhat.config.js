@@ -14,71 +14,79 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 200
-      }
-    }
+        runs: 200,
+      },
+    },
   },
   networks: {
     // Local development network
     localhost: {
-      url: "http://127.0.0.1:8545"
+      url: "http://127.0.0.1:8545",
       // Hardhat automatically uses its default 20 test accounts for localhost
     },
-    
+
     // Polygon Mumbai Testnet
     mumbai: {
-      url: process.env.INFURA_URL || "https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID",
+      url:
+        process.env.INFURA_URL ||
+        "https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID",
       accounts: getAccounts(),
       gasPrice: 20000000000, // 20 gwei
-      gas: 6000000
+      gas: 6000000,
     },
-    
+
     // Polygon Mainnet
     polygon: {
-      url: process.env.POLYGON_URL || "https://polygon-mainnet.infura.io/v3/YOUR_PROJECT_ID",
+      url:
+        process.env.POLYGON_URL ||
+        "https://polygon-mainnet.infura.io/v3/YOUR_PROJECT_ID",
       accounts: getAccounts(),
       gasPrice: 30000000000, // 30 gwei
-      gas: 6000000
+      gas: 6000000,
     },
-    
+
     // Ethereum Sepolia Testnet
     sepolia: {
-      url: process.env.SEPOLIA_URL || "https://ethereum-sepolia-rpc.publicnode.com",
-      accounts: getAccounts()
+      url:
+        process.env.SEPOLIA_URL ||
+        "https://ethereum-sepolia-rpc.publicnode.com",
+      accounts: getAccounts(),
     },
-    
+
     // Ethereum Mainnet
     mainnet: {
-      url: process.env.MAINNET_URL || "https://mainnet.infura.io/v3/YOUR_PROJECT_ID",
+      url:
+        process.env.MAINNET_URL ||
+        "https://mainnet.infura.io/v3/YOUR_PROJECT_ID",
       accounts: getAccounts(),
-      gasPrice: 20000000000 // 20 gwei
-    }
+      gasPrice: 20000000000, // 20 gwei
+    },
   },
-  
+
   etherscan: {
     apiKey: {
       polygon: process.env.POLYGONSCAN_API_KEY,
       polygonMumbai: process.env.POLYGONSCAN_API_KEY,
       mainnet: process.env.ETHERSCAN_API_KEY,
-      sepolia: process.env.ETHERSCAN_API_KEY
-    }
+      sepolia: process.env.ETHERSCAN_API_KEY,
+    },
   },
-  
+
   gasReporter: {
     enabled: process.env.REPORT_GAS === "true",
     currency: "USD",
     gasPrice: 20,
-    coinmarketcap: process.env.COINMARKETCAP_API_KEY
+    coinmarketcap: process.env.COINMARKETCAP_API_KEY,
   },
-  
+
   paths: {
     sources: "./contracts",
     tests: "./test",
     cache: "./cache",
-    artifacts: "./artifacts"
+    artifacts: "./artifacts",
   },
-  
+
   mocha: {
-    timeout: 40000
-  }
+    timeout: 40000,
+  },
 };

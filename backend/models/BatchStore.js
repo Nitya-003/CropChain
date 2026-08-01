@@ -8,8 +8,8 @@ let batchCounter = 1;
 module.exports = {
   batches,
   getNextId: () => {
-      const id = `CROP-2024-${String(batchCounter).padStart(4, '0')}`;
-      batchCounter++;
-      return id;
-  }
+    const id = `CROP-2024-${String(batchCounter).padStart(4, "0")}`;
+    batchCounter++;
+    return id;
+  },
 };

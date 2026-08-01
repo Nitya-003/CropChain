@@ -1,6 +1,13 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { useColorScheme } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from "react";
+import { useColorScheme } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface ThemeContextType {
   isDark: boolean;
@@ -9,7 +16,7 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const THEME_KEY = '@cropchain/theme';
+const THEME_KEY = "@cropchain/theme";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemScheme = useColorScheme();
@@ -19,9 +26,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     (async () => {
       const saved = await AsyncStorage.getItem(THEME_KEY);
       if (saved !== null) {
-        setIsDark(saved === 'dark');
+        setIsDark(saved === "dark");
       } else {
-        setIsDark(systemScheme === 'dark');
+        setIsDark(systemScheme === "dark");
       }
     })();
   }, []);
@@ -29,7 +36,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const toggleTheme = useCallback(async () => {
     setIsDark((prev) => {
       const next = !prev;
-      AsyncStorage.setItem(THEME_KEY, next ? 'dark' : 'light');
+      AsyncStorage.setItem(THEME_KEY, next ? "dark" : "light");
       return next;
     });
   }, []);
@@ -43,6 +50,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 export function useTheme() {
   const context = useContext(ThemeContext);
-  if (!context) throw new Error('useTheme must be used within ThemeProvider');
+  if (!context) throw new Error("useTheme must be used within ThemeProvider");
   return context;
 }

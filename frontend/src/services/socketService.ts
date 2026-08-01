@@ -1,6 +1,8 @@
-import { io, Socket } from 'socket.io-client';
+import { io, Socket } from "socket.io-client";
 
-const SOCKET_URL = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_SOCKET_URL) || `http://localhost:3001`;
+const SOCKET_URL =
+  (typeof process !== "undefined" && process.env.NEXT_PUBLIC_SOCKET_URL) ||
+  `http://localhost:3001`;
 
 let socketInstance: Socket | null = null;
 let authToken: string | null = null;
@@ -16,7 +18,7 @@ export const getSocket = (): Socket => {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 5,
-      transports: ['websocket', 'polling'],
+      transports: ["websocket", "polling"],
       auth: authToken ? { token: authToken } : undefined,
     });
 
@@ -26,10 +28,19 @@ export const getSocket = (): Socket => {
 
     socketInstance.on('disconnect', (reason) => {
 
+    socketInstance.on("connect", () => {
+      console.log(
+        "[SOCKET] Connected to WebSocket server:",
+        socketInstance?.id,
+      );
     });
 
-    socketInstance.on('connect_error', (error) => {
-      console.error('[SOCKET ERROR] Connection error:', error.message);
+    socketInstance.on("disconnect", (reason) => {
+      console.log("[SOCKET] Disconnected from WebSocket server:", reason);
+    });
+
+    socketInstance.on("connect_error", (error) => {
+      console.error("[SOCKET ERROR] Connection error:", error.message);
     });
   }
 
@@ -44,7 +55,7 @@ export const getSocket = (): Socket => {
 export const setAuthToken = (token: string | null): void => {
   authToken = token;
   if (socketInstance) {
-    socketInstance.auth = { token: token ?? '' };
+    socketInstance.auth = { token: token ?? "" };
     if (socketInstance.connected) {
       socketInstance.disconnect().connect();
     }
@@ -59,6 +70,8 @@ export const joinBatchRoom = (batchId: string): void => {
   const socket = getSocket();
   socket.emit('join-batch-room', batchId);
 
+  socket.emit("join-batch-room", batchId);
+  console.log(`[SOCKET] Joined batch room: ${batchId}`);
 };
 
 /**
@@ -69,6 +82,8 @@ export const leaveBatchRoom = (batchId: string): void => {
   const socket = getSocket();
   socket.emit('leave-batch-room', batchId);
 
+  socket.emit("leave-batch-room", batchId);
+  console.log(`[SOCKET] Left batch room: ${batchId}`);
 };
 
 /**
@@ -78,10 +93,10 @@ export const leaveBatchRoom = (batchId: string): void => {
  */
 export const onBatchUpdated = (callback: (data: any) => void): (() => void) => {
   const socket = getSocket();
-  socket.on('batch-updated', callback);
-  
+  socket.on("batch-updated", callback);
+
   return () => {
-    socket.off('batch-updated', callback);
+    socket.off("batch-updated", callback);
   };
 };
 
@@ -90,12 +105,14 @@ export const onBatchUpdated = (callback: (data: any) => void): (() => void) => {
  * @param {(data: any) => void} callback - Callback function for stage changes
  * @returns {() => void} Cleanup function to remove listener
  */
-export const onBatchStageChanged = (callback: (data: any) => void): (() => void) => {
+export const onBatchStageChanged = (
+  callback: (data: any) => void,
+): (() => void) => {
   const socket = getSocket();
-  socket.on('batch-stage-changed', callback);
-  
+  socket.on("batch-stage-changed", callback);
+
   return () => {
-    socket.off('batch-stage-changed', callback);
+    socket.off("batch-stage-changed", callback);
   };
 };
 
@@ -107,6 +124,7 @@ export const disconnectSocket = (): void => {
     socketInstance.disconnect();
     socketInstance = null;
 
+    console.log("[SOCKET] Disconnected manually");
   }
 };
 
@@ -118,6 +136,8 @@ export const joinVerificationRoom = (userId: string): void => {
   const socket = getSocket();
   socket.emit('join-verification-room', userId);
 
+  socket.emit("join-verification-room", userId);
+  console.log(`[SOCKET] Joined verification room for user: ${userId}`);
 };
 
 /**
@@ -127,6 +147,8 @@ export const leaveVerificationRoom = (userId: string): void => {
   const socket = getSocket();
   socket.emit('leave-verification-room', userId);
 
+  socket.emit("leave-verification-room", userId);
+  console.log(`[SOCKET] Left verification room for user: ${userId}`);
 };
 
 /**
@@ -134,12 +156,14 @@ export const leaveVerificationRoom = (userId: string): void => {
  * @param {(data: any) => void} callback - Callback function for verification updates
  * @returns {() => void} Cleanup function to remove listener
  */
-export const onVerificationStatusUpdated = (callback: (data: any) => void): (() => void) => {
+export const onVerificationStatusUpdated = (
+  callback: (data: any) => void,
+): (() => void) => {
   const socket = getSocket();
-  socket.on('verification.status.updated', callback);
-  
+  socket.on("verification.status.updated", callback);
+
   return () => {
-    socket.off('verification.status.updated', callback);
+    socket.off("verification.status.updated", callback);
   };
 };
 
@@ -150,6 +174,8 @@ export const joinAuctionRoom = (auctionId: string): void => {
   const socket = getSocket();
   socket.emit('join_auction', auctionId);
 
+  socket.emit("join_auction", auctionId);
+  console.log(`[SOCKET] Joined auction room: ${auctionId}`);
 };
 
 /**
@@ -159,6 +185,8 @@ export const leaveAuctionRoom = (auctionId: string): void => {
   const socket = getSocket();
   socket.emit('leave_auction', auctionId);
 
+  socket.emit("leave_auction", auctionId);
+  console.log(`[SOCKET] Left auction room: ${auctionId}`);
 };
 
 /**
@@ -168,16 +196,20 @@ export const placeBid = (auctionId: string, bidAmount: number): void => {
   const socket = getSocket();
   socket.emit('place_bid', { auctionId, bidAmount });
 
+  socket.emit("place_bid", { auctionId, bidAmount });
+  console.log(`[SOCKET] Emitted place_bid:`, { auctionId, bidAmount });
 };
 
 /**
  * Listen for live bid updates (when someone bids)
  */
-export const onAuctionUpdated = (callback: (data: any) => void): (() => void) => {
+export const onAuctionUpdated = (
+  callback: (data: any) => void,
+): (() => void) => {
   const socket = getSocket();
-  socket.on('auction_update', callback);
+  socket.on("auction_update", callback);
   return () => {
-    socket.off('auction_update', callback);
+    socket.off("auction_update", callback);
   };
 };
 
@@ -186,31 +218,35 @@ export const onAuctionUpdated = (callback: (data: any) => void): (() => void) =>
  */
 export const onAuctionEnded = (callback: (data: any) => void): (() => void) => {
   const socket = getSocket();
-  socket.on('auction_ended', callback);
+  socket.on("auction_ended", callback);
   return () => {
-    socket.off('auction_ended', callback);
+    socket.off("auction_ended", callback);
   };
 };
 
 /**
  * Listen for bid errors
  */
-export const onBidError = (callback: (data: { message: string }) => void): (() => void) => {
+export const onBidError = (
+  callback: (data: { message: string }) => void,
+): (() => void) => {
   const socket = getSocket();
-  socket.on('bid_error', callback);
+  socket.on("bid_error", callback);
   return () => {
-    socket.off('bid_error', callback);
+    socket.off("bid_error", callback);
   };
 };
 
 /**
  * Listen for new user notifications
  */
-export const onNewNotification = (callback: (notification: any) => void): (() => void) => {
+export const onNewNotification = (
+  callback: (notification: any) => void,
+): (() => void) => {
   const socket = getSocket();
-  socket.on('new_notification', callback);
-  
+  socket.on("new_notification", callback);
+
   return () => {
-    socket.off('new_notification', callback);
+    socket.off("new_notification", callback);
   };
 };

@@ -1,11 +1,11 @@
-import i18n from 'i18next';
-import { initReactI18next } from 'react-i18next';
-import LanguageDetector from 'i18next-browser-languagedetector';
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
+import LanguageDetector from "i18next-browser-languagedetector";
 
 // Import translations
-import enTranslations from './locales/en.json';
-import hiTranslations from './locales/hi.json';
-import mrTranslations from './locales/mr.json';
+import enTranslations from "./locales/en.json";
+import hiTranslations from "./locales/hi.json";
+import mrTranslations from "./locales/mr.json";
 
 i18n
   .use(LanguageDetector) // Detect user language
@@ -23,14 +23,16 @@ i18n
       },
     },
 
-    fallbackLng: 'en', // Fallback language
-    lng: (typeof window !== 'undefined' && localStorage.getItem('language')) || 'en', // Default language
+    fallbackLng: "en", // Fallback language
+    lng:
+      (typeof window !== "undefined" && localStorage.getItem("language")) ||
+      "en", // Default language
     interpolation: {
       escapeValue: false, // React already escapes values
     },
     detection: {
-      order: ['localStorage', 'navigator'],
-      caches: ['localStorage'],
+      order: ["localStorage", "navigator"],
+      caches: ["localStorage"],
     },
   });
 

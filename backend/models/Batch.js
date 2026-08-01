@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const STAGES = require('../constants/stages');
+const mongoose = require("mongoose");
+const STAGES = require("../constants/stages");
 
 /**
  * @typedef {Object} BatchUpdate
@@ -10,68 +10,91 @@ const STAGES = require('../constants/stages');
  * @property {string} [notes] - Optional notes
  */
 
-const updateSchema = new mongoose.Schema({
+const updateSchema = new mongoose.Schema(
+  {
     stage: {
-    type: String,
-    required: true,
-    enum: STAGES,
-    lowercase: true // Normalize to lowercase for consistency
+      type: String,
+      required: true,
+      enum: STAGES,
+      lowercase: true, // Normalize to lowercase for consistency
+    },
+    actor: {
+      type: String,
+      required: true,
+    },
+    location: {
+      type: String,
+      required: true,
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now,
+    },
+    notes: {
+      type: String,
+      maxlength: 500,
+    },
+    hash: {
+      type: String,
+      trim: true,
+    },
+    blockchainHash: {
+      type: String,
+      default: "",
+    },
   },
-  actor: {
-    type: String,
-    required: true
-  },
-  location: {
-    type: String,
-    required: true
-  },
-  timestamp: {
-    type: Date,
-    default: Date.now
-  },
-  notes: {
-    type: String,
-    maxlength: 500
-  },
-  hash: {
-    type: String,
-    trim: true
-  },
-  blockchainHash: {
-    type: String,
-    default: ''
-  }
-}, { _id: true });
+  { _id: true },
+);
 
-const lifecycleHistorySchema = new mongoose.Schema({
-  stage: {
-    type: String,
-    required: true,
-    enum: ['Registered', 'Growing', 'Harvested', 'Quality Checked', 'Transported', 'Delivered']
+const lifecycleHistorySchema = new mongoose.Schema(
+  {
+    stage: {
+      type: String,
+      required: true,
+      enum: [
+        "Registered",
+        "Growing",
+        "Harvested",
+        "Quality Checked",
+        "Transported",
+        "Delivered",
+      ],
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now,
+    },
+    updatedBy: {
+      type: String,
+      required: true,
+    },
+    notes: {
+      type: String,
+      maxlength: 500,
+      default: "",
+    },
   },
-  timestamp: {
-    type: Date,
-    default: Date.now
-  },
-  updatedBy: {
-    type: String,
-    required: true
-  },
-  notes: {
-    type: String,
-    maxlength: 500,
-    default: ''
-  }
-}, { _id: true });
+  { _id: true },
+);
 
-const lifecycleSchema = new mongoose.Schema({
-  currentStage: {
-    type: String,
-    enum: ['Registered', 'Growing', 'Harvested', 'Quality Checked', 'Transported', 'Delivered'],
-    default: 'Registered'
+const lifecycleSchema = new mongoose.Schema(
+  {
+    currentStage: {
+      type: String,
+      enum: [
+        "Registered",
+        "Growing",
+        "Harvested",
+        "Quality Checked",
+        "Transported",
+        "Delivered",
+      ],
+      default: "Registered",
+    },
+    stageHistory: [lifecycleHistorySchema],
   },
-  stageHistory: [lifecycleHistorySchema]
-}, { _id: false });
+  { _id: false },
+);
 
 /**
  * @typedef {Object} Batch
@@ -95,266 +118,282 @@ const lifecycleSchema = new mongoose.Schema({
  * @property {Date} updatedAt - Last update timestamp
  */
 
-const batchSchema = new mongoose.Schema({
-  batchId: {
-    type: String,
-    required: true,
-    unique: true,
-    index: true,
-    trim: true
-  },
-  farmerId: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  farmerName: {
-    type: String,
-    required: true,
-    minlength: 2,
-    maxlength: 100,
-    trim: true
-  },
-  farmerAddress: {
-    type: String,
-    required: true,
-    minlength: 10,
-    maxlength: 500,
-    trim: true
-  },
-  farmerWalletAddress: {
-    type: String,
-    default: '',
-    lowercase: true,
-    trim: true
-  },
-  cropType: {
-    type: String,
-    required: true,
-    enum: {
-      values: ['rice', 'wheat', 'corn', 'tomato'],
-      message: 'Invalid crop type. Must be one of: rice, wheat, corn, tomato'
-    }
-  },
-  quantity: {
-    type: Number,
-    required: true,
-    min: [1, 'Quantity must be at least 1'],
-    max: [1000000, 'Quantity cannot exceed 1,000,000']
-  },
-  harvestDate: {
-    type: Date,
-    required: true
-  },
-  origin: {
-    type: String,
-    required: true,
-    minlength: 5,
-    maxlength: 200,
-    trim: true
-  },
-  certifications: {
-    type: String,
-    maxlength: 500,
-    default: '',
-    trim: true
-  },
-  description: {
-    type: String,
-    maxlength: 1000,
-    default: '',
-    trim: true
-  },
-  currentStage: {
-    type: String,
-    required: true,
-    index: true,
-    enum: {
-      values: STAGES,
-      message: `Invalid stage. Must be one of: ${STAGES.join(', ')}`
+const batchSchema = new mongoose.Schema(
+  {
+    batchId: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+      trim: true,
     },
-    lowercase: true, // Normalize to lowercase for consistency
-    default: 'farmer'
-  },
-  isRecalled: {
-    type: Boolean,
-    default: false
-  },
-  qrCode: {
-    type: String,
-    required: true
-  },
-  blockchainHash: {
-    type: String,
-    required: true
-  },
-  syncStatus: {
-    type: String,
-    enum: ['pending', 'synced', 'error'],
-    default: 'pending'
-  },
+    farmerId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    farmerName: {
+      type: String,
+      required: true,
+      minlength: 2,
+      maxlength: 100,
+      trim: true,
+    },
+    farmerAddress: {
+      type: String,
+      required: true,
+      minlength: 10,
+      maxlength: 500,
+      trim: true,
+    },
+    farmerWalletAddress: {
+      type: String,
+      default: "",
+      lowercase: true,
+      trim: true,
+    },
+    cropType: {
+      type: String,
+      required: true,
+      enum: {
+        values: ["rice", "wheat", "corn", "tomato"],
+        message: "Invalid crop type. Must be one of: rice, wheat, corn, tomato",
+      },
+    },
+    quantity: {
+      type: Number,
+      required: true,
+      min: [1, "Quantity must be at least 1"],
+      max: [1000000, "Quantity cannot exceed 1,000,000"],
+    },
+    harvestDate: {
+      type: Date,
+      required: true,
+    },
+    origin: {
+      type: String,
+      required: true,
+      minlength: 5,
+      maxlength: 200,
+      trim: true,
+    },
+    certifications: {
+      type: String,
+      maxlength: 500,
+      default: "",
+      trim: true,
+    },
+    description: {
+      type: String,
+      maxlength: 1000,
+      default: "",
+      trim: true,
+    },
+    currentStage: {
+      type: String,
+      required: true,
+      index: true,
+      enum: {
+        values: STAGES,
+        message: `Invalid stage. Must be one of: ${STAGES.join(", ")}`,
+      },
+      lowercase: true, // Normalize to lowercase for consistency
+      default: "farmer",
+    },
+    isRecalled: {
+      type: Boolean,
+      default: false,
+    },
+    qrCode: {
+      type: String,
+      required: true,
+    },
+    blockchainHash: {
+      type: String,
+      required: true,
+    },
+    syncStatus: {
+      type: String,
+      enum: ["pending", "synced", "error"],
+      default: "pending",
+    },
     crossChain: {
       status: {
         type: String,
-        enum: ['not_required', 'pending', 'sent', 'failed'],
-        default: 'not_required'
+        enum: ["not_required", "pending", "sent", "failed"],
+        default: "not_required",
       },
       destinationChain: {
         type: String,
-        default: ''
+        default: "",
       },
       messageId: {
         type: String,
-        default: ''
+        default: "",
       },
       txHash: {
         type: String,
-        default: ''
+        default: "",
       },
       error: {
         type: String,
-        default: ''
+        default: "",
       },
       lastAttemptAt: {
         type: Date,
-        default: null
-      }
+        default: null,
+      },
     },
-  /**
-   * Blockchain Job Tracking
-   * Tracks the status of blockchain transaction jobs in the BullMQ queue
-   */
-  blockchainJob: {
-    jobId: {
-      type: String,
-      default: ''
+    /**
+     * Blockchain Job Tracking
+     * Tracks the status of blockchain transaction jobs in the BullMQ queue
+     */
+    blockchainJob: {
+      jobId: {
+        type: String,
+        default: "",
+      },
+      status: {
+        type: String,
+        enum: [
+          "pending",
+          "processing",
+          "retrying",
+          "completed",
+          "failed",
+          "simulated",
+        ],
+        default: "pending",
+      },
+      txHash: {
+        type: String,
+        default: "",
+      },
+      blockNumber: {
+        type: Number,
+        default: null,
+      },
+      attempts: {
+        type: Number,
+        default: 0,
+      },
+      error: {
+        type: String,
+        default: "",
+      },
+      submittedAt: {
+        type: Date,
+        default: null,
+      },
+      completedAt: {
+        type: Date,
+        default: null,
+      },
+      lastAttemptAt: {
+        type: Date,
+        default: null,
+      },
+    },
+    updates: [updateSchema],
+    lifecycle: {
+      type: lifecycleSchema,
+      default: () => ({
+        currentStage: "Registered",
+        stageHistory: [],
+      }),
     },
     status: {
       type: String,
-      enum: ['pending', 'processing', 'retrying', 'completed', 'failed', 'simulated'],
-      default: 'pending'
+      enum: ["Active", "Flagged", "Inactive"],
+      default: "Active",
+      required: true,
     },
-    txHash: {
+    iotData: {
+      currentTemperature: {
+        type: Number,
+        min: [-20, "Temperature too low"],
+        max: [140, "Temperature too high"],
+      },
+      currentHumidity: {
+        type: Number,
+        min: [0, "Humidity cannot be below 0%"],
+        max: [100, "Humidity cannot exceed 100%"],
+      },
+      isSpoiled: {
+        type: Boolean,
+        default: false,
+      },
+      lastUpdated: {
+        type: Date,
+      },
+      telemetryHistory: [
+        {
+          temperature: Number,
+          humidity: Number,
+          timestamp: { type: Date, default: Date.now },
+        },
+      ],
+    },
+    spoilageRisk: {
+      riskLevel: {
+        type: String,
+        enum: ["Low", "Medium", "High"],
+        default: "Low",
+      },
+      riskScore: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: 0,
+      },
+      factors: [
+        {
+          type: String,
+        },
+      ],
+      predictedAt: {
+        type: Date,
+        default: null,
+      },
+    },
+    pendingApprovalId: {
       type: String,
-      default: ''
+      default: null,
     },
-    blockNumber: {
-      type: Number,
-      default: null
-    },
-    attempts: {
-      type: Number,
-      default: 0
-    },
-    error: {
-      type: String,
-      default: ''
-    },
-    submittedAt: {
-      type: Date,
-      default: null
-    },
-    completedAt: {
-      type: Date,
-      default: null
-    },
-    lastAttemptAt: {
-      type: Date,
-      default: null
-    }
+    approvalHistory: [
+      {
+        requestId: String,
+        actionType: String,
+        status: String,
+        resolvedAt: Date,
+        approvalCount: Number,
+        rejectionCount: Number,
+      },
+    ],
   },
-  updates: [updateSchema],
-  lifecycle: {
-    type: lifecycleSchema,
-    default: () => ({
-      currentStage: 'Registered',
-      stageHistory: []
-    })
+  {
+    timestamps: true, // Automatically adds createdAt and updatedAt fields
+    toJSON: {
+      transform: function (doc, ret) {
+        if (ret.iotData) {
+          ret.currentTemperature = ret.iotData.currentTemperature ?? null;
+          ret.currentHumidity = ret.iotData.currentHumidity ?? null;
+          ret.isSpoiled = ret.iotData.isSpoiled ?? false;
+          ret.iotTimestamp = ret.iotData.lastUpdated ?? null;
+          delete ret.iotData;
+        }
+        return ret;
+      },
+    },
   },
-  status: {
-    type: String,
-    enum: ['Active', 'Flagged', 'Inactive'],
-    default: 'Active',
-    required: true
-  },
-  iotData: {
-    currentTemperature: {
-      type: Number,
-      min: [-20, 'Temperature too low'],
-      max: [140, 'Temperature too high']
-    },
-    currentHumidity: {
-      type: Number,
-      min: [0, 'Humidity cannot be below 0%'],
-      max: [100, 'Humidity cannot exceed 100%']
-    },
-    isSpoiled: {
-      type: Boolean,
-      default: false
-    },
-    lastUpdated: {
-      type: Date
-    },
-    telemetryHistory: [{
-      temperature: Number,
-      humidity: Number,
-      timestamp: { type: Date, default: Date.now }
-    }]
-  },
-  spoilageRisk: {
-    riskLevel: {
-      type: String,
-      enum: ['Low', 'Medium', 'High'],
-      default: 'Low'
-    },
-    riskScore: {
-      type: Number,
-      min: 0,
-      max: 100,
-      default: 0
-    },
-    factors: [{
-      type: String
-    }],
-    predictedAt: {
-      type: Date,
-      default: null
-    }
-  },
-  pendingApprovalId: {
-    type: String,
-    default: null
-  },
-  approvalHistory: [{
-    requestId: String,
-    actionType: String,
-    status: String,
-    resolvedAt: Date,
-    approvalCount: Number,
-    rejectionCount: Number
-  }]
-}, {
-  timestamps: true, // Automatically adds createdAt and updatedAt fields
-  toJSON: {
-    transform: function(doc, ret) {
-      if (ret.iotData) {
-        ret.currentTemperature = ret.iotData.currentTemperature ?? null;
-        ret.currentHumidity = ret.iotData.currentHumidity ?? null;
-        ret.isSpoiled = ret.iotData.isSpoiled ?? false;
-        ret.iotTimestamp = ret.iotData.lastUpdated ?? null;
-        delete ret.iotData;
-      }
-      return ret;
-    }
-  }
-});
+);
 
 // Add indexes for performance optimization
 batchSchema.index({ batchId: 1 }, { unique: true });
 batchSchema.index({ farmerId: 1 });
 batchSchema.index({ createdAt: -1 });
 batchSchema.index({ currentStage: 1 });
-batchSchema.index({ 'lifecycle.currentStage': 1 });
+batchSchema.index({ "lifecycle.currentStage": 1 });
 batchSchema.index({ syncStatus: 1 });
 batchSchema.index({ isRecalled: 1 });
 
@@ -362,41 +401,41 @@ batchSchema.index({ isRecalled: 1 });
 batchSchema.index({ currentStage: 1, createdAt: -1 });
 
 // Pre-save validation
-batchSchema.pre('save', function(next) {
+batchSchema.pre("save", function (next) {
   // Ensure batchId is not empty
-  if (!this.batchId || this.batchId.trim() === '') {
-    throw new Error('Batch ID cannot be empty');
+  if (!this.batchId || this.batchId.trim() === "") {
+    throw new Error("Batch ID cannot be empty");
   }
-  
+
   // Ensure quantity is positive
   if (this.quantity <= 0) {
-    throw new Error('Quantity must be greater than 0');
+    throw new Error("Quantity must be greater than 0");
   }
-  
+
   // Ensure harvestDate is not in the future
   if (new Date(this.harvestDate) > new Date()) {
-    throw new Error('Harvest date cannot be in the future');
+    throw new Error("Harvest date cannot be in the future");
   }
-  
+
   next();
 });
 
 // Instance methods
-batchSchema.methods.getSupplyChainTimeline = function() {
+batchSchema.methods.getSupplyChainTimeline = function () {
   /**
    * Get formatted supply chain timeline
    * @returns {Array} Array of timeline entries
    */
-  return this.updates.map(update => ({
+  return this.updates.map((update) => ({
     stage: update.stage,
     actor: update.actor,
     location: update.location,
     timestamp: update.timestamp,
-    notes: update.notes
+    notes: update.notes,
   }));
 };
 
-batchSchema.methods.isRecalledBatch = function() {
+batchSchema.methods.isRecalledBatch = function () {
   /**
    * Check if batch is recalled
    * @returns {boolean} True if batch is recalled
@@ -404,7 +443,7 @@ batchSchema.methods.isRecalledBatch = function() {
   return this.isRecalled;
 };
 
-batchSchema.methods.canBeUpdated = function() {
+batchSchema.methods.canBeUpdated = function () {
   /**
    * Check if batch can be updated
    * @returns {boolean} True if batch is not recalled and can be updated
@@ -412,62 +451,80 @@ batchSchema.methods.canBeUpdated = function() {
   return !this.isRecalled;
 };
 
-batchSchema.methods.hasPendingApproval = function() {
+batchSchema.methods.hasPendingApproval = function () {
   /**
    * Check if batch has pending blockchain/sync approval or incident approval
    * @returns {boolean} True if pending
    */
-  return this.blockchainJob?.status === 'pending' || this.syncStatus === 'pending' || !!this.pendingApprovalId;
+  return (
+    this.blockchainJob?.status === "pending" ||
+    this.syncStatus === "pending" ||
+    !!this.pendingApprovalId
+  );
 };
 
-batchSchema.methods.executeRecall = function({ recalledBy, reason, approvalRequestId, txHash }) {
+batchSchema.methods.executeRecall = function ({
+  recalledBy,
+  reason,
+  approvalRequestId,
+  txHash,
+}) {
   this.isRecalled = true;
-  this.status = 'Inactive';
+  this.status = "Inactive";
   this.updates.push({
     stage: this.currentStage,
     actor: recalledBy,
-    location: 'System',
-    notes: `BATCH RECALLED: ${reason}`
+    location: "System",
+    notes: `BATCH RECALLED: ${reason}`,
   });
 };
 
-batchSchema.methods.markContaminated = function({ reportedBy, approvalRequestId, notes, contaminationType, severity }) {
-  this.status = 'Flagged';
+batchSchema.methods.markContaminated = function ({
+  reportedBy,
+  approvalRequestId,
+  notes,
+  contaminationType,
+  severity,
+}) {
+  this.status = "Flagged";
   this.updates.push({
     stage: this.currentStage,
     actor: reportedBy,
-    location: 'System',
-    notes: `CONTAMINATION FLAGGED (${severity || 'high'}): ${notes}`
+    location: "System",
+    notes: `CONTAMINATION FLAGGED (${severity || "high"}): ${notes}`,
   });
 };
 
-batchSchema.methods.authorizeDestruction = function({ authorizedBy, approvalRequestId, notes }) {
-  this.status = 'Inactive';
+batchSchema.methods.authorizeDestruction = function ({
+  authorizedBy,
+  approvalRequestId,
+  notes,
+}) {
+  this.status = "Inactive";
   this.isRecalled = true;
   this.updates.push({
     stage: this.currentStage,
     actor: authorizedBy,
-    location: 'System',
-    notes: `DESTRUCTION AUTHORIZED: ${notes}`
+    location: "System",
+    notes: `DESTRUCTION AUTHORIZED: ${notes}`,
   });
 };
 
-batchSchema.methods.setPendingApproval = function(requestId) {
+batchSchema.methods.setPendingApproval = function (requestId) {
   this.pendingApprovalId = requestId;
 };
 
-batchSchema.methods.clearPendingApproval = function() {
+batchSchema.methods.clearPendingApproval = function () {
   this.pendingApprovalId = null;
 };
 
-batchSchema.methods.addApprovalHistory = function(historyObj) {
+batchSchema.methods.addApprovalHistory = function (historyObj) {
   this.approvalHistory.push(historyObj);
   this.pendingApprovalId = null;
 };
 
-
 // Static methods
-batchSchema.statics.findByBatchId = function(batchId) {
+batchSchema.statics.findByBatchId = function (batchId) {
   /**
    * Find batch by batch ID
    * @param {string} batchId - The batch ID to search for
@@ -476,7 +533,7 @@ batchSchema.statics.findByBatchId = function(batchId) {
   return this.findOne({ batchId });
 };
 
-batchSchema.statics.findByFarmerId = function(farmerId) {
+batchSchema.statics.findByFarmerId = function (farmerId) {
   /**
    * Find all batches by farmer ID
    * @param {string} farmerId - The farmer ID to search for
@@ -485,7 +542,7 @@ batchSchema.statics.findByFarmerId = function(farmerId) {
   return this.find({ farmerId }).sort({ createdAt: -1 });
 };
 
-batchSchema.statics.getStats = function() {
+batchSchema.statics.getStats = function () {
   /**
    * Get overall batch statistics
    * @returns {Promise} Promise resolving to statistics object
@@ -495,22 +552,30 @@ batchSchema.statics.getStats = function() {
       $group: {
         _id: null,
         totalBatches: { $sum: 1 },
-        totalQuantity: { $sum: '$quantity' },
-        uniqueFarmers: { $addToSet: '$farmerId' },
+        totalQuantity: { $sum: "$quantity" },
+        uniqueFarmers: { $addToSet: "$farmerId" },
         recalledBatches: {
-          $sum: { $cond: ['$isRecalled', 1, 0] }
-        }
-      }
+          $sum: { $cond: ["$isRecalled", 1, 0] },
+        },
+      },
     },
     {
       $project: {
         totalBatches: 1,
         totalQuantity: 1,
-        uniqueFarmers: { $size: '$uniqueFarmers' },
-        recalledBatches: 1
-      }
-    }
-  ]).then(result => result[0] || { totalBatches: 0, totalQuantity: 0, uniqueFarmers: 0, recalledBatches: 0 });
+        uniqueFarmers: { $size: "$uniqueFarmers" },
+        recalledBatches: 1,
+      },
+    },
+  ]).then(
+    (result) =>
+      result[0] || {
+        totalBatches: 0,
+        totalQuantity: 0,
+        uniqueFarmers: 0,
+        recalledBatches: 0,
+      },
+  );
 };
 
-module.exports = mongoose.model('Batch', batchSchema);
+module.exports = mongoose.model("Batch", batchSchema);
