@@ -69,6 +69,22 @@ services:
     depends_on:
       - backend
 
+  # Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cropchain-frontend-prod
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://cropapi.sonusid.in}
+    networks:
+      - cropchain-network
+    depends_on:
+      - backend
+
   # ML Service
   ml-service:
     build:
