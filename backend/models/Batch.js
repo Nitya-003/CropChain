@@ -302,6 +302,19 @@ const batchSchema = new mongoose.Schema(
         stageHistory: [],
       }),
     },
+    carbonFootprint: {
+      totalEmissions: {
+        type: Number,
+        default: 0
+      },
+      transportLegs: [{
+        origin: String,
+        destination: String,
+        distanceKm: Number,
+        emissionsKgCO2: Number,
+        timestamp: { type: Date, default: Date.now }
+      }]
+    },
     status: {
       type: String,
       enum: ["Active", "Flagged", "Inactive"],
