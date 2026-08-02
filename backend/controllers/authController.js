@@ -52,8 +52,8 @@ const registerSchema = z.object({
         .trim(),
     password: passwordSchema,
     role: z.enum(VALID_ROLES, {
-        errorMap: () => ({ 
-            message: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}` 
+        errorMap: () => ({
+            message: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}`
         })
     }).default(ROLES.FARMER)
 });
@@ -461,7 +461,7 @@ const walletLogin = async (req, res) => {
       );
     }
 
-    const { address, signature, nonce: providedNonce } = validationResult.data;
+    const { address, signature } = validationResult.data;
 
     // Verify the wallet signature against the stored nonce
     let normalizedAddress;
@@ -561,7 +561,6 @@ const walletRegister = async (req, res) => {
       email,
       walletAddress,
       signature,
-      nonce: providedNonce,
       role,
     } = validationResult.data;
 
@@ -728,7 +727,7 @@ const deleteAccount = async (req, res) => {
         }
 
         await User.findByIdAndDelete(req.user._id);
-        
+
         clearRefreshCookie(res);
 
         logger.info('User account deleted', { userId: req.user._id });
@@ -998,19 +997,6 @@ const setFallbackPassword = async (req, res) => {
 };
 
 module.exports = {
-    registerUser,
-    loginUser,
-    walletLogin,
-    walletRegister,
-    getNonce,
-    updateProfile,
-    refreshSession,
-    logoutUser,
-    forgotPassword,
-    resetPassword,
-    addFunds,
-    setFallbackPassword,
-    deleteAccount
   registerUser,
   loginUser,
   walletLogin,
@@ -1024,4 +1010,5 @@ module.exports = {
   resetPassword,
   addFunds,
   setFallbackPassword,
+  deleteAccount,
 };
