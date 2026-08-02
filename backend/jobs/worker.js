@@ -15,8 +15,6 @@ let worker = null;
 async function processSendEmail(job) {
   const { to, subject, templateData } = job.data;
   console.log(`[NotificationWorker] Sending email to ${to}`);
-  
-  const { to, subject, html } = job.data;
   logger.info(`[NotificationWorker] Sending email to ${to}`);
 
   await job.updateProgress(10);
