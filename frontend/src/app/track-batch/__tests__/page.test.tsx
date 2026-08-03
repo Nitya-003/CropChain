@@ -55,6 +55,15 @@ vi.mock("../../../utils/crypto", () => ({
   sha256: vi.fn().mockResolvedValue("mockedhash"),
 }));
 
+vi.mock("@/services/nftService", () => ({
+  getBatchNFT: vi.fn().mockResolvedValue({
+    success: true,
+    batchId: "BATCH-001",
+    nftData: { tokenId: 1042, metadataURI: "ipfs://test", currentStage: 0 },
+  }),
+  updateNFTMetadata: vi.fn().mockResolvedValue({ success: true }),
+}));
+
 const TrackBatch = (await import("../page")).default;
 
 function renderTrackBatch() {

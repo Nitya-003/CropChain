@@ -6,6 +6,7 @@ const PROVIDER_URL =
   process.env.SEPOLIA_URL ||
   "https://ethereum-sepolia-rpc.publicnode.com";
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
 
 // Contract ABI - aligned with CropChain.sol
 const contractABI = [
@@ -62,6 +63,14 @@ function initialize() {
     });
     return null;
   }
+}
+
+/**
+ * Get contract instance
+ * @returns {ethers.Contract|null}
+ */
+function getContract() {
+  return contractInstance;
 }
 
 /**

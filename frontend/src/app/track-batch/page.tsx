@@ -28,6 +28,7 @@ import { TrackBatchSkeleton } from "../../components/skeletons";
 import { useBatchSocket } from "../../hooks/useBatchSocket";
 import { JourneyPreview } from "../../components/journey/JourneyPreview";
 import { verifyHashChain } from "../../utils/crypto";
+import { CropNFTVisualizer } from "../../components/CropNFTVisualizer";
 
 const TrackBatchContent: React.FC = () => {
   const searchParams = useSearchParams();
@@ -340,6 +341,30 @@ const TrackBatchContent: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Dynamic NFT Visualizer */}
+          <div className="md:col-span-3">
+            <CropNFTVisualizer
+              batchId={batch.batchId || batch.id}
+              cropType={batch.cropType}
+              quantity={batch.quantity}
+              origin={batch.origin}
+              currentStage={
+                batch.stageCode !== undefined
+                  ? batch.stageCode
+                  : batch.currentStage === "farmer"
+                    ? 0
+                    : batch.currentStage === "mandi"
+                      ? 1
+                      : batch.currentStage === "transport"
+                        ? 4
+                        : batch.currentStage === "retailer"
+                          ? 5
+                          : 0
+              }
+              initialNFTData={batch.nftData}
+            />
           </div>
 
           {/* IoT Data Display */}

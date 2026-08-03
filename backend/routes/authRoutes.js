@@ -18,22 +18,6 @@ const {
 const { protect, adminOnly } = require('../middleware/auth');
 const validateRegistration = require('../middleware/validateRegistration');
 const { authLimiter, registerLimiter } = require('../middleware/rateLimiters');
-  registerUser,
-  loginUser,
-  walletLogin,
-  walletRegister,
-  getNonce,
-  updateProfile,
-  refreshSession,
-  logoutUser,
-  forgotPassword,
-  resetPassword,
-  addFunds,
-  setFallbackPassword,
-} = require("../controllers/authController");
-const { protect, adminOnly } = require("../middleware/auth");
-const validateRegistration = require("../middleware/validateRegistration");
-const { authLimiter, registerLimiter } = require("../middleware/rateLimiters");
 
 router.post("/register", validateRegistration, registerUser);
 router.post("/login", loginUser);
