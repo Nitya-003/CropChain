@@ -385,3 +385,5 @@ module.exports = {
   pauseQueue,
   resumeQueue,
 };
+
+.catch(err => console.error("Promise.all failed:", err));
