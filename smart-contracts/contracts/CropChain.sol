@@ -79,6 +79,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     ///      Prevents double-listing and over-allocation beyond the physical batch quantity.
     mapping(bytes32 => uint256) public batchListedQuantity;
     mapping(bytes32 => address) public nextCustodianApproval;
+    mapping(bytes32 => uint256[]) public batchListingIds;
 
     bytes32[] public allBatchIds;
 
@@ -303,6 +304,17 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         // (they can no longer be bought).
         batchListedQuantity[batchId] = 0;
 
+        // Deactivate all existing listings for this batch to prevent ghost listings
+        uint256[] storage bListings = batchListingIds[batchId];
+        for (uint256 i = 0; i < bListings.length; i++) {
+            uint256 lId = bListings[i];
+            if (listings[lId].active) {
+                listings[lId].active = false;
+                listings[lId].quantityAvailable = 0;
+                emit ListingCancelled(lId, msg.sender);
+            }
+        }
+
         // Dynamic role checks based on stage transition
         require(_canUpdateStage(batchId, stage), "Role not allowed for this stage transition");
 
@@ -378,6 +390,8 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
             active: true,
             createdAt: block.timestamp
         });
+
+        batchListingIds[batchId].push(listingId);
 
         emit ListingCreated(listingId, batchId, listingSeller, quantity, unitPriceWei);
 
