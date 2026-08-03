@@ -1,7 +1,7 @@
 const { ethers } = require("ethers");
 const logger = require("../utils/logger");
 const User = require("../models/User");
-const { isAdminRole } = require("../constants/permissions");
+const { isAdminRole, ROLES } = require("../constants/permissions");
 const {
   buildVerificationMessage,
   CHALLENGE_ACTIONS,
@@ -78,7 +78,10 @@ class DIDService {
         throw new Error("User not found");
       }
 
-      if (!verifier || !isAdminRole(verifier.role)) {
+      if (
+        !verifier ||
+        (!isAdminRole(verifier.role) && verifier.role !== ROLES.MANDI)
+      ) {
         try {
           await VerificationEvent.create({
             action: "credential_issued",
