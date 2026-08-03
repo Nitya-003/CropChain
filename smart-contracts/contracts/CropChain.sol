@@ -205,6 +205,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
 
     function setTwapConfig(uint256 twapWindowSeconds, uint256 maxDeviationBps) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         require(twapWindowSeconds > 0, "Window=0");
+        require(twapWindowSeconds <= 7 days, "Window too large");
         require(maxDeviationBps <= 5000, "Deviation too high");
 
         twapWindow = twapWindowSeconds;
@@ -565,10 +566,16 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         uint256 endTime = block.timestamp;
         uint256 weightedSum;
         uint256 totalWeight;
+        uint256 maxIterations = 256;
+        uint256 iterations = 0;
 
         for (uint256 i = len; i > 0; ) {
             unchecked {
                 i -= 1;
+                iterations += 1;
+            }
+            if (iterations > maxIterations) {
+                break;
             }
 
             PriceObservation storage current = observations[i];
