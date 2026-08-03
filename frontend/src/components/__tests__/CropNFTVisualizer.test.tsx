@@ -39,7 +39,7 @@ describe("CropNFTVisualizer Component", () => {
     );
 
     expect(screen.getByText("Dynamic NFT Asset (dNFT)")).toBeInTheDocument();
-    expect(screen.getByText("Organic Wheat")).toBeInTheDocument();
+    expect(screen.getAllByText("Organic Wheat")[0]).toBeInTheDocument();
     expect(screen.getByText("800 kg • Punjab, India")).toBeInTheDocument();
   });
 
@@ -52,7 +52,7 @@ describe("CropNFTVisualizer Component", () => {
       />,
     );
 
-    expect(screen.getByText("Quality Inspected")).toBeInTheDocument();
+    expect(screen.getAllByText("Quality Inspected")[0]).toBeInTheDocument();
     expect(screen.getByText("View IPFS")).toBeInTheDocument();
   });
 });

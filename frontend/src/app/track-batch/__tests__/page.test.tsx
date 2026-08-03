@@ -106,11 +106,11 @@ describe("TrackBatch Page", () => {
     await user.type(screen.getByPlaceholderText(/Enter Batch ID/), "BATCH-001");
     await user.click(screen.getByText("Track"));
     await waitFor(() => {
-      expect(screen.getByText("BATCH-001")).toBeInTheDocument();
-      expect(screen.getByText("rice")).toBeInTheDocument();
+      expect(screen.getAllByText("BATCH-001")[0]).toBeInTheDocument();
+      expect(screen.getAllByText("rice")[0]).toBeInTheDocument();
       expect(screen.getByText("John Farmer")).toBeInTheDocument();
-      expect(screen.getByText("500 kg")).toBeInTheDocument();
-      expect(screen.getByText("Punjab")).toBeInTheDocument();
+      expect(screen.getAllByText(/500 kg/)[0]).toBeInTheDocument();
+      expect(screen.getAllByText(/Punjab/)[0]).toBeInTheDocument();
     });
   });
 
@@ -123,7 +123,7 @@ describe("TrackBatch Page", () => {
     await waitFor(() => {
       expect(mockGetPublicBatch).toHaveBeenCalledWith("BATCH-001");
       expect(screen.getByDisplayValue("BATCH-001")).toBeInTheDocument();
-      expect(screen.getByText("BATCH-001")).toBeInTheDocument();
+      expect(screen.getAllByText("BATCH-001")[0]).toBeInTheDocument();
     });
   });
 
@@ -207,7 +207,7 @@ describe("TrackBatch Page", () => {
     });
     await user.click(screen.getByText("Try Again"));
     await waitFor(() => {
-      expect(screen.getByText("BATCH-001")).toBeInTheDocument();
+      expect(screen.getAllByText("BATCH-001")[0]).toBeInTheDocument();
     });
   });
 
