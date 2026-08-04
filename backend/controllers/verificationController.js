@@ -776,7 +776,7 @@ const bulkIssueCredentials = async (req, res) => {
     }
 
     const adminId = req.user.id;
-    const dryRun = req.query.dryRun === "true" || req.body?.dryRun === true;
+    const dryRun = req.query.dryRun === "true" || req.body?.dryRun ;
     const job = await BulkVerificationJob.create({
       status: "pending",
       mode: dryRun ? "dry-run" : "bulk",
