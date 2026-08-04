@@ -115,7 +115,7 @@ router.get(
         {
           oracle: {
             ...status,
-            uptimeHours: Math.round(uptimeHours * 100) / 100,
+            uptimeHours: Math.round(uptimeHours * 100 + Number.EPSILON) / 100,
             version: "1.0.0",
           },
           performance: {
