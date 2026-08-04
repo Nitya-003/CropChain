@@ -33,7 +33,7 @@ class AIService {
       }
     }
 
-    this.maxTokens = parseInt(process.env.AI_MAX_TOKENS) || 500;
+    this.maxTokens = parseInt(process.env.AI_MAX_TOKENS, 10) || 500;
     this.temperature = parseFloat(process.env.AI_TEMPERATURE) || 0.7;
 
     if (this.provider === "gemini") {
