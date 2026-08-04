@@ -304,3 +304,5 @@ export const JourneyPathMap: React.FC<JourneyPathMapProps> = ({
     </div>
   );
 };
+
+.catch(err => console.error("Promise.all failed:", err));
