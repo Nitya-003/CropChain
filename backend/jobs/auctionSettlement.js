@@ -227,7 +227,7 @@ const settleExpiredAuctions = async () => {
 
 const startAuctionSettlementJob = () => {
   logger.info("Starting background auction settlement check job (every 10s)");
-  setInterval(settleExpiredAuctions, 10000);
+  clearInterval(window.__interval); window.__interval = setInterval(settleExpiredAuctions, 10000);
 };
 
 module.exports = {
