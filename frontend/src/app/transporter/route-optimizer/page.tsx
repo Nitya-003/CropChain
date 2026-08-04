@@ -210,7 +210,7 @@ function RouteOptimizerComponent() {
     if (targetIndex === 0 || !routeData) return;
 
     const sourceIndex = parseInt(e.dataTransfer.getData("text/plain"), 10);
-    if (isNaN(sourceIndex) || sourceIndex === targetIndex) return;
+    if (Number.isNaN(sourceIndex) || sourceIndex === targetIndex) return;
 
     const newCoordinates = [...routeData.orderedCoordinates];
     const [draggedItem] = newCoordinates.splice(sourceIndex, 1);
