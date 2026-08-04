@@ -135,7 +135,7 @@ async function reconcileRoles(contract) {
         }
 
         // Check verification and user account status
-        const isVerified = user.verification?.isVerified === true;
+        const isVerified = user.verification?.isVerified ;
         const isActive = user.status === "active";
         const shouldHaveRole = isVerified && isActive;
         const expectedRoleName = shouldHaveRole ? user.role : "none";
