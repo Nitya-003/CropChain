@@ -66,6 +66,10 @@ apiClient.interceptors.response.use(
 
           if (!nextToken) {
             tokenService.clearAccessToken();
+            if (typeof window !== "undefined") {
+              localStorage.removeItem("user");
+              window.dispatchEvent(new Event("auth:logout"));
+            }
             return null;
           }
 
@@ -73,6 +77,10 @@ apiClient.interceptors.response.use(
           return nextToken;
         } catch (err) {
           tokenService.clearAccessToken();
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("user");
+            window.dispatchEvent(new Event("auth:logout"));
+          }
           return null;
         } finally {
           refreshPromise = null;
