@@ -606,7 +606,8 @@ exports.recordIoTData = async (req, res) => {
         
         const validationResult = recordIoTDataSchema.safeParse(req.body);
         if (!validationResult.success) {
-            const details = validationResult.error.errors.map(err => err.message);
+            const issues = validationResult.error.issues || validationResult.error.errors || [];
+            const details = issues.map(err => err.message);
             return res.status(400).json(apiResponse.errorResponse('Validation failed', 'VALIDATION_ERROR', 400, details));
         }
         
