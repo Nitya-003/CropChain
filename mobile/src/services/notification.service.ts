@@ -59,4 +59,13 @@ export const NotificationService = {
       throw error;
     }
   },
+
+  registerPushToken: async (token: string): Promise<void> => {
+    try {
+      await api.post("/notifications/push-token", { token });
+    } catch (error) {
+      console.error("Failed to register push token:", error);
+      throw error;
+    }
+  },
 };
