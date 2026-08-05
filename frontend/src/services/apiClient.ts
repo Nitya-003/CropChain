@@ -1,6 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { tokenService } from "./token.service";
-import { sanitizeObject } from "../lib/sanitize";
+import { sanitizeObject, isBinaryOrFormData } from "../lib/sanitize";
 
 const baseApiUrl =
   (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_URL) ||
@@ -25,7 +25,11 @@ apiClient.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  if (config.data && typeof config.data === "object") {
+  if (
+    config.data &&
+    typeof config.data === "object" &&
+    !isBinaryOrFormData(config.data)
+  ) {
     config.data = sanitizeObject(config.data);
   }
 
