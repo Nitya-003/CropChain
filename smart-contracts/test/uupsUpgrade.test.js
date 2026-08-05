@@ -13,6 +13,7 @@ describe("CropChain UUPS Upgradeable Proxy", function () {
     cropChain = await upgrades.deployProxy(CropChainFactory, [], {
       kind: "uups",
       initializer: "initialize",
+      constructorArgs: [ethers.ZeroAddress],
     });
     await cropChain.waitForDeployment();
 
@@ -88,6 +89,7 @@ describe("CropChain UUPS Upgradeable Proxy", function () {
 
       const upgradedProxy = await upgrades.upgradeProxy(proxyAddress, CropChainV2Factory, {
         kind: "uups",
+        constructorArgs: [ethers.ZeroAddress],
       });
 
       expect(await upgradedProxy.getAddress()).to.equal(proxyAddress);
@@ -106,6 +108,7 @@ describe("CropChain UUPS Upgradeable Proxy", function () {
       const CropChainV2Factory = await ethers.getContractFactory("CropChainUpgradeable");
       const upgradedProxy = await upgrades.upgradeProxy(proxyAddress, CropChainV2Factory, {
         kind: "uups",
+        constructorArgs: [ethers.ZeroAddress],
       });
 
       const batchAfterUpgrade = await upgradedProxy.getBatch(batchId);
@@ -120,7 +123,10 @@ describe("CropChain UUPS Upgradeable Proxy", function () {
       const CropChainV2Factory = await ethers.getContractFactory("CropChainUpgradeable", attacker);
 
       await expect(
-        upgrades.upgradeProxy(proxyAddress, CropChainV2Factory, { kind: "uups" })
+        upgrades.upgradeProxy(proxyAddress, CropChainV2Factory, {
+          kind: "uups",
+          constructorArgs: [ethers.ZeroAddress],
+        })
       ).to.be.revertedWithCustomError(cropChain, "AccessControlUnauthorizedAccount");
     });
   });

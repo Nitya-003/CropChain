@@ -16,6 +16,7 @@ async function main() {
   const cropChainProxy = await upgrades.deployProxy(CropChainFactory, [], {
     kind: "uups",
     initializer: "initialize",
+    constructorArgs: [ethers.ZeroAddress],
   });
 
   await cropChainProxy.waitForDeployment();

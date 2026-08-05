@@ -5,6 +5,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 
 abstract contract ReentrancyGuardUpgradeable is Initializable {
     uint256 private constant _NOT_ENTERED = 1;
@@ -33,6 +34,7 @@ abstract contract ReentrancyGuardUpgradeable is Initializable {
  * @dev UUPS Upgradeable Smart Contract for CropChain Agricultural Supply Chain Tracking.
  * Features:
  *  - UUPS Proxy Pattern (Upgradeable logic with immutable state storage)
+ *  - EIP-2771 Gasless Meta-Transactions (Zero-gas farmer transactions via trusted forwarders)
  *  - Custom Errors for EVM Gas Optimization
  *  - Multi-Role Access Control (Farmer, Mandi, Transporter, Retailer, Oracle, Admin)
  *  - Crop Batch Provenance, TWAP Oracles, IoT Telemetry & Decentralized Marketplace
@@ -42,7 +44,8 @@ contract CropChainUpgradeable is
     UUPSUpgradeable,
     PausableUpgradeable,
     ReentrancyGuardUpgradeable,
-    AccessControlUpgradeable
+    AccessControlUpgradeable,
+    ERC2771ContextUpgradeable
 {
     // --- Custom Errors for Gas Optimization ---
     error BatchNotFound();
@@ -160,14 +163,18 @@ contract CropChainUpgradeable is
     event IoTDataFulfilled(bytes32 indexed batchId, int256 temperature, int256 humidity, bool isSpoiled);
     event CustodianApproved(bytes32 indexed batchId, address indexed approver, address indexed nextCustodian);
 
+    address private _dynamicTrustedForwarder;
+
+    event TrustedForwarderUpdated(address indexed previousForwarder, address indexed newForwarder);
+
     // --- Modifiers ---
     modifier onlyOwner() {
-        if (msg.sender != owner) revert NotAuthorized();
+        if (_msgSender() != owner) revert NotAuthorized();
         _;
     }
 
     modifier onlyAuthorized() {
-        if (roles[msg.sender] == ActorRole.None) revert NotAuthorized();
+        if (roles[_msgSender()] == ActorRole.None) revert NotAuthorized();
         _;
     }
 
@@ -177,13 +184,13 @@ contract CropChainUpgradeable is
     }
 
     modifier onlyOracleOrAdmin() {
-        ActorRole role = roles[msg.sender];
+        ActorRole role = roles[_msgSender()];
         if (role != ActorRole.Oracle && role != ActorRole.Admin) revert NotAuthorized();
         _;
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
+    constructor(address trustedForwarder_) ERC2771ContextUpgradeable(trustedForwarder_) {
         _disableInitializers();
     }
 
@@ -195,13 +202,13 @@ contract CropChainUpgradeable is
         __ReentrancyGuard_init();
         __AccessControl_init();
 
-        owner = msg.sender;
-        roles[msg.sender] = ActorRole.Admin;
+        owner = _msgSender();
+        roles[_msgSender()] = ActorRole.Admin;
         nextListingId = 1;
         twapWindow = 1 hours;
         maxPriceDeviationBps = 1500;
 
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
         _setRoleAdmin(FARMER_ROLE, DEFAULT_ADMIN_ROLE);
         _setRoleAdmin(MANDI_ROLE, DEFAULT_ADMIN_ROLE);
@@ -210,10 +217,52 @@ contract CropChainUpgradeable is
         _setRoleAdmin(ORACLE_ROLE, DEFAULT_ADMIN_ROLE);
     }
 
+    function setTrustedForwarder(address forwarder) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
+        if (forwarder == address(0)) revert InvalidAddress();
+        address oldForwarder = isTrustedForwarder(forwarder) ? forwarder : _dynamicTrustedForwarder;
+        _dynamicTrustedForwarder = forwarder;
+        emit TrustedForwarderUpdated(oldForwarder, forwarder);
+    }
+
+    function isTrustedForwarder(address forwarder) public view override returns (bool) {
+        return super.isTrustedForwarder(forwarder) || (forwarder != address(0) && forwarder == _dynamicTrustedForwarder);
+    }
+
+    function getTrustedForwarder() external view returns (address) {
+        return _dynamicTrustedForwarder != address(0) ? _dynamicTrustedForwarder : trustedForwarder();
+    }
+
     /**
      * @dev Restricts proxy upgrades to DEFAULT_ADMIN_ROLE.
      */
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+
+    function _msgSender()
+        internal
+        view
+        override(ContextUpgradeable, ERC2771ContextUpgradeable)
+        returns (address)
+    {
+        return ERC2771ContextUpgradeable._msgSender();
+    }
+
+    function _msgData()
+        internal
+        view
+        override(ContextUpgradeable, ERC2771ContextUpgradeable)
+        returns (bytes calldata)
+    {
+        return ERC2771ContextUpgradeable._msgData();
+    }
+
+    function _contextSuffixLength()
+        internal
+        view
+        override(ContextUpgradeable, ERC2771ContextUpgradeable)
+        returns (uint256)
+    {
+        return ERC2771ContextUpgradeable._contextSuffixLength();
+    }
 
     function setRole(address user, ActorRole role) external onlyOwner nonReentrant {
         if (user == address(0)) revert InvalidAddress();
@@ -300,7 +349,7 @@ contract CropChainUpgradeable is
             ipfsCID: ipfsCID,
             quantity: quantity,
             createdAt: block.timestamp,
-            creator: msg.sender,
+            creator: _msgSender(),
             exists: true,
             isRecalled: false,
             currentTemperature: 0,
@@ -315,23 +364,23 @@ contract CropChainUpgradeable is
                 location: location,
                 timestamp: block.timestamp,
                 notes: notes,
-                updatedBy: msg.sender
+                updatedBy: _msgSender()
             })
         );
 
         allBatchIds.push(batchId);
 
-        emit BatchCreated(batchId, ipfsCID, quantity, msg.sender);
+        emit BatchCreated(batchId, ipfsCID, quantity, _msgSender());
     }
 
     function approveCustodian(bytes32 batchId, address nextCustodian) external whenNotPaused nonReentrant batchExists(batchId) {
         address currentCustodian = _getCurrentCustodian(batchId);
 
-        if (msg.sender != currentCustodian && !hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) revert NotAuthorized();
+        if (_msgSender() != currentCustodian && !hasRole(DEFAULT_ADMIN_ROLE, _msgSender())) revert NotAuthorized();
         if (nextCustodian == address(0)) revert InvalidAddress();
 
         nextCustodianApproval[batchId] = nextCustodian;
-        emit CustodianApproved(batchId, msg.sender, nextCustodian);
+        emit CustodianApproved(batchId, _msgSender(), nextCustodian);
     }
 
     function updateBatch(
@@ -348,7 +397,7 @@ contract CropChainUpgradeable is
         if (cropBatches[batchId].isRecalled) revert BatchIsRecalled();
         if (!_isNextStage(batchId, stage)) revert InvalidStageTransition();
 
-        if (nextCustodianApproval[batchId] != msg.sender && !hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) revert CustodianNotApproved();
+        if (nextCustodianApproval[batchId] != _msgSender() && !hasRole(DEFAULT_ADMIN_ROLE, _msgSender())) revert CustodianNotApproved();
         nextCustodianApproval[batchId] = address(0);
 
         batchListedQuantity[batchId] = 0;
@@ -362,16 +411,16 @@ contract CropChainUpgradeable is
                 location: location,
                 timestamp: block.timestamp,
                 notes: notes,
-                updatedBy: msg.sender
+                updatedBy: _msgSender()
             })
         );
 
-        emit BatchUpdated(batchId, stage, actorName, location, msg.sender);
+        emit BatchUpdated(batchId, stage, actorName, location, _msgSender());
     }
 
     function recallBatch(bytes32 batchId) external onlyOwner whenNotPaused nonReentrant batchExists(batchId) {
         cropBatches[batchId].isRecalled = true;
-        emit BatchRecalled(batchId, msg.sender);
+        emit BatchRecalled(batchId, _msgSender());
     }
 
     function createListing(bytes32 batchId, uint256 quantity, uint256 unitPriceWei)
