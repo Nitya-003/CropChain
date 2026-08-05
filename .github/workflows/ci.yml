@@ -263,6 +263,9 @@ jobs:
   docker-security-scan:
     name: Trivy Scan (${{ matrix.service.name }})
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
 
     strategy:
       fail-fast: false
