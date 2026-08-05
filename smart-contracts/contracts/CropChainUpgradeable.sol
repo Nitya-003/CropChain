@@ -147,6 +147,20 @@ contract CropChainUpgradeable is
     uint256 public maxPriceDeviationBps;
 
     // --- Events ---
+    struct Dispute {
+        bytes32 batchId;
+        address raisedBy;
+        string reason;
+        int256 breachTemperature;
+        int256 breachHumidity;
+        uint64 timestamp;
+        bool resolved;
+    }
+
+    mapping(bytes32 => Dispute) public batchDisputes;
+
+    event DisputeRaised(bytes32 indexed batchId, address indexed raisedBy, string reason, int256 breachTemperature, int256 breachHumidity);
+    event DisputeResolved(bytes32 indexed batchId, address indexed resolvedBy);
     event BatchCreated(bytes32 indexed batchId, string ipfsCID, uint256 quantity, address indexed creator);
     event BatchUpdated(bytes32 indexed batchId, Stage stage, string actorName, string location, address indexed updatedBy);
     event BatchRecalled(bytes32 indexed batchId, address indexed triggeredBy);
@@ -791,9 +805,37 @@ contract CropChainUpgradeable is
 
         if (temperature > 800 || temperature < 320) {
             cropBatches[batchId].isSpoiled = true;
+
+            batchDisputes[batchId] = Dispute({
+                batchId: batchId,
+                raisedBy: _msgSender(),
+                reason: "Cold-chain telemetry threshold breach detected",
+                breachTemperature: temperature,
+                breachHumidity: humidity,
+                timestamp: uint64(block.timestamp),
+                resolved: false
+            });
+
+            emit DisputeRaised(
+                batchId,
+                _msgSender(),
+                "Cold-chain telemetry threshold breach detected",
+                temperature,
+                humidity
+            );
         }
 
         emit IoTDataFulfilled(batchId, temperature, humidity, cropBatches[batchId].isSpoiled);
+    }
+
+    function getDispute(bytes32 batchId) external view batchExists(batchId) returns (Dispute memory) {
+        return batchDisputes[batchId];
+    }
+
+    function resolveDispute(bytes32 batchId) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant batchExists(batchId) {
+        if (batchDisputes[batchId].batchId == bytes32(0)) revert BatchNotFound();
+        batchDisputes[batchId].resolved = true;
+        emit DisputeResolved(batchId, _msgSender());
     }
 
     function getBatchIoTData(bytes32 batchId)
