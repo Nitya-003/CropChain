@@ -21,6 +21,11 @@ COPY . .
 # Pre-train model at image build time so container starts instantly
 RUN python train.py
 
+# Create a non-root user and change ownership
+RUN addgroup --system appuser && adduser --system --group appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
 EXPOSE 5001
 
 # Use gunicorn as the application server
