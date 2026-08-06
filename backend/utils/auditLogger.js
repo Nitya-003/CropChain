@@ -9,7 +9,7 @@ const stableStringify = (value) => {
   if (typeof value !== "object") return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
 
-  const keys = Object.keys(value).sort();
+  const keys = Object.keys(value).sort((a, b) => a - b);
   return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(",")}}`;
 };
 
