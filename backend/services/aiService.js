@@ -1295,9 +1295,15 @@ Click on any batch ID to trace its journey.`,
     }
 
     // 4. Construct Restricted Prompt
+    // currentPage/userRole already come from the frontend's request context; wire them
+    // into the prompt so answers reflect where the user is instead of being fully generic.
+    const pageContext = requestContext?.currentPage
+      ? `Current page: ${requestContext.currentPage}${requestContext.userRole ? ` | User role: ${requestContext.userRole}` : ""}`
+      : null;
+
     const systemPrompt = `You are CropAssistant, a strict context-aware AI supply chain assistant.
 You have been provided with real-time supply chain metadata from the MongoDB database.
-
+${pageContext ? `\n${pageContext}\nUse this to tailor generic questions (e.g. "what should I do here?") to what's relevant on that page, instead of a generic answer.\n` : ""}
 Here is the current database context:
 ---
 ${contextText || "No specific crop or batch metadata found in the database for this query."}
