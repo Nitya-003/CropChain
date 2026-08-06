@@ -8,7 +8,7 @@ import { realCropBatchService } from "../../services/realCropBatchService";
 import { useRbac } from "../../hooks/useRbac";
 import { sanitizeObject } from "../../lib/sanitize";
 import { ethers } from "ethers";
-import { getContract, getSigner, hasMetaMask } from "../../utils/web3";
+import { getContract, getSigner, hasMetaMask, signMetaTransaction, getContractAddress } from "../../utils/web3";
 
 const AddBatchContent: React.FC = () => {
   const { t } = useTranslation();
@@ -184,31 +184,65 @@ const AddBatchContent: React.FC = () => {
           if (signer) {
             const contract = await getContract();
             if (contract) {
-              toast.loading("Minting provenance record on-chain...", {
+              toast.loading("Signing meta-transaction...", {
                 id: "web3-sync",
               });
 
-              const tx = await contract.createBatch(
+              // Prepare the function call data
+              const functionData = contract.interface.encodeFunctionData("createBatch", [
                 ethers.encodeBytes32String(batch.batchId),
                 ethers.encodeBytes32String(batch.cropType.toUpperCase()),
-                "QmYwAPJhy5n2aBhajbN7yXq3TqK6Lj5ee2ov3333333333", // 46-char valid IPFS CID
+                "QmYwAPJhy5n2aBhajbN7yXq3TqK6Lj5ee2ov3333333333",
                 BigInt(batch.quantity),
                 batch.farmerName,
                 batch.origin,
-                batch.description || "Initial harvest recorded",
+                batch.description || "Initial harvest recorded"
+              ]);
+
+              const signerAddress = await signer.getAddress();
+              const targetContract = getContractAddress();
+              
+              // Get nonce from relayer
+              const nonceRes = await fetch(`http://localhost:3001/api/relayer/nonce/${signerAddress}`);
+              const nonceData = await nonceRes.json();
+              const nonce = parseInt(nonceData.data.nonce);
+
+              // Sign meta transaction (gasless)
+              const { request, signature } = await signMetaTransaction(
+                signerAddress,
+                targetContract,
+                functionData,
+                nonce
               );
 
-              await tx.wait();
+              toast.loading("Relaying meta-transaction...", {
+                id: "web3-sync",
+              });
+
+              // Send to relayer
+              const relayRes = await fetch("http://localhost:3001/api/relayer/forward", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ request, signature })
+              });
+
+              const relayData = await relayRes.json();
+              
+              if (!relayRes.ok) {
+                throw new Error(relayData.error || "Meta-transaction relay failed");
+              }
+
+              const txHash = relayData.data.transactionHash;
 
               // Step 3: Update backend with actual transaction hash
               const updated = await realCropBatchService.updateBatch(
                 batch.batchId,
                 {
-                  blockchainHash: tx.hash,
+                  blockchainHash: txHash,
                 },
               );
 
-              batch.blockchainHash = tx.hash;
+              batch.blockchainHash = txHash;
               toast.success("Successfully minted on-chain!", {
                 id: "web3-sync",
               });
