@@ -3,6 +3,7 @@ const router = express.Router();
 const mongoose = require("mongoose");
 const {
   updateBatchStatus,
+  bulkUpdateBatchStatus,
   getBatches,
   exportBatch,
   recordIoTData,
@@ -38,6 +39,14 @@ router.patch(
   protect,
   adminOnly,
   updateBatchStatus,
+);
+
+// Bulk update multiple batches
+router.post(
+  "/batches/bulk/status",
+  batchLimiter,
+  protect,
+  bulkUpdateBatchStatus
 );
 
 // IoT sensor data — POST requires ownership/role check (fix for issue #809)
