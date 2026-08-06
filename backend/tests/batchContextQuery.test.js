@@ -166,14 +166,24 @@ describe("Context-Aware Batch Querying Tests", () => {
         args: { cropType: "rice", origin: "Punjab", status: "Flagged" },
       };
 
-      const sendMessage = jest
-        .fn()
-        .mockResolvedValueOnce({ response: { functionCalls: [toolCall] } })
-        .mockResolvedValueOnce({
-          response: {
-            text: () => "Found 1 flagged rice batch from Punjab: CROP-2024-0007.",
-          },
-        });
+      // sendFunctionResponse() reads response.candidates[0].content to replay the
+      // model's turn back to it, so the mock needs that shape too, not just functionCalls()
+      const sendMessage = jest.fn().mockResolvedValueOnce({
+        response: {
+          functionCalls: () => [toolCall],
+          candidates: [
+            { content: { role: "model", parts: [{ functionCall: toolCall }] } },
+          ],
+        },
+      });
+
+      // follow-up goes through model.generateContent(), not chat.sendMessage() again
+      // (see sendFunctionResponse in aiService.js)
+      const generateContent = jest.fn().mockResolvedValueOnce({
+        response: {
+          text: () => "Found 1 flagged rice batch from Punjab: CROP-2024-0007.",
+        },
+      });
 
       const originalProvider = aiService.provider;
       const originalGenAI = aiService.genAI;
@@ -181,6 +191,7 @@ describe("Context-Aware Batch Querying Tests", () => {
       aiService.genAI = {
         getGenerativeModel: jest.fn().mockReturnValue({
           startChat: jest.fn().mockReturnValue({ sendMessage }),
+          generateContent,
         }),
       };
 
