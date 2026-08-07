@@ -142,4 +142,82 @@ describe("Context-Aware Batch Querying Tests", () => {
       aiService.provider = originalProvider;
     });
   });
+
+  describe("Gemini Function-Calling for Multi-Filter Queries", () => {
+    it("should call search_batches with all requested filters and return only the matching batches", async () => {
+      const matchingBatches = [
+        {
+          batchId: "CROP-2024-0007",
+          cropType: "rice",
+          farmerName: "Ravi Singh",
+          origin: "Punjab, India",
+          currentStage: "mandi",
+          quantity: 400,
+          createdAt: new Date("2024-02-01"),
+        },
+      ];
+
+      const mockBatchService = {
+        searchBatches: jest.fn().mockResolvedValue(matchingBatches),
+      };
+
+      const toolCall = {
+        name: "search_batches",
+        args: { cropType: "rice", origin: "Punjab", status: "Flagged" },
+      };
+
+      // sendFunctionResponse() reads response.candidates[0].content to replay the
+      // model's turn back to it, so the mock needs that shape too, not just functionCalls()
+      const sendMessage = jest.fn().mockResolvedValueOnce({
+        response: {
+          functionCalls: () => [toolCall],
+          candidates: [
+            { content: { role: "model", parts: [{ functionCall: toolCall }] } },
+          ],
+        },
+      });
+
+      // follow-up goes through model.generateContent(), not chat.sendMessage() again
+      // (see sendFunctionResponse in aiService.js)
+      const generateContent = jest.fn().mockResolvedValueOnce({
+        response: {
+          text: () => "Found 1 flagged rice batch from Punjab: CROP-2024-0007.",
+        },
+      });
+
+      const originalProvider = aiService.provider;
+      const originalGenAI = aiService.genAI;
+      aiService.provider = "gemini";
+      aiService.genAI = {
+        getGenerativeModel: jest.fn().mockReturnValue({
+          startChat: jest.fn().mockReturnValue({ sendMessage }),
+          generateContent,
+        }),
+      };
+
+      const result = await aiService.chatWithBatchContext(
+        "find rice batches from Punjab that are flagged",
+        {},
+        mockBatchService,
+        null,
+        null,
+      );
+
+      expect(mockBatchService.searchBatches).toHaveBeenCalledWith({
+        cropType: "rice",
+        origin: "Punjab",
+        status: "Flagged",
+      });
+      expect(result.message).toBe(
+        "Found 1 flagged rice batch from Punjab: CROP-2024-0007.",
+      );
+      expect(result.functionCalled).toBe("search_batches");
+      expect(result.functionResult.data).toEqual([
+        expect.objectContaining({ batchId: "CROP-2024-0007" }),
+      ]);
+
+      aiService.provider = originalProvider;
+      aiService.genAI = originalGenAI;
+    });
+  });
 });
