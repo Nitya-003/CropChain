@@ -242,14 +242,26 @@ class OracleService {
 
       logger.info(`⛽ Gas estimate: ${gasEstimate.toString()}`);
 
+      // ethers v6 estimateGas returns a bigint, so apply the 20% buffer with
+      // bigint arithmetic instead of Math.floor(number * 1.2).
+      const gasLimit = (gasEstimate * 120n) / 100n;
+
+      // Resolve fee fields from the provider's FeeData (ethers v6 requires
+      // individual bigint fee values, not the whole FeeData object).
+      const feeData = await this.provider.getFeeData();
+      const overrides = { gasLimit };
+      if (feeData.maxFeePerGas != null && feeData.maxPriorityFeePerGas != null) {
+        overrides.maxFeePerGas = feeData.maxFeePerGas;
+        overrides.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
+      } else if (feeData.gasPrice != null) {
+        overrides.gasPrice = feeData.gasPrice;
+      }
+
       const tx = await this.contract.fulfillIoTData(
         batchId,
         temperatureRaw,
         iotData.humidity,
-        {
-          gasLimit: Math.floor(gasEstimate * 1.2), // 20% buffer
-          gasPrice: await this.provider.getFeeData(),
-        },
+        overrides,
       );
 
       logger.info(`📤 Transaction sent: ${tx.hash}`);

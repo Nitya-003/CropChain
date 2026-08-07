@@ -180,6 +180,10 @@ router.post(
         sendEvent("done", {
           response: aiResponse.message,
           timestamp: new Date().toISOString(),
+          ...(aiResponse.functionCalled && {
+            functionCalled: aiResponse.functionCalled,
+            functionResult: aiResponse.functionResult,
+          }),
         });
 
         res.end();
@@ -202,6 +206,10 @@ router.post(
         {
           response: aiResponse.message,
           timestamp: new Date().toISOString(),
+          ...(aiResponse.functionCalled && {
+            functionCalled: aiResponse.functionCalled,
+            functionResult: aiResponse.functionResult,
+          }),
         },
         "Batch query response generated successfully",
       );
