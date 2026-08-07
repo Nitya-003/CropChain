@@ -24,7 +24,7 @@ export const NotificationService = {
   getNotifications: async (limit: number = 50): Promise<Notification[]> => {
     try {
       const response = await api.get(`/notifications?limit=${limit}`);
-      return response.data.data.notifications;
+      return response.data.notifications;
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
       throw error;
@@ -34,7 +34,7 @@ export const NotificationService = {
   getUnreadCount: async (): Promise<number> => {
     try {
       const response = await api.get("/notifications/unread-count");
-      return response.data.data.count;
+      return response.data.count;
     } catch (error) {
       console.error("Failed to fetch unread count:", error);
       throw error;
@@ -44,7 +44,7 @@ export const NotificationService = {
   markAsRead: async (id: string): Promise<Notification> => {
     try {
       const response = await api.put(`/notifications/${id}/read`);
-      return response.data.data.notification;
+      return response.data.notification;
     } catch (error) {
       console.error("Failed to mark as read:", error);
       throw error;
@@ -56,6 +56,15 @@ export const NotificationService = {
       await api.put("/notifications/read-all");
     } catch (error) {
       console.error("Failed to mark all as read:", error);
+      throw error;
+    }
+  },
+
+  registerPushToken: async (token: string): Promise<void> => {
+    try {
+      await api.post("/notifications/push-token", { token });
+    } catch (error) {
+      console.error("Failed to register push token:", error);
       throw error;
     }
   },
