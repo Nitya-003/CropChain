@@ -21,6 +21,17 @@ contract CropChainCCIPSender is AccessControl, Pausable, ReentrancyGuard {
         string ipfsCID;
     }
 
+    struct BatchAttestationPayload {
+        bytes32 batchId;
+        bytes32 cropTypeHash;
+        string ipfsCID;
+        uint256 quantity;
+        address farmer;
+        string originLocation;
+        uint8 qualityGrade;
+        uint64 timestamp;
+    }
+
     IRouterClient public immutable router;
 
     uint64 public destinationChainSelector;
@@ -32,6 +43,14 @@ contract CropChainCCIPSender is AccessControl, Pausable, ReentrancyGuard {
     event PaymasterCreditFunded(address indexed farmer, uint256 amount);
     event PaymasterCreditDebited(address indexed farmer, uint256 amount, uint256 remainingBalance);
     event RetailerProofDispatched(
+        bytes32 indexed messageId,
+        bytes32 indexed batchId,
+        address indexed farmer,
+        uint256 feePaid,
+        uint64 destinationChainSelector,
+        address destinationReceiver
+    );
+    event BatchAttestationDispatched(
         bytes32 indexed messageId,
         bytes32 indexed batchId,
         address indexed farmer,
@@ -102,6 +121,50 @@ contract CropChainCCIPSender is AccessControl, Pausable, ReentrancyGuard {
         messageId = router.ccipSend{value: fee}(destinationChainSelector, message);
 
         emit RetailerProofDispatched(
+            messageId,
+            payload.batchId,
+            payload.farmer,
+            fee,
+            destinationChainSelector,
+            destinationReceiver
+        );
+    }
+
+    function syncBatchAttestation(BatchAttestationPayload calldata payload)
+        external
+        onlyRole(CCIP_SENDER_ROLE)
+        whenNotPaused
+        nonReentrant
+        returns (bytes32 messageId)
+    {
+        require(destinationChainSelector > 0, "Destination not set");
+        require(destinationReceiver != address(0), "Receiver not set");
+        require(payload.batchId != bytes32(0), "Invalid batchId");
+        require(payload.farmer != address(0), "Invalid farmer");
+
+        bytes memory data = abi.encode(payload);
+
+        Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
+            receiver: abi.encode(destinationReceiver),
+            data: data,
+            tokenAmounts: new Client.EVMTokenAmount[](0),
+            feeToken: address(0),
+            extraArgs: ""
+        });
+
+        uint256 fee = router.getFee(destinationChainSelector, message);
+        uint256 farmerCredit = paymasterCredits[payload.farmer];
+        require(farmerCredit >= fee, "Insufficient paymaster credit");
+
+        unchecked {
+            paymasterCredits[payload.farmer] = farmerCredit - fee;
+        }
+
+        emit PaymasterCreditDebited(payload.farmer, fee, paymasterCredits[payload.farmer]);
+
+        messageId = router.ccipSend{value: fee}(destinationChainSelector, message);
+
+        emit BatchAttestationDispatched(
             messageId,
             payload.batchId,
             payload.farmer,

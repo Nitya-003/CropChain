@@ -28,7 +28,7 @@ const escapeRegex = (value) =>
 const CSV_FORMULA_PREFIX = /^[=+\-@]/;
 
 const escapeCsvCell = (value) => {
-  if (value == null) return '""';
+  if (value === null) return '""';
   const str = String(value);
   const escaped = str.replace(/"/g, '""');
   if (CSV_FORMULA_PREFIX.test(escaped)) {
@@ -694,3 +694,5 @@ exports.getIoTData = async (req, res) => {
       );
   }
 };
+
+.catch(err => console.error("Promise.all failed:", err));

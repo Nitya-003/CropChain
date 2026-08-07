@@ -110,7 +110,7 @@ const TrackBatchContent: React.FC = () => {
     if (!batchData || !batchData.updates) return [];
 
     return batchData.updates.map((update: any) => ({
-      title: update.stage.charAt(0).toUpperCase() + update.stage.slice(1),
+      title: update.stage[0].toUpperCase() + update.stage.slice(1),
       date: update.timestamp,
       location: update.location || "Unknown Location",
       description: update.notes || `Processed by ${update.actor}`,
