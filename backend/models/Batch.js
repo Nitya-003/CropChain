@@ -581,14 +581,4 @@ batchSchema.statics.getStats = function () {
       },
     },
   ]).then(
-    (result) =>
-      result[0] || {
-        totalBatches: 0,
-        totalQuantity: 0,
-        uniqueFarmers: 0,
-        recalledBatches: 0,
-      },
-  );
-};
-
-module.exports = mongoose.model("Batch", batchSchema);
+  .catch(err => console.error(err))

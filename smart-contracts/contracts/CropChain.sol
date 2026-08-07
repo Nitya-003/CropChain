@@ -338,6 +338,9 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         require(!batch.isSpoiled, "Batch is spoiled");
         require(quantity > 0, "Quantity must be > 0");
         require(unitPriceWei > 0, "Price=0");
+        // The crop must have been priced by the oracle before it can be listed,
+        // so the TWAP/deviation guard in buyFromListing always has a reference.
+        require(latestOraclePrice[batch.cropTypeHash] > 0, "Crop type not priced");
 
         SupplyChainUpdate[] storage updates = _batchUpdates[batchId];
         SupplyChainUpdate storage latestUpdate = updates[updates.length - 1];
@@ -400,10 +403,15 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         
         require(listing.seller == _getCurrentCustodian(listing.batchId), "Seller is no longer the custodian");
 
-        uint256 twapPrice = getTwapPrice(batch.cropTypeHash, twapWindow);
-        if (twapPrice > 0) {
-            require(_withinDeviation(listing.unitPriceWei, twapPrice, maxPriceDeviationBps), "TWAP deviation too high");
+        uint256 referencePrice = getTwapPrice(batch.cropTypeHash, twapWindow);
+        // Cold-start fallback: if there are no TWAP observations yet, fall back
+        // to the latest oracle spot price so the deviation guard is never
+        // silently skipped. Revert if the crop has never been priced at all.
+        if (referencePrice == 0) {
+            referencePrice = latestOraclePrice[batch.cropTypeHash];
         }
+        require(referencePrice > 0, "No oracle price for crop type");
+        require(_withinDeviation(listing.unitPriceWei, referencePrice, maxPriceDeviationBps), "TWAP deviation too high");
 
         uint256 totalCost = listing.unitPriceWei * quantity;
         require(msg.value >= totalCost, "Insufficient payment");
