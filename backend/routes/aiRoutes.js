@@ -30,6 +30,29 @@ const batchServiceForAI = {
   },
 };
 
+/**
+ * @swagger
+ * /api/ai/chat:
+ *   post:
+ *     summary: Interact with AI crop assistant (supports JSON and SSE text/event-stream)
+ *     tags: [AI ML Service]
+ *     security:
+ *       - Bearer: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [message]
+ *             properties:
+ *               message:
+ *                 type: string
+ *                 example: "What is the status of batch CROP-2024-001?"
+ *     responses:
+ *       200:
+ *         description: AI assistant response generated
+ */
 router.post(
   "/chat",
   batchLimiter,
