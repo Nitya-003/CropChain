@@ -96,6 +96,47 @@ def health():
     return jsonify({"status": "ok", "crops": list(model.classes_)})
 
 
+@app.route("/predict-yield", methods=["POST"])
+@require_api_key
+@limiter.limit(os.environ.get("ML_RATE_LIMIT_PREDICT", "10 per second"))
+def predict_yield():
+    """
+    Predicts the expected harvest volume (yield) for logistics planning.
+    Expects JSON: { "crop": "wheat", "area_hectares": 10.5, "avg_temperature": 24, "expected_rainfall": 120 }
+    """
+    body = request.get_json(silent=True)
+    if not body:
+        return jsonify({"error": "Request body must be JSON"}), 400
+
+    crop = body.get("crop", "unknown")
+    area = float(body.get("area_hectares", 0))
+    temp = float(body.get("avg_temperature", 25))
+    rainfall = float(body.get("expected_rainfall", 100))
+
+    if area <= 0:
+        return jsonify({"error": "area_hectares must be > 0"}), 422
+
+    # Mock Yield Model Calculation:
+    # Base yield per hectare depends on crop, adjusted by weather factors.
+    # In a real scenario, this would load a separate TensorFlow/XGBoost model.
+    base_yield_per_hectare = 3.5  # tons
+    
+    # Simple modifier based on optimal weather (mock logic)
+    temp_modifier = 1.0 - (abs(temp - 25) * 0.02)
+    rain_modifier = 1.0 - (abs(rainfall - 100) * 0.005)
+    
+    expected_yield = area * base_yield_per_hectare * temp_modifier * rain_modifier
+    expected_yield = max(0, round(expected_yield, 2))
+
+    return jsonify({
+        "crop": crop,
+        "area_hectares": area,
+        "expected_yield_tons": expected_yield,
+        "logistics_status": "Ready for planning",
+        "confidence": 85.5
+    })
+
+
 @app.route("/predict", methods=["POST"])
 @require_api_key
 @limiter.limit(os.environ.get("ML_RATE_LIMIT_PREDICT", "10 per second"))

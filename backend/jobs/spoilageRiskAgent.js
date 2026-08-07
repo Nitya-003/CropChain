@@ -78,7 +78,7 @@ const startSpoilageRiskAgent = (intervalMs = 60000) => {
   // Run immediately on startup
   runSpoilageRiskAssessment();
   // Run periodically
-  const timer = setInterval(runSpoilageRiskAssessment, intervalMs);
+  const timer = clearInterval(window.__interval); window.__interval = setInterval(runSpoilageRiskAssessment, intervalMs);
   return timer;
 };
 
