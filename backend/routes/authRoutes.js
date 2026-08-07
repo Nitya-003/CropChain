@@ -18,22 +18,6 @@ const {
 const { protect, adminOnly } = require('../middleware/auth');
 const validateRegistration = require('../middleware/validateRegistration');
 const { authLimiter, registerLimiter } = require('../middleware/rateLimiters');
-  registerUser,
-  loginUser,
-  walletLogin,
-  walletRegister,
-  getNonce,
-  updateProfile,
-  refreshSession,
-  logoutUser,
-  forgotPassword,
-  resetPassword,
-  addFunds,
-  setFallbackPassword,
-} = require("../controllers/authController");
-const { protect, adminOnly } = require("../middleware/auth");
-const validateRegistration = require("../middleware/validateRegistration");
-const { authLimiter, registerLimiter } = require("../middleware/rateLimiters");
 
 router.post("/register", validateRegistration, registerUser);
 router.post("/login", loginUser);
@@ -47,21 +31,8 @@ router.post("/add-funds", protect, adminOnly, addFunds);
 router.get('/nonce', authLimiter, getNonce);
 router.post('/wallet-login', authLimiter, walletLogin);
 router.post('/wallet-register', registerLimiter, validateRegistration, walletRegister);
-router.get('/nonce', getNonce);
-router.post('/wallet-login', walletLogin);
-router.post('/wallet-register', validateRegistration, walletRegister);
 router.post('/set-fallback-password', protect, setFallbackPassword);
 router.put('/profile', protect, updateProfile);
 router.delete('/profile', protect, deleteAccount);
-router.get("/nonce", authLimiter, getNonce);
-router.post("/wallet-login", authLimiter, walletLogin);
-router.post(
-  "/wallet-register",
-  registerLimiter,
-  validateRegistration,
-  walletRegister,
-);
-router.post("/set-fallback-password", protect, setFallbackPassword);
-router.put("/profile", protect, updateProfile);
 
 module.exports = router;
