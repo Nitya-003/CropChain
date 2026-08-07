@@ -22,8 +22,8 @@
   "author": "CropChain Team",
   "license": "MIT",
   "dependencies": {
-    "@aws-sdk/client-secrets-manager": "^3.1097.0",
     "@aws-sdk/client-kms": "^3.700.0",
+    "@aws-sdk/client-secrets-manager": "^3.1097.0",
     "@google/generative-ai": "^0.24.1",
     "@pinata/sdk": "^2.1.0",
     "axios": "^1.16.1",
@@ -33,6 +33,7 @@
     "decimal.js": "^10.6.0",
     "dotenv": "^16.3.1",
     "ethers": "^6.8.1",
+    "expo-server-sdk": "^7.0.0",
     "express": "^4.18.2",
     "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^7.1.5",
