@@ -238,6 +238,17 @@ const loginUser = async (req, res) => {
     const user = await User.findOne({ email }).select("+password");
 
     if (user && (await bcrypt.compare(password, user.password))) {
+      // Reject non-active accounts before issuing any token
+      if (user.status !== 'active') {
+        logger.warn('Login blocked: account not active', { email: user.email, status: user.status });
+        return res
+          .status(403)
+          .json(apiResponse.errorResponse(
+            'Your account is not active. Please contact support.',
+            'ACCOUNT_NOT_ACTIVE',
+            403,
+          ));
+      }
       attachRefreshCookie(res, user);
       const response = apiResponse.successResponse(
         buildAuthPayload(user),
@@ -489,6 +500,18 @@ const walletLogin = async (req, res) => {
             403,
           ),
         );
+    }
+
+    // Reject non-active accounts before issuing any token
+    if (user.status !== 'active') {
+      logger.warn('Wallet login blocked: account not active', { walletAddress: normalizedAddress, status: user.status });
+      return res
+        .status(403)
+        .json(apiResponse.errorResponse(
+          'Your account is not active. Please contact support.',
+          'ACCOUNT_NOT_ACTIVE',
+          403,
+        ));
     }
 
     // Generate JWT with user's role from database
