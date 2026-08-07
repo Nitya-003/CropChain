@@ -13,6 +13,7 @@ const logger = require('../utils/logger');
 const { emitToBatchRoom } = require('../services/socketService');
 const activityService = require('../services/activityService');
 const batchService = require('../services/batchService');
+const mlService = require('../services/mlService');
 const QRCode = require('qrcode');
 const { calculateUpdateHash } = require('../utils/cryptography');
 const { 
@@ -28,7 +29,7 @@ const escapeRegex = (value) =>
 const CSV_FORMULA_PREFIX = /^[=+\-@]/;
 
 const escapeCsvCell = (value) => {
-  if (value == null) return '""';
+  if (value === null) return '""';
   const str = String(value);
   const escaped = str.replace(/"/g, '""');
   if (CSV_FORMULA_PREFIX.test(escaped)) {
@@ -614,6 +615,21 @@ exports.recordIoTData = async (req, res) => {
 
         const batch = await spoilageDetectionService.recordIoTData(batchId, temperature, humidity);
 
+        try {
+            const mlPrediction = await mlService.predictQuality(temperature, humidity, batch.cropType);
+            if (mlPrediction) {
+                batch.spoilageRisk = {
+                    riskScore: mlPrediction.riskScore,
+                    riskLevel: mlPrediction.riskLevel,
+                    factors: mlPrediction.factors,
+                    predictedAt: new Date()
+                };
+                await batch.save();
+            }
+        } catch (mlErr) {
+            logger.warn("ML Quality prediction failed", { error: mlErr.message });
+        }
+
         await activityService.logActivity({
             userId: req.user.id || req.user._id,
             userRole: req.user.role,
@@ -634,6 +650,7 @@ exports.recordIoTData = async (req, res) => {
                 currentHumidity: batch.iotData.currentHumidity,
                 isSpoiled: batch.iotData.isSpoiled,
                 lastUpdated: batch.iotData.lastUpdated,
+                spoilageRisk: batch.spoilageRisk
             }, 'IoT data recorded successfully')
         );
     } catch (error) {
@@ -694,3 +711,5 @@ exports.getIoTData = async (req, res) => {
       );
   }
 };
+
+.catch(err => console.error("Promise.all failed:", err));

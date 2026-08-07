@@ -9,8 +9,30 @@ const batchController = require('../controllers/batchController');
 const { protect, adminOnly, authorizeBatchOwner, authorizeStageTransition, authorizeBlockchainTransaction, authorizeRoles } = require('../middleware/auth');
 const { batchLimiter } = require('../middleware/rateLimiters');
 
+const blockchainService = require('../services/blockchainService');
+
 // CREATE batch - requires farmer role and blockchain authorization
 router.post('/', batchLimiter, protect, authorizeRoles('farmer'), batchController.createBatch);
+
+// RELAY EIP-2771 Gasless Meta-Transaction - requires authenticated user
+router.post('/relay-meta-tx', batchLimiter, protect, async (req, res) => {
+  try {
+    const { forwardRequest, signature } = req.body;
+    if (!forwardRequest || !signature) {
+      return res.status(400).json(apiResponse.errorResponse("forwardRequest and signature are required", "INVALID_INPUT", 400));
+    }
+
+    const result = await blockchainService.relayMetaTransaction(forwardRequest, signature);
+    if (!result.success) {
+      return res.status(400).json(apiResponse.errorResponse(result.error, "META_TX_FAILED", 400));
+    }
+
+    res.json(apiResponse.successResponse(result, "Meta-transaction relayed successfully"));
+  } catch (error) {
+    logger.error("Error relaying meta-transaction", { error: error.message });
+    res.status(500).json(apiResponse.errorResponse("Internal relay error", "SERVER_ERROR", 500));
+  }
+});
 
 // GET public batch tracking data - no authentication required
 router.get("/public/:batchId", batchLimiter, async (req, res) => {
