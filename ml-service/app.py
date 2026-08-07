@@ -96,6 +96,47 @@ def health():
     return jsonify({"status": "ok", "crops": list(model.classes_)})
 
 
+@app.route("/predict-yield", methods=["POST"])
+@require_api_key
+@limiter.limit(os.environ.get("ML_RATE_LIMIT_PREDICT", "10 per second"))
+def predict_yield():
+    """
+    Predicts the expected harvest volume (yield) for logistics planning.
+    Expects JSON: { "crop": "wheat", "area_hectares": 10.5, "avg_temperature": 24, "expected_rainfall": 120 }
+    """
+    body = request.get_json(silent=True)
+    if not body:
+        return jsonify({"error": "Request body must be JSON"}), 400
+
+    crop = body.get("crop", "unknown")
+    area = float(body.get("area_hectares", 0))
+    temp = float(body.get("avg_temperature", 25))
+    rainfall = float(body.get("expected_rainfall", 100))
+
+    if area <= 0:
+        return jsonify({"error": "area_hectares must be > 0"}), 422
+
+    # Mock Yield Model Calculation:
+    # Base yield per hectare depends on crop, adjusted by weather factors.
+    # In a real scenario, this would load a separate TensorFlow/XGBoost model.
+    base_yield_per_hectare = 3.5  # tons
+    
+    # Simple modifier based on optimal weather (mock logic)
+    temp_modifier = 1.0 - (abs(temp - 25) * 0.02)
+    rain_modifier = 1.0 - (abs(rainfall - 100) * 0.005)
+    
+    expected_yield = area * base_yield_per_hectare * temp_modifier * rain_modifier
+    expected_yield = max(0, round(expected_yield, 2))
+
+    return jsonify({
+        "crop": crop,
+        "area_hectares": area,
+        "expected_yield_tons": expected_yield,
+        "logistics_status": "Ready for planning",
+        "confidence": 85.5
+    })
+
+
 @app.route("/predict", methods=["POST"])
 @require_api_key
 @limiter.limit(os.environ.get("ML_RATE_LIMIT_PREDICT", "10 per second"))
@@ -129,6 +170,69 @@ def predict():
         "confidence": confidence,
         "alternatives": alternatives,
     })
+
+
+@app.route("/quality", methods=["POST"])
+@require_api_key
+@limiter.limit(os.environ.get("ML_RATE_LIMIT_PREDICT", "10 per second"))
+def predict_quality():
+    body = request.get_json(silent=True)
+    if body is None:
+        return jsonify({"error": "Request body must be JSON"}), 400
+
+    crop = body.get("cropType", "unknown").lower()
+    temp = body.get("temperature")
+    humidity = body.get("humidity")
+    
+    if temp is None or humidity is None:
+        return jsonify({"error": "Validation failed", "details": ["'temperature' and 'humidity' are required"]}), 422
+        
+    try:
+        temp = float(temp)
+        humidity = float(humidity)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Validation failed", "details": ["'temperature' and 'humidity' must be numbers"]}), 422
+
+    optimal_conditions = {
+        "tomato": {"temp": 25, "hum": 60, "shelf": 14},
+        "wheat": {"temp": 20, "hum": 40, "shelf": 180},
+        "rice": {"temp": 25, "hum": 50, "shelf": 180},
+        "corn": {"temp": 22, "hum": 45, "shelf": 90}
+    }
+    
+    default_optimal = {"temp": 22, "hum": 50, "shelf": 30}
+    optimal = optimal_conditions.get(crop, default_optimal)
+    
+    temp_penalty = max(0, temp - optimal["temp"]) * 1.5 + max(0, optimal["temp"] - 10 - temp) * 0.5
+    hum_penalty = max(0, humidity - optimal["hum"]) * 1.0
+    
+    quality_score = max(0, min(100, 100 - (temp_penalty + hum_penalty)))
+    risk_score = max(0, min(100, 100 - quality_score))
+    
+    risk_level = "Low"
+    if risk_score > 60:
+        risk_level = "High"
+    elif risk_score > 25:
+        risk_level = "Medium"
+        
+    factors = []
+    if temp > optimal["temp"] + 5:
+        factors.append(f"Temperature is significantly higher than optimal ({optimal['temp']}°C).")
+    if humidity > optimal["hum"] + 10:
+        factors.append(f"Humidity is significantly higher than optimal ({optimal['hum']}%).")
+        
+    if not factors and risk_level != "Low":
+        factors.append("Sub-optimal environmental conditions.")
+        
+    shelf_life = max(0, optimal["shelf"] * (quality_score / 100))
+    
+    return jsonify({
+        "riskScore": round(risk_score, 1),
+        "riskLevel": risk_level,
+        "factors": factors,
+        "estimatedShelfLifeDays": round(shelf_life, 1)
+    })
+
 
 
 if __name__ == "__main__":
