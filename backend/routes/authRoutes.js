@@ -18,22 +18,6 @@ const {
 const { protect, adminOnly } = require('../middleware/auth');
 const validateRegistration = require('../middleware/validateRegistration');
 const { authLimiter, registerLimiter } = require('../middleware/rateLimiters');
-  registerUser,
-  loginUser,
-  walletLogin,
-  walletRegister,
-  getNonce,
-  updateProfile,
-  refreshSession,
-  logoutUser,
-  forgotPassword,
-  resetPassword,
-  addFunds,
-  setFallbackPassword,
-} = require("../controllers/authController");
-const { protect, adminOnly } = require("../middleware/auth");
-const validateRegistration = require("../middleware/validateRegistration");
-const { authLimiter, registerLimiter } = require("../middleware/rateLimiters");
 
 /**
  * @swagger
@@ -104,6 +88,12 @@ router.post("/set-fallback-password", protect, setFallbackPassword);
  *         description: Profile updated successfully
  */
 router.put("/profile", protect, updateProfile);
+router.get('/nonce', authLimiter, getNonce);
+router.post('/wallet-login', authLimiter, walletLogin);
+router.post('/wallet-register', registerLimiter, validateRegistration, walletRegister);
+router.post('/set-fallback-password', protect, setFallbackPassword);
+router.put('/profile', protect, updateProfile);
+router.delete('/profile', protect, deleteAccount);
 
 module.exports = router;
 
