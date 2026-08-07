@@ -36,7 +36,20 @@ function runVerification() {
   console.log("ES common.language:", es.common.language);
 
   console.log("✓ Language selector translations verified!");
+
+  // Verify SQLite storage service file
+  const sqlitePath = path.join(__dirname, "src", "services", "sqliteStorage.ts");
+  if (!fs.existsSync(sqlitePath)) {
+    throw new Error("sqliteStorage.ts service file is missing!");
+  }
+  const sqliteContent = fs.readFileSync(sqlitePath, "utf-8");
+  if (!sqliteContent.includes("initDatabase") || !sqliteContent.includes("saveBatch") || !sqliteContent.includes("addToSyncQueue")) {
+    throw new Error("sqliteStorage.ts missing core SQLite table CRUD functions!");
+  }
+
+  console.log("✓ Expo Mobile SQLite Storage Service verified!");
   console.log("✓ Mobile i18n & Offline Persistence verification complete!");
 }
 
 runVerification();
+
