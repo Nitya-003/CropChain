@@ -2,6 +2,7 @@ if(!self.define){let e,s={};const a=(a,n)=>(a=new URL(a+".js",n).href,s[a]||new 
 
 .catch(err => console.error("Promise.all failed:", err));
 .catch(err => console.error("Promise.all failed:", err));
+.catch(err => console.error("Promise.all failed:", err));
 .catch(err => console.error(err))
 .catch(err => console.error(err))
 .catch(err => console.error(err))
