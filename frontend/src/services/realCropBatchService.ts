@@ -55,9 +55,14 @@ export const realCropBatchService = {
       try {
         const response = await apiClient.post("/batches", formData);
         return response.data.data.batch;
-      } catch (error) {
+      } catch (error: any) {
+        // Re-throw real HTTP errors (4xx/5xx) so callers see validation/auth failures.
+        // Only fall back to offline for genuine network/connection errors.
+        if (error?.response) {
+          throw error;
+        }
         console.warn(
-          "[realCropBatchService] Online creation failed, falling back to offline mode:",
+          "[realCropBatchService] Network error during createBatch, falling back to offline mode:",
           error,
         );
       }
@@ -91,9 +96,13 @@ export const realCropBatchService = {
           ...data,
           batches: [...filteredPending, ...onlineBatches],
         };
-      } catch (error) {
+      } catch (error: any) {
+        // Re-throw HTTP errors; fall back to offline only on network failures.
+        if (error?.response) {
+          throw error;
+        }
         console.warn(
-          "[realCropBatchService] Failed to fetch online batches, returning offline ones:",
+          "[realCropBatchService] Network error fetching batches, returning offline ones:",
           error,
         );
       }
@@ -110,9 +119,12 @@ export const realCropBatchService = {
       try {
         const response = await apiClient.get(`/batches/${sanitizedId}`);
         return response.data.data.batch;
-      } catch (error) {
+      } catch (error: any) {
+        if (error?.response) {
+          throw error;
+        }
         console.warn(
-          "[realCropBatchService] Online getBatch failed, falling back to offline storage:",
+          "[realCropBatchService] Network error during getBatch, falling back to offline storage:",
           error,
         );
       }
@@ -127,9 +139,12 @@ export const realCropBatchService = {
       try {
         const response = await apiClient.get(`/batches/public/${sanitizedId}`);
         return response.data.data.batch;
-      } catch (error) {
+      } catch (error: any) {
+        if (error?.response) {
+          throw error;
+        }
         console.warn(
-          "[realCropBatchService] Online getPublicBatch failed, falling back to offline storage:",
+          "[realCropBatchService] Network error during getPublicBatch, falling back to offline storage:",
           error,
         );
       }
@@ -150,9 +165,12 @@ export const realCropBatchService = {
           updateData,
         );
         return response.data.data.batch;
-      } catch (error) {
+      } catch (error: any) {
+        if (error?.response) {
+          throw error;
+        }
         console.warn(
-          "[realCropBatchService] Online update failed, falling back to offline mode:",
+          "[realCropBatchService] Network error during updateBatch, falling back to offline mode:",
           error,
         );
       }
