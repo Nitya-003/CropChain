@@ -309,14 +309,12 @@ exports.getBatches = async (req, res) => {
 
     const query = {};
 
-    // 1. Unified Search parameter (regex matches on batchId, cropType, farmerName)
+    // 1. Unified Search parameter (MongoDB Text Index)
     if (search) {
-      const escaped = escapeRegex(search.trim());
-      query.$or = [
-        { batchId: { $regex: escaped, $options: "i" } },
-        { cropType: { $regex: escaped, $options: "i" } },
-        { farmerName: { $regex: escaped, $options: "i" } },
-      ];
+      const trimmedSearch = search.trim();
+      if (trimmedSearch) {
+        query.$text = { $search: trimmedSearch };
+      }
     }
 
     // 2. Individual parameters (from existing & test requirements)
@@ -367,10 +365,23 @@ exports.getBatches = async (req, res) => {
     const skip = (pageNumber - 1) * limitNumber;
 
     const sort = {};
-    sort[sortBy] = sortOrder.toLowerCase() === "asc" ? 1 : -1;
+    
+    // If text search is active and no specific sort is requested, sort by relevance
+    if (search && sortBy === "createdAt") {
+      sort.score = { $meta: "textScore" };
+    } else {
+      sort[sortBy] = sortOrder.toLowerCase() === "asc" ? 1 : -1;
+    }
 
     // Use lean() for read-only queries to skip Mongoose document hydration
-    const batches = await Batch.find(query)
+    const findQuery = Batch.find(query);
+    
+    // Project text score if search is active
+    if (search) {
+      findQuery.select({ score: { $meta: "textScore" } });
+    }
+
+    const batches = await findQuery
       .lean()
       .sort(sort)
       .skip(skip)

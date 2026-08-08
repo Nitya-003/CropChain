@@ -413,6 +413,27 @@ batchSchema.index({ isRecalled: 1 });
 // Compound index for pagination and sorting optimization
 batchSchema.index({ currentStage: 1, createdAt: -1 });
 
+// Text index for full-text search scalability
+batchSchema.index(
+  {
+    batchId: "text",
+    farmerName: "text",
+    cropType: "text",
+    origin: "text",
+    description: "text"
+  },
+  {
+    weights: {
+      batchId: 10,
+      farmerName: 5,
+      cropType: 3,
+      origin: 2,
+      description: 1
+    },
+    name: "BatchTextIndex"
+  }
+);
+
 // Pre-save validation
 batchSchema.pre("save", function (next) {
   // Ensure batchId is not empty
