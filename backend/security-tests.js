@@ -6,6 +6,7 @@
  */
 
 const axios = require("axios");
+const logger = require("./utils/logger");
 
 // Configuration from environment or defaults
 const API_BASE = process.env.API_BASE_URL || "http://localhost:3001/api";
@@ -20,7 +21,7 @@ const colors = {
 };
 
 function log(message, color = "reset") {
-  console.log(`${colors[color]}${message}${colors.reset}`);
+  logger.info(`${colors[color]}${message}${colors.reset}`);
 }
 
 // Test rate limiting
@@ -582,7 +583,7 @@ async function runSecurityTests() {
 
 // Run tests if this file is executed directly
 if (require.main === module) {
-  runSecurityTests().catch(console.error);
+  runSecurityTests().catch((err) => logger.error(err));
 }
 
 module.exports = {

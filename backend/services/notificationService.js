@@ -72,6 +72,9 @@ class NotificationService {
       const { emitToUser } = require("./socketService");
       emitToUser(userId.toString(), "new_notification", notification);
 
+      // Trigger Mobile Push Notification
+      await this.sendPushNotification(userId, title, message, data);
+
       return notification;
     } catch (error) {
       logger.error(
@@ -110,7 +113,17 @@ class NotificationService {
       await this.sendEmail(
         adminUser.email,
         `🚨 RECALL: Batch ${batch.batchId}`,
-        `<h2>Batch Recall Notice</h2><p>Batch <strong>${batch.batchId}</strong> (${batch.cropType}, ${batch.quantity}kg) has been <strong>recalled</strong>.</p><p>Recalled by: ${adminUser.email}</p><p>CropChain Team</p>`,
+        {
+          templateName: "batchRecalled",
+          context: {
+            batchId: batch.batchId,
+            cropType: batch.cropType,
+            quantity: batch.quantity,
+            recalledBy: adminUser.email,
+            recalledAt: new Date().toISOString(),
+            dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard`
+          }
+        }
       );
     }
 
@@ -120,7 +133,17 @@ class NotificationService {
         await this.sendEmail(
           `${farmer.name || batch.farmerName} <${farmer.email}>`,
           `🚨 RECALL: Batch ${batch.batchId}`,
-          `<h2>Batch Recall Notice - Action Required</h2><p>Your batch <strong>${batch.batchId}</strong> (${batch.cropType}, ${batch.quantity}kg) has been <strong>recalled</strong>.</p><p>Please check the CropChain dashboard for further instructions.</p><p>CropChain Team</p>`,
+          {
+            templateName: "batchRecalled",
+            context: {
+              batchId: batch.batchId,
+              cropType: batch.cropType,
+              quantity: batch.quantity,
+              recalledBy: adminUser.email,
+              recalledAt: new Date().toISOString(),
+              dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard`
+            }
+          }
         );
       }
       await this.createInAppNotification(
@@ -146,10 +169,20 @@ class NotificationService {
     });
 
     if (user.email) {
+      // Assuming batch details are passed or fetched if needed; for now we pass basics
       await this.sendEmail(
         user.email,
         `Batch Created: ${batchId}`,
-        `<h2>Batch Created Successfully</h2><p>Your batch <strong>${batchId}</strong> has been created and recorded on the blockchain.</p><p>CropChain Team</p>`,
+        {
+          templateName: "batchCreated",
+          context: {
+            batchId: batchId,
+            cropType: "N/A", // This could be populated by passing the full batch object
+            quantity: "N/A",
+            origin: "N/A",
+            dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard`
+          }
+        }
       );
     }
 
@@ -183,7 +216,16 @@ class NotificationService {
       await this.sendEmail(
         user.email,
         `Batch Updated: ${batchId}`,
-        `<h2>Batch Stage Updated</h2><p>Batch <strong>${batchId}</strong> has moved to stage <strong>${stage}</strong>.</p><p>CropChain Team</p>`,
+        {
+          templateName: "batchUpdated",
+          context: {
+            batchId: batchId,
+            stage: stage,
+            actor: user.name || user.email,
+            timestamp: new Date().toISOString(),
+            dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard`
+          }
+        }
       );
     }
 
@@ -276,11 +318,11 @@ class NotificationService {
    * Send email notification via BullMQ queue
    * @param {string} to - Recipient email
    * @param {string} subject - Email subject
-   * @param {string} body - Email body (HTML)
+   * @param {string|Object} bodyOrTemplateData - Email body (HTML) or templateData object
    */
-  async sendEmail(to, subject, body) {
+  async sendEmail(to, subject, bodyOrTemplateData) {
     try {
-      const job = await addEmailJob(to, subject, body);
+      const job = await addEmailJob(to, subject, bodyOrTemplateData);
       if (job) {
         this.log("email", `Email queued: ${subject}`, {
           to,
@@ -298,7 +340,20 @@ class NotificationService {
     }
 
     // Fallback to synchronous if queue is unavailable
-    const result = await emailProvider.sendEmail(to, subject, body);
+    // For synchronous fallback, if it's template data, we should compile it here (or let emailProvider handle it).
+    // For simplicity, we just pass the html string if it's a string, or compile it if it's template data.
+    let htmlContent = bodyOrTemplateData;
+    if (bodyOrTemplateData && bodyOrTemplateData.templateName) {
+      const { compileTemplate } = require("./emailService");
+      try {
+        htmlContent = compileTemplate(bodyOrTemplateData.templateName, bodyOrTemplateData.context || {});
+      } catch (e) {
+        logger.error(`[NotificationService] Sync fallback compilation failed: ${e.message}`);
+        htmlContent = `<p>Failed to compile template. Subject: ${subject}</p>`;
+      }
+    }
+
+    const result = await emailProvider.sendEmail(to, subject, htmlContent);
     if (result.fallback) {
       this.log("email", `Email logged (SMTP not configured): ${subject}`, {
         to,
@@ -321,16 +376,48 @@ class NotificationService {
   }
 
   /**
-   * Send push notification (placeholder for future implementation)
+   * Send push notification using Expo Server SDK
    * @param {string} userId - User ID
    * @param {string} title - Notification title
    * @param {string} body - Notification body
+   * @param {Object} data - Notification data payload
    */
-  async sendPushNotification(userId, title, body) {
-    // Placeholder for push notifications (e.g., Firebase Cloud Messaging)
-    logger.info(`[PUSH] Would send push to user ${userId}: ${title}`);
+  async sendPushNotification(userId, title, body, data = {}) {
+    try {
+      const user = await User.findById(userId);
+      if (!user || !user.expoPushToken) {
+        return;
+      }
 
-    this.log("push", `Push notification: ${title}`, { userId, title, body });
+      const { Expo } = require('expo-server-sdk');
+      const expo = new Expo();
+
+      if (!Expo.isExpoPushToken(user.expoPushToken)) {
+        logger.warn(`[PUSH] Token ${user.expoPushToken} is not a valid Expo push token`);
+        return;
+      }
+
+      const messages = [{
+        to: user.expoPushToken,
+        sound: 'default',
+        title: title,
+        body: body,
+        data: data,
+      }];
+
+      const chunks = expo.chunkPushNotifications(messages);
+      
+      for (const chunk of chunks) {
+        try {
+          const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+          this.log("push", `Push notification queued: ${title}`, { userId, title, ticketChunk });
+        } catch (error) {
+          logger.error("[PUSH] Error sending push notification chunk", error);
+        }
+      }
+    } catch (error) {
+      logger.error("[PUSH] Failed to prepare push notification", error);
+    }
   }
 
   /**

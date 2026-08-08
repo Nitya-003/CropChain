@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const logger = require("../utils/logger");
 const User = require("../models/User");
 const BulkVerificationJob = require("../models/BulkVerificationJob");
 
@@ -435,7 +436,7 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
             }
           })
           .catch((err) => {
-            console.error("Failed to save bulk job progress:", err);
+            logger.error("Failed to save bulk job progress:", err);
           });
       }
     }
@@ -508,7 +509,7 @@ const retryJob = async (jobId, failedRows, adminId) => {
 
   processJob(retryJob._id, retryRecords, adminId, { dryRun: false }).catch(
     (err) => {
-      console.error(`Error processing bulk retry job ${retryJob._id}:`, err);
+      logger.error(`Error processing bulk retry job ${retryJob._id}:`, err);
     },
   );
 

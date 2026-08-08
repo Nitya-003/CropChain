@@ -1,3 +1,4 @@
+const logger = require("../utils/logger");
 /**
  * Shared Stage Enum Constants
  *
@@ -139,7 +140,7 @@ const validateStageMapping = () => {
     }
   }
 
-  console.log(
+  logger.info(
     "✅ Stage mapping validation passed - blockchain sync will work correctly",
   );
   return true;

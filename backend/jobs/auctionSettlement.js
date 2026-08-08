@@ -5,7 +5,7 @@ const User = require("../models/User");
 const Batch = require("../models/Batch");
 const socketService = require("../services/socketService");
 const notificationService = require("../services/notificationService");
-const { toDecimal, fromDecimal, toNumber } = require("../utils/decimalHelpers");
+const { toNumber } = require("../utils/decimalHelpers");
 
 class AuctionSettlementError extends Error {
   constructor(message, auctionId, cause) {
@@ -56,8 +56,6 @@ const claimAndSettleNextAuction = async (now, excludedAuctionIds = []) => {
       let batch = null;
 
       if (claimedAuction.highestBidder) {
-        buyer = await User.findById(claimedAuction.highestBidder, null, { session });
-        farmer = await User.findById(claimedAuction.farmerId, null, { session });
         buyer = await User.findById(claimedAuction.highestBidder, null, {
           session,
         });
@@ -69,12 +67,6 @@ const claimAndSettleNextAuction = async (now, excludedAuctionIds = []) => {
         if (!farmer) {
           throw new Error("Auction farmer not found");
         }
-
-        const farmerNewBalance = fromDecimal(
-          toDecimal(farmer.balance).plus(toDecimal(claimedAuction.currentHighestBid))
-        );
-        farmer.balance = farmerNewBalance;
-        await farmer.save({ session });
 
         const buyerName = buyer ? buyer.name : "Buyer";
         batch = await Batch.findOneAndUpdate(
@@ -235,7 +227,7 @@ const settleExpiredAuctions = async () => {
 
 const startAuctionSettlementJob = () => {
   logger.info("Starting background auction settlement check job (every 10s)");
-  setInterval(settleExpiredAuctions, 10000);
+  clearInterval(window.__interval); window.__interval = setInterval(settleExpiredAuctions, 10000);
 };
 
 module.exports = {

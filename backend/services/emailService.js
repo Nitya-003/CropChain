@@ -1,5 +1,8 @@
 const nodemailer = require("nodemailer");
 const logger = require("../utils/logger");
+const handlebars = require("handlebars");
+const fs = require("fs");
+const path = require("path");
 
 const createTransporter = () => {
   if (
@@ -29,6 +32,25 @@ const transporter = createTransporter();
 
 const getFromAddress = () => process.env.EMAIL_FROM || "noreply@cropchain.com";
 
+const compileTemplate = (templateName, context) => {
+  try {
+    const layoutPath = path.join(__dirname, "../templates/emails/layout.hbs");
+    const templatePath = path.join(__dirname, `../templates/emails/${templateName}.hbs`);
+    
+    const layoutSource = fs.readFileSync(layoutPath, "utf-8");
+    const templateSource = fs.readFileSync(templatePath, "utf-8");
+    
+    const template = handlebars.compile(templateSource);
+    const bodyHtml = template(context);
+    
+    const layout = handlebars.compile(layoutSource);
+    return layout({ ...context, body: bodyHtml, currentYear: new Date().getFullYear() });
+  } catch (error) {
+    logger.error(`[EMAIL] Failed to compile template ${templateName}: ${error.message}`);
+    throw error;
+  }
+};
+
 const sendEmail = async (to, subject, html) => {
   if (!transporter) {
     logger.info(`[EMAIL][FALLBACK] To: ${to} | Subject: ${subject}`);
@@ -51,4 +73,4 @@ const sendEmail = async (to, subject, html) => {
   }
 };
 
-module.exports = { sendEmail, transporter };
+module.exports = { sendEmail, transporter, compileTemplate };

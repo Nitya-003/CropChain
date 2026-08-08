@@ -1,4 +1,5 @@
 const didService = require("../services/didService");
+const logger = require("../utils/logger");
 const User = require("../models/User");
 const VerificationEvent = require("../models/VerificationEvent");
 const { appendAuditEvent } = require("../utils/auditLogger");
@@ -775,7 +776,7 @@ const bulkIssueCredentials = async (req, res) => {
     }
 
     const adminId = req.user.id;
-    const dryRun = req.query.dryRun === "true" || req.body?.dryRun === true;
+    const dryRun = req.query.dryRun === "true" || req.body?.dryRun ;
     const job = await BulkVerificationJob.create({
       status: "pending",
       mode: dryRun ? "dry-run" : "bulk",
@@ -787,7 +788,7 @@ const bulkIssueCredentials = async (req, res) => {
     bulkVerificationService
       .processJob(job._id, normalizedRecords, adminId, { dryRun })
       .catch((err) => {
-        console.error(
+        logger.error(
           `Error processing bulk verification job ${job._id}:`,
           err,
         );
@@ -851,7 +852,12 @@ const getBulkJobStatus = async (req, res) => {
 const streamBulkJobEvents = async (req, res) => {
   const { jobId } = req.params;
 
+  let clientDisconnected = false;
+
   const writeEvent = (event, data) => {
+    if (clientDisconnected || res.writableEnded || res.destroyed) {
+      return;
+    }
     res.write(`event: ${event}\n`);
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
@@ -893,13 +899,14 @@ const streamBulkJobEvents = async (req, res) => {
 
   // If client disconnects, stop polling.
   req.on("close", () => {
+    clientDisconnected = true;
     safeClose();
   });
 
   try {
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
+    while (!clientDisconnected) {
       const jobDoc = await BulkVerificationJob.findById(jobId);
+      if (clientDisconnected) break;
       const job =
         jobDoc && typeof jobDoc.lean === "function"
           ? await jobDoc.lean()
@@ -988,6 +995,7 @@ const streamBulkJobEvents = async (req, res) => {
       }
 
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+      if (clientDisconnected) break;
     }
   } catch (error) {
     try {

@@ -22,6 +22,12 @@ export const getSocket = (): Socket => {
       auth: authToken ? { token: authToken } : undefined,
     });
 
+    socketInstance.on('connect', () => {
+
+    });
+
+    socketInstance.on('disconnect', (reason) => {
+
     socketInstance.on("connect", () => {
       console.log(
         "[SOCKET] Connected to WebSocket server:",
@@ -62,6 +68,8 @@ export const setAuthToken = (token: string | null): void => {
  */
 export const joinBatchRoom = (batchId: string): void => {
   const socket = getSocket();
+  socket.emit('join-batch-room', batchId);
+
   socket.emit("join-batch-room", batchId);
   console.log(`[SOCKET] Joined batch room: ${batchId}`);
 };
@@ -72,6 +80,8 @@ export const joinBatchRoom = (batchId: string): void => {
  */
 export const leaveBatchRoom = (batchId: string): void => {
   const socket = getSocket();
+  socket.emit('leave-batch-room', batchId);
+
   socket.emit("leave-batch-room", batchId);
   console.log(`[SOCKET] Left batch room: ${batchId}`);
 };
@@ -113,6 +123,7 @@ export const disconnectSocket = (): void => {
   if (socketInstance) {
     socketInstance.disconnect();
     socketInstance = null;
+
     console.log("[SOCKET] Disconnected manually");
   }
 };
@@ -123,6 +134,8 @@ export const isConnected = (): boolean => {
 
 export const joinVerificationRoom = (userId: string): void => {
   const socket = getSocket();
+  socket.emit('join-verification-room', userId);
+
   socket.emit("join-verification-room", userId);
   console.log(`[SOCKET] Joined verification room for user: ${userId}`);
 };
@@ -132,6 +145,8 @@ export const joinVerificationRoom = (userId: string): void => {
  */
 export const leaveVerificationRoom = (userId: string): void => {
   const socket = getSocket();
+  socket.emit('leave-verification-room', userId);
+
   socket.emit("leave-verification-room", userId);
   console.log(`[SOCKET] Left verification room for user: ${userId}`);
 };
@@ -157,6 +172,8 @@ export const onVerificationStatusUpdated = (
  */
 export const joinAuctionRoom = (auctionId: string): void => {
   const socket = getSocket();
+  socket.emit('join_auction', auctionId);
+
   socket.emit("join_auction", auctionId);
   console.log(`[SOCKET] Joined auction room: ${auctionId}`);
 };
@@ -166,6 +183,8 @@ export const joinAuctionRoom = (auctionId: string): void => {
  */
 export const leaveAuctionRoom = (auctionId: string): void => {
   const socket = getSocket();
+  socket.emit('leave_auction', auctionId);
+
   socket.emit("leave_auction", auctionId);
   console.log(`[SOCKET] Left auction room: ${auctionId}`);
 };
@@ -175,6 +194,8 @@ export const leaveAuctionRoom = (auctionId: string): void => {
  */
 export const placeBid = (auctionId: string, bidAmount: number): void => {
   const socket = getSocket();
+  socket.emit('place_bid', { auctionId, bidAmount });
+
   socket.emit("place_bid", { auctionId, bidAmount });
   console.log(`[SOCKET] Emitted place_bid:`, { auctionId, bidAmount });
 };

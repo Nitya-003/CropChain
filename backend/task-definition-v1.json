@@ -94,8 +94,12 @@
           "valueFrom": "arn:aws:secretsmanager:us-east-1:148221445428:secret:cropchain-prod-HlD5XK:GEMINI_API_KEY::"
         },
         {
-          "name": "PRIVATE_KEY",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:148221445428:secret:cropchain-prod-HlD5XK:PRIVATE_KEY::"
+          "name": "WALLET_KEYSTORE_JSON",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:148221445428:secret:cropchain-prod-HlD5XK:WALLET_KEYSTORE_JSON::"
+        },
+        {
+          "name": "WALLET_KEYSTORE_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:148221445428:secret:cropchain-prod-HlD5XK:WALLET_KEYSTORE_PASSWORD::"
         },
         {
           "name": "INFURA_URL",

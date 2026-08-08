@@ -1,6 +1,7 @@
-﻿const { ethers } = require("ethers");
+const { ethers } = require("ethers");
 require("dotenv").config();
 const logger = require("../utils/logger");
+const { loadWallet } = require("../utils/keystore");
 
 class OracleService {
   constructor() {
@@ -9,6 +10,12 @@ class OracleService {
     this.oracleWallet = null;
     this.isListening = false;
     this.requestQueue = new Map(); // Track pending requests
+    this.stats = {
+      totalProcessed: 0,
+      totalSuccess: 0,
+      totalFailed: 0,
+      totalResponseTimeMs: 0,
+    };
     this._reconnecting = false;
     this._contractABI = [
       "event IoTDataRequested(bytes32 indexed batchId, address requester)",
@@ -25,14 +32,6 @@ class OracleService {
     try {
       logger.info("🔮 Initializing Oracle Service...");
 
-      // Setup oracle wallet and check environment variables first
-      const privateKey = process.env.ORACLE_PRIVATE_KEY;
-      if (!privateKey) {
-        throw new Error(
-          "ORACLE_PRIVATE_KEY not found in environment variables",
-        );
-      }
-
       const contractAddress = process.env.CONTRACT_ADDRESS;
       if (!contractAddress) {
         throw new Error("CONTRACT_ADDRESS not found in environment variables");
@@ -42,7 +41,15 @@ class OracleService {
       const providerUrl = process.env.PROVIDER_URL || "http://localhost:8545";
       this.provider = await this._createProvider(providerUrl);
 
-      this.oracleWallet = new ethers.Wallet(privateKey, this.provider);
+      // Credentials are resolved via utils/keystore (encrypted keystore, AWS
+      // KMS, Vault, or deprecated ORACLE_PRIVATE_KEY env var).
+      this.oracleWallet = await loadWallet(this.provider, "oracle");
+      if (!this.oracleWallet) {
+        throw new Error(
+          "No oracle signing credentials found: set ORACLE_KEYSTORE_PATH + " +
+            "ORACLE_KEYSTORE_PASSWORD, AWS KMS, Vault, or ORACLE_PRIVATE_KEY (deprecated)",
+        );
+      }
       logger.info(`🔑 Oracle wallet address: ${this.oracleWallet.address}`);
 
       this.contract = new ethers.Contract(
@@ -57,7 +64,9 @@ class OracleService {
       logger.info("✅ Oracle Service initialized successfully");
       return true;
     } catch (error) {
-      logger.error("❌ Failed to initialize Oracle Service:", error.message);
+      logger.error("❌ Failed to initialize Oracle Service:", {
+        error: error.message,
+      });
       throw error;
     }
   }
@@ -71,13 +80,13 @@ class OracleService {
     const ws = provider._websocket;
     if (ws) {
       ws.addEventListener("close", () => {
-        console.log(
+        logger.info(
           "⚠️ Oracle WebSocket disconnected. Initiating reconnection...",
         );
         this._scheduleReconnect();
       });
       ws.addEventListener("error", (err) => {
-        console.error("⚠️ Oracle WebSocket error:", err.message || err);
+        logger.error("⚠️ Oracle WebSocket error:", { error: err.message || err });
       });
     }
 
@@ -98,7 +107,7 @@ class OracleService {
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const delay = baseDelay * Math.pow(2, attempt - 1);
-      console.log(
+      logger.info(
         `🔄 Reconnection attempt ${attempt}/${maxAttempts} in ${delay}ms...`,
       );
 
@@ -120,8 +129,7 @@ class OracleService {
         this.provider = await this._createProvider(providerUrl);
 
         // Reconnect wallet and contract to the new provider
-        const privateKey = process.env.ORACLE_PRIVATE_KEY;
-        this.oracleWallet = new ethers.Wallet(privateKey, this.provider);
+        this.oracleWallet = await loadWallet(this.provider, "oracle");
         const contractAddress = process.env.CONTRACT_ADDRESS;
         this.contract = new ethers.Contract(
           contractAddress,
@@ -132,18 +140,18 @@ class OracleService {
         // Re-register event listeners
         await this.startEventListening();
 
-        console.log("✅ Oracle reconnected successfully");
+        logger.info("✅ Oracle reconnected successfully");
         this._reconnecting = false;
         return;
       } catch (error) {
-        console.error(
+        logger.error(
           `❌ Reconnection attempt ${attempt} failed:`,
-          error.message,
+          { error: error.message },
         );
       }
     }
 
-    console.error("❌ All reconnection attempts exhausted. Oracle is offline.");
+    logger.error("❌ All reconnection attempts exhausted. Oracle is offline.");
     this._reconnecting = false;
   }
 
@@ -167,7 +175,9 @@ class OracleService {
       this.isListening = true;
       logger.info("✅ Event listening started successfully");
     } catch (error) {
-      logger.error("❌ Failed to start event listening:", error.message);
+      logger.error("❌ Failed to start event listening:", {
+        error: error.message,
+      });
       throw error;
     }
   }
@@ -210,7 +220,7 @@ class OracleService {
     } catch (error) {
       logger.error(
         `❌ Failed to handle IoT request for batch ${batchId}:`,
-        error.message,
+        { error: error.message },
       );
 
       // Remove from queue even on failure
@@ -238,14 +248,26 @@ class OracleService {
 
       logger.info(`⛽ Gas estimate: ${gasEstimate.toString()}`);
 
+      // ethers v6 estimateGas returns a bigint, so apply the 20% buffer with
+      // bigint arithmetic instead of Math.floor(number * 1.2).
+      const gasLimit = (gasEstimate * 120n) / 100n;
+
+      // Resolve fee fields from the provider's FeeData (ethers v6 requires
+      // individual bigint fee values, not the whole FeeData object).
+      const feeData = await this.provider.getFeeData();
+      const overrides = { gasLimit };
+      if (feeData.maxFeePerGas != null && feeData.maxPriorityFeePerGas != null) {
+        overrides.maxFeePerGas = feeData.maxFeePerGas;
+        overrides.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
+      } else if (feeData.gasPrice != null) {
+        overrides.gasPrice = feeData.gasPrice;
+      }
+
       const tx = await this.contract.fulfillIoTData(
         batchId,
         temperatureRaw,
         iotData.humidity,
-        {
-          gasLimit: Math.floor(gasEstimate * 1.2), // 20% buffer
-          gasPrice: await this.provider.getFeeData(),
-        },
+        overrides,
       );
 
       logger.info(`📤 Transaction sent: ${tx.hash}`);
@@ -259,9 +281,49 @@ class OracleService {
 
       return receipt;
     } catch (error) {
-      logger.error("❌ Failed to fulfill IoT data:", error.message);
+      logger.error("❌ Failed to fulfill IoT data:", { error: error.message });
       throw error;
     }
+  }
+
+  /**
+   * Record a completed oracle request telemetry metric
+   */
+  recordRequest(durationMs, success = true) {
+    this.stats.totalProcessed += 1;
+    if (success) {
+      this.stats.totalSuccess += 1;
+    } else {
+      this.stats.totalFailed += 1;
+    }
+    this.stats.totalResponseTimeMs += Math.max(0, durationMs || 0);
+  }
+
+  /**
+   * Get calculated performance statistics
+   */
+  getPerformanceStats() {
+    if (this.stats.totalProcessed === 0) {
+      return {
+        averageResponseTime: "N/A",
+        successRate: "N/A",
+        totalProcessed: 0,
+        totalSuccess: 0,
+        totalFailed: 0,
+      };
+    }
+
+    const avgMs = this.stats.totalResponseTimeMs / this.stats.totalProcessed;
+    const avgSec = (avgMs / 1000).toFixed(1);
+    const ratePct = ((this.stats.totalSuccess / this.stats.totalProcessed) * 100).toFixed(1);
+
+    return {
+      averageResponseTime: `${avgSec}s`,
+      successRate: `${ratePct}%`,
+      totalProcessed: this.stats.totalProcessed,
+      totalSuccess: this.stats.totalSuccess,
+      totalFailed: this.stats.totalFailed,
+    };
   }
 
   /**
@@ -293,7 +355,7 @@ class OracleService {
         await this.provider.destroy();
       }
     } catch (error) {
-      logger.error("❌ Error stopping oracle service:", error.message);
+      logger.error("❌ Error stopping oracle service:", { error: error.message });
     }
   }
 
@@ -320,7 +382,7 @@ class OracleService {
     } catch (error) {
       logger.error(
         `❌ Failed to get IoT data for batch ${batchId}:`,
-        error.message,
+        { error: error.message },
       );
       throw error;
     }

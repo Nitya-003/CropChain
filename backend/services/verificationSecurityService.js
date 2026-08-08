@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const logger = require("../utils/logger");
 const { getRedisConnection } = require("../config/redis");
 
 const CHALLENGE_TTL_SECONDS =
@@ -112,7 +113,7 @@ const createChallenge = async ({ action, actorId, userId, walletAddress }) => {
       },
     });
   } catch (error) {
-    console.error(
+    logger.error(
       "Failed to persist challenge_created verification event:",
       error,
     );

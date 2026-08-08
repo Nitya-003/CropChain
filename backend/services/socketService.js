@@ -1,8 +1,10 @@
 const { Server } = require("socket.io");
+const { createAdapter } = require("@socket.io/redis-adapter");
 const jwt = require("jsonwebtoken");
 const logger = require("../utils/logger");
 const Batch = require("../models/Batch");
 const { hasPermission, PERMISSIONS } = require("../constants/permissions");
+const { createPubSubClients } = require("../config/redis");
 
 let io = null;
 
@@ -21,7 +23,8 @@ const EVENT_RATE_LIMITS = {
 
 function createRateLimiter() {
   const buckets = new Map();
-  return function checkRate(event, socketId) {
+
+  function checkRate(event, socketId) {
     const config = EVENT_RATE_LIMITS[event];
     if (!config) return true;
     const key = `${socketId}:${event}`;
@@ -40,7 +43,18 @@ function createRateLimiter() {
     }
     timestamps.push(now);
     return true;
-  };
+  }
+
+  function clearSocket(socketId) {
+    const prefix = `${socketId}:`;
+    for (const key of buckets.keys()) {
+      if (key.startsWith(prefix)) {
+        buckets.delete(key);
+      }
+    }
+  }
+
+  return { checkRate, clearSocket };
 }
 
 function validatePayload(event, data) {
@@ -90,7 +104,17 @@ function initializeSocketIO(httpServer) {
       maxHttpBufferSize: MAX_HTTP_BUFFER_SIZE,
     });
 
-    const checkRate = createRateLimiter();
+    if (process.env.NODE_ENV !== "test" || process.env.ENABLE_REDIS_SOCKET_ADAPTER === "true") {
+      try {
+        const { pubClient, subClient } = createPubSubClients();
+        io.adapter(createAdapter(pubClient, subClient));
+        logger.info("✓ Socket.IO Redis adapter attached for horizontal scaling across nodes");
+      } catch (err) {
+        logger.warn("⚠️ Failed to attach Redis adapter to Socket.IO. Falling back to default in-memory adapter:", { error: err.message });
+      }
+    }
+
+    const { checkRate, clearSocket } = createRateLimiter();
 
     io.use((socket, next) => {
       const token =
@@ -120,13 +144,23 @@ function initializeSocketIO(httpServer) {
         );
       }
 
+      // Only emit to a socket that is still connected. Async handlers can
+      // finish after the client has disconnected, so every emit is guarded.
+      function safeEmit(event, payload) {
+        if (!socket.connected) return;
+        socket.emit(event, payload);
+      }
+
       function withGuard(event, handler) {
         return async (data) => {
+          if (!socket.connected) {
+            return;
+          }
           if (!checkRate(event, socket.id)) {
             logger.warn(
               `[SOCKET] Rate limit exceeded for ${socket.id} on ${event}`,
             );
-            socket.emit("error", {
+            safeEmit("error", {
               message: "Too many requests. Please slow down.",
             });
             return;
@@ -135,7 +169,7 @@ function initializeSocketIO(httpServer) {
             logger.warn(
               `[SOCKET] Invalid payload from ${socket.id} on ${event}`,
             );
-            socket.emit("error", { message: "Invalid payload." });
+            safeEmit("error", { message: "Invalid payload." });
             return;
           }
           return await handler(data);
@@ -149,7 +183,7 @@ function initializeSocketIO(httpServer) {
           try {
             const user = socket.user;
             if (!user) {
-              socket.emit("error", {
+              safeEmit("error", {
                 message: "Authentication required to join batch room",
               });
               return;
@@ -160,7 +194,7 @@ function initializeSocketIO(httpServer) {
 
             const batch = await Batch.findOne({ batchId }).lean();
             if (!batch) {
-              socket.emit("error", { message: "Batch not found" });
+              safeEmit("error", { message: "Batch not found" });
               return;
             }
 
@@ -184,7 +218,7 @@ function initializeSocketIO(httpServer) {
             const canRead = hasPermission(user.role, PERMISSIONS.BATCH_READ);
 
             if (!isOwner && !canViewAll && !canRead) {
-              socket.emit("error", {
+              safeEmit("error", {
                 message:
                   "Access denied: you do not have permission to view this batch",
               });
@@ -203,7 +237,7 @@ function initializeSocketIO(httpServer) {
               `[SOCKET ERROR] Error authorizing batch room join for ${socket.id}:`,
               err,
             );
-            socket.emit("error", { message: "Failed to verify batch access" });
+            safeEmit("error", { message: "Failed to verify batch access" });
           }
         }),
       );
@@ -228,7 +262,7 @@ function initializeSocketIO(httpServer) {
             !authenticatedUserId ||
             authenticatedUserId.toString() !== userId
           ) {
-            socket.emit("error", {
+            safeEmit("error", {
               message: "Access denied: you can only join your own verification room",
             });
             logger.warn(
@@ -305,7 +339,7 @@ function initializeSocketIO(httpServer) {
             const User = require("../models/User");
 
             if (!socket.user) {
-              return socket.emit("bid_error", {
+              return safeEmit("bid_error", {
                 message: "Authentication required",
               });
             }
@@ -317,29 +351,29 @@ function initializeSocketIO(httpServer) {
             //    the authoritative deduction happens atomically below).
             const user = await User.findById(bidderId);
             if (!user) {
-              return socket.emit("bid_error", { message: "User not found" });
+              return safeEmit("bid_error", { message: "User not found" });
             }
 
             // 2. Fetch auction and validate state
             const auction = await Auction.findById(auctionId);
             if (!auction) {
-              return socket.emit("bid_error", { message: "Auction not found" });
+              return safeEmit("bid_error", { message: "Auction not found" });
             }
 
             if (auction.status !== "active" || new Date() > auction.endTime) {
-              return socket.emit("bid_error", {
+              return safeEmit("bid_error", {
                 message: "Auction is not active or has already ended.",
               });
             }
 
             if (auction.farmerId.toString() === bidderId) {
-              return socket.emit("bid_error", {
+              return safeEmit("bid_error", {
                 message: "Farmers cannot bid on their own auctions.",
               });
             }
 
             if (bidAmount <= auction.currentHighestBid) {
-              return socket.emit("bid_error", {
+              return safeEmit("bid_error", {
                 message: `Bid must be strictly higher than the current highest bid of ${auction.currentHighestBid} credits.`,
               });
             }
@@ -358,7 +392,7 @@ function initializeSocketIO(httpServer) {
             // Pre-flight balance check (best-effort; the atomic $inc below is
             // the authoritative guard against overdraft).
             if (user.balance < amountToDeduct) {
-              return socket.emit("bid_error", {
+              return safeEmit("bid_error", {
                 message: `Insufficient funds. Your balance is ${user.balance} credits.`,
               });
             }
@@ -383,7 +417,7 @@ function initializeSocketIO(httpServer) {
             );
 
             if (!updatedAuction) {
-              return socket.emit("bid_error", {
+              return safeEmit("bid_error", {
                 message:
                   "Bid failed. Someone else may have placed a higher bid first.",
               });
@@ -433,7 +467,7 @@ function initializeSocketIO(httpServer) {
             );
           } catch (error) {
             logger.error("[SOCKET ERROR] error placing bid:", error);
-            socket.emit("bid_error", {
+            safeEmit("bid_error", {
               message: "An internal error occurred while placing your bid.",
             });
           }
@@ -443,6 +477,10 @@ function initializeSocketIO(httpServer) {
       // Handle disconnection
       socket.on("disconnect", () => {
         logger.info(`[SOCKET] Client disconnected: ${socket.id}`);
+        // Release rate-limit buckets and all registered handlers so neither the
+        // socket object nor its closures are retained (prevents memory leaks).
+        clearSocket(socket.id);
+        socket.removeAllListeners();
       });
 
       // Handle errors
@@ -542,6 +580,7 @@ function emitToUser(userId, eventName, data) {
 module.exports = {
   initializeSocketIO,
   getIO,
+  createRateLimiter,
   emitToBatchRoom,
   emitGlobal,
   emitToVerificationRoom,

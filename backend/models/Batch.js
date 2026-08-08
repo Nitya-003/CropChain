@@ -302,6 +302,19 @@ const batchSchema = new mongoose.Schema(
         stageHistory: [],
       }),
     },
+    carbonFootprint: {
+      totalEmissions: {
+        type: Number,
+        default: 0
+      },
+      transportLegs: [{
+        origin: String,
+        destination: String,
+        distanceKm: Number,
+        emissionsKgCO2: Number,
+        timestamp: { type: Date, default: Date.now }
+      }]
+    },
     status: {
       type: String,
       enum: ["Active", "Flagged", "Inactive"],
@@ -568,14 +581,4 @@ batchSchema.statics.getStats = function () {
       },
     },
   ]).then(
-    (result) =>
-      result[0] || {
-        totalBatches: 0,
-        totalQuantity: 0,
-        uniqueFarmers: 0,
-        recalledBatches: 0,
-      },
-  );
-};
-
-module.exports = mongoose.model("Batch", batchSchema);
+  .catch(err => console.error(err))

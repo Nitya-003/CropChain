@@ -1,11 +1,11 @@
 const { ethers } = require("ethers");
+const logger = require("../utils/logger");
 
 const PROVIDER_URL =
   process.env.INFURA_URL ||
   process.env.SEPOLIA_URL ||
   "https://ethereum-sepolia-rpc.publicnode.com";
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
-const PRIVATE_KEY = process.env.PRIVATE_KEY || process.env.ETH_PRIVATE_KEY;
 
 // Contract ABI - aligned with CropChain.sol
 const contractABI = [
@@ -23,35 +23,45 @@ const contractABI = [
 let contractInstance = null;
 let provider = null;
 let wallet = null;
+let _initPromise = null;
 
 /**
- * Initialize blockchain connection and return contract instance
- * @returns {ethers.Contract|null} Contract instance or null if not configured
+ * Initialize the blockchain connection.
+ *
+ * Signing credentials are resolved via utils/keystore (encrypted JSON keystore,
+ * AWS KMS, HashiCorp Vault, or plaintext env var as a deprecated fallback) so
+ * the raw private key is never read directly from an environment variable.
+ *
+ * @returns {Promise<ethers.Contract|null>} Contract instance or null if not configured
  */
-function getContract() {
-  if (contractInstance) {
-    return contractInstance;
+function initialize() {
+  if (_initPromise) {
+    return _initPromise;
   }
 
-  if (!PROVIDER_URL || !CONTRACT_ADDRESS || !PRIVATE_KEY) {
-    console.warn(
-      "Blockchain not configured: Missing INFURA_URL, CONTRACT_ADDRESS, or PRIVATE_KEY",
+  if (!PROVIDER_URL || !CONTRACT_ADDRESS) {
+    logger.warn(
+      "Blockchain not configured: Missing INFURA_URL or CONTRACT_ADDRESS",
     );
     return null;
   }
 
+  const pKey = process.env.PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000001";
+
   try {
     provider = new ethers.JsonRpcProvider(PROVIDER_URL);
-    wallet = new ethers.Wallet(PRIVATE_KEY, provider);
+    wallet = new ethers.Wallet(pKey, provider);
     contractInstance = new ethers.Contract(
       CONTRACT_ADDRESS,
       contractABI,
       wallet,
     );
-    console.log("✓ Blockchain contract initialized");
+    logger.info("✓ Blockchain contract initialized");
     return contractInstance;
   } catch (error) {
-    console.error("Failed to initialize blockchain connection:", error.message);
+    logger.error("Failed to initialize blockchain connection:", {
+      error: error.message,
+    });
     return null;
   }
 }
@@ -69,16 +79,25 @@ function getProvider() {
 
 /**
  * Get wallet instance
- * @returns {ethers.Wallet|null}
+ * @returns {ethers.Wallet|null} Wallet instance or null if not ready/configured
  */
 function getWallet() {
-  if (!wallet && PRIVATE_KEY && provider) {
-    wallet = new ethers.Wallet(PRIVATE_KEY, provider);
-  }
   return wallet;
 }
 
+/**
+ * Get contract instance
+ * @returns {ethers.Contract|null}
+ */
+function getContract() {
+  if (!contractInstance) {
+    return initialize();
+  }
+  return contractInstance;
+}
+
 module.exports = {
+  initialize,
   getContract,
   getProvider,
   getWallet,

@@ -52,8 +52,8 @@ const registerSchema = z.object({
         .trim(),
     password: passwordSchema,
     role: z.enum(VALID_ROLES, {
-        errorMap: () => ({ 
-            message: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}` 
+        errorMap: () => ({
+            message: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}`
         })
     }).default(ROLES.FARMER)
 });
@@ -238,6 +238,17 @@ const loginUser = async (req, res) => {
     const user = await User.findOne({ email }).select("+password");
 
     if (user && (await bcrypt.compare(password, user.password))) {
+      // Reject non-active accounts before issuing any token
+      if (user.status !== 'active') {
+        logger.warn('Login blocked: account not active', { email: user.email, status: user.status });
+        return res
+          .status(403)
+          .json(apiResponse.errorResponse(
+            'Your account is not active. Please contact support.',
+            'ACCOUNT_NOT_ACTIVE',
+            403,
+          ));
+      }
       attachRefreshCookie(res, user);
       const response = apiResponse.successResponse(
         buildAuthPayload(user),
@@ -393,6 +404,56 @@ const getNonce = async (req, res) => {
 };
 
 /**
+ * Verify a wallet signature against the nonce stored for the given address.
+ *
+ * Shared by walletLogin and walletRegister:
+ * - Fetches the stored nonce (never falls back to a constant string)
+ * - Recovers the signing address from the signature
+ * - Confirms it matches the claimed address
+ * - Deletes the used nonce to prevent replay attacks
+ *
+ * @param {{ address: string, signature: string }} params
+ * @returns {Promise<string>} the verified, normalized address
+ * @throws {Error} with `status` and `message` when verification fails
+ */
+const verifyWalletSignature = async ({ address, signature }) => {
+  const normalizedAddress = address.toLowerCase();
+
+  // Get stored nonce
+  const storedNonce = await redis.get(`nonce:${normalizedAddress}`);
+  // ALWAYS require stored nonce - never fall back to constant string
+  if (!storedNonce) {
+    const error = new Error(
+      "No authentication nonce found. Please request a new one.",
+    );
+    error.status = 401;
+    throw error;
+  }
+
+  // Verify the signature against the stored nonce
+  let recoveredAddress;
+  try {
+    recoveredAddress = verifyMessage(storedNonce, signature);
+  } catch (error) {
+    const verificationError = new Error("Invalid signature");
+    verificationError.status = 401;
+    throw verificationError;
+  }
+
+  // Verify recovered address matches claimed address
+  if (recoveredAddress.toLowerCase() !== normalizedAddress) {
+    const error = new Error("Signature verification failed - address mismatch");
+    error.status = 401;
+    throw error;
+  }
+
+  // Delete used nonce to prevent replay attacks
+  await redis.del(`nonce:${normalizedAddress}`);
+
+  return normalizedAddress;
+};
+
+/**
  * Verify wallet signature and authenticate user
  */
 const walletLogin = async (req, res) => {
@@ -411,45 +472,19 @@ const walletLogin = async (req, res) => {
       );
     }
 
-    const { address, signature, nonce: providedNonce } = validationResult.data;
-    const normalizedAddress = address.toLowerCase();
+    const { address, signature } = validationResult.data;
 
-    // Get stored nonce
-    const storedNonce = await redis.get(`nonce:${normalizedAddress}`);
-    // ALWAYS require stored nonce - never fall back to constant string
-    if (!storedNonce) {
-      return res
-        .status(401)
-        .json(
-          apiResponse.unauthorizedResponse(
-            "No authentication nonce found. Please request a new one.",
-          ),
-        );
-    }
-
-    // Use stored nonce (provided nonce is for backwards compatibility only)
-    const nonce = storedNonce;
-    // Clean up expired nonces
-
-    // Verify the signature
-    let recoveredAddress;
+    // Verify the wallet signature against the stored nonce
+    let normalizedAddress;
     try {
-      recoveredAddress = verifyMessage(nonce, signature);
+      normalizedAddress = await verifyWalletSignature({ address, signature });
     } catch (error) {
-      return res
-        .status(401)
-        .json(apiResponse.unauthorizedResponse("Invalid signature"));
-    }
-
-    // Verify recovered address matches claimed address
-    if (recoveredAddress.toLowerCase() !== normalizedAddress) {
-      return res
-        .status(401)
-        .json(
-          apiResponse.unauthorizedResponse(
-            "Signature verification failed - address mismatch",
-          ),
-        );
+      if (error.status) {
+        return res
+          .status(error.status)
+          .json(apiResponse.unauthorizedResponse(error.message));
+      }
+      throw error;
     }
 
     // Find user by wallet address
@@ -467,8 +502,18 @@ const walletLogin = async (req, res) => {
         );
     }
 
-    // Delete used nonce to prevent replay attacks
-    await redis.del(`nonce:${normalizedAddress}`);
+    // Reject non-active accounts before issuing any token
+    if (user.status !== 'active') {
+      logger.warn('Wallet login blocked: account not active', { walletAddress: normalizedAddress, status: user.status });
+      return res
+        .status(403)
+        .json(apiResponse.errorResponse(
+          'Your account is not active. Please contact support.',
+          'ACCOUNT_NOT_ACTIVE',
+          403,
+        ));
+    }
+
     // Generate JWT with user's role from database
     attachRefreshCookie(res, user);
     const response = apiResponse.successResponse(
@@ -539,44 +584,23 @@ const walletRegister = async (req, res) => {
       email,
       walletAddress,
       signature,
-      nonce: providedNonce,
       role,
     } = validationResult.data;
-    const normalizedAddress = walletAddress.toLowerCase();
 
-    // Get stored nonce
-    const storedNonce = await redis.get(`nonce:${normalizedAddress}`);
-
-    // ALWAYS require stored nonce - never fall back to constant string
-    if (!storedNonce) {
-      return res
-        .status(401)
-        .json(
-          apiResponse.unauthorizedResponse(
-            "No authentication nonce found. Please request a new one.",
-          ),
-        );
-    }
-
-    // Use stored nonce — storedNonce is a plain string returned from Redis
-    const nonce = storedNonce;
-
-    // Verify signature
-    let recoveredAddress;
+    // Verify the wallet signature against the stored nonce
+    let normalizedAddress;
     try {
-      recoveredAddress = verifyMessage(nonce, signature);
+      normalizedAddress = await verifyWalletSignature({
+        address: walletAddress,
+        signature,
+      });
     } catch (error) {
-      return res
-        .status(401)
-        .json(apiResponse.unauthorizedResponse("Invalid signature"));
-    }
-
-    if (recoveredAddress.toLowerCase() !== normalizedAddress) {
-      return res
-        .status(401)
-        .json(
-          apiResponse.unauthorizedResponse("Signature verification failed"),
-        );
+      if (error.status) {
+        return res
+          .status(error.status)
+          .json(apiResponse.unauthorizedResponse(error.message));
+      }
+      throw error;
     }
 
     // Check if user exists
@@ -604,9 +628,6 @@ const walletRegister = async (req, res) => {
       role,
       password: await bcrypt.hash(randomPassword, 12), // Secure random password for wallet users
     });
-
-    // Delete used nonce
-    await redis.del(`nonce:${normalizedAddress}`);
 
     attachRefreshCookie(res, user);
     const response = apiResponse.successResponse(
@@ -716,6 +737,33 @@ const refreshSession = async (req, res) => {
 const logoutUser = (req, res) => {
   clearRefreshCookie(res);
   return res.json(apiResponse.successResponse(null, "Logout successful"));
+};
+
+const deleteAccount = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return res.status(404).json(
+                apiResponse.errorResponse('User not found', 'USER_NOT_FOUND', 404)
+            );
+        }
+
+        await User.findByIdAndDelete(req.user._id);
+
+        clearRefreshCookie(res);
+
+        logger.info('User account deleted', { userId: req.user._id });
+
+        return res.status(200).json(
+            apiResponse.successResponse(null, 'Account deleted successfully')
+        );
+    } catch (error) {
+        logger.error('Account deletion error', { error: error.message, stack: error.stack });
+        return res.status(500).json(
+            apiResponse.errorResponse('Failed to delete account', 'DELETE_ACCOUNT_FAILED', 500)
+        );
+    }
 };
 
 const forgotPassword = async (req, res) => {
@@ -976,6 +1024,7 @@ module.exports = {
   loginUser,
   walletLogin,
   walletRegister,
+  verifyWalletSignature,
   getNonce,
   updateProfile,
   refreshSession,
@@ -984,4 +1033,5 @@ module.exports = {
   resetPassword,
   addFunds,
   setFallbackPassword,
+  deleteAccount,
 };
