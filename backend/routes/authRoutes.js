@@ -67,12 +67,7 @@ router.post("/add-funds", protect, adminOnly, addFunds);
 // Wallet authentication routes
 router.get("/nonce", authLimiter, getNonce);
 router.post("/wallet-login", authLimiter, walletLogin);
-router.post(
-  "/wallet-register",
-  registerLimiter,
-  validateRegistration,
-  walletRegister,
-);
+router.post("/wallet-register", registerLimiter, validateRegistration, walletRegister);
 router.post("/set-fallback-password", protect, setFallbackPassword);
 
 /**
@@ -92,7 +87,6 @@ router.get('/nonce', authLimiter, getNonce);
 router.post('/wallet-login', authLimiter, walletLogin);
 router.post('/wallet-register', registerLimiter, validateRegistration, walletRegister);
 router.post('/set-fallback-password', protect, setFallbackPassword);
-router.put('/profile', protect, updateProfile);
 router.delete('/profile', protect, deleteAccount);
 
 module.exports = router;
