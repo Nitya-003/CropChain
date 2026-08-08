@@ -9,10 +9,100 @@ const batchController = require('../controllers/batchController');
 const { protect, adminOnly, authorizeBatchOwner, authorizeStageTransition, authorizeBlockchainTransaction, authorizeRoles } = require('../middleware/auth');
 const { batchLimiter } = require('../middleware/rateLimiters');
 
-// CREATE batch - requires farmer role and blockchain authorization
+const blockchainService = require('../services/blockchainService');
+
+/**
+ * @swagger
+ * /api/batches:
+ *   post:
+ *     summary: Create a new crop batch
+ *     tags: [Batches]
+ *     security:
+ *       - Bearer: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Batch'
+ *     responses:
+ *       201:
+ *         description: Crop batch created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ */
 router.post('/', batchLimiter, protect, authorizeRoles('farmer'), batchController.createBatch);
 
-// GET public batch tracking data - no authentication required
+/**
+ * @swagger
+ * /api/batches/relay-meta-tx:
+ *   post:
+ *     summary: Relay EIP-2771 gasless meta-transaction
+ *     tags: [Batches]
+ *     security:
+ *       - Bearer: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [forwardRequest, signature]
+ *             properties:
+ *               forwardRequest:
+ *                 type: object
+ *               signature:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Meta-transaction relayed successfully
+ *       400:
+ *         description: Invalid transaction payload or signature
+ */
+router.post('/relay-meta-tx', batchLimiter, protect, async (req, res) => {
+  try {
+    const { forwardRequest, signature } = req.body;
+    if (!forwardRequest || !signature) {
+      return res.status(400).json(apiResponse.errorResponse("forwardRequest and signature are required", "INVALID_INPUT", 400));
+    }
+
+    const result = await blockchainService.relayMetaTransaction(forwardRequest, signature);
+    if (!result.success) {
+      return res.status(400).json(apiResponse.errorResponse(result.error, "META_TX_FAILED", 400));
+    }
+
+    res.json(apiResponse.successResponse(result, "Meta-transaction relayed successfully"));
+  } catch (error) {
+    logger.error("Error relaying meta-transaction", { error: error.message });
+    res.status(500).json(apiResponse.errorResponse("Internal relay error", "SERVER_ERROR", 500));
+  }
+});
+
+/**
+ * @swagger
+ * /api/batches/public/{batchId}:
+ *   get:
+ *     summary: Fetch public batch provenance tracking data
+ *     tags: [Batches]
+ *     parameters:
+ *       - in: path
+ *         name: batchId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Unique CropChain Batch ID
+ *     responses:
+ *       200:
+ *         description: Public batch tracking details retrieved
+ *       404:
+ *         description: Batch ID not found
+ */
 router.get("/public/:batchId", batchLimiter, async (req, res) => {
   try {
     const { batchId } = req.params;
