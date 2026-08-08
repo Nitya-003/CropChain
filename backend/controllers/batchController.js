@@ -349,13 +349,24 @@ exports.getBatches = async (req, res) => {
     // Handle date range (both startDate/endDate and dateFrom/dateTo)
     const start = startDate || dateFrom;
     const end = endDate || dateTo;
+    const startDateObj = start ? new Date(start) : null;
+    const endDateObj = end ? new Date(end) : null;
+    if ((start && isNaN(startDateObj.getTime())) || (end && isNaN(endDateObj.getTime()))) {
+      return res.status(400).json(
+        apiResponse.errorResponse(
+          "Invalid date format for start/end date parameters. Use ISO 8601 (e.g. 2024-01-31).",
+          "INVALID_DATE",
+          400,
+        ),
+      );
+    }
     if (start || end) {
       query.createdAt = {};
       if (start) {
-        query.createdAt.$gte = new Date(start);
+        query.createdAt.$gte = startDateObj;
       }
       if (end) {
-        query.createdAt.$lte = new Date(end);
+        query.createdAt.$lte = endDateObj;
       }
     }
 
@@ -367,8 +378,21 @@ exports.getBatches = async (req, res) => {
     );
     const skip = (pageNumber - 1) * limitNumber;
 
+    // Allow-list sort fields to prevent arbitrary/malformed sort keys
+    const ALLOWED_SORT_FIELDS = [
+      "createdAt",
+      "updatedAt",
+      "batchId",
+      "farmerName",
+      "cropType",
+      "quantity",
+      "status",
+    ];
+    const safeSortBy = ALLOWED_SORT_FIELDS.includes(sortBy)
+      ? sortBy
+      : "createdAt";
     const sort = {};
-    sort[sortBy] = sortOrder.toLowerCase() === "asc" ? 1 : -1;
+    sort[safeSortBy] = sortOrder.toLowerCase() === "asc" ? 1 : -1;
 
     // Use lean() for read-only queries to skip Mongoose document hydration
     const batches = await Batch.find(query)
@@ -712,5 +736,3 @@ exports.getIoTData = async (req, res) => {
       );
   }
 };
-
-.catch(err => console.error("Promise.all failed:", err));
