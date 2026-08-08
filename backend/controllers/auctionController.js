@@ -6,7 +6,7 @@ const apiResponse = require('../utils/apiResponse');
 const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
 const mongoose = require('mongoose');
-const { toDecimal, fromDecimal, gte, gt, lt, lte, fromString, toNumber } = require('../utils/decimalHelpers');
+const { toDecimal, fromDecimal, gte, gt, lt, fromString, toNumber } = require('../utils/decimalHelpers');
 
 function convertDecimal128(obj) {
   if (!obj || typeof obj !== 'object') return obj;
@@ -246,42 +246,8 @@ const placeBid = async (req, res) => {
 
         const decimalBidAmount = fromString(String(bidAmount));
 
-        const auction = await Auction.findById(id).session(session);
-
-        if (!auction) {
-            await session.abortTransaction();
-            session.endSession();
-            return res.status(404).json(
-                apiResponse.notFoundResponse('Auction', id)
-            );
-        }
-
-        if (auction.status !== 'active' || auction.endTime <= new Date()) {
-            await session.abortTransaction();
-            session.endSession();
-            return res.status(400).json(
-                apiResponse.errorResponse('Auction is no longer active', 'AUCTION_ENDED', 400)
-            );
-        }
-
-        if (auction.farmerId.toString() === req.user.id.toString()) {
-            await session.abortTransaction();
-            session.endSession();
-            return res.status(403).json(
-                apiResponse.errorResponse('You cannot bid on your own auction', 'FORBIDDEN', 403)
-            );
-        }
-
-        if (lte(decimalBidAmount, auction.currentHighestBid)) {
-            await session.abortTransaction();
-            session.endSession();
-            return res.status(400).json(
-                apiResponse.errorResponse(`Bid amount must be greater than current highest bid (${toDecimal(auction.currentHighestBid).toString()})`, 'BID_TOO_LOW', 400)
-            );
-        }
-
         const user = await User.findById(req.user.id).session(session);
-        
+
         if (!user || lt(user.balance, decimalBidAmount)) {
             await session.abortTransaction();
             session.endSession();
@@ -290,10 +256,60 @@ const placeBid = async (req, res) => {
             );
         }
 
-        if (auction.highestBidder) {
-            const previousBidder = await User.findById(auction.highestBidder).session(session);
+        // Atomically place the bid so two concurrent bids cannot both win.
+        // The filter enforces currentHighestBid < newBid at write time; if
+        // another bid landed first (or the auction ended), no document matches
+        // and we abort cleanly instead of overwriting the winner.
+        const previousAuction = await Auction.findOneAndUpdate(
+            {
+                _id: id,
+                status: 'active',
+                endTime: { $gt: new Date() },
+                farmerId: { $ne: user._id },
+                currentHighestBid: { $lt: decimalBidAmount },
+            },
+            {
+                $set: {
+                    currentHighestBid: decimalBidAmount,
+                    highestBidder: user._id,
+                },
+            },
+            { session, returnDocument: 'before' }
+        );
+
+        if (!previousAuction) {
+            await session.abortTransaction();
+            session.endSession();
+            const fresh = await Auction.findById(id).lean();
+            if (!fresh) {
+                return res.status(404).json(
+                    apiResponse.notFoundResponse('Auction', id)
+                );
+            }
+            if (fresh.farmerId.toString() === req.user.id.toString()) {
+                return res.status(403).json(
+                    apiResponse.errorResponse('You cannot bid on your own auction', 'FORBIDDEN', 403)
+                );
+            }
+            if (fresh.status !== 'active' || fresh.endTime <= new Date()) {
+                return res.status(400).json(
+                    apiResponse.errorResponse('Auction is no longer active', 'AUCTION_ENDED', 400)
+                );
+            }
+            return res.status(400).json(
+                apiResponse.errorResponse(
+                    `Bid amount must be greater than current highest bid (${toDecimal(fresh.currentHighestBid).toString()})`,
+                    'BID_TOO_LOW',
+                    400
+                )
+            );
+        }
+
+        // Refund the actual previous highest bidder captured from the atomic update.
+        if (previousAuction.highestBidder) {
+            const previousBidder = await User.findById(previousAuction.highestBidder).session(session);
             if (previousBidder) {
-                const refundAmount = fromDecimal(toDecimal(previousBidder.balance).plus(toDecimal(auction.currentHighestBid)));
+                const refundAmount = fromDecimal(toDecimal(previousBidder.balance).plus(toDecimal(previousAuction.currentHighestBid)));
                 previousBidder.balance = refundAmount;
                 await previousBidder.save({ session });
             }
@@ -303,15 +319,11 @@ const placeBid = async (req, res) => {
         user.balance = newBalance;
         await user.save({ session });
 
-        auction.currentHighestBid = decimalBidAmount;
-        auction.highestBidder = user._id;
-        await auction.save({ session });
-
         const bid = new Bid({
-            auctionId: auction._id,
+            auctionId: previousAuction._id,
             userId: user._id,
             userName: user.name,
-            cropId: auction.batchId,
+            cropId: previousAuction.batchId,
             bidAmount: decimalBidAmount
         });
         await bid.save({ session });
@@ -319,12 +331,12 @@ const placeBid = async (req, res) => {
         await session.commitTransaction();
         session.endSession();
 
-        logger.info('Bid placed successfully', { auctionId: auction._id, userId: user._id, amount: toDecimal(bidAmount).toString() });
+        logger.info('Bid placed successfully', { auctionId: previousAuction._id, userId: user._id, amount: toDecimal(bidAmount).toString() });
 
         const io = socketService.getIO();
         if (io) {
             io.emit('bid_placed', {
-                auctionId: auction._id,
+                auctionId: previousAuction._id,
                 bid: {
                     userId: user._id,
                     userName: user.name,
