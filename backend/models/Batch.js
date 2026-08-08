@@ -580,5 +580,7 @@ batchSchema.statics.getStats = function () {
         recalledBatches: 1,
       },
     },
-  ]).then(
-  .catch(err => console.error(err))
+  ]).catch((err) => console.error(err));
+};
+
+module.exports = mongoose.model("Batch", batchSchema);

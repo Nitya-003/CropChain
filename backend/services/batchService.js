@@ -860,5 +860,3 @@ class BatchService {
 
 // Export singleton instance
 module.exports = new BatchService();
-
-.catch(err => console.error("Promise.all failed:", err));
