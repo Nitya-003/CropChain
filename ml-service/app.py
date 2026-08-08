@@ -154,9 +154,32 @@ def predict_yield():
         return jsonify({"error": "Request body must be JSON"}), 400
 
     crop = body.get("crop", "unknown")
-    area = float(body.get("area_hectares", 0))
-    temp = float(body.get("avg_temperature", 25))
-    rainfall = float(body.get("expected_rainfall", 100))
+
+    # Validate numeric fields explicitly so non-numeric values return 422
+    # instead of an unhandled ValueError (500).
+    numeric_fields = {
+        "area_hectares": body.get("area_hectares"),
+        "avg_temperature": body.get("avg_temperature"),
+        "expected_rainfall": body.get("expected_rainfall"),
+    }
+    parsed = {}
+    for field, raw in numeric_fields.items():
+        try:
+            parsed[field] = float(raw) if raw is not None else None
+        except (TypeError, ValueError):
+            return jsonify({
+                "error": f"'{field}' must be a number, got: {raw!r}",
+                "field": field,
+                "value": raw,
+            }), 422
+
+    area = parsed["area_hectares"] if parsed["area_hectares"] is not None else 0
+    temp = parsed["avg_temperature"] if parsed["avg_temperature"] is not None else 25
+    rainfall = (
+        parsed["expected_rainfall"]
+        if parsed["expected_rainfall"] is not None
+        else 100
+    )
 
     if area <= 0:
         return jsonify({"error": "area_hectares must be > 0"}), 422
