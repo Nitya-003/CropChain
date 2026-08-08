@@ -10,7 +10,12 @@ import { sanitizeObject } from "../../lib/sanitize";
 import { batchFormSchema } from "../../lib/schemas";
 import { InlineAlert } from "../../components/InlineAlert";
 import { ethers } from "ethers";
-import { getContract, getSigner, hasMetaMask } from "../../utils/web3";
+import {
+  getContract,
+  getSigner,
+  hasMetaMask,
+  uploadBatchMetadataToIPFS,
+} from "../../utils/web3";
 
 const AddBatchContent: React.FC = () => {
   const { t } = useTranslation();
@@ -135,10 +140,29 @@ const AddBatchContent: React.FC = () => {
                 id: "web3-sync",
               });
 
+              // Upload per-batch metadata to IPFS (replaces hardcoded CID)
+              const ipfsCID = await uploadBatchMetadataToIPFS({
+                batchId: batch.batchId,
+                farmerName: batch.farmerName,
+                farmerAddress: batch.farmerAddress,
+                cropType: batch.cropType,
+                quantity: batch.quantity,
+                harvestDate: batch.harvestDate,
+                origin: batch.origin,
+                certifications: batch.certifications,
+                description: batch.description,
+                createdAt: batch.createdAt,
+              });
+              if (!ipfsCID) {
+                throw new Error(
+                  "Failed to upload batch metadata to IPFS. Check Pinata credentials.",
+                );
+              }
+
               const tx = await contract.createBatch(
                 ethers.encodeBytes32String(batch.batchId),
                 ethers.encodeBytes32String(batch.cropType.toUpperCase()),
-                "QmYwAPJhy5n2aBhajbN7yXq3TqK6Lj5ee2ov3333333333", // 46-char valid IPFS CID
+                ipfsCID,
                 BigInt(batch.quantity),
                 batch.farmerName,
                 batch.origin,

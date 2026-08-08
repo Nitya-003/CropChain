@@ -49,3 +49,55 @@ export const getContract = async (): Promise<ethers.Contract | null> => {
   if (!signer) return null;
   return new ethers.Contract(getContractAddress(), cropChainABI, signer);
 };
+
+/**
+ * Upload batch metadata to IPFS via Pinata and return a real per-batch CID.
+ * Falls back to null when Pinata credentials are absent so callers can
+ * decide whether to proceed with an empty CID rather than a fake one.
+ */
+export const uploadBatchMetadataToIPFS = async (
+  metadata: Record<string, unknown>,
+): Promise<string | null> => {
+  const apiKey =
+    typeof process !== "undefined" ? process.env.NEXT_PUBLIC_PINATA_API_KEY : undefined;
+  const secretKey =
+    typeof process !== "undefined"
+      ? process.env.NEXT_PUBLIC_PINATA_SECRET_API_KEY
+      : undefined;
+
+  if (!apiKey || !secretKey) {
+    console.warn(
+      "IPFS upload skipped: Pinata credentials not configured. Set NEXT_PUBLIC_PINATA_API_KEY and NEXT_PUBLIC_PINATA_SECRET_API_KEY.",
+    );
+    return null;
+  }
+
+  try {
+    const res = await fetch(
+      "https://api.pinata.cloud/pinning/pinJSONToIPFS",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          pinata_api_key: apiKey,
+          pinata_secret_api_key: secretKey,
+        },
+        body: JSON.stringify({
+          pinataContent: metadata,
+          pinataMetadata: { name: `cropchain-batch-${metadata.batchId ?? "unknown"}` },
+        }),
+      },
+    );
+
+    if (!res.ok) {
+      console.error("IPFS upload failed:", res.status, await res.text());
+      return null;
+    }
+
+    const data = await res.json();
+    return data.IpfsHash ?? null;
+  } catch (err) {
+    console.error("IPFS upload error:", err);
+    return null;
+  }
+};
