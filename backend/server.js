@@ -10,6 +10,8 @@ const blockchainQueue = require("./services/blockchainQueue");
 const blockchainWorker = require("./services/blockchainWorker");
 const notificationQueue = require("./jobs/queue");
 const notificationWorker = require("./jobs/worker");
+const { ethers } = require("ethers");
+const blockchainService = require("./services/blockchainService");
 
 setupErrorHandling();
 
