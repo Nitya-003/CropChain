@@ -35,7 +35,7 @@ class AIService {
       }
     }
 
-    this.maxTokens = parseInt(process.env.AI_MAX_TOKENS) || 500;
+    this.maxTokens = parseInt(process.env.AI_MAX_TOKENS, 10) || 500;
     this.temperature = parseFloat(process.env.AI_TEMPERATURE) || 0.7;
 
     if (this.provider === "gemini") {
@@ -254,6 +254,38 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
         description: fn.description,
         parameters: convertSchema(fn.parameters),
       };
+    });
+  }
+
+  // chat.sendMessage() hardcodes role "function" for functionResponse parts, which the
+  // live API now rejects (400: role not supported). Bypass ChatSession and send the
+  // history + response directly via generateContent with an accepted role instead.
+  // Note: chat.getHistory() is unreliable after sendMessageStream() (returns empty even
+  // once the stream is fully drained), so the turn history is built manually from the
+  // original message and the model's function-call turn instead of relying on it.
+  async sendFunctionResponse(message, response, model, functionName, functionResult) {
+    return model.generateContent({
+      contents: [
+        { role: "user", parts: [{ text: message }] },
+        response.candidates[0].content,
+        {
+          role: "user",
+          parts: [{ functionResponse: { name: functionName, response: functionResult } }],
+        },
+      ],
+    });
+  }
+
+  async sendFunctionResponseStream(message, response, model, functionName, functionResult) {
+    return model.generateContentStream({
+      contents: [
+        { role: "user", parts: [{ text: message }] },
+        response.candidates[0].content,
+        {
+          role: "user",
+          parts: [{ functionResponse: { name: functionName, response: functionResult } }],
+        },
+      ],
     });
   }
 
@@ -488,7 +520,7 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
         const chat = model.startChat();
         const result = await chat.sendMessage(message);
         const response = result.response;
-        const functionCalls = response.functionCalls;
+        const functionCalls = response.functionCalls();
 
         if (functionCalls && functionCalls.length > 0) {
           const toolCall = functionCalls[0];
@@ -502,14 +534,13 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
           );
 
           // Send function result back to model
-          const followUpResult = await chat.sendMessage([
-            {
-              functionResponse: {
-                name: functionName,
-                response: functionResult,
-              },
-            },
-          ]);
+          const followUpResult = await this.sendFunctionResponse(
+            message,
+            response,
+            model,
+            functionName,
+            functionResult,
+          );
 
           return {
             success: true,
@@ -691,7 +722,7 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
         }
 
         const response = await result.response;
-        const functionCalls = response.functionCalls;
+        const functionCalls = response.functionCalls();
 
         if (functionCalls && functionCalls.length > 0) {
           const toolCall = functionCalls[0];
@@ -705,14 +736,13 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
           );
 
           // Send function result back to model with stream
-          const followUpResult = await chat.sendMessageStream([
-            {
-              functionResponse: {
-                name: functionName,
-                response: functionResult,
-              },
-            },
-          ]);
+          const followUpResult = await this.sendFunctionResponseStream(
+            message,
+            response,
+            model,
+            functionName,
+            functionResult,
+          );
 
           let followUpText = "";
           for await (const chunk of followUpResult.stream) {
@@ -1392,7 +1422,7 @@ Click on any batch ID to trace its journey.`,
 
     // 4. Construct Restricted Prompt
     const systemPrompt = `You are CropAssistant, a strict context-aware AI supply chain assistant.
-You have been provided with real-time supply chain metadata from the MongoDB database.
+You have been provided with real-time supply chain metadata from the MongoDB database, and you also have search functions to query the database directly when the question needs data not already in the context (e.g. combining crop type, farmer name, origin, stage, and status filters together).
 
 Here is the current database context:
 ---
@@ -1400,9 +1430,9 @@ ${contextText || "No specific crop or batch metadata found in the database for t
 ---
 
 INSTRUCTIONS & CONSTRAINTS:
-1. You must ONLY answer questions based on the provided supply chain metadata context above.
-2. If the user asks a question that cannot be answered using the provided metadata, or asks about batches, crops, or topics not present in the context, you must reply: "I'm sorry, but I can only answer questions related to the supply chain batch data provided in this context. I do not have access to that information."
-3. Do not assume, extrapolate, or hallucinate any details that are not explicitly present in the metadata.
+1. Answer using the provided context above, or by calling a search function when the question needs data that isn't already in the context.
+2. If neither the context nor a function call can answer the question, or it's unrelated to supply chain batch data, you must reply: "I'm sorry, but I can only answer questions related to the supply chain batch data provided in this context. I do not have access to that information."
+3. Do not assume, extrapolate, or hallucinate any details that are not explicitly present in the metadata or function results.
 4. Keep your responses precise, helpful, and professional.
 5. If the context contains warnings (e.g. spoilage or recall), highlight them clearly using alert emojis.`;
 
@@ -1440,6 +1470,9 @@ INSTRUCTIONS & CONSTRAINTS:
         const model = this.genAI.getGenerativeModel({
           model: this.modelName,
           systemInstruction: systemPrompt,
+          tools: [
+            { functionDeclarations: this.getGeminiFunctionDeclarations() },
+          ],
           generationConfig: {
             maxOutputTokens: this.maxTokens,
             temperature: this.temperature,
