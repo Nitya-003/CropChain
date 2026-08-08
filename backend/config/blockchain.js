@@ -1,5 +1,6 @@
 const { ethers } = require("ethers");
 const logger = require("../utils/logger");
+const keystore = require("../utils/keystore");
 
 const PROVIDER_URL =
   process.env.INFURA_URL ||
@@ -32,9 +33,14 @@ let _initPromise = null;
  * AWS KMS, HashiCorp Vault, or plaintext env var as a deprecated fallback) so
  * the raw private key is never read directly from an environment variable.
  *
+ * NOTE: This function is now async. A previous version fell back to a hardcoded
+ * dummy private key (0x000...001) when PRIVATE_KEY was unset, which silently
+ * signed real transactions with a publicly-known key. We now refuse to create a
+ * wallet when no signing material is configured.
+ *
  * @returns {Promise<ethers.Contract|null>} Contract instance or null if not configured
  */
-function initialize() {
+async function initialize() {
   if (_initPromise) {
     return _initPromise;
   }
@@ -46,24 +52,41 @@ function initialize() {
     return null;
   }
 
-  const pKey = process.env.PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000001";
-
-  try {
-    provider = new ethers.JsonRpcProvider(PROVIDER_URL);
-    wallet = new ethers.Wallet(pKey, provider);
-    contractInstance = new ethers.Contract(
-      CONTRACT_ADDRESS,
-      contractABI,
-      wallet,
+  if (!keystore.hasSigningMaterial("default")) {
+    logger.error(
+      "Blockchain not initialized: no signing credentials configured. " +
+        "Set up an encrypted keystore (WALLET_KEYSTORE_*), AWS KMS, Vault, " +
+        "or PRIVATE_KEY env var. Refusing to fall back to a dummy key.",
     );
-    logger.info("✓ Blockchain contract initialized");
-    return contractInstance;
-  } catch (error) {
-    logger.error("Failed to initialize blockchain connection:", {
-      error: error.message,
-    });
     return null;
   }
+
+  _initPromise = (async () => {
+    try {
+      provider = new ethers.JsonRpcProvider(PROVIDER_URL);
+      wallet = await keystore.loadWallet(provider, "default");
+      if (!wallet) {
+        logger.error(
+          "Blockchain not initialized: keystore.loadWallet() returned null.",
+        );
+        return null;
+      }
+      contractInstance = new ethers.Contract(
+        CONTRACT_ADDRESS,
+        contractABI,
+        wallet,
+      );
+      logger.info("✓ Blockchain contract initialized");
+      return contractInstance;
+    } catch (error) {
+      logger.error("Failed to initialize blockchain connection:", {
+        error: error.message,
+      });
+      return null;
+    }
+  })();
+
+  return _initPromise;
 }
 
 /**
@@ -86,8 +109,10 @@ function getWallet() {
 }
 
 /**
- * Get contract instance
- * @returns {ethers.Contract|null}
+ * Get contract instance. If not yet initialized, returns the pending init
+ * promise (callers that need the instance synchronously should await
+ * initialize() first, as BlockchainService.initialize() does).
+ * @returns {ethers.Contract|Promise<ethers.Contract|null>|null}
  */
 function getContract() {
   if (!contractInstance) {
