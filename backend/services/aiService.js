@@ -1,5 +1,7 @@
-﻿const axios = require("axios");
+const axios = require("axios");
 const logger = require("../utils/logger");
+const crypto = require("crypto");
+const { getRedisConnection } = require("../config/redis");
 
 class AIService {
   constructor() {
@@ -100,6 +102,17 @@ COMMON TERMS:
 - Block Confirmation: Blockchain transaction verification
 
 Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural terminology appropriately.`;
+  }
+
+  // Helper for Semantic Exact Match Caching
+  getNormalizedCacheKey(prompt, context = null) {
+    if (!prompt) return null;
+    let normalized = prompt.toLowerCase().replace(/[^\w\s]/gi, '').replace(/\s+/g, ' ').trim();
+    if (context && typeof context === 'object') {
+       normalized += ":" + JSON.stringify(context);
+    }
+    const hash = crypto.createHash("sha256").update(normalized).digest("hex");
+    return `ai:cache:${hash}`;
   }
 
   // Function definitions for OpenAI function calling
@@ -443,6 +456,21 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
       return await this.getSmartFallbackResponse(message, batchService);
     }
 
+    // Normalized Exact Match Caching (Redis)
+    const redis = getRedisConnection();
+    const cacheKey = this.getNormalizedCacheKey(message);
+    if (redis && cacheKey) {
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+          logger.info(`[AIService] Cache hit for message: ${message.substring(0, 30)}...`);
+          return JSON.parse(cached);
+        }
+      } catch (err) {
+        logger.error("[AIService] Redis get error:", err.message);
+      }
+    }
+
     if (this.provider === "gemini") {
       try {
         const model = this.genAI.getGenerativeModel({
@@ -491,10 +519,18 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
           };
         }
 
-        return {
+        const finalResponse = {
           success: true,
           message: response.text(),
         };
+
+        if (redis && cacheKey) {
+          try {
+            await redis.set(cacheKey, JSON.stringify(finalResponse), "EX", 86400); // 24 hours
+          } catch (err) {}
+        }
+
+        return finalResponse;
       } catch (error) {
         logger.error("Gemini API error:", error.message);
         return await this.getSmartFallbackResponse(message, batchService);
@@ -581,10 +617,18 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
         };
       }
 
-      return {
+      const finalResponse = {
         success: true,
         message: aiResponse.content,
       };
+
+      if (redis && cacheKey) {
+        try {
+          await redis.set(cacheKey, JSON.stringify(finalResponse), "EX", 86400); // 24 hours
+        } catch (err) {}
+      }
+
+      return finalResponse;
     } catch (error) {
       logger.error("OpenAI API error:", error.response?.data || error.message);
 
@@ -601,6 +645,23 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
       );
       await this.streamText(fallback.message, onToken);
       return fallback;
+    }
+
+    // Normalized Exact Match Caching (Redis)
+    const redis = getRedisConnection();
+    const cacheKey = this.getNormalizedCacheKey(message);
+    if (redis && cacheKey) {
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+          logger.info(`[AIService] Cache hit for streamed message: ${message.substring(0, 30)}...`);
+          const parsed = JSON.parse(cached);
+          await this.streamText(parsed.message, onToken);
+          return parsed;
+        }
+      } catch (err) {
+        logger.error("[AIService] Redis stream get error:", err.message);
+      }
     }
 
     if (this.provider === "gemini") {
@@ -670,10 +731,18 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
           };
         }
 
-        return {
+        const finalResponse = {
           success: true,
           message: text,
         };
+
+        if (redis && cacheKey) {
+          try {
+            await redis.set(cacheKey, JSON.stringify(finalResponse), "EX", 86400); // 24 hours
+          } catch (err) {}
+        }
+
+        return finalResponse;
       } catch (error) {
         logger.error("Gemini streaming API error:", error.message);
         const fallback = await this.getSmartFallbackResponse(
@@ -751,10 +820,18 @@ Be helpful, friendly, and focus on CropChain-specific guidance. Use agricultural
         };
       }
 
-      return {
+      const finalResponse = {
         success: true,
         message: initialResponse.message,
       };
+
+      if (redis && cacheKey) {
+        try {
+          await redis.set(cacheKey, JSON.stringify(finalResponse), "EX", 86400); // 24 hours
+        } catch (err) {}
+      }
+
+      return finalResponse;
     } catch (error) {
       logger.error(
         "OpenAI streaming API error:",
@@ -1214,6 +1291,25 @@ Click on any batch ID to trace its journey.`,
   ) {
     const lowerMessage = message.toLowerCase();
 
+    // Normalized Exact Match Caching (Redis)
+    const redis = getRedisConnection();
+    const cacheKey = this.getNormalizedCacheKey(message, requestContext);
+    if (redis && cacheKey) {
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+          logger.info(`[AIService] Cache hit for context chat: ${message.substring(0, 30)}...`);
+          const parsed = JSON.parse(cached);
+          if (onToken) {
+            await this.streamText(parsed.message, onToken);
+          }
+          return parsed;
+        }
+      } catch (err) {
+        logger.error("[AIService] Redis context chat get error:", err.message);
+      }
+    }
+
     // 1. Check for batch ID patterns
     const cropMatch = lowerMessage.match(/crop-\d{4}-\d{4}/);
     const batchMatch = lowerMessage.match(/batch\d{6}/);
@@ -1361,11 +1457,19 @@ INSTRUCTIONS & CONSTRAINTS:
               onToken(chunkText);
             }
           }
-          return { success: true, message: text };
+          const finalResponse = { success: true, message: text };
+          if (redis && cacheKey) {
+            try { await redis.set(cacheKey, JSON.stringify(finalResponse), "EX", 86400); } catch (err) {}
+          }
+          return finalResponse;
         } else {
           const chat = model.startChat();
           const result = await chat.sendMessage(message);
-          return { success: true, message: result.response.text() };
+          const finalResponse = { success: true, message: result.response.text() };
+          if (redis && cacheKey) {
+            try { await redis.set(cacheKey, JSON.stringify(finalResponse), "EX", 86400); } catch (err) {}
+          }
+          return finalResponse;
         }
       } catch (error) {
         logger.error("Gemini context query error:", error.message);
@@ -1395,7 +1499,11 @@ INSTRUCTIONS & CONSTRAINTS:
           },
           onToken,
         );
-        return { success: true, message: result.message };
+        const finalResponse = { success: true, message: result.message };
+        if (redis && cacheKey) {
+          try { await redis.set(cacheKey, JSON.stringify(finalResponse), "EX", 86400); } catch (err) {}
+        }
+        return finalResponse;
       } else {
         const response = await axios.post(
           "https://api.openai.com/v1/chat/completions",
@@ -1412,10 +1520,14 @@ INSTRUCTIONS & CONSTRAINTS:
             },
           },
         );
-        return {
+        const finalResponse = {
           success: true,
           message: response.data.choices[0].message.content,
         };
+        if (redis && cacheKey) {
+          try { await redis.set(cacheKey, JSON.stringify(finalResponse), "EX", 86400); } catch (err) {}
+        }
+        return finalResponse;
       }
     } catch (error) {
       logger.error(
