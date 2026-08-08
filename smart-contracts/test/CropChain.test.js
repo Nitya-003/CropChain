@@ -305,6 +305,11 @@ describe("CropChain", function () {
 
     // Admin should be able to transfer
     await expect(cropChain.connect(owner).transferOwnership(other.address))
+      .to.emit(cropChain, "OwnershipTransferStarted")
+      .withArgs(owner.address, other.address);
+
+    // New owner should be able to accept
+    await expect(cropChain.connect(other).acceptOwnership())
       .to.emit(cropChain, "OwnershipTransferred")
       .withArgs(owner.address, other.address);
   });

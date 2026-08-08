@@ -83,6 +83,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     bytes32[] public allBatchIds;
 
     address public owner;
+    address public pendingOwner;
     uint256 public nextListingId;
     uint256 public twapWindow;
     uint256 public maxPriceDeviationBps;
@@ -92,6 +93,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     event BatchRecalled(bytes32 indexed batchId, address indexed triggeredBy);
     event RoleUpdated(address indexed user, ActorRole role);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
     event ListingCreated(uint256 indexed listingId, bytes32 indexed batchId, address indexed seller, uint256 quantity, uint256 unitPriceWei);
     event ListingPurchased(uint256 indexed listingId, address indexed buyer, uint256 quantity, uint256 totalPaidWei);
     event SubBatchCreated(bytes32 indexed parentBatchId, bytes32 indexed subBatchId, address indexed owner, uint256 quantity);
@@ -172,19 +174,27 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         require(newOwner != address(0), "Invalid address");
         require(newOwner != owner, "Already owner");
 
+        pendingOwner = newOwner;
+        emit OwnershipTransferStarted(owner, newOwner);
+    }
+
+    function acceptOwnership() external nonReentrant {
+        require(msg.sender == pendingOwner, "Caller is not the pending owner");
+
         address previousOwner = owner;
-        owner = newOwner;
+        owner = msg.sender;
+        delete pendingOwner;
 
         // Transfer legacy admin role: clear old owner, elevate new owner
         roles[previousOwner] = ActorRole.None;
-        roles[newOwner] = ActorRole.Admin;
+        roles[msg.sender] = ActorRole.Admin;
 
         // Sync OZ AccessControl: revoke DEFAULT_ADMIN_ROLE from old owner,
         // grant it to new owner so privileged functions remain consistent
         _revokeRole(DEFAULT_ADMIN_ROLE, previousOwner);
-        _grantRole(DEFAULT_ADMIN_ROLE, newOwner);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
 
-        emit OwnershipTransferred(previousOwner, newOwner);
+        emit OwnershipTransferred(previousOwner, msg.sender);
     }
 
     function pause() external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
