@@ -12,6 +12,16 @@ from PIL import Image
 
 app = Flask(__name__)
 
+# ── Request size cap (prevents decompression-bomb / memory-exhaustion DoS) ──
+# Reject any request body larger than MAX_REQUEST_BYTES (default 10 MB).
+# This bounds the raw payload before base64 decoding or image parsing.
+_MAX_REQUEST_BYTES = int(os.environ.get("ML_MAX_REQUEST_BYTES", 10 * 1024 * 1024))
+app.config["MAX_CONTENT_LENGTH"] = _MAX_REQUEST_BYTES
+# Upper bound on decoded base64 image bytes (default 25 MB).
+_MAX_DECODED_IMAGE_BYTES = int(
+    os.environ.get("ML_MAX_DECODED_IMAGE_BYTES", 25 * 1024 * 1024)
+)
+
 # ── CORS: only allow the main backend ──────────────────────────────────────
 ALLOWED_ORIGIN = os.environ.get("CORS_ORIGIN", "http://localhost:3001")
 CORS(app, origins=[ALLOWED_ORIGIN])
@@ -35,6 +45,14 @@ def require_api_key(f):
             return jsonify({"error": "Unauthorized"}), 401
         return f(*args, **kwargs)
     return decorated
+
+
+@app.errorhandler(413)
+def _request_entity_too_large(e):
+    return jsonify({
+        "error": "Request payload too large",
+        "limit_bytes": _MAX_REQUEST_BYTES,
+    }), 413
 
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "model.joblib")
@@ -243,7 +261,13 @@ def predict_image():
                 if b64_str:
                     if "," in b64_str:
                         b64_str = b64_str.split(",")[1]
-                    img_bytes = base64.b64decode(b64_str)
+                    img_bytes = base64.b64decode(b64_str, validate=False)
+                    if len(img_bytes) > _MAX_DECODED_IMAGE_BYTES:
+                        return jsonify({
+                            "error": "Image payload too large",
+                            "limit_bytes": _MAX_DECODED_IMAGE_BYTES,
+                            "received_bytes": len(img_bytes),
+                        }), 413
                     pil_img = Image.open(io.BytesIO(img_bytes))
 
         if pil_img is None:
