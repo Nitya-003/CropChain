@@ -47,6 +47,10 @@ const errorHandlerMiddleware = (err, req, res, next) => {
   } else if (err instanceof ServiceError) {
     statusCode = err.statusCode || 503;
     message = err.message || "Service unavailable";
+  } else if (err.code === "EBADCSRFTOKEN") {
+    statusCode = 403;
+    message = "Invalid CSRF token";
+    errors = [{ field: "csrf", message: "Invalid or missing CSRF token" }];
   } else if (err instanceof ServerError) {
     statusCode = 500;
     message = "Internal server error";
