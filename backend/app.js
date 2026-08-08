@@ -24,6 +24,16 @@ connectDB();
 
 const app = express();
 
+// Trust proxy hops so req.ip reflects the real client IP behind a reverse proxy.
+// Configurable: set TRUST_PROXY to the number of proxies, a CIDR, or 'true'/'false'.
+// Default to 1 (one proxy hop) in production, false in test/dev.
+const trustProxySetting = process.env.TRUST_PROXY;
+if (trustProxySetting !== undefined) {
+  app.set("trust proxy", trustProxySetting === "true" ? true : trustProxySetting);
+} else if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 // ==================== MIDDLEWARE SETUP ====================
 setupMiddleware(app);
 

@@ -7,14 +7,12 @@ const DEFAULT_WINDOW_MS =
   parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000;
 
 const buildKeyGenerator = ({ useUserId }) => {
-  // If req.user exists and has an id, use it. Otherwise fall back to IP.
+  // req.ip respects the app's "trust proxy" setting, which validates the
+  // proxy hop count rather than trusting a client-supplied header verbatim.
+  // Reading req.headers["x-forwarded-for"] directly allowed any client to
+  // spoof a unique IP per request and bypass rate limiting entirely.
   return (req) => {
-    const ip = (
-      req.headers["x-forwarded-for"] ||
-      req.ip ||
-      req.connection?.remoteAddress ||
-      ""
-    ).toString();
+    const ip = (req.ip || req.connection?.remoteAddress || "").toString();
     const userId = req.user?.id || req.user?._id;
 
     if (useUserId && userId) {
@@ -48,12 +46,7 @@ const createAbuseAwareLimiter = ({
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res /*, next, options */) => {
-      const ip = (
-        req.headers["x-forwarded-for"] ||
-        req.ip ||
-        req.connection?.remoteAddress ||
-        ""
-      ).toString();
+      const ip = (req.ip || req.connection?.remoteAddress || "").toString();
       const userId = req.user?.id || req.user?._id || null;
 
       // Audit logging (no sensitive details to client)
