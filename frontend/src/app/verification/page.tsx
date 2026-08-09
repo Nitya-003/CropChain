@@ -178,11 +178,7 @@ const VerificationDashboardComponent: React.FC = () => {
 
   const downloadErrorCsv = () => {
     if (!hasUploadErrors) return;
-    const headers = [
-      "Row",
-      ...Object.keys(uploadErrors[0]?.data || {}),
-      "Errors",
-    ];
+    const headers = ["Row", ...Object.keys(uploadErrors[0].data), "Errors"];
     const rows = uploadErrors.map((e) =>
       [
         `"${e.row}"`,
@@ -460,7 +456,7 @@ const VerificationDashboardComponent: React.FC = () => {
                   size="sm"
                   onClick={downloadErrorCsv}
                   className="gap-1.5"
-                  disabled={!hasUploadErrors}
+                  disabled={!hasUploadErrors || uploading}
                 >
                   <Download className="h-3 w-3" />
                   Download Error CSV
