@@ -13,7 +13,7 @@
  */
 
 const { Queue, QueueEvents } = require("bullmq");
-const { createQueueConnection } = require("../config/redis");
+const { createQueueConnection, attachConnectionHandlers } = require("../config/redis");
 const logger = require("../utils/logger");
 
 // Queue names
@@ -73,9 +73,13 @@ function initializeQueue() {
     defaultJobOptions: DEFAULT_JOB_OPTIONS,
   });
 
-  // Queue events for monitoring
+  // Queue events for monitoring. QueueEvents uses its own connection; harden it
+  // so a Redis failover does not crash the process with an unhandled 'error'.
+  const eventsConnection = createQueueConnection();
+  attachConnectionHandlers(eventsConnection);
+
   queueEvents = new QueueEvents(QUEUE_NAMES.BLOCKCHAIN, {
-    connection: createQueueConnection(),
+    connection: eventsConnection,
   });
 
   // Log queue events
@@ -385,5 +389,3 @@ module.exports = {
   pauseQueue,
   resumeQueue,
 };
-
-.catch(err => console.error("Promise.all failed:", err));

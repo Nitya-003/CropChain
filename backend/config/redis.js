@@ -89,15 +89,75 @@ function getRedisConnection() {
 }
 
 /**
+ * Attach resilient event handlers to an ioredis connection so that transient
+ * Redis failures (socket disconnects, failovers, ECONNREFUSED) are logged and
+ * retried by ioredis's own `retryStrategy` instead of crashing the Node.js
+ * process via an unhandled `'error'` event.
+ *
+ * Background: Node throws (and terminates the process) whenever an
+ * EventEmitter emits `'error'` with no listener registered. BullMQ's
+ * Worker/Queue/QueueEvents surface low-level ioredis connection errors as
+ * `'error'` events on the connection object itself, and a Redis failover
+ * produces exactly such an event. Without a listener on the connection the
+ * worker process dies with `UnhandledPromiseRejectionError` / `throw er //
+ * Unhandled 'error' event`, halting all background transaction processing.
+ *
+ * @param {import('ioredis').Redis} connection - ioredis connection to harden
+ * @returns {import('ioredis').Redis} The same connection, for chaining
+ */
+function attachConnectionHandlers(connection) {
+  if (!connection || connection.__cropchainResilienceAttached) {
+    return connection;
+  }
+
+  // Critical: a no-throw 'error' listener so ioredis errors never escalate to
+  // an unhandled-exception process crash. ioredis keeps retrying via
+  // retryStrategy; we just absorb the event here.
+  connection.on("error", (err) => {
+    logger.error("[Redis] Connection error (recovering):", {
+      error: err.message,
+    });
+  });
+
+  connection.on("close", () => {
+    logger.warn("[Redis] Connection closed; ioredis will retry per retryStrategy");
+  });
+
+  connection.on("reconnecting", (delay) => {
+    logger.warn(
+      `[Redis] Reconnecting in ${delay}ms`,
+    );
+  });
+
+  connection.on("connect", () => {
+    logger.info("[Redis] Connection established");
+  });
+
+  connection.on("ready", () => {
+    logger.info("[Redis] Connection ready");
+  });
+
+  // Mark so a duplicate() or re-call does not stack duplicate listeners.
+  Object.defineProperty(connection, "__cropchainResilienceAttached", {
+    value: true,
+    enumerable: false,
+    configurable: true,
+  });
+
+  return connection;
+}
+
+/**
  * Create a new Redis connection for BullMQ
  * BullMQ requires a new connection instance per queue
  * @returns {Redis} New Redis connection instance
  */
 function createQueueConnection() {
-  return new Redis({
+  const connection = new Redis({
     ...connectionOptions,
     maxRetriesPerRequest: null, // BullMQ requires this to be null
   });
+  return attachConnectionHandlers(connection);
 }
 
 /**
@@ -143,13 +203,8 @@ function createPubSubClients() {
   });
   const subClient = pubClient.duplicate();
 
-  pubClient.on("error", (err) => {
-    logger.error("❌ Redis PubClient error", { error: err.message });
-  });
-
-  subClient.on("error", (err) => {
-    logger.error("❌ Redis SubClient error", { error: err.message });
-  });
+  attachConnectionHandlers(pubClient);
+  attachConnectionHandlers(subClient);
 
   return { pubClient, subClient };
 }
@@ -161,4 +216,5 @@ module.exports = {
   closeRedisConnection,
   checkRedisHealth,
   connectionOptions,
+  attachConnectionHandlers,
 };

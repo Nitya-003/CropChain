@@ -748,6 +748,63 @@ async function processJob(job) {
 }
 
 /**
+ * Install process-level guards so that a transient Redis/BullMQ connection
+ * error never terminates the worker process. ioredis (and BullMQ internally)
+ * surface connection failures both as EventEmitter `'error'` events and, when
+ * they escape a promise, as `unhandledRejection`. Without these guards a Redis
+ * failover during job processing crashes the process with
+ * `UnhandledPromiseRejectionError`, halting all background transaction
+ * processing. Connection errors are logged and absorbed; genuine non-connection
+ * fatal errors still surface through BullMQ's own job retry/failure path.
+ *
+ * This is idempotent: calling it more than once does not stack handlers.
+ * @returns {void}
+ */
+function installProcessErrorGuards() {
+  if (process.__cropchainWorkerGuardsInstalled) return;
+
+  process.on("unhandledRejection", (reason) => {
+    const msg = reason?.message || String(reason);
+    const isConnectionError =
+      /connection is closed|econnrefused|econnreset|etimedout|redis|bullmq/i.test(
+        msg,
+      );
+    if (isConnectionError) {
+      logger.error(
+        "[Worker] Suppressed transient connection rejection (process kept alive):",
+        { error: msg },
+      );
+      return;
+    }
+    logger.error("[Worker] Unhandled rejection:", { error: msg });
+  });
+
+  process.on("uncaughtException", (err) => {
+    const msg = err?.message || String(err);
+    const isConnectionError =
+      /connection is closed|econnrefused|econnreset|etimedout|unhandled 'error' event/i.test(
+        msg,
+      );
+    if (isConnectionError) {
+      logger.error(
+        "[Worker] Suppressed transient connection exception (process kept alive):",
+        { error: msg },
+      );
+      return;
+    }
+    // Non-connection uncaught exceptions are still fatal — re-throw after logging.
+    logger.error("[Worker] Uncaught exception (fatal):", { error: msg });
+    throw err;
+  });
+
+  Object.defineProperty(process, "__cropchainWorkerGuardsInstalled", {
+    value: true,
+    enumerable: false,
+    configurable: true,
+  });
+}
+
+/**
  * Initialize the worker
  * @returns {Worker} BullMQ Worker instance
  */
@@ -755,6 +812,10 @@ function initializeWorker() {
   if (worker) {
     return worker;
   }
+
+  // Guard the process against transient Redis connection errors before any
+  // connection is created.
+  installProcessErrorGuards();
 
   // Initialize blockchain connection
   initializeBlockchain();
