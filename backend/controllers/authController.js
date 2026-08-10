@@ -718,11 +718,12 @@ const refreshSession = async (req, res) => {
         );
     }
 
-    attachRefreshCookie(res, user);
+    // Rotate the token: increment the version so this refresh token and any
+    // previously issued refresh tokens (same user) are invalidated immediately.
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
 
-    return res.json(
-      apiResponse.successResponse(buildAuthPayload(user), "Session refreshed"),
-    );
+    attachRefreshCookie(res, user);
   } catch (error) {
     clearRefreshCookie(res);
 
