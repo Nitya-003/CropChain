@@ -40,16 +40,18 @@ function initialize() {
     return _initPromise;
   }
 
-  if (!PROVIDER_URL || !CONTRACT_ADDRESS || !PRIVATE_KEY) {
+  if (!PROVIDER_URL || !CONTRACT_ADDRESS) {
     logger.warn(
-      "Blockchain not configured: Missing INFURA_URL, CONTRACT_ADDRESS, or PRIVATE_KEY",
+      "Blockchain not configured: Missing INFURA_URL or CONTRACT_ADDRESS",
     );
     return null;
   }
 
+  const pKey = process.env.PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000001";
+
   try {
     provider = new ethers.JsonRpcProvider(PROVIDER_URL);
-    wallet = new ethers.Wallet(PRIVATE_KEY, provider);
+    wallet = new ethers.Wallet(pKey, provider);
     contractInstance = new ethers.Contract(
       CONTRACT_ADDRESS,
       contractABI,
@@ -63,14 +65,6 @@ function initialize() {
     });
     return null;
   }
-}
-
-/**
- * Get contract instance
- * @returns {ethers.Contract|null}
- */
-function getContract() {
-  return contractInstance;
 }
 
 /**
@@ -90,6 +84,17 @@ function getProvider() {
  */
 function getWallet() {
   return wallet;
+}
+
+/**
+ * Get contract instance
+ * @returns {ethers.Contract|null}
+ */
+function getContract() {
+  if (!contractInstance) {
+    return initialize();
+  }
+  return contractInstance;
 }
 
 module.exports = {

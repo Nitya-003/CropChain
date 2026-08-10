@@ -29,6 +29,7 @@ import { useBatchSocket } from "../../hooks/useBatchSocket";
 import { JourneyPreview } from "../../components/journey/JourneyPreview";
 import { verifyHashChain } from "../../utils/crypto";
 import { CropNFTVisualizer } from "../../components/CropNFTVisualizer";
+import { ExportBatchButtons } from "../../components/ExportBatchButtons";
 
 const TrackBatchContent: React.FC = () => {
   const searchParams = useSearchParams();
@@ -111,7 +112,7 @@ const TrackBatchContent: React.FC = () => {
     if (!batchData || !batchData.updates) return [];
 
     return batchData.updates.map((update: any) => ({
-      title: update.stage.charAt(0).toUpperCase() + update.stage.slice(1),
+      title: update.stage[0].toUpperCase() + update.stage.slice(1),
       date: update.timestamp,
       location: update.location || "Unknown Location",
       description: update.notes || `Processed by ${update.actor}`,
@@ -244,6 +245,8 @@ const TrackBatchContent: React.FC = () => {
                   </p>
                 </div>
               </div>
+
+              <ExportBatchButtons batch={batch} className="mb-6 pb-4 border-b border-gray-100 dark:border-gray-700" />
 
               <div className="space-y-4">
                 <div>
