@@ -30,6 +30,38 @@ export interface ExportableBatch {
 }
 
 /**
+ * Neutralizes CSV formula injection (CWE-1236).
+ *
+ * Spreadsheet apps (Excel, Google Sheets, LibreOffice) treat a cell whose
+ * value begins with `=`, `+`, `-`, `@`, a tab, or a carriage return as a
+ * formula and may execute it when the CSV is opened. Prefixing such values
+ * with a single quote forces them to be interpreted as literal text; the
+ * leading quote is silently stripped by the spreadsheet on display.
+ *
+ * This runs before quote/escaping so the sanitizer sees the raw value.
+ */
+function sanitizeCsvCell(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  const str = typeof value === "string" ? value : String(value);
+  if (/^[=+\-@\t\r]/.test(str)) {
+    return `'${str}`;
+  }
+  return str;
+}
+
+/**
+ * Quotes and escapes a single CSV cell value, applying formula-injection
+ * protection first. Static headers are not user-controlled and are passed
+ * through unchanged by callers.
+ */
+function csvCell(value: unknown): string {
+  const sanitized = sanitizeCsvCell(value);
+  // Escape embedded double quotes and wrap in quotes so commas/newlines in the
+  // value cannot break out of the cell.
+  return `"${sanitized.replace(/"/g, '""')}"`;
+}
+
+/**
  * Generates and triggers download of a CSV supply chain data file
  */
 export function generateBatchCSVString(batch: ExportableBatch): string {
@@ -49,17 +81,17 @@ export function generateBatchCSVString(batch: ExportableBatch): string {
 
   const id = batch.batchId || batch.id || "N/A";
   const row = [
-    `"${id}"`,
-    `"${batch.cropType || ""}"`,
-    `"${batch.farmerName || ""}"`,
-    `"${batch.farmerAddress || ""}"`,
-    `"${batch.origin || ""}"`,
-    `"${batch.quantity || ""}"`,
-    `"${batch.harvestDate || ""}"`,
-    `"${batch.status || ""}"`,
-    `"${batch.currentStage || ""}"`,
-    `"${batch.certifications || ""}"`,
-    `"${batch.description || ""}"`,
+    csvCell(id),
+    csvCell(batch.cropType),
+    csvCell(batch.farmerName),
+    csvCell(batch.farmerAddress),
+    csvCell(batch.origin),
+    csvCell(batch.quantity || ""),
+    csvCell(batch.harvestDate),
+    csvCell(batch.status),
+    csvCell(batch.currentStage),
+    csvCell(batch.certifications),
+    csvCell(batch.description),
   ];
 
   let csvContent = headers.join(",") + "\n" + row.join(",") + "\n\n";
@@ -70,14 +102,14 @@ export function generateBatchCSVString(batch: ExportableBatch): string {
   if (batch.updates && batch.updates.length > 0) {
     batch.updates.forEach((update) => {
       const updateRow = [
-        `"${update.timestamp ? new Date(update.timestamp).toLocaleString() : ""}"`,
-        `"${update.stage || ""}"`,
-        `"${update.location || ""}"`,
-        `"${update.updatedBy || update.actor || ""}"`,
-        `"${update.temperature !== undefined ? update.temperature : ""}"`,
-        `"${update.humidity !== undefined ? update.humidity : ""}"`,
-        `"${update.txHash || ""}"`,
-        `"${update.notes || ""}"`,
+        csvCell(update.timestamp ? new Date(update.timestamp).toLocaleString() : ""),
+        csvCell(update.stage || ""),
+        csvCell(update.location || ""),
+        csvCell(update.updatedBy || update.actor || ""),
+        csvCell(update.temperature !== undefined ? update.temperature : ""),
+        csvCell(update.humidity !== undefined ? update.humidity : ""),
+        csvCell(update.txHash || ""),
+        csvCell(update.notes || ""),
       ];
       csvContent += updateRow.join(",") + "\n";
     });
@@ -87,6 +119,8 @@ export function generateBatchCSVString(batch: ExportableBatch): string {
 
   return csvContent;
 }
+
+export { sanitizeCsvCell };
 
 export function exportBatchToCSV(batch: ExportableBatch): void {
   const csvContent = generateBatchCSVString(batch);
