@@ -8,39 +8,41 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../../src/contexts/AuthContext";
 import { useSync } from "../../src/contexts/SyncContext";
 import { batchService } from "../../src/services/batch.service";
 import { LoadingSpinner } from "../../src/components/LoadingSpinner";
 import type { Batch } from "../../src/types";
 
-const quickActions = [
-  {
-    label: "Scan QR",
-    icon: "qr-code" as const,
-    route: "/(tabs)/scan",
-    color: "#16a34a",
-  },
-  {
-    label: "Add Batch",
-    icon: "add-circle" as const,
-    route: "/(tabs)/batches",
-    color: "#2563eb",
-  },
-  {
-    label: "Track",
-    icon: "locate" as const,
-    route: "/(tabs)/batches",
-    color: "#d97706",
-  },
-];
-
 export default function HomeScreen() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { pendingCount } = useSync();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const quickActions = [
+    {
+      label: t("home.scanQr"),
+      icon: "qr-code" as const,
+      route: "/(tabs)/scan",
+      color: "#16a34a",
+    },
+    {
+      label: t("home.addBatch"),
+      icon: "add-circle" as const,
+      route: "/(tabs)/batches",
+      color: "#2563eb",
+    },
+    {
+      label: t("home.track"),
+      icon: "locate" as const,
+      route: "/(tabs)/batches",
+      color: "#d97706",
+    },
+  ];
 
   const fetchBatches = useCallback(async () => {
     try {
@@ -63,19 +65,19 @@ export default function HomeScreen() {
 
   const statsCards = [
     {
-      label: "Active Batches",
+      label: t("home.activeBatches"),
       value: String(activeBatches),
       icon: "layers" as const,
       color: "#16a34a",
     },
     {
-      label: "Pending Sync",
+      label: t("home.pendingSync"),
       value: String(pendingCount),
       icon: "cloud-upload" as const,
       color: "#d97706",
     },
     {
-      label: "Alerts",
+      label: t("home.alerts"),
       value: String(alertCount),
       icon: "notifications" as const,
       color: "#dc2626",
@@ -111,14 +113,14 @@ export default function HomeScreen() {
     >
       <View className="px-5 pt-14 pb-4">
         <Text className="text-2xl font-bold text-gray-900 dark:text-white">
-          Hello, {user?.name || "Guest"}
+          {t("home.greeting")}, {user?.name || t("roles.guest")}
         </Text>
         {user?.role ? (
           <View
             className={`self-start mt-1 px-3 py-0.5 rounded-full ${roleColors[user.role] || ""}`}
           >
             <Text className="text-xs font-semibold capitalize">
-              {user.role}
+              {t(`roles.${user.role}`, user.role)}
             </Text>
           </View>
         ) : null}
@@ -128,7 +130,7 @@ export default function HomeScreen() {
         <View className="mx-5 mb-4 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-xl flex-row items-center">
           <Ionicons name="cloud-upload" size={20} color="#d97706" />
           <Text className="text-amber-700 dark:text-amber-300 ml-2 text-sm font-medium">
-            {pendingCount} item{pendingCount > 1 ? "s" : ""} pending sync
+            {pendingCount} {t("home.pendingSync")}
           </Text>
         </View>
       )}
