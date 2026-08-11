@@ -1,0 +1,97 @@
+{
+  "common": {
+    "loading": "लोड हो रहा है...",
+    "error": "कुछ गलत हो गया",
+    "retry": "पुनः प्रयास करें",
+    "cancel": "रद्द करें",
+    "confirm": "पुष्टि करें",
+    "save": "सहेजें",
+    "delete": "हटाएं",
+    "language": "भाषा",
+    "english": "English",
+    "hindi": "हिन्दी (Hindi)",
+    "spanish": "Español (Spanish)"
+  },
+  "auth": {
+    "welcomeBack": "वापसी पर स्वागत है",
+    "signIn": "साइन इन करें",
+    "register": "खाता बनाएं",
+    "email": "ईमेल",
+    "password": "पासवर्ड",
+    "name": "पूरा नाम",
+    "role": "आपकी भूमिका",
+    "connectWallet": "वॉलेट कनेक्ट करें",
+    "noAccount": "खाता नहीं है?",
+    "hasAccount": "पहले से खाता है?",
+    "logout": "लॉग आउट",
+    "logoutConfirm": "क्या आप लॉग आउट करना चाहते हैं?"
+  },
+  "home": {
+    "greeting": "नमस्ते",
+    "overview": "अवलोकन",
+    "recentBatches": "हाल की फसलें",
+    "noBatches": "कोई बैच नहीं मिला। शुरू करने के लिए क्यूआर कोड स्कैन करें।",
+    "scanNow": "स्कैन करें",
+    "pendingSync": "सिंक लंबित वस्तुएं",
+    "quickActions": "त्वरित क्रियाएं",
+    "scanQr": "क्यूआर स्कैन",
+    "addBatch": "बैच जोड़ें",
+    "track": "ट्रैक करें",
+    "activeBatches": "सक्रिय बैच",
+    "alerts": "चेतावनी"
+  },
+  "scan": {
+    "title": "क्यूआर कोड स्कैन करें",
+    "instructions": "कैमरा क्रॉपचेन क्यूआर कोड पर रखें",
+    "permissionRequired": "कैमरा अनुमति आवश्यक",
+    "permissionDescription": "फसल बैचों पर क्यूआर स्कैन करने के लिए कैमरा पहुंच आवश्यक है।",
+    "grantPermission": "अनुमति दें",
+    "simulate": "सिमुलेट स्कैन (डेमो)",
+    "flash": "फ्लैश",
+    "cancel": "रद्द करें"
+  },
+  "batch": {
+    "title": "बैच विवरण",
+    "notFound": "बैच नहीं मिला",
+    "notFoundDesc": "इस आईडी के साथ कोई बैच नहीं मिला",
+    "journey": "यात्रा",
+    "information": "जानकारी",
+    "updateStage": "चरण अपडेट करें",
+    "currentStage": "वर्तमान चरण",
+    "crop": "फसल",
+    "farmer": "किसान",
+    "location": "स्थान",
+    "weight": "वजन",
+    "price": "मूल्य",
+    "status": "स्थिति"
+  },
+  "profile": {
+    "title": "प्रोफ़ाइल",
+    "darkMode": "डार्क मोड",
+    "notifications": "सूचनाएं",
+    "biometricLock": "बायोमेट्रिक लॉक",
+    "about": "के बारे में",
+    "signIn": "साइन इन करें",
+    "connectedWallet": "कनेक्टेड वॉलेट",
+    "selectLanguage": "भाषा चुनें"
+  },
+  "roles": {
+    "farmer": "किसान (Farmer)",
+    "mandi": "मंडी बाज़ार (Mandi)",
+    "transporter": "परिवहनकर्ता (Transporter)",
+    "retailer": "विक्रेता (Retailer)",
+    "admin": "प्रशासक (Admin)",
+    "guest": "अतिथि (Guest)"
+  },
+  "stages": {
+    "farmer": "खेत (Farm)",
+    "mandi": "मंडी बाज़ार",
+    "transport": "मार्ग में",
+    "retailer": "खुदरा"
+  },
+  "errors": {
+    "network": "इंटरनेट नहीं है। ऑनलाइन होने पर सिंक होगा।",
+    "syncFailed": "सिंक विफल रहा।",
+    "scanFailed": "क्यूआर स्कैन विफल। फिर प्रयास करें।"
+  }
+}
