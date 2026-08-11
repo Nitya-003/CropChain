@@ -5,6 +5,7 @@ const {
   markAsRead,
   markAllAsRead,
   getUnreadCount,
+  registerPushToken,
 } = require("../controllers/notificationController");
 const { protect } = require("../middleware/auth");
 const { notificationLimiter } = require("../middleware/rateLimiters");
@@ -15,6 +16,7 @@ router.use(notificationLimiter);
 
 router.get("/", getUserNotifications);
 router.get("/unread-count", getUnreadCount);
+router.post("/push-token", registerPushToken);
 router.put("/read-all", markAllAsRead);
 router.put("/:id/read", markAsRead);
 
