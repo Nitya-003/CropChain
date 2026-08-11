@@ -7,7 +7,7 @@ const { initialize } = require("../config/blockchain");
 const STAGE_NAMES = ["farmer", "mandi", "transport", "retailer"];
 
 function toNumber(value) {
-  if (value == null) return 0;
+  if (value === null) return 0;
   if (typeof value === "number") return value;
   if (typeof value === "bigint") return Number(value);
   if (typeof value.toNumber === "function") return value.toNumber();

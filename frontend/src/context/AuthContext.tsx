@@ -54,6 +54,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const [isWalletConnected, setIsWalletConnected] = useState(false);
 
   useEffect(() => {
+    const handleAuthLogout = () => {
+      setUser(null);
+      setIsWalletConnected(false);
+      setAuthToken(null);
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("auth:logout", handleAuthLogout);
+    }
+
     const initAuth = async () => {
       try {
         const response = await authService.refreshSession();
@@ -69,6 +79,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       }
     };
     initAuth();
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("auth:logout", handleAuthLogout);
+      }
+    };
   }, []);
 
   const checkWalletConnected = async () => {

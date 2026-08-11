@@ -51,7 +51,7 @@ export const authService = {
       "/auth/login",
       { email, password },
     );
-    const authData = res.data.data;
+    const authData = res.data;
     await setToken(authData.token);
     await storeUser(authData.user);
     return authData;
@@ -67,7 +67,7 @@ export const authService = {
       "/auth/register",
       { name, email, password, role },
     );
-    const authData = res.data.data;
+    const authData = res.data;
     await setToken(authData.token);
     await storeUser(authData.user);
     return authData;
@@ -86,7 +86,7 @@ export const authService = {
       const res = await api.post<{ data: { user: User; token: string } }>(
         "/auth/refresh",
       );
-      const authData = res.data.data;
+      const authData = res.data;
       await setToken(authData.token);
       await storeUser(authData.user);
       return authData.user;

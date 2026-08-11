@@ -79,6 +79,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     ///      Prevents double-listing and over-allocation beyond the physical batch quantity.
     mapping(bytes32 => uint256) public batchListedQuantity;
     mapping(bytes32 => address) public nextCustodianApproval;
+    mapping(bytes32 => uint256[]) public batchListingIds;
 
     bytes32[] public allBatchIds;
 
@@ -303,6 +304,17 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         // (they can no longer be bought).
         batchListedQuantity[batchId] = 0;
 
+        // Deactivate all existing listings for this batch to prevent ghost listings
+        uint256[] storage bListings = batchListingIds[batchId];
+        for (uint256 i = 0; i < bListings.length; i++) {
+            uint256 lId = bListings[i];
+            if (listings[lId].active) {
+                listings[lId].active = false;
+                listings[lId].quantityAvailable = 0;
+                emit ListingCancelled(lId, msg.sender);
+            }
+        }
+
         // Dynamic role checks based on stage transition
         require(_canUpdateStage(batchId, stage), "Role not allowed for this stage transition");
 
@@ -338,6 +350,9 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         require(!batch.isSpoiled, "Batch is spoiled");
         require(quantity > 0, "Quantity must be > 0");
         require(unitPriceWei > 0, "Price=0");
+        // The crop must have been priced by the oracle before it can be listed,
+        // so the TWAP/deviation guard in buyFromListing always has a reference.
+        require(latestOraclePrice[batch.cropTypeHash] > 0, "Crop type not priced");
 
         SupplyChainUpdate[] storage updates = _batchUpdates[batchId];
         SupplyChainUpdate storage latestUpdate = updates[updates.length - 1];
@@ -379,6 +394,8 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
             createdAt: block.timestamp
         });
 
+        batchListingIds[batchId].push(listingId);
+
         emit ListingCreated(listingId, batchId, listingSeller, quantity, unitPriceWei);
 
         return listingId;
@@ -400,10 +417,15 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         
         require(listing.seller == _getCurrentCustodian(listing.batchId), "Seller is no longer the custodian");
 
-        uint256 twapPrice = getTwapPrice(batch.cropTypeHash, twapWindow);
-        if (twapPrice > 0) {
-            require(_withinDeviation(listing.unitPriceWei, twapPrice, maxPriceDeviationBps), "TWAP deviation too high");
+        uint256 referencePrice = getTwapPrice(batch.cropTypeHash, twapWindow);
+        // Cold-start fallback: if there are no TWAP observations yet, fall back
+        // to the latest oracle spot price so the deviation guard is never
+        // silently skipped. Revert if the crop has never been priced at all.
+        if (referencePrice == 0) {
+            referencePrice = latestOraclePrice[batch.cropTypeHash];
         }
+        require(referencePrice > 0, "No oracle price for crop type");
+        require(_withinDeviation(listing.unitPriceWei, referencePrice, maxPriceDeviationBps), "TWAP deviation too high");
 
         uint256 totalCost = listing.unitPriceWei * quantity;
         require(msg.value >= totalCost, "Insufficient payment");
