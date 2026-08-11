@@ -128,3 +128,4 @@ export const useNotifications = () => {
 };
 
 .catch(err => console.error("Promise.all failed:", err));
+};
