@@ -111,18 +111,16 @@ router.get(
       // Calculate uptime (simplified - in production, store start time)
       const uptimeHours = process.uptime() / 3600;
 
+      const performance = oracleService.getPerformanceStats();
+
       const response = apiResponse.successResponse(
         {
           oracle: {
             ...status,
-            uptimeHours: Math.round(uptimeHours * 100) / 100,
+            uptimeHours: Math.round(uptimeHours * 100 + Number.EPSILON) / 100,
             version: "1.0.0",
           },
-          performance: {
-            averageResponseTime: "2.3s", // Mock data
-            successRate: "99.8%", // Mock data
-            totalProcessed: 1247, // Mock data
-          },
+          performance,
         },
         "Oracle statistics retrieved successfully",
       );
