@@ -83,11 +83,11 @@ const FarmerDashboardComponent: React.FC = () => {
     if (!selectedBatchId) return;
     const priceNum = Number(startPrice);
     const durationNum = Number(duration);
-    if (isNaN(priceNum) || priceNum <= 0) {
+    if (Number.isNaN(priceNum) || priceNum <= 0) {
       toast.error(t("validation.validPositiveNumber"));
       return;
     }
-    if (isNaN(durationNum) || durationNum <= 0) {
+    if (Number.isNaN(durationNum) || durationNum <= 0) {
       toast.error(t("validation.validDuration"));
       return;
     }

@@ -20,6 +20,30 @@ contract CropChainCCIPReceiver is AccessControl, Pausable, ReentrancyGuard, IAny
         string ipfsCID;
     }
 
+    struct BatchAttestationPayload {
+        bytes32 batchId;
+        bytes32 cropTypeHash;
+        string ipfsCID;
+        uint256 quantity;
+        address farmer;
+        string originLocation;
+        uint8 qualityGrade;
+        uint64 timestamp;
+    }
+
+    struct ProvenanceRecord {
+        bytes32 batchId;
+        bytes32 cropTypeHash;
+        string ipfsCID;
+        uint256 quantity;
+        address farmer;
+        string originLocation;
+        uint8 qualityGrade;
+        uint64 timestamp;
+        uint64 sourceChainSelector;
+        bool verified;
+    }
+
     address public immutable router;
     ProofOfDeliveryNFT public immutable proofOfDeliveryNFT;
 
@@ -27,6 +51,7 @@ contract CropChainCCIPReceiver is AccessControl, Pausable, ReentrancyGuard, IAny
     address public trustedSourceSender;
 
     mapping(bytes32 => bool) public processedMessages;
+    mapping(bytes32 => ProvenanceRecord) public crossChainAttestations;
 
     event SourceConfigured(uint64 indexed sourceChainSelector, address indexed sourceSender);
     event RetailerProofReceived(
@@ -34,6 +59,12 @@ contract CropChainCCIPReceiver is AccessControl, Pausable, ReentrancyGuard, IAny
         bytes32 indexed batchId,
         address indexed farmer,
         uint256 tokenId,
+        uint64 sourceChainSelector
+    );
+    event BatchAttestationReceived(
+        bytes32 indexed messageId,
+        bytes32 indexed batchId,
+        address indexed farmer,
         uint64 sourceChainSelector
     );
 
@@ -73,10 +104,36 @@ contract CropChainCCIPReceiver is AccessControl, Pausable, ReentrancyGuard, IAny
             require(decodedSender == trustedSourceSender, "Untrusted source sender");
         }
 
+        processedMessages[message.messageId] = true;
+
+        if (message.data.length >= 256) {
+            try this.decodeBatchAttestation(message.data) returns (BatchAttestationPayload memory attestation) {
+                if (attestation.cropTypeHash != bytes32(0)) {
+                    crossChainAttestations[attestation.batchId] = ProvenanceRecord({
+                        batchId: attestation.batchId,
+                        cropTypeHash: attestation.cropTypeHash,
+                        ipfsCID: attestation.ipfsCID,
+                        quantity: attestation.quantity,
+                        farmer: attestation.farmer,
+                        originLocation: attestation.originLocation,
+                        qualityGrade: attestation.qualityGrade,
+                        timestamp: attestation.timestamp,
+                        sourceChainSelector: message.sourceChainSelector,
+                        verified: true
+                    });
+                    emit BatchAttestationReceived(
+                        message.messageId,
+                        attestation.batchId,
+                        attestation.farmer,
+                        message.sourceChainSelector
+                    );
+                    return;
+                }
+            } catch {}
+        }
+
         RetailerProofPayload memory payload = abi.decode(message.data, (RetailerProofPayload));
         require(payload.batchId != bytes32(0), "Invalid batchId");
-
-        processedMessages[message.messageId] = true;
 
         string memory metadataURI = payload.ipfsCID;
         uint256 tokenId = proofOfDeliveryNFT.mintProof(payload.farmer, payload.batchId, metadataURI);
@@ -88,6 +145,10 @@ contract CropChainCCIPReceiver is AccessControl, Pausable, ReentrancyGuard, IAny
             tokenId,
             message.sourceChainSelector
         );
+    }
+
+    function decodeBatchAttestation(bytes calldata data) external pure returns (BatchAttestationPayload memory) {
+        return abi.decode(data, (BatchAttestationPayload));
     }
 
     function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
