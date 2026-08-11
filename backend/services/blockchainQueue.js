@@ -383,4 +383,8 @@ module.exports = {
   retryJob,
   closeQueue,
   pauseQueue,
+  resumeQueue,
+};
+
+.catch(err => console.error("Promise.all failed:", err));
 };
