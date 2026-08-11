@@ -238,6 +238,17 @@ const loginUser = async (req, res) => {
     const user = await User.findOne({ email }).select("+password");
 
     if (user && (await bcrypt.compare(password, user.password))) {
+      // Reject non-active accounts before issuing any token
+      if (user.status !== 'active') {
+        logger.warn('Login blocked: account not active', { email: user.email, status: user.status });
+        return res
+          .status(403)
+          .json(apiResponse.errorResponse(
+            'Your account is not active. Please contact support.',
+            'ACCOUNT_NOT_ACTIVE',
+            403,
+          ));
+      }
       attachRefreshCookie(res, user);
       const response = apiResponse.successResponse(
         buildAuthPayload(user),
@@ -491,6 +502,18 @@ const walletLogin = async (req, res) => {
         );
     }
 
+    // Reject non-active accounts before issuing any token
+    if (user.status !== 'active') {
+      logger.warn('Wallet login blocked: account not active', { walletAddress: normalizedAddress, status: user.status });
+      return res
+        .status(403)
+        .json(apiResponse.errorResponse(
+          'Your account is not active. Please contact support.',
+          'ACCOUNT_NOT_ACTIVE',
+          403,
+        ));
+    }
+
     // Generate JWT with user's role from database
     attachRefreshCookie(res, user);
     const response = apiResponse.successResponse(
@@ -695,11 +718,12 @@ const refreshSession = async (req, res) => {
         );
     }
 
-    attachRefreshCookie(res, user);
+    // Rotate the token: increment the version so this refresh token and any
+    // previously issued refresh tokens (same user) are invalidated immediately.
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
 
-    return res.json(
-      apiResponse.successResponse(buildAuthPayload(user), "Session refreshed"),
-    );
+    attachRefreshCookie(res, user);
   } catch (error) {
     clearRefreshCookie(res);
 
