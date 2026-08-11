@@ -1,4 +1,5 @@
 const Notification = require("../models/Notification");
+const User = require("../models/User");
 const apiResponse = require("../utils/apiResponse");
 const logger = require("../utils/logger");
 
@@ -192,5 +193,38 @@ exports.markAllAsRead = async (req, res) => {
           "NOTIFICATION_UPDATE_ERROR",
         ),
       );
+  }
+};
+
+/**
+ * Register Expo Push Token for the current user
+ * @route POST /api/notifications/push-token
+ * @access Private
+ */
+exports.registerPushToken = async (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json(
+        apiResponse.errorResponse("Push token is required", "MISSING_PUSH_TOKEN", 400)
+      );
+    }
+
+    await User.findByIdAndUpdate(req.user.id || req.user._id, {
+      expoPushToken: token
+    });
+
+    res.status(200).json(
+      apiResponse.successResponse({ token }, "Push token registered successfully")
+    );
+  } catch (error) {
+    logger.error("Error registering push token", {
+      error: error.message,
+      userId: req.user?.id,
+    });
+    res.status(500).json(
+      apiResponse.errorResponse("Failed to register push token", "PUSH_TOKEN_ERROR")
+    );
   }
 };
