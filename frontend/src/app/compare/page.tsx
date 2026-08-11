@@ -329,3 +329,4 @@ export default function ComparePage() {
 }
 
 .catch(err => console.error("Promise.all failed:", err));
+}

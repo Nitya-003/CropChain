@@ -1,9 +1,56 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../src/contexts/ThemeContext";
+import { useEffect } from "react";
+import { Platform } from "react-native";
+import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
+import { NotificationService } from "../../src/services/notification.service";
+
+async function registerForPushNotificationsAsync() {
+  let token;
+  
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'default',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#16a34a',
+    });
+  }
+
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+  if (existingStatus !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+  if (finalStatus !== 'granted') {
+    return;
+  }
+  
+  try {
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+    if (!projectId) {
+      token = (await Notifications.getExpoPushTokenAsync()).data;
+    } else {
+      token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+    }
+    
+    if (token) {
+      await NotificationService.registerPushToken(token);
+    }
+  } catch (e) {
+    console.error("Failed to get push token", e);
+  }
+}
 
 export default function TabLayout() {
   const { isDark } = useTheme();
+
+  useEffect(() => {
+    registerForPushNotificationsAsync();
+  }, []);
 
   return (
     <Tabs
