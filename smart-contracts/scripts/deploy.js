@@ -26,6 +26,14 @@ async function main() {
   console.log("Transaction hash:", tx.hash);
   console.log("Gas used:", receipt.gasUsed.toString());
 
+  // Deploy CropBatchDNFT contract
+  console.log("\nDeploying CropBatchDNFT contract...");
+  const CropBatchDNFT = await ethers.getContractFactory("CropBatchDNFT");
+  const cropBatchDNFT = await CropBatchDNFT.deploy("CropChain Dynamic Batch NFT", "cDNFT");
+  await cropBatchDNFT.waitForDeployment();
+  const dnftAddress = await cropBatchDNFT.getAddress();
+  console.log("CropBatchDNFT contract deployed to:", dnftAddress);
+
   // Verify deployment and RBAC setup
   console.log("\n=== Verifying RBAC Setup ===");
 

@@ -22,12 +22,6 @@ export const getSocket = (): Socket => {
       auth: authToken ? { token: authToken } : undefined,
     });
 
-    socketInstance.on('connect', () => {
-
-    });
-
-    socketInstance.on('disconnect', (reason) => {
-
     socketInstance.on("connect", () => {
       console.log(
         "[SOCKET] Connected to WebSocket server:",
