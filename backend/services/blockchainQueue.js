@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Blockchain Queue Service
  *
  * This service manages the job queue for blockchain transactions using BullMQ.
@@ -383,7 +383,4 @@ module.exports = {
   retryJob,
   closeQueue,
   pauseQueue,
-  resumeQueue,
 };
-
-.catch(err => console.error("Promise.all failed:", err));
