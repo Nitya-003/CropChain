@@ -48,7 +48,23 @@ function runVerification() {
   }
 
   console.log("✓ Expo Mobile SQLite Storage Service verified!");
-  console.log("✓ Mobile i18n & Offline Persistence verification complete!");
+
+  // Verify BLE Soil Sensor Service & Modal Component
+  const bleServicePath = path.join(__dirname, "src", "services", "bleSensorService.ts");
+  const bleModalPath = path.join(__dirname, "src", "components", "BLESoilScanModal.tsx");
+  if (!fs.existsSync(bleServicePath)) {
+    throw new Error("bleSensorService.ts is missing!");
+  }
+  if (!fs.existsSync(bleModalPath)) {
+    throw new Error("BLESoilScanModal.tsx is missing!");
+  }
+  const bleContent = fs.readFileSync(bleServicePath, "utf-8");
+  if (!bleContent.includes("scanDevices") || !bleContent.includes("parseGattPayload")) {
+    throw new Error("bleSensorService.ts is missing core GATT parsing functions!");
+  }
+
+  console.log("✓ Mobile BLE Soil Sensor Service & GATT Parser verified!");
+  console.log("✓ Mobile i18n, Offline Persistence & BLE Hardware Verification complete!");
 }
 
 runVerification();

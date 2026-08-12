@@ -11,6 +11,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useCameraPermission } from "react-native-vision-camera";
 import { useScanStore } from "../../src/services/scanStore";
+import { BLESoilScanModal } from "../../src/components/BLESoilScanModal";
+import type { SoilReading } from "../../src/services/bleSensorService";
 
 export default function ScanScreen() {
   const { t } = useTranslation();
@@ -19,6 +21,15 @@ export default function ScanScreen() {
   const [scanned, setScanned] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const [manualInput, setManualInput] = useState("");
+  const [bleModalVisible, setBleModalVisible] = useState(false);
+
+  const handleBleReading = (reading: SoilReading) => {
+    Alert.alert(
+      "🌱 BLE Soil Sensor Reading Captured",
+      `N: ${reading.nitrogen} | P: ${reading.phosphorus} | K: ${reading.potassium}\npH: ${reading.ph} | Moisture: ${reading.moisture}%`,
+      [{ text: "OK" }]
+    );
+  };
 
   useEffect(() => {
     if (!hasPermission) requestPermission();
@@ -100,6 +111,12 @@ export default function ScanScreen() {
       {/* Controls overlay */}
       <View className="absolute bottom-0 left-0 right-0 bg-zinc-900/90 px-6 pb-10 pt-6">
         <TouchableOpacity
+          onPress={() => setBleModalVisible(true)}
+          className="bg-emerald-600/30 border border-emerald-500 py-3 rounded-xl items-center mb-4"
+        >
+          <Text className="text-emerald-400 font-bold">📡 Pair BLE Soil Sensor Probe</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           onPress={simulateScan}
           className="bg-primary/20 border border-primary py-3 rounded-xl items-center mb-4"
         >
@@ -125,6 +142,12 @@ export default function ScanScreen() {
             <Text className="text-zinc-400 text-xs mt-1">{t("scan.cancel")}</Text>
           </TouchableOpacity>
         </View>
+
+        <BLESoilScanModal
+          visible={bleModalVisible}
+          onClose={() => setBleModalVisible(false)}
+          onSelectReading={handleBleReading}
+        />
 
         {scanned ? (
           <View className="mt-4 bg-zinc-800 p-3 rounded-xl">
