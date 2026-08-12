@@ -720,3 +720,6 @@ export default function VerificationDashboardPage() {
     </ProtectedRoute>
   );
 }
+
+.catch(err => console.error("Promise.all failed:", err));
+}
