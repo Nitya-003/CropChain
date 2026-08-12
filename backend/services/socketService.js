@@ -118,31 +118,64 @@ function initializeSocketIO(httpServer) {
 
     io.use((socket, next) => {
       const token =
-        socket.handshake.auth.token ||
-        socket.handshake.headers.authorization?.replace("Bearer ", "");
-      if (!token) {
-        return next(new Error("Authentication required"));
+        socket.handshake.auth?.token ||
+        socket.handshake.headers?.authorization?.replace("Bearer ", "");
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          socket.user = decoded;
+        } catch (err) {
+          logger.debug(`[SOCKET] Handshake token verification failed: ${err.message}`);
+        }
       }
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        socket.user = decoded;
-        next();
-      } catch (err) {
-        next(new Error("Invalid token"));
-      }
+      next();
     });
 
     // Set up connection handling
     io.on("connection", (socket) => {
       logger.info(`[SOCKET] Client connected: ${socket.id}`);
+      socket.pendingRoomJoins = new Map();
 
       // Automatically join user-specific room if authenticated
-      if (socket.user && socket.user.id) {
-        socket.join(`user:${socket.user.id}`);
+      if (socket.user && (socket.user.id || socket.user._id)) {
+        const userId = socket.user.id || socket.user._id;
+        socket.join(`user:${userId}`);
         logger.info(
-          `[SOCKET] Client ${socket.id} joined user room: ${socket.user.id}`,
+          `[SOCKET] Client ${socket.id} joined user room: ${userId}`,
         );
       }
+
+      // Runtime authentication handler (handles late re-authentication & mobile reconnects)
+      socket.on("authenticate", async (data) => {
+        const token = data?.token || (typeof data === "string" ? data : null);
+        if (!token) {
+          safeEmit("authenticated", { success: false, message: "Token is required" });
+          return;
+        }
+
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          socket.user = decoded;
+          const userId = decoded.id || decoded._id;
+          socket.join(`user:${userId}`);
+          safeEmit("authenticated", { success: true, user: decoded });
+          logger.info(`[SOCKET] Client ${socket.id} authenticated at runtime as user: ${userId}`);
+
+          // Process queued pending room joins automatically
+          if (socket.pendingRoomJoins && socket.pendingRoomJoins.size > 0) {
+            logger.info(`[SOCKET] Processing ${socket.pendingRoomJoins.size} pending room joins for socket ${socket.id}`);
+            for (const [key, { event, payload }] of socket.pendingRoomJoins.entries()) {
+              if (event === "join-batch-room") {
+                socket.join(`batch:${payload}`);
+                safeEmit("joined-batch-room", { batchId: payload, status: "auto-fulfilled" });
+              }
+            }
+            socket.pendingRoomJoins.clear();
+          }
+        } catch (err) {
+          safeEmit("authenticated", { success: false, message: "Invalid or expired token" });
+        }
+      });
 
       // Only emit to a socket that is still connected. Async handlers can
       // finish after the client has disconnected, so every emit is guarded.
@@ -183,9 +216,18 @@ function initializeSocketIO(httpServer) {
           try {
             const user = socket.user;
             if (!user) {
-              safeEmit("error", {
-                message: "Authentication required to join batch room",
+              // Queue request until runtime authentication completes
+              socket.pendingRoomJoins.set(`batch:${batchId}`, {
+                event: "join-batch-room",
+                payload: batchId,
+                queuedAt: Date.now(),
               });
+              safeEmit("room-join-queued", {
+                batchId,
+                status: "queued",
+                message: "Room join queued pending authentication",
+              });
+              logger.info(`[SOCKET] Queued join-batch-room for unauthenticated socket ${socket.id} (batchId: ${batchId})`);
               return;
             }
 
