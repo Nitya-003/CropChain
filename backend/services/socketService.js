@@ -1,8 +1,10 @@
 const { Server } = require("socket.io");
+const { createAdapter } = require("@socket.io/redis-adapter");
 const jwt = require("jsonwebtoken");
 const logger = require("../utils/logger");
 const Batch = require("../models/Batch");
 const { hasPermission, PERMISSIONS } = require("../constants/permissions");
+const { createPubSubClients } = require("../config/redis");
 
 let io = null;
 
@@ -43,11 +45,6 @@ function createRateLimiter() {
     return true;
   }
 
-  /**
-   * Remove every rate-limit bucket recorded for a socket.
-   * Called on disconnect so entries for disconnected sockets never accumulate.
-   * @param {string} socketId
-   */
   function clearSocket(socketId) {
     const prefix = `${socketId}:`;
     for (const key of buckets.keys()) {
@@ -106,6 +103,16 @@ function initializeSocketIO(httpServer) {
       transports: ["websocket", "polling"],
       maxHttpBufferSize: MAX_HTTP_BUFFER_SIZE,
     });
+
+    if (process.env.NODE_ENV !== "test" || process.env.ENABLE_REDIS_SOCKET_ADAPTER === "true") {
+      try {
+        const { pubClient, subClient } = createPubSubClients();
+        io.adapter(createAdapter(pubClient, subClient));
+        logger.info("✓ Socket.IO Redis adapter attached for horizontal scaling across nodes");
+      } catch (err) {
+        logger.warn("⚠️ Failed to attach Redis adapter to Socket.IO. Falling back to default in-memory adapter:", { error: err.message });
+      }
+    }
 
     const { checkRate, clearSocket } = createRateLimiter();
 

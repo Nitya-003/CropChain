@@ -1,8 +1,8 @@
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { API_URL } from "../utils/constants";
 import * as SecureStore from "expo-secure-store";
 
 const TOKEN_KEY = "auth_token";
-
 export const DEFAULT_TIMEOUT = 15000;
 
 export class TimeoutError extends Error {
@@ -13,90 +13,71 @@ export class TimeoutError extends Error {
 }
 
 interface RequestOptions {
-  method?: string;
-  body?: any;
   headers?: Record<string, string>;
   timeout?: number;
   signal?: AbortSignal;
 }
 
-async function getHeaders(
-  headers: Record<string, string> = {},
-): Promise<Record<string, string>> {
-  const token = await SecureStore.getItemAsync(TOKEN_KEY).catch(() => null);
-
-  return {
+const axiosInstance = axios.create({
+  baseURL: API_URL,
+  timeout: DEFAULT_TIMEOUT,
+  headers: {
     "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...headers,
-  };
-}
-
-async function request<T>(
-  endpoint: string,
-  options: RequestOptions = {},
-): Promise<T> {
-  const {
-    method = "GET",
-    body,
-    headers = {},
-    timeout = DEFAULT_TIMEOUT,
-    signal: externalSignal,
-  } = options;
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-  const config: RequestInit = {
-    method,
-    headers: await getHeaders(headers),
-    signal: externalSignal || controller.signal,
-  };
-
-  if (body) config.body = JSON.stringify(body);
-
-  if (externalSignal) {
-    externalSignal.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timeoutId);
-        controller.abort();
-      },
-      { once: true },
-    );
   }
+});
 
+// Request Interceptor: Attach JWT Token
+axiosInstance.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   try {
-    const response = await fetch(`${API_URL}${endpoint}`, config);
-
-    if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ message: "Request failed" }));
-      throw new Error(error.message || `HTTP ${response.status}`);
+    const token = await SecureStore.getItemAsync(TOKEN_KEY);
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
-
-    return response.json();
-  } catch (error: any) {
-    if (error.name === "AbortError") {
-      const isExternalAbort = externalSignal?.aborted;
-      throw isExternalAbort
-        ? new Error("Request was cancelled")
-        : new TimeoutError(timeout);
-    }
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
+  } catch {
+    // Ignore SecureStore errors gracefully
   }
-}
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
+
+// Response Interceptor: Format Errors & Timeouts
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      const timeout = error.config?.timeout || DEFAULT_TIMEOUT;
+      throw new TimeoutError(timeout as number);
+    }
+    
+    if (axios.isCancel(error)) {
+      throw new Error("Request was cancelled");
+    }
+    
+    const serverMessage = (error.response?.data as any)?.message;
+    if (serverMessage) {
+      throw new Error(serverMessage);
+    }
+    
+    throw new Error(error.message || `HTTP ${error.response?.status}`);
+  }
+);
 
 export const api = {
-  get: <T>(endpoint: string, options?: RequestOptions) =>
-    request<T>(endpoint, { ...options, method: "GET" }),
-  post: <T>(endpoint: string, body: any, options?: RequestOptions) =>
-    request<T>(endpoint, { ...options, method: "POST", body }),
-  put: <T>(endpoint: string, body: any, options?: RequestOptions) =>
-    request<T>(endpoint, { ...options, method: "PUT", body }),
-  delete: <T>(endpoint: string, options?: RequestOptions) =>
-    request<T>(endpoint, { ...options, method: "DELETE" }),
+  get: async <T = any>(endpoint: string, options?: RequestOptions): Promise<T> => {
+    const res = await axiosInstance.get<T>(endpoint, options);
+    return res.data;
+  },
+  post: async <T = any>(endpoint: string, body?: any, options?: RequestOptions): Promise<T> => {
+    const res = await axiosInstance.post<T>(endpoint, body, options);
+    return res.data;
+  },
+  put: async <T = any>(endpoint: string, body?: any, options?: RequestOptions): Promise<T> => {
+    const res = await axiosInstance.put<T>(endpoint, body, options);
+    return res.data;
+  },
+  delete: async <T = any>(endpoint: string, options?: RequestOptions): Promise<T> => {
+    const res = await axiosInstance.delete<T>(endpoint, options);
+    return res.data;
+  },
 };
