@@ -19,6 +19,7 @@
 
 const fs = require("fs");
 const { ethers } = require("ethers");
+const logger = require("./logger");
 
 /**
  * Per-role environment variable mapping.
@@ -291,13 +292,22 @@ async function resolvePrivateKey(role = "default") {
   return resolvedKeyCache.get(role);
 }
 
+const { KmsVaultSigner } = require("./hsmSigner");
+
 /**
- * Build an ethers.Wallet (connected to `provider`) using the resolved key.
+ * Build an ethers.Signer (connected to `provider`) using the resolved key or HSM module.
  * @param {ethers.Provider|null} provider - RPC provider to connect to
  * @param {string} [role="default"] - Role key (default|oracle|ccip)
- * @returns {Promise<ethers.Wallet|null>} wallet, or null if no credentials
+ * @returns {Promise<ethers.Signer|null>} wallet/signer, or null if no credentials
  */
 async function loadWallet(provider, role = "default") {
+  if (process.env.USE_HSM_SIGNER === "true" || process.env.AWS_KMS_KEY_ID || process.env.VAULT_TRANSIT_KEY) {
+    const hsmType = process.env.VAULT_TRANSIT_KEY ? "hashicorp-vault" : "aws-kms";
+    logger?.info?.(`[keystore] Provisioning HSM hardware signer (${hsmType}) for role: ${role}`);
+    const hsmSigner = new KmsVaultSigner({ type: hsmType }, provider);
+    return hsmSigner;
+  }
+
   const key = await resolvePrivateKey(role);
   if (!key) return null;
   return new ethers.Wallet(key, provider);
@@ -319,3 +329,4 @@ module.exports = {
   ROLE_CONFIG,
   _clearCache,
 };
+
