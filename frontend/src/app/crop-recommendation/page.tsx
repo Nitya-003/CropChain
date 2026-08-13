@@ -221,7 +221,7 @@ const SliderField: React.FC<SliderFieldProps> = ({
           value={value}
           onChange={(e) => {
             const v = parseFloat(e.target.value);
-            if (!isNaN(v)) onChange(name, Math.max(min, Math.min(max, v)));
+            if (!Number.isNaN(v)) onChange(name, Math.max(min, Math.min(max, v)));
           }}
           className={`w-20 text-right text-sm font-semibold text-gray-800 dark:text-white bg-gray-100 dark:bg-gray-700 rounded-lg px-2 py-1 border focus:outline-none focus:ring-2 focus:ring-green-400 ${
             error
