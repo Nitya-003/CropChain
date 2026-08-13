@@ -131,7 +131,7 @@ class CropBatchService {
       farmerName: data.farmerName,
       farmerAddress: data.farmerAddress,
       cropType: data.cropType,
-      quantity: parseInt(data.quantity),
+      quantity: parseInt(data.quantity, 10),
       harvestDate: data.harvestDate,
       origin: data.origin,
       certifications: data.certifications,

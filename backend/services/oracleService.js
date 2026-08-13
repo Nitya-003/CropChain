@@ -10,6 +10,12 @@ class OracleService {
     this.oracleWallet = null;
     this.isListening = false;
     this.requestQueue = new Map(); // Track pending requests
+    this.stats = {
+      totalProcessed: 0,
+      totalSuccess: 0,
+      totalFailed: 0,
+      totalResponseTimeMs: 0,
+    };
     this._reconnecting = false;
     this._contractABI = [
       "event IoTDataRequested(bytes32 indexed batchId, address requester)",
@@ -242,14 +248,26 @@ class OracleService {
 
       logger.info(`⛽ Gas estimate: ${gasEstimate.toString()}`);
 
+      // ethers v6 estimateGas returns a bigint, so apply the 20% buffer with
+      // bigint arithmetic instead of Math.floor(number * 1.2).
+      const gasLimit = (gasEstimate * 120n) / 100n;
+
+      // Resolve fee fields from the provider's FeeData (ethers v6 requires
+      // individual bigint fee values, not the whole FeeData object).
+      const feeData = await this.provider.getFeeData();
+      const overrides = { gasLimit };
+      if (feeData.maxFeePerGas != null && feeData.maxPriorityFeePerGas != null) {
+        overrides.maxFeePerGas = feeData.maxFeePerGas;
+        overrides.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
+      } else if (feeData.gasPrice != null) {
+        overrides.gasPrice = feeData.gasPrice;
+      }
+
       const tx = await this.contract.fulfillIoTData(
         batchId,
         temperatureRaw,
         iotData.humidity,
-        {
-          gasLimit: Math.floor(gasEstimate * 1.2), // 20% buffer
-          gasPrice: await this.provider.getFeeData(),
-        },
+        overrides,
       );
 
       logger.info(`📤 Transaction sent: ${tx.hash}`);
@@ -266,6 +284,46 @@ class OracleService {
       logger.error("❌ Failed to fulfill IoT data:", { error: error.message });
       throw error;
     }
+  }
+
+  /**
+   * Record a completed oracle request telemetry metric
+   */
+  recordRequest(durationMs, success = true) {
+    this.stats.totalProcessed += 1;
+    if (success) {
+      this.stats.totalSuccess += 1;
+    } else {
+      this.stats.totalFailed += 1;
+    }
+    this.stats.totalResponseTimeMs += Math.max(0, durationMs || 0);
+  }
+
+  /**
+   * Get calculated performance statistics
+   */
+  getPerformanceStats() {
+    if (this.stats.totalProcessed === 0) {
+      return {
+        averageResponseTime: "N/A",
+        successRate: "N/A",
+        totalProcessed: 0,
+        totalSuccess: 0,
+        totalFailed: 0,
+      };
+    }
+
+    const avgMs = this.stats.totalResponseTimeMs / this.stats.totalProcessed;
+    const avgSec = (avgMs / 1000).toFixed(1);
+    const ratePct = ((this.stats.totalSuccess / this.stats.totalProcessed) * 100).toFixed(1);
+
+    return {
+      averageResponseTime: `${avgSec}s`,
+      successRate: `${ratePct}%`,
+      totalProcessed: this.stats.totalProcessed,
+      totalSuccess: this.stats.totalSuccess,
+      totalFailed: this.stats.totalFailed,
+    };
   }
 
   /**
