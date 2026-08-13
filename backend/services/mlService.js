@@ -4,7 +4,9 @@ const axios = require("axios");
 const logger = require("../utils/logger");
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://localhost:5001";
-const ML_API_KEY = process.env.ML_API_KEY || "change-me-in-production";
+// No fallback default: a missing key must fail closed instead of silently
+// sending a publicly-known credential (see #1325).
+const ML_API_KEY = process.env.ML_API_KEY;
 
 const MAX_RETRIES = 3;
 const BASE_DELAY = 200;
@@ -16,6 +18,16 @@ const BASE_DELAY = 200;
  * @param {string} cropType 
  */
 async function predictQuality(temperature, humidity, cropType) {
+  if (!ML_API_KEY) {
+    const error = new Error(
+      "ML_API_KEY is not configured. Set the ML_API_KEY environment variable " +
+        "to a strong random secret (`openssl rand -hex 32`) matching the " +
+        "ml-service deployment before calling the crop recommendation endpoint.",
+    );
+    logger.error("ML Service /quality aborted", { error: error.message });
+    throw error;
+  }
+
   let lastError;
 
   const payload = {
