@@ -37,16 +37,35 @@ async function recordIoTData(batchId, temperature, humidity) {
   const telemetryHistoryLength = batch.iotData?.telemetryHistory?.length || 0;
   const timestamp = new Date();
 
-  if (isSpoiled && !wasSpoiled && batch.farmerId) {
-    notificationService
-      .createInAppNotification(
-        batch.farmerId,
-        "Spoilage Alert!",
-        `Critical thresholds exceeded for batch ${batch.batchId} (${batch.cropType}). Temp: ${temperature}, Humidity: ${humidity}`,
-        "alert",
-        { batchId: batch.batchId, temperature, humidity },
-      )
-      .catch((err) => logger.error("Failed to send spoilage alert:", err));
+const socketService = require("./socketService");
+
+  if (isSpoiled && !wasSpoiled) {
+    if (batch.farmerId) {
+      notificationService
+        .createInAppNotification(
+          batch.farmerId,
+          "Spoilage Alert & Automated Dispute Triggered!",
+          `Critical cold-chain threshold breached for batch ${batch.batchId} (${batch.cropType}). Temp: ${temperature}°F, Humidity: ${humidity}%. Dispute automatically logged on-chain.`,
+          "alert",
+          { batchId: batch.batchId, temperature, humidity, disputeTriggered: true },
+        )
+        .catch((err) => logger.error("Failed to send spoilage alert:", err));
+    }
+
+    try {
+      if (socketService && typeof socketService.broadcast === "function") {
+        socketService.broadcast("iot:telemetry_breach", {
+          batchId: batch.batchId,
+          cropType: batch.cropType,
+          temperature,
+          humidity,
+          disputeTriggered: true,
+          timestamp,
+        });
+      }
+    } catch (err) {
+      logger.error("Failed to broadcast WebSocket telemetry breach alert:", err.message);
+    }
   }
 
   if (telemetryHistoryLength >= TELEMETRY_HISTORY_WARNING_THRESHOLD) {
