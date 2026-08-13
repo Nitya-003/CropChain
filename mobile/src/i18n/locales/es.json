@@ -1,0 +1,97 @@
+{
+  "common": {
+    "loading": "Cargando...",
+    "error": "Algo salió mal",
+    "retry": "Reintentar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "language": "Idioma",
+    "english": "English",
+    "hindi": "हिन्दी (Hindi)",
+    "spanish": "Español (Spanish)"
+  },
+  "auth": {
+    "welcomeBack": "Bienvenido de nuevo",
+    "signIn": "Iniciar sesión",
+    "register": "Crear cuenta",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "name": "Nombre completo",
+    "role": "Tu rol",
+    "connectWallet": "Conectar billetera",
+    "noAccount": "¿No tienes una cuenta?",
+    "hasAccount": "¿Ya tienes una cuenta?",
+    "logout": "Cerrar sesión",
+    "logoutConfirm": "¿Estás seguro de que quieres cerrar sesión?"
+  },
+  "home": {
+    "greeting": "Hola",
+    "overview": "Resumen",
+    "recentBatches": "Lotes recientes",
+    "noBatches": "No hay lotes aún. Escanea un código QR para comenzar.",
+    "scanNow": "Escanear ahora",
+    "pendingSync": "elementos pendientes de sincronizar",
+    "quickActions": "Acciones rápidas",
+    "scanQr": "Escanear QR",
+    "addBatch": "Agregar lote",
+    "track": "Rastrear",
+    "activeBatches": "Lotes activos",
+    "alerts": "Alertas"
+  },
+  "scan": {
+    "title": "Escanear código QR",
+    "instructions": "Apunta la cámara a un código QR de CropChain",
+    "permissionRequired": "Permiso de cámara requerido",
+    "permissionDescription": "Se requiere acceso a la cámara para escanear códigos QR.",
+    "grantPermission": "Otorgar permiso",
+    "simulate": "Simular escaneo (Demo)",
+    "flash": "Flash",
+    "cancel": "Cancelar"
+  },
+  "batch": {
+    "title": "Detalles del lote",
+    "notFound": "Lote no encontrado",
+    "notFoundDesc": "No se encontró ningún lote con este ID",
+    "journey": "Trayecto",
+    "information": "Información",
+    "updateStage": "Actualizar etapa",
+    "currentStage": "Etapa actual",
+    "crop": "Cultivo",
+    "farmer": "Agricultor",
+    "location": "Ubicación",
+    "weight": "Peso",
+    "price": "Precio",
+    "status": "Estado"
+  },
+  "profile": {
+    "title": "Perfil",
+    "darkMode": "Modo oscuro",
+    "notifications": "Notificaciones",
+    "biometricLock": "Bloqueo biométrico",
+    "about": "Acerca de",
+    "signIn": "Iniciar sesión",
+    "connectedWallet": "Billetera conectada",
+    "selectLanguage": "Seleccionar idioma"
+  },
+  "roles": {
+    "farmer": "Agricultor",
+    "mandi": "Mercado Mandi",
+    "transporter": "Transportista",
+    "retailer": "Minorista",
+    "admin": "Administrador",
+    "guest": "Invitado"
+  },
+  "stages": {
+    "farmer": "Granja",
+    "mandi": "Mercado",
+    "transport": "En tránsito",
+    "retailer": "Minorista"
+  },
+  "errors": {
+    "network": "Sin conexión a internet. Los cambios se sincronizarán al conectar.",
+    "syncFailed": "Error al sincronizar algunos elementos.",
+    "scanFailed": "Error al escanear el código QR. Inténtalo de nuevo."
+  }
+}

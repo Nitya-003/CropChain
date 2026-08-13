@@ -62,6 +62,24 @@ const upload = multer({
 
 // Public route
 
+/**
+ * @swagger
+ * /api/verification/check/{userId}:
+ *   get:
+ *     summary: Check user DID verification status
+ *     tags: [Verification]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Verification status retrieved
+ *       404:
+ *         description: User not found
+ */
 router.get("/check/:userId", checkVerification);
 
 // Protected routes
