@@ -1,16 +1,3 @@
-name: CropChain Deployment
-
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-
-jobs:
-  deploy:
-    name: Deploy Application
-    runs-on: ubuntu-latest
-
 name: Deploy to AWS Production
 
 on:

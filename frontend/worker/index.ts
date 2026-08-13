@@ -40,6 +40,71 @@ sw.addEventListener("message", (event: any) => {
   }
 });
 
+// Push notification event listener
+sw.addEventListener("push", (event: any) => {
+  console.log("[SW] Push event received", event);
+
+  let data = {
+    title: "🌱 CropChain Notification",
+    body: "A batch status update occurred in your supply chain.",
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/icon-72x72.png",
+    url: "/track-batch",
+    batchId: undefined,
+  };
+
+  if (event.data) {
+    try {
+      const payload = event.data.json();
+      data = { ...data, ...payload };
+    } catch {
+      data.body = event.data.text();
+    }
+  }
+
+  const notificationOptions = {
+    body: data.body,
+    icon: data.icon || "/icons/icon-192x192.png",
+    badge: data.badge || "/icons/icon-72x72.png",
+    vibrate: [100, 50, 100],
+    data: {
+      url: data.url || (data.batchId ? `/track-batch?id=${data.batchId}` : "/track-batch"),
+      dateOfArrival: Date.now(),
+    },
+    actions: [
+      { action: "explore", title: "View Details" },
+      { action: "close", title: "Dismiss" },
+    ],
+  };
+
+  event.waitUntil(
+    sw.registration.showNotification(data.title, notificationOptions)
+  );
+});
+
+// Notification click event listener
+sw.addEventListener("notificationclick", (event: any) => {
+  console.log("[SW] Notification click received", event);
+  event.notification.close();
+
+  if (event.action === "close") return;
+
+  const targetUrl = event.notification.data?.url || "/track-batch";
+
+  event.waitUntil(
+    sw.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList: any[]) => {
+      for (const client of clientList) {
+        if (client.url.includes(targetUrl) && "focus" in client) {
+          return client.focus();
+        }
+      }
+      if (sw.clients.openWindow) {
+        return sw.clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+
 // Helper function to broadcast online sync trigger to all open tabs
 async function notifyClientsOfOnlineSync() {
   const clients = await sw.clients.matchAll({ type: "window" });
@@ -52,3 +117,4 @@ async function notifyClientsOfOnlineSync() {
     });
   }
 }
+

@@ -10,12 +10,18 @@ class OracleService {
     this.oracleWallet = null;
     this.isListening = false;
     this.requestQueue = new Map(); // Track pending requests
+    this.stats = {
+      totalProcessed: 0,
+      totalSuccess: 0,
+      totalFailed: 0,
+      totalResponseTimeMs: 0,
+    };
     this._reconnecting = false;
     this._contractABI = [
       "event IoTDataRequested(bytes32 indexed batchId, address requester)",
       "event IoTDataFulfilled(bytes32 indexed batchId, int256 temperature, int256 humidity, bool isSpoiled)",
       "function fulfillIoTData(bytes32 batchId, int256 temperature, int256 humidity) external",
-      "function getBatch(bytes32 batchId) view returns (tuple(address farmer, uint256 quantity, string stage, bool exists, int256 temperature, int256 humidity, bool isSpoiled))",
+      "function getBatch(bytes32 batchId) view returns (tuple(bytes32 batchId, bytes32 cropTypeHash, string ipfsCID, uint256 quantity, uint256 createdAt, address creator, bool exists, bool isRecalled, int256 currentTemperature, int256 currentHumidity, bool isSpoiled))",
     ];
   }
 
@@ -281,6 +287,46 @@ class OracleService {
   }
 
   /**
+   * Record a completed oracle request telemetry metric
+   */
+  recordRequest(durationMs, success = true) {
+    this.stats.totalProcessed += 1;
+    if (success) {
+      this.stats.totalSuccess += 1;
+    } else {
+      this.stats.totalFailed += 1;
+    }
+    this.stats.totalResponseTimeMs += Math.max(0, durationMs || 0);
+  }
+
+  /**
+   * Get calculated performance statistics
+   */
+  getPerformanceStats() {
+    if (this.stats.totalProcessed === 0) {
+      return {
+        averageResponseTime: "N/A",
+        successRate: "N/A",
+        totalProcessed: 0,
+        totalSuccess: 0,
+        totalFailed: 0,
+      };
+    }
+
+    const avgMs = this.stats.totalResponseTimeMs / this.stats.totalProcessed;
+    const avgSec = (avgMs / 1000).toFixed(1);
+    const ratePct = ((this.stats.totalSuccess / this.stats.totalProcessed) * 100).toFixed(1);
+
+    return {
+      averageResponseTime: `${avgSec}s`,
+      successRate: `${ratePct}%`,
+      totalProcessed: this.stats.totalProcessed,
+      totalSuccess: this.stats.totalSuccess,
+      totalFailed: this.stats.totalFailed,
+    };
+  }
+
+  /**
    * Get current oracle status
    */
   getStatus() {
@@ -324,21 +370,63 @@ class OracleService {
 
       const batchData = await this.contract.getBatch(batchId);
 
+      if (!batchData.exists) {
+        return {
+          batchId: ethers.decodeBytes32String(batchId),
+          exists: false,
+          temperature: null,
+          humidity: null,
+          isSpoiled: false,
+        };
+      }
+
+      // getBatch (CropChain.sol:534) returns the full 11-field CropBatch
+      // struct; the real sensor readings live in currentTemperature /
+      // currentHumidity / isSpoiled (see #1326).
       return {
         batchId: ethers.decodeBytes32String(batchId),
-        temperature: batchData.temperature
-          ? batchData.temperature.toNumber() / 10
+        temperature: batchData.currentTemperature != null
+          ? Number(batchData.currentTemperature) / 10
           : null,
-        humidity: batchData.humidity ? batchData.humidity.toNumber() : null,
+        humidity: batchData.currentHumidity != null
+          ? Number(batchData.currentHumidity)
+          : null,
         isSpoiled: batchData.isSpoiled || false,
-        exists: batchData.exists || false,
+        exists: true,
       };
     } catch (error) {
-      logger.error(
-        `❌ Failed to get IoT data for batch ${batchId}:`,
-        { error: error.message },
+      // getBatch carries the batchExists modifier, so querying a missing batch
+      // reverts instead of returning exists=false. Map that revert to a clean
+      // "batch not found" (404) while still surfacing genuine RPC failures.
+      const isRevert =
+        error?.code === "CALL_EXCEPTION" ||
+        error?.info?.error?.code === "CALL_EXCEPTION" ||
+        /execution reverted/i.test(error?.shortMessage || error?.message || "");
+
+      if (!isRevert) {
+        logger.error(
+          `❌ Failed to get IoT data for batch ${batchId}:`,
+          { error: error.message },
+        );
+        throw error;
+      }
+
+      logger.warn(
+        `⚠️ batch ${batchId} getBatch reverted (batch does not exist): ${error.message}`,
       );
-      throw error;
+      let decodedBatchId = batchId;
+      try {
+        decodedBatchId = ethers.decodeBytes32String(batchId);
+      } catch {
+        // keep raw batchId if it is not a decodable bytes32
+      }
+      return {
+        batchId: decodedBatchId,
+        exists: false,
+        temperature: null,
+        humidity: null,
+        isSpoiled: false,
+      };
     }
   }
 }
