@@ -94,6 +94,10 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    expoPushToken: {
+      type: String,
+      sparse: true,
+    },
     balance: {
       type: mongoose.Schema.Types.Decimal128,
       default: () => fromString('100000')

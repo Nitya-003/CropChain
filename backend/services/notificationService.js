@@ -72,6 +72,9 @@ class NotificationService {
       const { emitToUser } = require("./socketService");
       emitToUser(userId.toString(), "new_notification", notification);
 
+      // Trigger Mobile Push Notification
+      await this.sendPushNotification(userId, title, message, data);
+
       return notification;
     } catch (error) {
       logger.error(
@@ -373,16 +376,48 @@ class NotificationService {
   }
 
   /**
-   * Send push notification (placeholder for future implementation)
+   * Send push notification using Expo Server SDK
    * @param {string} userId - User ID
    * @param {string} title - Notification title
    * @param {string} body - Notification body
+   * @param {Object} data - Notification data payload
    */
-  async sendPushNotification(userId, title, body) {
-    // Placeholder for push notifications (e.g., Firebase Cloud Messaging)
-    logger.info(`[PUSH] Would send push to user ${userId}: ${title}`);
+  async sendPushNotification(userId, title, body, data = {}) {
+    try {
+      const user = await User.findById(userId);
+      if (!user || !user.expoPushToken) {
+        return;
+      }
 
-    this.log("push", `Push notification: ${title}`, { userId, title, body });
+      const { Expo } = require('expo-server-sdk');
+      const expo = new Expo();
+
+      if (!Expo.isExpoPushToken(user.expoPushToken)) {
+        logger.warn(`[PUSH] Token ${user.expoPushToken} is not a valid Expo push token`);
+        return;
+      }
+
+      const messages = [{
+        to: user.expoPushToken,
+        sound: 'default',
+        title: title,
+        body: body,
+        data: data,
+      }];
+
+      const chunks = expo.chunkPushNotifications(messages);
+      
+      for (const chunk of chunks) {
+        try {
+          const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+          this.log("push", `Push notification queued: ${title}`, { userId, title, ticketChunk });
+        } catch (error) {
+          logger.error("[PUSH] Error sending push notification chunk", error);
+        }
+      }
+    } catch (error) {
+      logger.error("[PUSH] Failed to prepare push notification", error);
+    }
   }
 
   /**

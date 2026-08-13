@@ -24,32 +24,4 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     syncQueue.getPendingCount().then(setPendingCount);
-    const unsubscribe = syncQueue.subscribe((newStatus, count) => {
-      setStatus(newStatus);
-      setPendingCount(count);
-    });
-    return unsubscribe;
-  }, []);
-
-  const addToQueue = useCallback(async (params: SyncQueueInput) => {
-    await syncQueue.addToQueue(params);
-  }, []);
-
-  const processNow = useCallback(async () => {
-    await syncQueue.processQueue();
-  }, []);
-
-  return (
-    <SyncContext.Provider
-      value={{ status, pendingCount, addToQueue, processNow }}
-    >
-      {children}
-    </SyncContext.Provider>
-  );
-}
-
-export function useSync() {
-  const context = useContext(SyncContext);
-  if (!context) throw new Error("useSync must be used within SyncProvider");
-  return context;
-}
+    .catch(err => console.error(err))
