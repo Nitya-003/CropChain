@@ -623,6 +623,26 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         return weightedSum / totalWeight;
     }
 
+    function getActiveListings() external view returns (MarketListing[] memory) {
+        uint256 activeCount = 0;
+        for (uint256 i = 1; i < nextListingId; i++) {
+            if (listings[i].active) {
+                activeCount++;
+            }
+        }
+
+        MarketListing[] memory activeListings = new MarketListing[](activeCount);
+        uint256 currentIndex = 0;
+        for (uint256 i = 1; i < nextListingId; i++) {
+            if (listings[i].active) {
+                activeListings[currentIndex] = listings[i];
+                currentIndex++;
+            }
+        }
+
+        return activeListings;
+    }
+
     function grantStakeholderRole(bytes32 role, address account) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         require(account != address(0), "Invalid address");
         require(
