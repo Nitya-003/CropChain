@@ -285,8 +285,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build Image
-        run: docker build -t cropchain/${{ matrix.service.name }}:latest -f ${{ matrix.service.dockerfile }} ${{ matrix.service.context }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Image with Cache
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.service.context }}
+          file: ${{ matrix.service.dockerfile }}
+          push: false
+          load: true
+          tags: cropchain/${{ matrix.service.name }}:latest
+          cache-from: type=gha,scope=${{ matrix.service.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
 
       - name: Run Trivy Vulnerability Scanner
         uses: aquasecurity/trivy-action@master
