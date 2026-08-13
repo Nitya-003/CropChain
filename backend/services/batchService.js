@@ -862,3 +862,7 @@ class BatchService {
 module.exports = new BatchService();
 
 .catch(err => console.error("Promise.all failed:", err));
+.catch(err => console.error("Promise.all failed:", err));
+.catch(err => console.error("Promise.all failed:", err));
+.catch(err => console.error("Promise.all failed:", err));
+module.exports = new BatchService();
