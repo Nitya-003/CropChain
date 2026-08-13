@@ -6,7 +6,11 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "save": "Save",
-    "delete": "Delete"
+    "delete": "Delete",
+    "language": "Language",
+    "english": "English",
+    "hindi": "हिन्दी (Hindi)",
+    "spanish": "Español (Spanish)"
   },
   "auth": {
     "welcomeBack": "Welcome Back",
@@ -28,7 +32,13 @@
     "recentBatches": "Recent Batches",
     "noBatches": "No batches yet. Scan a QR code to get started.",
     "scanNow": "Scan Now",
-    "pendingSync": "items pending sync"
+    "pendingSync": "items pending sync",
+    "quickActions": "Quick Actions",
+    "scanQr": "Scan QR",
+    "addBatch": "Add Batch",
+    "track": "Track",
+    "activeBatches": "Active Batches",
+    "alerts": "Alerts"
   },
   "scan": {
     "title": "Scan QR Code",
@@ -62,7 +72,8 @@
     "biometricLock": "Biometric Lock",
     "about": "About",
     "signIn": "Sign In",
-    "connectedWallet": "Connected Wallet"
+    "connectedWallet": "Connected Wallet",
+    "selectLanguage": "Select Language"
   },
   "roles": {
     "farmer": "Farmer",
