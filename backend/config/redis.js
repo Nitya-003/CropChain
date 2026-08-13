@@ -132,9 +132,32 @@ async function checkRedisHealth() {
   }
 }
 
+/**
+ * Create dedicated Redis Pub/Sub client instances for Socket.IO horizontal scaling
+ * @returns {{ pubClient: Redis, subClient: Redis }} Dedicated pub/sub connections
+ */
+function createPubSubClients() {
+  const pubClient = new Redis({
+    ...connectionOptions,
+    maxRetriesPerRequest: null,
+  });
+  const subClient = pubClient.duplicate();
+
+  pubClient.on("error", (err) => {
+    logger.error("❌ Redis PubClient error", { error: err.message });
+  });
+
+  subClient.on("error", (err) => {
+    logger.error("❌ Redis SubClient error", { error: err.message });
+  });
+
+  return { pubClient, subClient };
+}
+
 module.exports = {
   getRedisConnection,
   createQueueConnection,
+  createPubSubClients,
   closeRedisConnection,
   checkRedisHealth,
   connectionOptions,
