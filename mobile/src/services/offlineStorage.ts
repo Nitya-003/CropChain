@@ -6,6 +6,7 @@ const KEYS = {
   QUEUE: "@cropchain/sync_queue",
   USER: "@cropchain/user",
   PENDING_COUNT: "@cropchain/pending_count",
+  SCAN_HISTORY: "@cropchain/scan_history",
 };
 
 export const offlineStorage = {
@@ -29,6 +30,19 @@ export const offlineStorage = {
   async getBatch(id: string): Promise<Batch | undefined> {
     const batches = await this.getBatches();
     return batches.find((b) => b.id === id);
+  },
+
+  async saveScanHistory(scanId: string): Promise<void> {
+    const history = await this.getScanHistory();
+    if (!history.includes(scanId)) {
+      history.unshift(scanId);
+      await AsyncStorage.setItem(KEYS.SCAN_HISTORY, JSON.stringify(history.slice(0, 50)));
+    }
+  },
+
+  async getScanHistory(): Promise<string[]> {
+    const data = await AsyncStorage.getItem(KEYS.SCAN_HISTORY);
+    return data ? JSON.parse(data) : [];
   },
 
   async getPendingCount(): Promise<number> {
@@ -84,3 +98,4 @@ export const offlineStorage = {
     await AsyncStorage.multiRemove(Object.values(KEYS));
   },
 };
+
