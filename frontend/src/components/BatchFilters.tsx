@@ -93,7 +93,7 @@ const BatchFilters: React.FC<BatchFiltersProps> = ({
             <option value="">{t("filters.allStages")}</option>
             {STAGES.map((stage) => (
               <option key={stage} value={stage}>
-                {stage.charAt(0).toUpperCase() + stage.slice(1)}
+                {stage[0].toUpperCase() + stage.slice(1)}
               </option>
             ))}
           </select>
@@ -113,7 +113,7 @@ const BatchFilters: React.FC<BatchFiltersProps> = ({
             <option value="">{t("filters.allCrops")}</option>
             {CROP_TYPES.map((crop) => (
               <option key={crop} value={crop}>
-                {crop.charAt(0).toUpperCase() + crop.slice(1)}
+                {crop[0].toUpperCase() + crop.slice(1)}
               </option>
             ))}
           </select>
