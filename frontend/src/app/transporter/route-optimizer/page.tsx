@@ -67,6 +67,29 @@ export default function RouteOptimizerPage() {
   );
 }
 
+function getDeterministicCoordinate(batchId: string, type: "pickup" | "dropoff") {
+  let hash = 0;
+  const str = `${batchId}:${type}`;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  const norm1 = Math.abs(hash % 10000) / 10000;
+  const norm2 = Math.abs((hash >> 3) % 10000) / 10000;
+
+  if (type === "pickup") {
+    return {
+      lat: Number((12.9 + (norm1 - 0.5) * 0.3).toFixed(6)),
+      lng: Number((77.5 + (norm2 - 0.5) * 0.3).toFixed(6)),
+    };
+  } else {
+    return {
+      lat: Number((13.0 + (norm1 - 0.5) * 0.3).toFixed(6)),
+      lng: Number((77.6 + (norm2 - 0.5) * 0.3).toFixed(6)),
+    };
+  }
+}
+
 function RouteOptimizerComponent() {
   const { user } = useAuth();
 
@@ -132,16 +155,20 @@ function RouteOptimizerComponent() {
         selectedBatchIds.forEach((id) => {
           const batch = batches.find((b) => b.batchId === id);
           if (batch) {
+            const pickupCoords =
+              (batch as any).originLat && (batch as any).originLng
+                ? { lat: (batch as any).originLat, lng: (batch as any).originLng }
+                : getDeterministicCoordinate(batch.batchId, "pickup");
+
+            const dropoffCoords =
+              (batch as any).destinationLat && (batch as any).destinationLng
+                ? { lat: (batch as any).destinationLat, lng: (batch as any).destinationLng }
+                : getDeterministicCoordinate(batch.batchId, "dropoff");
+
             // Add Pickup Stop (Mandi / Origin)
             coords.push({
-              lat:
-                batch.currentStage === "mandi"
-                  ? 12.9 + (Math.random() - 0.5) * 0.4
-                  : 12.92, // mock offset around Blr
-              lng:
-                batch.currentStage === "mandi"
-                  ? 77.5 + (Math.random() - 0.5) * 0.4
-                  : 77.61,
+              lat: pickupCoords.lat,
+              lng: pickupCoords.lng,
               address: batch.origin || `${batch.farmerName}'s Farm`,
               type: "pickup",
               batchId: batch.batchId,
@@ -149,9 +176,11 @@ function RouteOptimizerComponent() {
 
             // Add Dropoff Stop (Retailer / Destination)
             coords.push({
-              lat: 13.0 + (Math.random() - 0.5) * 0.3, // mock buyer location
-              lng: 77.6 + (Math.random() - 0.5) * 0.3,
-              address: `Buyer Outlet for Batch ${batch.batchId.slice(0, 8)}`,
+              lat: dropoffCoords.lat,
+              lng: dropoffCoords.lng,
+              address:
+                (batch as any).destinationAddress ||
+                `Buyer Outlet for Batch ${batch.batchId.slice(0, 8)}`,
               type: "dropoff",
               batchId: batch.batchId,
             });
@@ -209,6 +238,8 @@ function RouteOptimizerComponent() {
   ) => {
     if (targetIndex === 0 || !routeData) return;
 
+    const sourceIndex = parseInt(e.dataTransfer.getData("text/plain"), 10);
+    if (Number.isNaN(sourceIndex) || sourceIndex === targetIndex) return;
     const sourceIndex = parseInt(e.dataTransfer.getData("text/plain", 10), 10);
     if (isNaN(sourceIndex) || sourceIndex === targetIndex) return;
 
