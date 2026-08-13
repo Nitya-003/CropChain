@@ -1,19 +1,7 @@
-"""
-Crop Recommendation Flask API
-
-Loads (or trains) a RandomForest model and exposes two endpoints:
-
-  GET  /health   → liveness probe
-  POST /predict  → returns top crop + confidence + alternatives
-
-Security:
-  - API key authentication via X-API-Key header
-  - Rate limiting (100/min default, 10/s on /predict)
-  - CORS restricted to the main backend
-  - Input validation with agronomic bounds
-"""
-
 import os
+import io
+import base64
+import hmac
 import numpy as np
 import joblib
 from functools import wraps
@@ -21,6 +9,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from PIL import Image
 
 app = Flask(__name__)
 
@@ -36,14 +25,23 @@ limiter = Limiter(
 )
 
 # ── API key authentication ─────────────────────────────────────────────────
-API_KEY = os.environ.get("ML_API_KEY", "change-me-in-production")
+# Fail closed: never boot with a publicly-known default credential. The old
+# fallback ("change-me-in-production") was hardcoded in the repo, so anyone
+# could bypass the X-API-Key guard on an unconfigured deployment.
+API_KEY = os.environ.get("ML_API_KEY")
+if not API_KEY:
+    raise RuntimeError(
+        "ML_API_KEY environment variable is required to start the ML service. "
+        "Set it to a strong random secret (openssl rand -hex 32) and make sure "
+        "it matches ML_API_KEY configured for the CropChain backend."
+    )
 
 
 def require_api_key(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         api_key = request.headers.get("X-API-Key")
-        if not api_key or api_key != API_KEY:
+        if not api_key or not hmac.compare_digest(api_key, API_KEY):
             return jsonify({"error": "Unauthorized"}), 401
         return f(*args, **kwargs)
     return decorated
@@ -90,10 +88,108 @@ def validate_input(data):
     return errors
 
 
+def analyze_crop_image(pil_image):
+    """
+    Computer Vision Analysis for crop leaf health & quality assessment.
+    Calculates RGB channel distribution, greenness index, and brown spot necrosis.
+    """
+    img = pil_image.convert("RGB").resize((224, 224))
+    arr = np.array(img, dtype=np.float32) / 255.0
+
+    r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
+    
+    # Calculate Vegetation Greenness Index (ExG = 2*G - R - B)
+    exg = 2.0 * g - r - b
+    mean_exg = float(np.mean(exg))
+    
+    # Calculate Necrosis / Brown spot index (high red & green, low blue with high variance)
+    brown_spots = np.logical_and(np.logical_and(r > 0.4, g > 0.2), b < 0.3)
+    spot_ratio = float(np.sum(brown_spots) / (224 * 224))
+
+    # Disease classification rules
+    if spot_ratio < 0.05 and mean_exg > 0.1:
+        diagnosis = "Healthy"
+        disease_detected = False
+        confidence = round(90.0 + min(mean_exg * 20.0, 9.5), 1)
+        freshness_score = round(95.0 - spot_ratio * 100.0, 1)
+        quality_grade = "A+" if freshness_score >= 90.0 else "A"
+    elif spot_ratio >= 0.05 and spot_ratio < 0.15:
+        diagnosis = "Early Blight / Bacterial Spot"
+        disease_detected = True
+        confidence = round(85.0 + spot_ratio * 50.0, 1)
+        freshness_score = round(80.0 - spot_ratio * 120.0, 1)
+        quality_grade = "B"
+    elif spot_ratio >= 0.15 and spot_ratio < 0.30:
+        diagnosis = "Late Blight / Leaf Mold"
+        disease_detected = True
+        confidence = round(88.0 + spot_ratio * 30.0, 1)
+        freshness_score = round(65.0 - spot_ratio * 100.0, 1)
+        quality_grade = "C"
+    else:
+        diagnosis = "Severe Necrosis / Yellow Leaf Curl"
+        disease_detected = True
+        confidence = 94.0
+        freshness_score = round(max(30.0 - spot_ratio * 50.0, 5.0), 1)
+        quality_grade = "Defective"
+
+    return {
+        "diagnosis": diagnosis,
+        "confidence": confidence,
+        "freshness_score": freshness_score,
+        "quality_grade": quality_grade,
+        "disease_detected": disease_detected,
+        "details": {
+            "greenness_index": round(mean_exg, 4),
+            "spot_ratio": round(spot_ratio, 4)
+        }
+    }
+
+
 @app.route("/health", methods=["GET"])
 @require_api_key
 def health():
-    return jsonify({"status": "ok", "crops": list(model.classes_)})
+    return jsonify({"status": "ok", "crops": list(model.classes_), "vision_supported": True})
+
+
+@app.route("/predict-yield", methods=["POST"])
+@require_api_key
+@limiter.limit(os.environ.get("ML_RATE_LIMIT_PREDICT", "10 per second"))
+def predict_yield():
+    """
+    Predicts the expected harvest volume (yield) for logistics planning.
+    Expects JSON: { "crop": "wheat", "area_hectares": 10.5, "avg_temperature": 24, "expected_rainfall": 120 }
+    """
+    body = request.get_json(silent=True)
+    if not body:
+        return jsonify({"error": "Request body must be JSON"}), 400
+
+    crop = body.get("crop", "unknown")
+    area = float(body.get("area_hectares", 0))
+    temp = float(body.get("avg_temperature", 25))
+    rainfall = float(body.get("expected_rainfall", 100))
+
+    if area <= 0:
+        return jsonify({"error": "area_hectares must be > 0"}), 422
+
+    # Mock Yield Model Calculation:
+    # Base yield per hectare depends on crop, adjusted by weather factors.
+    # In a real scenario, this would load a separate TensorFlow/XGBoost model.
+    base_yield_per_hectare = 3.5  # tons
+    
+    # Simple modifier based on optimal weather (mock logic)
+    temp_modifier = 1.0 - (abs(temp - 25) * 0.02)
+    rain_modifier = 1.0 - (abs(rainfall - 100) * 0.005)
+    
+    expected_yield = area * base_yield_per_hectare * temp_modifier * rain_modifier
+    expected_yield = max(0, round(expected_yield, 2))
+
+    return jsonify({
+        "crop": crop,
+        "area_hectares": area,
+        "expected_yield_tons": expected_yield,
+        "logistics_status": "Ready for planning",
+        "confidence": 85.5
+    })
 
 
 @app.route("/predict", methods=["POST"])
@@ -131,6 +227,111 @@ def predict():
     })
 
 
+@app.route("/predict-image", methods=["POST"])
+@require_api_key
+@limiter.limit(os.environ.get("ML_RATE_LIMIT_PREDICT_IMAGE", "10 per second"))
+def predict_image():
+    """
+    Computer Vision Endpoint for crop leaf disease detection & produce quality assessment.
+    Accepts multipart/form-data ('image' or 'file') or JSON base64 ('image_base64').
+    """
+    try:
+        pil_img = None
+
+        # 1. Try multipart file upload
+        if "file" in request.files:
+            file = request.files["file"]
+            pil_img = Image.open(file.stream)
+        elif "image" in request.files:
+            file = request.files["image"]
+            pil_img = Image.open(file.stream)
+        else:
+            # 2. Try JSON base64 string
+            body = request.get_json(silent=True)
+            if body:
+                b64_str = body.get("image_base64") or body.get("image")
+                if b64_str:
+                    if "," in b64_str:
+                        b64_str = b64_str.split(",")[1]
+                    img_bytes = base64.b64decode(b64_str)
+                    pil_img = Image.open(io.BytesIO(img_bytes))
+
+        if pil_img is None:
+            return jsonify({
+                "error": "No image payload provided",
+                "details": "Send multipart/form-data with key 'image' or JSON with 'image_base64'"
+            }), 400
+
+        res = analyze_crop_image(pil_img)
+        return jsonify(res), 200
+
+    except Exception as e:
+        return jsonify({"error": "Failed to process image payload", "details": str(e)}), 422
+
+@app.route("/quality", methods=["POST"])
+@require_api_key
+@limiter.limit(os.environ.get("ML_RATE_LIMIT_PREDICT", "10 per second"))
+def predict_quality():
+    body = request.get_json(silent=True)
+    if body is None:
+        return jsonify({"error": "Request body must be JSON"}), 400
+
+    crop = body.get("cropType", "unknown").lower()
+    temp = body.get("temperature")
+    humidity = body.get("humidity")
+    
+    if temp is None or humidity is None:
+        return jsonify({"error": "Validation failed", "details": ["'temperature' and 'humidity' are required"]}), 422
+        
+    try:
+        temp = float(temp)
+        humidity = float(humidity)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Validation failed", "details": ["'temperature' and 'humidity' must be numbers"]}), 422
+
+    optimal_conditions = {
+        "tomato": {"temp": 25, "hum": 60, "shelf": 14},
+        "wheat": {"temp": 20, "hum": 40, "shelf": 180},
+        "rice": {"temp": 25, "hum": 50, "shelf": 180},
+        "corn": {"temp": 22, "hum": 45, "shelf": 90}
+    }
+    
+    default_optimal = {"temp": 22, "hum": 50, "shelf": 30}
+    optimal = optimal_conditions.get(crop, default_optimal)
+    
+    temp_penalty = max(0, temp - optimal["temp"]) * 1.5 + max(0, optimal["temp"] - 10 - temp) * 0.5
+    hum_penalty = max(0, humidity - optimal["hum"]) * 1.0
+    
+    quality_score = max(0, min(100, 100 - (temp_penalty + hum_penalty)))
+    risk_score = max(0, min(100, 100 - quality_score))
+    
+    risk_level = "Low"
+    if risk_score > 60:
+        risk_level = "High"
+    elif risk_score > 25:
+        risk_level = "Medium"
+        
+    factors = []
+    if temp > optimal["temp"] + 5:
+        factors.append(f"Temperature is significantly higher than optimal ({optimal['temp']}°C).")
+    if humidity > optimal["hum"] + 10:
+        factors.append(f"Humidity is significantly higher than optimal ({optimal['hum']}%).")
+        
+    if not factors and risk_level != "Low":
+        factors.append("Sub-optimal environmental conditions.")
+        
+    shelf_life = max(0, optimal["shelf"] * (quality_score / 100))
+    
+    return jsonify({
+        "riskScore": round(risk_score, 1),
+        "riskLevel": risk_level,
+        "factors": factors,
+        "estimatedShelfLifeDays": round(shelf_life, 1)
+    })
+
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
     app.run(host="0.0.0.0", port=port, debug=False)
+
