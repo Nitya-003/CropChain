@@ -1,6 +1,7 @@
 import os
 import io
 import base64
+import hmac
 import numpy as np
 import joblib
 from functools import wraps
@@ -24,14 +25,23 @@ limiter = Limiter(
 )
 
 # ── API key authentication ─────────────────────────────────────────────────
-API_KEY = os.environ.get("ML_API_KEY", "change-me-in-production")
+# Fail closed: never boot with a publicly-known default credential. The old
+# fallback ("change-me-in-production") was hardcoded in the repo, so anyone
+# could bypass the X-API-Key guard on an unconfigured deployment.
+API_KEY = os.environ.get("ML_API_KEY")
+if not API_KEY:
+    raise RuntimeError(
+        "ML_API_KEY environment variable is required to start the ML service. "
+        "Set it to a strong random secret (openssl rand -hex 32) and make sure "
+        "it matches ML_API_KEY configured for the CropChain backend."
+    )
 
 
 def require_api_key(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         api_key = request.headers.get("X-API-Key")
-        if not api_key or api_key != API_KEY:
+        if not api_key or not hmac.compare_digest(api_key, API_KEY):
             return jsonify({"error": "Unauthorized"}), 401
         return f(*args, **kwargs)
     return decorated
