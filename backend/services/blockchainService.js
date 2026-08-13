@@ -387,6 +387,53 @@ class BlockchainService {
   }
 
   /**
+   * Relay an EIP-2771 Gasless Meta-Transaction signed by a farmer/user.
+   * @param {Object} forwardRequest - EIP-712 forward request payload
+   * @param {string} signature - Off-chain user signature
+   */
+  async relayMetaTransaction(forwardRequest, signature) {
+    if (!this.isAvailable()) {
+      const simulatedHash = this.simulateHash({ forwardRequest, signature });
+      logger.info("[BlockchainService] Demo mode: Simulated meta-tx relay", { hash: simulatedHash });
+      return { success: true, transactionHash: simulatedHash, demoMode: true };
+    }
+
+    try {
+      const forwarderAddress = process.env.FORWARDER_ADDRESS || await this.contract.getTrustedForwarder();
+      const forwarderAbi = [
+        "function verify((address from, address to, uint256 value, uint256 gas, uint256 nonce, uint48 deadline, bytes data) req, bytes signature) external view returns (bool)",
+        "function execute((address from, address to, uint256 value, uint256 gas, uint256 nonce, uint48 deadline, bytes data) req, bytes signature) external payable"
+      ];
+
+      const signer = blockchainConfig.getSigner();
+      const forwarderContract = new ethers.Contract(forwarderAddress, forwarderAbi, signer);
+
+      const isValid = await forwarderContract.verify(forwardRequest, signature);
+      if (!isValid) {
+        throw new Error("Invalid meta-transaction EIP-712 signature or forwarder payload");
+      }
+
+      const receipt = await this._sendWithRetry(
+        () => forwarderContract.execute(forwardRequest, signature),
+        "relayMetaTransaction"
+      );
+
+      return {
+        success: true,
+        transactionHash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+        relayedFrom: forwardRequest.from,
+      };
+    } catch (error) {
+      logger.error("[BlockchainService] Meta-Tx Relay error:", error.message);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
    * Get contract instance for external use (e.g., event listeners)
    * @returns {ethers.Contract|null}
    */
