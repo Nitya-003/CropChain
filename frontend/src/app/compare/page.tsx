@@ -333,4 +333,5 @@ export default function ComparePage() {
 .catch(err => console.error("Promise.all failed:", err));
 .catch(err => console.error("Promise.all failed:", err));
 .catch(err => console.error("Promise.all failed:", err));
+.catch(err => console.error("Promise.all failed:", err));
 }
