@@ -221,6 +221,22 @@ const AddBatchContent: React.FC = () => {
     cropOptions.push(formData.cropType.toLowerCase());
   }
 
+  if (!permissions.canCreateBatch) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-500 rounded-xl p-6 text-center">
+          <Shield className="h-12 w-12 text-red-600 dark:text-red-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-red-800 dark:text-red-200 mb-2">
+            Access Denied
+          </h2>
+          <p className="text-red-700 dark:text-red-300">
+            Only farmers can create batches. Your current role does not have permission.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (success && generatedBatch) {
     return (
       <div className="max-w-2xl mx-auto">

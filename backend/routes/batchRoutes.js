@@ -11,10 +11,60 @@ const { batchLimiter } = require('../middleware/rateLimiters');
 
 const blockchainService = require('../services/blockchainService');
 
-// CREATE batch - requires farmer role and blockchain authorization
+/**
+ * @swagger
+ * /api/batches:
+ *   post:
+ *     summary: Create a new crop batch
+ *     tags: [Batches]
+ *     security:
+ *       - Bearer: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Batch'
+ *     responses:
+ *       201:
+ *         description: Crop batch created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ */
 router.post('/', batchLimiter, protect, authorizeRoles('farmer'), batchController.createBatch);
 
-// RELAY EIP-2771 Gasless Meta-Transaction - requires authenticated user
+/**
+ * @swagger
+ * /api/batches/relay-meta-tx:
+ *   post:
+ *     summary: Relay EIP-2771 gasless meta-transaction
+ *     tags: [Batches]
+ *     security:
+ *       - Bearer: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [forwardRequest, signature]
+ *             properties:
+ *               forwardRequest:
+ *                 type: object
+ *               signature:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Meta-transaction relayed successfully
+ *       400:
+ *         description: Invalid transaction payload or signature
+ */
 router.post('/relay-meta-tx', batchLimiter, protect, async (req, res) => {
   try {
     const { forwardRequest, signature } = req.body;
@@ -34,7 +84,25 @@ router.post('/relay-meta-tx', batchLimiter, protect, async (req, res) => {
   }
 });
 
-// GET public batch tracking data - no authentication required
+/**
+ * @swagger
+ * /api/batches/public/{batchId}:
+ *   get:
+ *     summary: Fetch public batch provenance tracking data
+ *     tags: [Batches]
+ *     parameters:
+ *       - in: path
+ *         name: batchId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Unique CropChain Batch ID
+ *     responses:
+ *       200:
+ *         description: Public batch tracking details retrieved
+ *       404:
+ *         description: Batch ID not found
+ */
 router.get("/public/:batchId", batchLimiter, async (req, res) => {
   try {
     const { batchId } = req.params;

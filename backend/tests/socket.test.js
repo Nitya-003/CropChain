@@ -389,16 +389,16 @@ describe("Socket.IO Service", () => {
 
       await placeBidHandler({ auctionId: "auction-1", bidAmount: 150 });
 
+      expect(mockUser.findByIdAndUpdate).toHaveBeenNthCalledWith(1, "user-b", {
+        $inc: { balance: -150 },
+      });
       expect(mockUser.findByIdAndUpdate).toHaveBeenNthCalledWith(
-        1,
+        2,
         expect.any(Object),
         {
           $inc: { balance: 100 },
         },
       );
-      expect(mockUser.findByIdAndUpdate).toHaveBeenNthCalledWith(2, "user-b", {
-        $inc: { balance: -150 },
-      });
       expect(mockAuction.findOneAndUpdate).toHaveBeenCalledWith(
         expect.any(Object),
         { $set: { currentHighestBid: 150, highestBidder: "user-b" } },
