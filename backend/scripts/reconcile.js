@@ -7,7 +7,7 @@ const { initialize } = require("../config/blockchain");
 const STAGE_NAMES = ["farmer", "mandi", "transport", "retailer"];
 
 function toNumber(value) {
-  if (value == null) return 0;
+  if (value === null) return 0;
   if (typeof value === "number") return value;
   if (typeof value === "bigint") return Number(value);
   if (typeof value.toNumber === "function") return value.toNumber();
@@ -135,7 +135,7 @@ async function reconcileRoles(contract) {
         }
 
         // Check verification and user account status
-        const isVerified = user.verification?.isVerified === true;
+        const isVerified = user.verification?.isVerified ;
         const isActive = user.status === "active";
         const shouldHaveRole = isVerified && isActive;
         const expectedRoleName = shouldHaveRole ? user.role : "none";

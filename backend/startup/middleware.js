@@ -126,7 +126,7 @@ module.exports = (app) => {
 
   app.use(cors(createCorsOptions(uniqueAllowedOrigins)));
 
-  const maxFileSize = parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024;
+  const maxFileSize = parseInt(process.env.MAX_FILE_SIZE, 10) || 10 * 1024 * 1024;
   app.use(express.json({ limit: maxFileSize }));
   app.use(express.urlencoded({ extended: true, limit: maxFileSize }));
 
