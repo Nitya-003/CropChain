@@ -722,4 +722,5 @@ export default function VerificationDashboardPage() {
 }
 
 .catch(err => console.error("Promise.all failed:", err));
+.catch(err => console.error("Promise.all failed:", err));
 }
