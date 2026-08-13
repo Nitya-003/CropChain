@@ -96,28 +96,56 @@ const contractABI = [
  * Async because the signer may come from an encrypted keystore / KMS / Vault.
  * @returns {Promise<boolean>} True when the worker has a connected contract
  */
-function initializeBlockchain() {
+async function initializeBlockchain() {
   if (initPromise) return initPromise;
 
-  if (!PROVIDER_URL || !CONTRACT_ADDRESS || !PRIVATE_KEY) {
-    logger.warn(
-      "[Worker] Blockchain not configured - running in simulation mode",
-    );
-    return false;
-  }
+  initPromise = (async () => {
+    const providerUrl =
+      process.env.PROVIDER_URL ||
+      process.env.INFURA_URL ||
+      process.env.SEPOLIA_URL;
+    const contractAddress = process.env.CONTRACT_ADDRESS;
+    const privateKey =
+      process.env.PRIVATE_KEY ||
+      process.env.ETH_PRIVATE_KEY ||
+      process.env.BLOCKCHAIN_PRIVATE_KEY;
 
-  try {
-    provider = new ethers.JsonRpcProvider(PROVIDER_URL);
-    wallet = new ethers.Wallet(PRIVATE_KEY, provider);
-    contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, wallet);
-    logger.info("✓ Worker blockchain connection initialized");
-    return true;
-  } catch (error) {
-    logger.error("[Worker] Failed to initialize blockchain:", {
-      error: error.message,
-    });
-    return false;
-  }
+    if (
+      !providerUrl ||
+      !contractAddress ||
+      (!privateKey && !process.env.ORACLE_KEYSTORE_PATH)
+    ) {
+      logger.warn(
+        "[Worker] Blockchain not configured - running in simulation mode",
+      );
+      return false;
+    }
+
+    try {
+      provider = new ethers.JsonRpcProvider(providerUrl);
+      wallet =
+        (await loadWallet(provider, "oracle").catch(() => null)) ||
+        (privateKey ? new ethers.Wallet(privateKey, provider) : null);
+
+      if (!wallet) {
+        logger.warn(
+          "[Worker] Blockchain wallet could not be loaded - running in simulation mode",
+        );
+        return false;
+      }
+
+      contract = new ethers.Contract(contractAddress, contractABI, wallet);
+      logger.info("✓ Worker blockchain connection initialized");
+      return true;
+    } catch (error) {
+      logger.error("[Worker] Failed to initialize blockchain:", {
+        error: error.message,
+      });
+      return false;
+    }
+  })();
+
+  return initPromise;
 }
 
 /**

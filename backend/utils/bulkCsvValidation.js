@@ -54,7 +54,7 @@ const buildHeaderError = (expected, actual) => {
 };
 
 const parseIntOrUndef = (value) => {
-  if (value === null || value === undefined) return undefined;
+  if (value === null || value === undefined) return;
   const s = String(value).trim();
   if (!s) return undefined;
   const n = parseInt(s, 10);
