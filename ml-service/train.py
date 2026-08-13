@@ -69,7 +69,7 @@ def train_and_save(model_path: str):
         X, y, test_size=0.2, random_state=42, stratify=y
     )
 
-    print(f"Training RandomForestClassifier on {len(X_train)} samples …")
+    print(f"Training RandomForestClassifier on {len(X_train)} samples ...")
     model = RandomForestClassifier(
         n_estimators=200,
         max_depth=None,
@@ -83,7 +83,7 @@ def train_and_save(model_path: str):
     print(classification_report(y_test, model.predict(X_test)))
 
     joblib.dump(model, model_path)
-    print(f"Model saved → {model_path}")
+    print(f"Model saved -> {model_path}")
     return model
 
 

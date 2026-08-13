@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
+    "@hookform/resolvers": "^5.7.1",
     "@radix-ui/react-dialog": "^1.1.16",
     "@radix-ui/react-slot": "^1.2.4",
     "@tanstack/react-query": "^5.90.20",
@@ -34,13 +35,15 @@
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-hook-form": "^7.84.0",
     "react-hot-toast": "^2.6.0",
     "react-i18next": "^16.5.4",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "socket.io-client": "^4.8.3",
     "tailwind-merge": "^3.6.0",
-    "workbox-window": "^7.4.1"
+    "workbox-window": "^7.4.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@playwright/browser-chromium": "^1.61.1",
