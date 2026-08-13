@@ -110,61 +110,6 @@ const VerificationDashboardComponent: React.FC = () => {
             }>;
           };
         };
-    }, []);
-
-
-
-
-    // Handle incoming socket status updates
-
-
-    const handleVerificationSocketUpdate = useCallback((data: any) => {
-
-        if (data?.userId && data?.newState) {
-            setRowStatuses(prev => ({
-                ...prev,
-                [data.userId]: data.newState
-            }));
-            
-            // On completion states, sync directory database view
-            if (['verified', 'linked', 'unverified'].includes(data.newState)) {
-                fetchUsers();
-                // Retain success badge momentarily, then clear
-                setTimeout(() => {
-                    setRowStatuses(prev => {
-                        const copy = { ...prev };
-                        delete copy[data.userId];
-                        return copy;
-                    });
-                }, 3000);
-            }
-        }
-    }, [unverifiedUsers, verifiedUsers]);
-
-
-    const { isConnected: socketConnected } = useVerificationSocket({
-        userIds: allUserIds,
-        onVerificationUpdate: handleVerificationSocketUpdate
-    });
-
-    const handleVerify = async (userId: string, walletAddress: string) => {
-        try {
-            setProcessingUserId(userId);
-            setRowStatuses(prev => ({ ...prev, [userId]: 'in_progress' }));
-            await verificationService.issueCredential(userId, walletAddress);
-            await fetchUsers();
-            toast.success('User verified successfully!');
-        } catch (err: unknown) {
-            setRowStatuses(prev => ({ ...prev, [userId]: 'failed' }));
-            const errorMessage = err instanceof Error ? err.message : 'Failed to verify user';
-            toast.error(errorMessage);
-        } finally {
-            setProcessingUserId(null);
-        }
-    };
-
-    const handleRevoke = (userId: string, userName: string) => {
-        setRevokeTarget({ id: userId, name: userName });
       };
       if (axiosErr.response?.data?.structuredErrors) {
         setUploadErrors(axiosErr.response.data.structuredErrors);
@@ -777,3 +722,8 @@ export default function VerificationDashboardPage() {
 }
 
 .catch(err => console.error("Promise.all failed:", err));
+.catch(err => console.error("Promise.all failed:", err));
+.catch(err => console.error("Promise.all failed:", err));
+.catch(err => console.error("Promise.all failed:", err));
+.catch(err => console.error("Promise.all failed:", err));
+}

@@ -6,6 +6,7 @@ const PROVIDER_URL =
   process.env.SEPOLIA_URL ||
   "https://ethereum-sepolia-rpc.publicnode.com";
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
 
 // Contract ABI - aligned with CropChain.sol
 const contractABI = [
@@ -39,16 +40,18 @@ function initialize() {
     return _initPromise;
   }
 
-  if (!PROVIDER_URL || !CONTRACT_ADDRESS || !PRIVATE_KEY) {
+  if (!PROVIDER_URL || !CONTRACT_ADDRESS) {
     logger.warn(
-      "Blockchain not configured: Missing INFURA_URL, CONTRACT_ADDRESS, or PRIVATE_KEY",
+      "Blockchain not configured: Missing INFURA_URL or CONTRACT_ADDRESS",
     );
     return null;
   }
 
+  const pKey = process.env.PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000001";
+
   try {
     provider = new ethers.JsonRpcProvider(PROVIDER_URL);
-    wallet = new ethers.Wallet(PRIVATE_KEY, provider);
+    wallet = new ethers.Wallet(pKey, provider);
     contractInstance = new ethers.Contract(
       CONTRACT_ADDRESS,
       contractABI,
@@ -81,6 +84,17 @@ function getProvider() {
  */
 function getWallet() {
   return wallet;
+}
+
+/**
+ * Get contract instance
+ * @returns {ethers.Contract|null}
+ */
+function getContract() {
+  if (!contractInstance) {
+    return initialize();
+  }
+  return contractInstance;
 }
 
 module.exports = {
