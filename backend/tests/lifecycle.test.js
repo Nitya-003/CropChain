@@ -131,6 +131,79 @@ describe("Crop Lifecycle API Endpoints", () => {
     expect(res.body.data.completionPercentage).toEqual(33);
   });
 
+  it("should reject a non-owner farmer advancing another farmer's batch to Growing", async () => {
+    const testBatch = {
+      batchId: "BATCH123",
+      farmerId: "FARM123",
+      lifecycle: {
+        currentStage: "Registered",
+        stageHistory: [
+          { stage: "Registered", timestamp: new Date(), updatedBy: "System" },
+        ],
+      },
+      save: jest.fn().mockResolvedValue(true),
+    };
+    mockBatch.findOne.mockResolvedValue(testBatch);
+    mockCurrentUser = { id: "FARM999", name: "Other Farmer", role: "farmer" };
+
+    const res = await request(app)
+      .patch("/api/batches/BATCH123/lifecycle")
+      .send({ stage: "Growing" });
+
+    expect(res.statusCode).toEqual(403);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain("not authorized");
+  });
+
+  it("should reject a non-owner farmer advancing another farmer's batch to Harvested", async () => {
+    const testBatch = {
+      batchId: "BATCH123",
+      farmerId: "FARM123",
+      lifecycle: {
+        currentStage: "Growing",
+        stageHistory: [
+          { stage: "Registered", timestamp: new Date(), updatedBy: "System" },
+          { stage: "Growing", timestamp: new Date(), updatedBy: "System" },
+        ],
+      },
+      save: jest.fn().mockResolvedValue(true),
+    };
+    mockBatch.findOne.mockResolvedValue(testBatch);
+    mockCurrentUser = { id: "FARM999", name: "Other Farmer", role: "farmer" };
+
+    const res = await request(app)
+      .patch("/api/batches/BATCH123/lifecycle")
+      .send({ stage: "Harvested" });
+
+    expect(res.statusCode).toEqual(403);
+    expect(res.body.success).toBe(false);
+  });
+
+  it("should allow the owner farmer to advance the batch to Harvested", async () => {
+    const testBatch = {
+      batchId: "BATCH123",
+      farmerId: "FARM123",
+      lifecycle: {
+        currentStage: "Growing",
+        stageHistory: [
+          { stage: "Registered", timestamp: new Date(), updatedBy: "System" },
+          { stage: "Growing", timestamp: new Date(), updatedBy: "System" },
+        ],
+      },
+      save: jest.fn().mockResolvedValue(true),
+    };
+    mockBatch.findOne.mockResolvedValue(testBatch);
+    mockCurrentUser = { id: "FARM123", name: "Test Farmer", role: "farmer" };
+
+    const res = await request(app)
+      .patch("/api/batches/BATCH123/lifecycle")
+      .send({ stage: "Harvested" });
+
+    expect(res.statusCode).toEqual(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.currentStage).toEqual("Harvested");
+  });
+
   it("should prevent duplicate transitions to the current stage", async () => {
     const testBatch = {
       batchId: "BATCH123",

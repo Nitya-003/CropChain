@@ -59,6 +59,41 @@ async function getCropRecommendation(params) {
   throw lastError;
 }
 
+async function diagnoseCropImage(payload) {
+  let lastError;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      let requestPayload = {};
+      let headers = { "X-API-Key": ML_API_KEY };
+
+      if (payload.base64Image) {
+        requestPayload = { image_base64: payload.base64Image };
+        headers["Content-Type"] = "application/json";
+      } else if (payload.imageBuffer) {
+        requestPayload = { image_base64: payload.imageBuffer.toString("base64") };
+        headers["Content-Type"] = "application/json";
+      } else {
+        requestPayload = payload;
+        headers["Content-Type"] = "application/json";
+      }
+
+      const response = await axios.post(`${ML_SERVICE_URL}/predict-image`, requestPayload, {
+        timeout: 15_000,
+        headers,
+      });
+      return response.data;
+    } catch (error) {
+      lastError = error;
+      if (attempt < MAX_RETRIES - 1) {
+        await new Promise((r) =>
+          setTimeout(r, BASE_DELAY * Math.pow(2, attempt)),
+        );
+      }
+    }
+  }
+  throw lastError;
+}
+
 async function isMlServiceHealthy() {
   try {
     const { data } = await axios.get(`${ML_SERVICE_URL}/health`, {
@@ -71,4 +106,5 @@ async function isMlServiceHealthy() {
   }
 }
 
-module.exports = { getCropRecommendation, isMlServiceHealthy };
+module.exports = { getCropRecommendation, diagnoseCropImage, isMlServiceHealthy };
+
