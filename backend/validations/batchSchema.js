@@ -12,7 +12,7 @@ const isValidCalendarDate = (value) => {
     if (typeof value !== 'string') return false;
     if (!ISO_DATE_RE.test(value)) return false;
     const parsed = new Date(value);
-    return !isNaN(parsed.getTime());
+    return !Number.isNaN(parsed.getTime());
 };
 
 const isoDateField = (label) =>
@@ -64,7 +64,7 @@ const updateBatchSchema = z.object({
     location: z.string().min(2).max(200),
     notes: z.string().max(500).optional(),
     timestamp: z.string().optional().default(() => new Date().toISOString())
-        .refine((date) => !isNaN(Date.parse(date)), 'Invalid date format')
+        .refine((date) => !Number.isNaN(Date.parse(date)), 'Invalid date format')
         .refine((date) => new Date(date) <= new Date(), 'Timestamp cannot be in the future'),
     blockchainHash: z.string().optional(),
 });
