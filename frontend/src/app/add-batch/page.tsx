@@ -7,6 +7,8 @@ import toast from "react-hot-toast";
 import { realCropBatchService } from "../../services/realCropBatchService";
 import { useRbac } from "../../hooks/useRbac";
 import { sanitizeObject } from "../../lib/sanitize";
+import { batchFormSchema } from "../../lib/schemas";
+import { InlineAlert } from "../../components/InlineAlert";
 import { ethers } from "ethers";
 import { getContract, getSigner, hasMetaMask } from "../../utils/web3";
 
@@ -33,6 +35,7 @@ const AddBatchContent: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [generatedBatch, setGeneratedBatch] = useState<any>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [formAlert, setFormAlert] = useState<{ title?: string; message?: string; details?: string[] } | null>(null);
 
   // Set crop type from query param if available
   useEffect(() => {
@@ -47,93 +50,37 @@ const AddBatchContent: React.FC = () => {
   // Get today's date for max date constraint
   const today = new Date().toISOString().split("T")[0];
 
-  // RBAC Protection - Only farmers can create batches
-  if (!permissions.canCreateBatch) {
-    return (
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8">
-          <div className="text-center">
-            <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
-              Access Denied
-            </h2>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Only farmers can create batches. Your current role is:{" "}
-              <strong>{getRoleDisplayName()}</strong>
-            </p>
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
-                <div className="text-left">
-                  <p className="text-sm text-yellow-800 dark:text-yellow-200 font-semibold">
-                    Role-based Access Control
-                  </p>
-                  <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                    This action requires the <strong>Farmer</strong> role.
-                    Please contact an administrator if you believe this is an
-                    error.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={() => router.push("/")}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
-            >
-              Return to Dashboard
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Single source of truth for field-level validation. Returns an error
-  // message if the given field's value is invalid, or an empty string
-  // if it's valid. Used by both full-form submission and blur checks,
-  // so the two can never disagree with each other.
   const validateField = (name: string, data: typeof formData): string => {
-    switch (name) {
-      case "farmerName":
-        return !data.farmerName.trim() ? "Farmer name is required" : "";
-      case "farmerAddress":
-        return !data.farmerAddress.trim() ? "Farmer address is required" : "";
-      case "cropType":
-        return !data.cropType.trim() ? "Please select a crop type" : "";
-      case "quantity":
-        return !data.quantity || Number(data.quantity) <= 0
-          ? "Quantity must be greater than 0"
-          : "";
-      case "harvestDate":
-        if (!data.harvestDate) return "Harvest date is required";
-        if (new Date(data.harvestDate) > new Date())
-          return "Harvest date cannot be in the future";
-        return "";
-      case "origin":
-        return !data.origin.trim() ? "Origin is required" : "";
-      default:
-        return "";
+    const result = batchFormSchema.safeParse(data);
+    if (!result.success) {
+      const issue = result.error.issues.find((i) => i.path[0] === name);
+      return issue ? issue.message : "";
     }
+    return "";
   };
 
   const validateForm = (): boolean => {
-    const fieldsToCheck = [
-      "farmerName",
-      "farmerAddress",
-      "cropType",
-      "quantity",
-      "harvestDate",
-      "origin",
-    ];
-    const errors: Record<string, string> = {};
-
-    fieldsToCheck.forEach((name) => {
-      const message = validateField(name, formData);
-      if (message) errors[name] = message;
-    });
-
-    setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
+    const result = batchFormSchema.safeParse(formData);
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      const detailsList: string[] = [];
+      result.error.issues.forEach((issue) => {
+        if (issue.path[0]) {
+          errors[String(issue.path[0])] = issue.message;
+          detailsList.push(issue.message);
+        }
+      });
+      setFieldErrors(errors);
+      setFormAlert({
+        title: "Validation Error",
+        message: "Please correct the following errors before submitting:",
+        details: detailsList,
+      });
+      return false;
+    }
+    setFieldErrors({});
+    setFormAlert(null);
+    return true;
   };
 
   const handleBlur = (
@@ -274,6 +221,22 @@ const AddBatchContent: React.FC = () => {
     cropOptions.push(formData.cropType.toLowerCase());
   }
 
+  if (!permissions.canCreateBatch) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-500 rounded-xl p-6 text-center">
+          <Shield className="h-12 w-12 text-red-600 dark:text-red-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-red-800 dark:text-red-200 mb-2">
+            Access Denied
+          </h2>
+          <p className="text-red-700 dark:text-red-300">
+            Only farmers can create batches. Your current role does not have permission.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (success && generatedBatch) {
     return (
       <div className="max-w-2xl mx-auto">
@@ -311,6 +274,16 @@ const AddBatchContent: React.FC = () => {
     <div className="max-w-4xl mx-auto">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8">
         <form onSubmit={handleSubmit} className="space-y-6 relative">
+          {formAlert && (
+            <InlineAlert
+              variant="error"
+              title={formAlert.title}
+              message={formAlert.message}
+              details={formAlert.details}
+              onDismiss={() => setFormAlert(null)}
+              className="mb-6"
+            />
+          )}
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 block">
