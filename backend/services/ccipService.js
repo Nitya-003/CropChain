@@ -3,6 +3,7 @@ const { loadWallet } = require("../utils/keystore");
 
 const SENDER_ABI = [
   "function syncRetailerProof((bytes32 batchId,string actorName,string location,uint64 deliveredAt,string notes,address farmer,uint256 quantity,string ipfsCID) payload) external returns (bytes32)",
+  "function syncBatchAttestation((bytes32 batchId,bytes32 cropTypeHash,string ipfsCID,uint256 quantity,address farmer,string originLocation,uint8 qualityGrade,uint64 timestamp) payload) external returns (bytes32)",
   "function destinationChainSelector() view returns (uint64)",
   "function paymasterCredits(address farmer) view returns (uint256)",
 ];
@@ -119,6 +120,59 @@ class CCIPService {
         }
       })
       .find((parsed) => parsed && parsed.name === "RetailerProofDispatched");
+
+    return {
+      txHash: tx.hash,
+      messageId: messageEvent ? messageEvent.args.messageId : "",
+      destinationChain: this.destinationLabel,
+    };
+  }
+
+  async dispatchBatchAttestation(batch, qualityGrade = 1) {
+    if (!this.enabled) {
+      throw new Error("CCIP service is not configured");
+    }
+
+    const farmerWallet = (
+      batch.farmerWalletAddress ||
+      process.env.CCIP_DEFAULT_FARMER_WALLET ||
+      ""
+    )
+      .trim()
+      .toLowerCase();
+
+    if (!ethers.isAddress(farmerWallet)) {
+      throw new Error("Missing valid farmer wallet for CCIP paymaster debit");
+    }
+
+    const payload = {
+      batchId: toBatchIdBytes32(batch.batchId),
+      cropTypeHash: ethers.id(batch.cropType || "GENERIC_CROP"),
+      ipfsCID: batch.ipfsCID || "",
+      quantity: BigInt(batch.quantity || 0),
+      farmer: farmerWallet,
+      originLocation: batch.location || batch.origin || "Unknown",
+      qualityGrade: Number(qualityGrade || 1),
+      timestamp: Math.floor(Date.now() / 1000),
+    };
+
+    const credit = await this.senderContract.paymasterCredits(farmerWallet);
+    if (credit <= 0n) {
+      throw new Error(`No paymaster credit for farmer ${farmerWallet}`);
+    }
+
+    const tx = await this.senderContract.syncBatchAttestation(payload);
+    const receipt = await tx.wait();
+
+    const messageEvent = receipt.logs
+      .map((log) => {
+        try {
+          return this.senderContract.interface.parseLog(log);
+        } catch (_) {
+          return null;
+        }
+      })
+      .find((parsed) => parsed && parsed.name === "BatchAttestationDispatched");
 
     return {
       txHash: tx.hash,
