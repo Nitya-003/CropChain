@@ -78,7 +78,7 @@ export default function MarketplaceFilters({
             <option value="">All Categories</option>
             {cropOptions.filter(Boolean).map((c) => (
               <option key={c} value={c}>
-                {String(c).charAt(0).toUpperCase() + String(c).slice(1)}
+                {String(c)[0].toUpperCase() + String(c).slice(1)}
               </option>
             ))}
           </select>
