@@ -147,11 +147,16 @@ app.use("/api/ai", aiLimiter, aiRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/logistics", generalLimiter, logisticsRoutes);
 
+const indexerRoutes = require("./routes/indexerRoutes");
+app.use("/api/v1/indexer", generalLimiter, indexerRoutes);
+app.use("/api/indexer", generalLimiter, indexerRoutes);
+
 // Dynamic NFT Routes
 app.use("/api/nft", generalLimiter, nftRoutes);
 
 // IoT Data Ingestion
 app.use("/api/iot", generalLimiter, iotRoutes);
+
 
 // 404 handler
 app.use("*", (req, res) => {

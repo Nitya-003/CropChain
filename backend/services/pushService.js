@@ -1,4 +1,9 @@
-const webpush = require("web-push");
+let webpush;
+try {
+  webpush = require("web-push");
+} catch (e) {
+  webpush = null;
+}
 const logger = require("../utils/logger");
 
 // Initialize VAPID keys (Generate or fallback to dev keypair)
@@ -7,11 +12,18 @@ const vapidKeys = {
   privateKey: process.env.VAPID_PRIVATE_KEY || "eUivxIkv69yViEuiBIa-Ib9-Skv6yViEuiBIa",
 };
 
-webpush.setVapidDetails(
-  "mailto:support@cropchain.com",
-  vapidKeys.publicKey,
-  vapidKeys.privateKey
-);
+if (webpush) {
+  try {
+    webpush.setVapidDetails(
+      process.env.VAPID_SUBJECT || "mailto:support@cropchain.io",
+      vapidKeys.publicKey,
+      vapidKeys.privateKey
+    );
+  } catch (err) {
+    logger.warn("Failed to set VAPID details:", err.message);
+  }
+}
+
 
 // In-memory subscriptions store (Production uses MongoDB/Redis)
 const pushSubscriptions = new Map();

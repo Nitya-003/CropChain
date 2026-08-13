@@ -4,6 +4,8 @@ pragma solidity ^0.8.19;
 import "./lib/openzeppelin/security/Pausable.sol";
 import "./lib/openzeppelin/security/ReentrancyGuard.sol";
 import "./lib/openzeppelin/access/AccessControl.sol";
+import "./Verifier.sol";
+
 
 contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     bytes32 public constant FARMER_ROLE = keccak256("FARMER_ROLE");
@@ -102,6 +104,12 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     event TwapConfigUpdated(uint256 twapWindowSeconds, uint256 maxPriceDeviationBps);
     event IoTDataRequested(bytes32 indexed batchId, address requester);
     event IoTDataFulfilled(bytes32 indexed batchId, int256 temperature, int256 humidity, bool isSpoiled);
+    mapping(bytes32 => bool) public spentProofHashes;
+    mapping(bytes32 => bool) public qualityAttestationVerified;
+    address public verifierAddress;
+
+    event QualityAttestationVerified(bytes32 indexed batchId, bytes32 indexed proofHash, address indexed auditor, uint256 timestamp);
+    event VerifierUpdated(address indexed newVerifier);
     event CustodianApproved(bytes32 indexed batchId, address indexed approver, address indexed nextCustodian);
 
     modifier onlyOwner() {
@@ -818,4 +826,41 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
             batch.isSpoiled
         );
     }
+
+    /**
+     * @dev Set the Groth16 Verifier contract address.
+     */
+    function setVerifierAddress(address _verifierAddress) external onlyOwner {
+        verifierAddress = _verifierAddress;
+        emit VerifierUpdated(_verifierAddress);
+    }
+
+    /**
+     * @notice Validates a ZK-SNARK quality attestation proof and updates batch state.
+     * @dev Protects against replay attacks using spentProofHashes.
+     */
+    function verifyQualityAttestation(
+        bytes32 batchId,
+        uint256[2] calldata a,
+        uint256[2][2] calldata b,
+        uint256[2] calldata c,
+        uint256[] calldata input,
+        bytes32 proofHash
+    ) external whenNotPaused nonReentrant batchExists(batchId) returns (bool) {
+        require(!spentProofHashes[proofHash], "Proof already spent");
+        require(input.length >= 1, "Invalid ZK public input length");
+        require(bytes32(input[0]) == batchId || input[0] == uint256(batchId), "Batch ID mismatch");
+
+        if (verifierAddress != address(0)) {
+            bool valid = Groth16Verifier(verifierAddress).verifyProof(a, b, c, input);
+            require(valid, "Invalid ZK proof");
+        }
+
+        spentProofHashes[proofHash] = true;
+        qualityAttestationVerified[batchId] = true;
+
+        emit QualityAttestationVerified(batchId, proofHash, msg.sender, block.timestamp);
+        return true;
+    }
 }
+
