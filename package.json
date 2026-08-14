@@ -29,5 +29,8 @@
     "lint-staged": "^17.3.0",
     "markdownlint-cli": "^0.49.1",
     "prettier": "^3.9.6"
+  },
+  "overrides": {
+    "argparse": "1.0.10"
   }
 }
