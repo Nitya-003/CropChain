@@ -2,6 +2,7 @@ import os
 import io
 import base64
 import hmac
+import math
 import numpy as np
 import joblib
 from functools import wraps
@@ -88,6 +89,33 @@ def validate_input(data):
     return errors
 
 
+YIELD_NUMERIC_FIELDS = ("area_hectares", "avg_temperature", "expected_rainfall")
+
+
+def parse_yield_numeric(body):
+    """Parse and validate the numeric fields for /predict-yield.
+
+    Missing fields are allowed (the handler applies sensible defaults); only
+    values that are present but non-numeric or NaN/inf are rejected. Returns
+    (values, errors) where `values` maps field -> parsed float for the valid
+    present fields.
+    """
+    values, errors = {}, []
+    for field in YIELD_NUMERIC_FIELDS:
+        if field not in body or body[field] is None:
+            continue
+        try:
+            val = float(body[field])
+        except (TypeError, ValueError):
+            errors.append(f"'{field}' must be a number")
+            continue
+        if math.isnan(val) or math.isinf(val):
+            errors.append(f"'{field}' must be a finite number")
+            continue
+        values[field] = val
+    return values, errors
+
+
 def analyze_crop_image(pil_image):
     """
     Computer Vision Analysis for crop leaf health & quality assessment.
@@ -163,10 +191,14 @@ def predict_yield():
     if not body:
         return jsonify({"error": "Request body must be JSON"}), 400
 
+    parsed, validation_errors = parse_yield_numeric(body)
+    if validation_errors:
+        return jsonify({"error": "Validation failed", "details": validation_errors}), 422
+
     crop = body.get("crop", "unknown")
-    area = float(body.get("area_hectares", 0))
-    temp = float(body.get("avg_temperature", 25))
-    rainfall = float(body.get("expected_rainfall", 100))
+    area = parsed.get("area_hectares", 0)
+    temp = parsed.get("avg_temperature", 25)
+    rainfall = parsed.get("expected_rainfall", 100)
 
     if area <= 0:
         return jsonify({"error": "area_hectares must be > 0"}), 422
