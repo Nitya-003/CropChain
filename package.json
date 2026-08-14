@@ -31,6 +31,7 @@
     "prettier": "^3.9.6"
   },
   "overrides": {
-    "argparse": "1.0.10"
+    "argparse": "1.0.10",
+    "minimatch": "9.0.5"
   }
 }
