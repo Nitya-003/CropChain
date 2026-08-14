@@ -275,22 +275,17 @@ describe("Socket.IO Service", () => {
         highestBidder: null,
       };
 
-      let findUserCallCount = 0;
       mockUser.findById.mockImplementation((userId) => {
-        findUserCallCount += 1;
-        if (userId === "user-a" && findUserCallCount % 2 === 1) {
-          return Promise.resolve({
-            _id: "user-a",
-            name: "User A",
-            balance: balances["user-a"],
-          });
-        }
-
-        return {
-          select: jest.fn().mockReturnValue({
-            lean: jest.fn().mockResolvedValue({ name: "User A" }),
-          }),
+        const userObj = {
+          _id: userId,
+          name: userId === "user-a" ? "User A" : "User " + userId,
+          balance: balances[userId] ?? 1000,
         };
+        const query = Promise.resolve(userObj);
+        query.select = jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue(userObj),
+        });
+        return query;
       });
       mockUser.findByIdAndUpdate.mockImplementation((userId, update) => {
         balances[userId] += update.$inc.balance;
@@ -347,21 +342,17 @@ describe("Socket.IO Service", () => {
 
     test("refunds the previous highest bidder and charges the full bid for a normal outbid", async () => {
       mockSocket.user = { id: "user-b", name: "User B" };
-      let findUserCallCount2 = 0;
       mockUser.findById.mockImplementation((userId) => {
-        findUserCallCount2 += 1;
-        if (findUserCallCount2 === 1) {
-          return Promise.resolve({
-            _id: "user-b",
-            name: "User B",
-            balance: 1000,
-          });
-        }
-        return {
-          select: jest.fn().mockReturnValue({
-            lean: jest.fn().mockResolvedValue({ name: "User B" }),
-          }),
+        const userObj = {
+          _id: userId,
+          name: userId === "user-b" ? "User B" : "User " + userId,
+          balance: 1000,
         };
+        const query = Promise.resolve(userObj);
+        query.select = jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue(userObj),
+        });
+        return query;
       });
       mockUser.findByIdAndUpdate.mockImplementation((userId, update) => {
         return Promise.resolve({});
@@ -534,7 +525,14 @@ describe("Socket.IO Service", () => {
           highestBidder: null,
         });
       });
-      mockUser.findById.mockResolvedValue({ _id: "user-a", balance: 1000 });
+      mockUser.findById.mockImplementation((userId) => {
+        const userObj = { _id: userId, name: "User " + userId, balance: 1000 };
+        const query = Promise.resolve(userObj);
+        query.select = jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue(userObj),
+        });
+        return query;
+      });
       mockAuction.findOneAndUpdate.mockResolvedValue({
         _id: "auction-1",
         currentHighestBid: 50,
