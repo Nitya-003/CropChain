@@ -24,4 +24,3 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     syncQueue.getPendingCount().then(setPendingCount);
-    .catch(err => console.error(err))

@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const { z } = require('zod');
 const apiResponse = require('../utils/apiResponse');
 const { verifyMessage } = require('ethers');
+const getSaltRounds = () => parseInt(process.env.BCRYPT_ROUNDS, 10) || (process.env.NODE_ENV === 'test' ? 4 : 12);
 const { VALID_ROLES, ROLES } = require('../constants/permissions');
 const logger = require('../utils/logger');
 require('dotenv').config();
@@ -163,7 +164,7 @@ const registerUser = async (req, res) => {
     }
 
     // Hash password with higher cost factor
-    const salt = await bcrypt.genSalt(12);
+    const salt = await bcrypt.genSalt(getSaltRounds());
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Create user
@@ -317,7 +318,7 @@ const updateProfile = async (req, res) => {
     }
 
     if (password) {
-      const salt = await bcrypt.genSalt(12);
+      const salt = await bcrypt.genSalt(getSaltRounds());
       user.password = await bcrypt.hash(password, salt);
       user.tokenVersion = (user.tokenVersion || 0) + 1;
     }
@@ -890,7 +891,7 @@ const resetPassword = async (req, res) => {
             );
         }
 
-        const salt = await bcrypt.genSalt(12);
+        const salt = await bcrypt.genSalt(getSaltRounds());
         user.password = await bcrypt.hash(passwordResult.data, salt);
         user.resetPasswordToken = undefined;
         user.resetPasswordExpire = undefined;
@@ -1001,7 +1002,7 @@ const setFallbackPassword = async (req, res) => {
         }
 
         // Hash password with higher cost factor
-        const salt = await bcrypt.genSalt(12);
+        const salt = await bcrypt.genSalt(getSaltRounds());
         const hashedPassword = await bcrypt.hash(passwordResult.data, salt);
 
         user.password = hashedPassword;

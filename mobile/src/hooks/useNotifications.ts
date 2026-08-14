@@ -11,4 +11,3 @@ export function useNotifications() {
 
   useEffect(() => {
     registerForPushNotifications().then(setExpoPushToken);
-    .catch(err => console.error(err))

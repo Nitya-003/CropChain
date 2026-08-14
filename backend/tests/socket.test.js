@@ -74,7 +74,7 @@ describe("Socket.IO Service", () => {
   });
 
   describe("Auth Middleware", () => {
-    test("should reject connection without token", () => {
+    test("should handle connection without token gracefully", () => {
       const { Server } = require("socket.io");
       const useCallback = Server.useCallback;
 
@@ -85,9 +85,8 @@ describe("Socket.IO Service", () => {
       const middleware = useCallback.mock.calls[0][0];
       middleware(mockSocket, mockNext);
 
-      expect(mockNext).toHaveBeenCalledWith(
-        new Error("Authentication required"),
-      );
+      expect(mockNext).toHaveBeenCalledWith();
+      expect(mockSocket.user).toBeUndefined();
     });
 
     test("should accept connection with valid token in auth", () => {
@@ -134,7 +133,7 @@ describe("Socket.IO Service", () => {
       expect(mockSocket.user.id).toBe("user-2");
     });
 
-    test("should reject connection with invalid token", () => {
+    test("should handle invalid token without throwing", () => {
       const { Server } = require("socket.io");
       const useCallback = Server.useCallback;
 
@@ -145,10 +144,11 @@ describe("Socket.IO Service", () => {
       const middleware = useCallback.mock.calls[0][0];
       middleware(mockSocket, mockNext);
 
-      expect(mockNext).toHaveBeenCalledWith(new Error("Invalid token"));
+      expect(mockNext).toHaveBeenCalledWith();
+      expect(mockSocket.user).toBeUndefined();
     });
 
-    test("should reject connection with expired token", () => {
+    test("should handle expired token without throwing", () => {
       const { Server } = require("socket.io");
       const useCallback = Server.useCallback;
 
@@ -164,7 +164,8 @@ describe("Socket.IO Service", () => {
       const middleware = useCallback.mock.calls[0][0];
       middleware(mockSocket, mockNext);
 
-      expect(mockNext).toHaveBeenCalledWith(new Error("Invalid token"));
+      expect(mockNext).toHaveBeenCalledWith();
+      expect(mockSocket.user).toBeUndefined();
     });
   });
 

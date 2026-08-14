@@ -1,7 +1,12 @@
----
 extends: default
 
+ignore: |
+  node_modules/
+  **/node_modules/
+  .git/
+
 rules:
+  new-lines: disable
   line-length:
     max: 120
     level: warning

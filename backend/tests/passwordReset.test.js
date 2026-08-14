@@ -122,13 +122,15 @@ const app = require("../server");
 
 describe("Password Reset Endpoints", () => {
   let testUser;
+  let hashedPassword;
+
+  beforeAll(async () => {
+    hashedPassword = await bcrypt.hash("Password123!", 4);
+  });
 
   beforeEach(async () => {
     jest.clearAllMocks();
     inMemoryUsers.length = 0;
-
-    const salt = await bcrypt.genSalt(12);
-    const hashedPassword = await bcrypt.hash("Password123!", salt);
 
     testUser = await mockUser.create({
       name: "Test User",

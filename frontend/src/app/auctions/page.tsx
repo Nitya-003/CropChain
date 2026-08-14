@@ -256,9 +256,13 @@ export default function AuctionsPage() {
       toast.error("Amount must be positive");
       return;
     }
+    if (!user?.id) {
+      toast.error("User session not found");
+      return;
+    }
     setTopUpLoading(true);
     try {
-      await addFunds(topUpAmount);
+      await addFunds(topUpAmount, user.id);
     } catch (err) {
       // toast notification handled in AuthContext
     } finally {

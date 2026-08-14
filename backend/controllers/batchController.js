@@ -712,4 +712,3 @@ exports.getIoTData = async (req, res) => {
       );
   }
 };
-

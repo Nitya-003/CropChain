@@ -12,6 +12,7 @@
     "deploy:sepolia": "npx hardhat run scripts/deploy.js --network sepolia",
     "deploy:localhost": "npx hardhat run scripts/deploy.js --network localhost"
   },
+  "license": "Apache-2.0",
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.2",
     "@nomicfoundation/hardhat-ethers": "^3.0.4",

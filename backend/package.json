@@ -20,7 +20,7 @@
     "ethereum"
   ],
   "author": "CropChain Team",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "dependencies": {
     "@aws-sdk/client-kms": "^3.700.0",
     "@aws-sdk/client-secrets-manager": "^3.1097.0",
@@ -52,7 +52,6 @@
     "socket.io": "^4.8.3",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0",
-    "web-push": "^3.6.7",
     "winston": "^3.19.0",
     "zod": "^4.3.6"
   },
@@ -62,7 +61,8 @@
     "mongodb-memory-server": "^10.4.1",
     "nodemon": "^3.1.14",
     "socket.io-client": "^4.8.3",
-    "supertest": "^6.3.4"
+    "supertest": "^6.3.4",
+    "web-push": "^3.6.7"
   },
   "engines": {
     "node": ">=18.18.0"

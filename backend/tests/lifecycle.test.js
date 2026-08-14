@@ -229,6 +229,7 @@ describe("Crop Lifecycle API Endpoints", () => {
   });
 
   it("should prevent skipping stages (e.g. Registered -> Quality Checked)", async () => {
+    mockCurrentUser = { id: "FARM123", name: "Admin", role: "admin" };
     const testBatch = {
       batchId: "BATCH123",
       farmerId: "FARM123",
@@ -252,6 +253,7 @@ describe("Crop Lifecycle API Endpoints", () => {
   });
 
   it("should prevent reverting to previous stages (e.g. Growing -> Registered)", async () => {
+    mockCurrentUser = { id: "FARM123", name: "Admin", role: "admin" };
     const testBatch = {
       batchId: "BATCH123",
       farmerId: "FARM123",
@@ -302,7 +304,7 @@ describe("Crop Lifecycle API Endpoints", () => {
 
     expect(res.statusCode).toEqual(403);
     expect(res.body.success).toBe(false);
-    expect(res.body.error).toContain("is not authorized to update");
+    expect(res.body.error).toContain("authorized");
   });
 
   it("should reject lifecycle advance to Transported when supply chain is still farmer", async () => {

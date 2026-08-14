@@ -58,7 +58,7 @@ const LanguageSwitcher: React.FC = () => {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen]);
 
-  const handleButtonKeyDown = (event: React.KeyboardEvent) => {
+  const handleButtonKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
     if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       setIsOpen(true);
@@ -66,7 +66,7 @@ const LanguageSwitcher: React.FC = () => {
   };
 
   const handleOptionKeyDown = (
-    event: React.KeyboardEvent,
+    event: React.KeyboardEvent<HTMLButtonElement>,
     index: number
   ) => {
     const options = containerRef.current?.querySelectorAll<HTMLButtonElement>(

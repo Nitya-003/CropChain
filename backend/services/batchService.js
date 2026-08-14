@@ -463,6 +463,8 @@ class BatchService {
       };
 
       if (
+        previousLocation &&
+        updateData.location &&
         previousLocation.toLowerCase().trim() !== updateData.location.toLowerCase().trim() &&
         ["transport", "retailer"].includes(normalizedStage)
       ) {
@@ -860,4 +862,3 @@ class BatchService {
 
 // Export singleton instance
 module.exports = new BatchService();
-

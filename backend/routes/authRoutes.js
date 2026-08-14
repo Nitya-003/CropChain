@@ -96,4 +96,3 @@ router.put('/profile', protect, updateProfile);
 router.delete('/profile', protect, deleteAccount);
 
 module.exports = router;
-

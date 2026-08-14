@@ -67,6 +67,12 @@ jest.mock("mongoose", () => {
 
   const mMongoose = {
     Schema: Schema,
+    Types: {
+      ObjectId: jest.fn((id) => id || "mock_object_id"),
+      Decimal128: {
+        fromString: (str) => ({ toString: () => String(str), _bsontype: "Decimal128" }),
+      },
+    },
     model: jest.fn((name) => {
       if (name === "Counter") return mockCounter;
       if (name === "Batch") return mockBatch;

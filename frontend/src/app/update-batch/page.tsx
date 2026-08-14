@@ -314,54 +314,30 @@ setTimeout(() => {
     }));
   };
 
-  const getStageIndex = (stage: string) => {const formatLastUpdated = (batchData: any) => {
-  if (!batchData?.updates?.length) return "Not Available";
-
-  const latestUpdate = batchData.updates.reduce((latest: any, current: any) =>
-    new Date(current.timestamp) > new Date(latest.timestamp) ? current : latest
-  );
-
-  return new Date(latestUpdate.timestamp).toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-};
-    const stagesList = ['farmer', 'mandi', 'transport', 'retailer'];
   const getStageIndex = (stage: string) => {
     const stagesList = ["farmer", "mandi", "transport", "retailer"];
     const idx = stagesList.indexOf(stage?.toLowerCase());
     return idx >= 0 ? idx : 0;
   };
+
   const formatLastUpdated = (batchData: any) => {
-  if (!batchData?.updates?.length) return "Not Available";
+    if (!batchData?.updates?.length) return "Not Available";
 
-  const latestUpdate = batchData.updates.reduce((latest: any, current: any) =>
-    new Date(current.timestamp) > new Date(latest.timestamp)
-      ? current
-      : latest
-  );
+    const latestUpdate = batchData.updates.reduce((latest: any, current: any) =>
+      new Date(current.timestamp) > new Date(latest.timestamp)
+        ? current
+        : latest
+    );
 
-  return new Date(latestUpdate.timestamp).toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-};
-const handleCopyTransactionHash = async () => {
-  if (!transactionDetails) return;
+    return new Date(latestUpdate.timestamp).toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
 
-  try {
-    await navigator.clipboard.writeText(transactionDetails.hash);
-    toast.success("Transaction hash copied!");
-  } catch {
-    toast.error("Failed to copy transaction hash.");
-  }
-};
  const handleCopyBatchId = async () => {
   if (!batch?.batchId) return;
 
@@ -849,20 +825,19 @@ setTimeout(() => {
                   rows={3}
                   maxLength={500}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                  placeholder="Additional information about this update..."
-                /><p
-  className={`mt-2 text-sm text-right ${
-    updateData.notes.length >= 500
-      ? "text-red-600 dark:text-red-400 font-semibold"
-      : updateData.notes.length >= 450
-      ? "text-orange-500 dark:text-orange-400"
-      : "text-gray-500 dark:text-gray-400"
-  }`}
->
-  {updateData.notes.length}/500
-</p>
                   placeholder={t("updateBatch.notesPlaceholder")}
                 />
+                <p
+                  className={`mt-2 text-sm text-right ${
+                    updateData.notes.length >= 500
+                      ? "text-red-600 dark:text-red-400 font-semibold"
+                      : updateData.notes.length >= 450
+                      ? "text-orange-500 dark:text-orange-400"
+                      : "text-gray-500 dark:text-gray-400"
+                  }`}
+                >
+                  {updateData.notes.length}/500
+                </p>
               </div>
 
               <div className="flex justify-center">

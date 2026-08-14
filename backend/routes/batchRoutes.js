@@ -219,4 +219,3 @@ router.put('/:batchId', batchLimiter, protect, authorizeBatchOwner, authorizeSta
 router.post('/:batchId/recall', batchLimiter, protect, adminOnly, batchController.recallBatch);
 
 module.exports = router;
-

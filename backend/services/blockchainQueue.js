@@ -385,4 +385,3 @@ module.exports = {
   pauseQueue,
   resumeQueue,
 };
-
