@@ -214,7 +214,7 @@ const STAGES = ["farmer", "mandi", "transport", "retailer", "consumer"];
 
 ### ❌ DON'T: Ignore Validation Errors
 
-```
+```text
 ❌ CRITICAL ERROR: Stage mismatch detected!
 Expected: [farmer, mandi, transport, retailer]
 Got: [farmer, mandi, transport, retailer, consumer]

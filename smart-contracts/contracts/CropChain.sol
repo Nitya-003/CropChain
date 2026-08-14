@@ -851,13 +851,13 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         require(input.length >= 1, "Invalid ZK public input length");
         require(bytes32(input[0]) == batchId || input[0] == uint256(batchId), "Batch ID mismatch");
 
+        spentProofHashes[proofHash] = true;
+        qualityAttestationVerified[batchId] = true;
+
         if (verifierAddress != address(0)) {
             bool valid = Groth16Verifier(verifierAddress).verifyProof(a, b, c, input);
             require(valid, "Invalid ZK proof");
         }
-
-        spentProofHashes[proofHash] = true;
-        qualityAttestationVerified[batchId] = true;
 
         emit QualityAttestationVerified(batchId, proofHash, msg.sender, block.timestamp);
         return true;

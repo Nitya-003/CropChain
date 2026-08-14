@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { MongoMemoryReplSet } = require("mongodb-memory-server");
+const { toNumber } = require("../utils/decimalHelpers");
 
 const mockCreateInAppNotification = jest.fn();
 const mockSendEmail = jest.fn();
@@ -106,7 +107,7 @@ describe("auction settlement transaction integration", () => {
 
     expect(settledAuction.status).toBe("ended");
     expect(settledAuction.settledAt).toBeInstanceOf(Date);
-    expect(farmer.balance).toBe(225);
+    expect(toNumber(farmer.balance)).toBe(225);
     expect(batch.currentStage).toBe("mandi");
     expect(batch.updates).toHaveLength(1);
     expect(batch.updates[0]).toEqual(

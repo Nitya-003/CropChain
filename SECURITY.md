@@ -11,7 +11,7 @@
 We take the security of CropChain seriously. If you believe you have found a security vulnerability, please follow these steps:
 
 1. **Do NOT** create a public GitHub issue for the vulnerability.
-2. Send details to **security@cropchain.dev**.
+2. Send details to **<security@cropchain.dev>**.
 3. Include:
    - Description of the vulnerability
    - Steps to reproduce
@@ -24,7 +24,7 @@ We appreciate responsible disclosure and will acknowledge your contribution.
 
 ---
 
-# Security Guide for CropChain
+## Security Guide for CropChain
 
 ## Private Key Management
 
@@ -89,10 +89,12 @@ mumbai: {
 CropChain utilizes GitHub Actions to automate security scanning across our containerized infrastructure.
 
 ### Trivy Vulnerability Scanner
+
 To prevent vulnerable images from being deployed, all Docker images (Frontend, Backend, and ML Service) are automatically built and scanned using Trivy during the CI workflow.
 
 - **Threshold**: The build fails if vulnerabilities with `HIGH` or `CRITICAL` severity are detected.
 - **Reporting**: Scan results are exported in SARIF format and uploaded to the GitHub Security Code Scanning tab for continuous visibility and tracking.
+
 ## Supply Chain Security (SBOM)
 
 To maintain visibility into our software supply chain and third-party dependencies, CropChain automatically generates a Software Bill of Materials (SBOM) during the CI pipeline.
@@ -113,6 +115,7 @@ To maintain visibility into our software supply chain and third-party dependenci
    ```
 
 2. **External Network Testing**:
+
    ```bash
    # Create .env file
    PRIVATE_KEY=your_generated_private_key_here
@@ -222,7 +225,7 @@ env:
 If you discover any security vulnerabilities:
 
 1. **Do NOT** create a public issue
-2. **Email**: security@cropchain.dev
+2. **Email**: <security@cropchain.dev>
 3. **Include**: Detailed description and reproduction steps
 4. **Response**: We'll acknowledge within 48 hours
 

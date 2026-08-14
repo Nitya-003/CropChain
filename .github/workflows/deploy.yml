@@ -14,9 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     permissions:
-      id-token: write # Required for AWS OIDC authentication
+      id-token: write  # Required for AWS OIDC authentication
       contents: read
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -48,10 +48,10 @@ jobs:
           DURATION=$((END_TIME - START_TIME))
           MINUTES=$((DURATION / 60))
           SECONDS=$((DURATION % 60))
-          
+
           cat <<EOF >> $GITHUB_STEP_SUMMARY
           ## 🚀 Deployment Status Summary
-          
+
           | Information | Details |
           | ----------- | ------- |
           | **Status** | ✅ Successful |
@@ -68,10 +68,10 @@ jobs:
           DURATION=$((END_TIME - START_TIME))
           MINUTES=$((DURATION / 60))
           SECONDS=$((DURATION % 60))
-          
+
           cat <<EOF >> $GITHUB_STEP_SUMMARY
           ## 🚨 Deployment Status Summary
-          
+
           | Information | Details |
           | ----------- | ------- |
           | **Status** | ❌ Failed |
@@ -79,7 +79,7 @@ jobs:
           | **Commit** | \`${GITHUB_SHA::7}\` |
           | **Duration** | ${MINUTES}m ${SECONDS}s |
           | **Health Checks** | ❌ Failed |
-          | **Failure Details** | Deployment or post-deployment health verification encountered an error. Please inspect the workflow logs for precise error details. |
+          | **Failure Details** | Deployment or post-deployment health verification encountered an error. |
           EOF
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -105,15 +105,18 @@ jobs:
       - name: Post-Deployment Health Check
         run: |
           echo "Fetching EC2 Public IP from CloudFormation..."
-          EC2_PUBLIC_IP=$(aws cloudformation describe-stacks --stack-name cropchain-infra --query "Stacks[0].Outputs[?OutputKey=='EC2PublicIP'].OutputValue" --output text)
-          
+          QUERY="Stacks[0].Outputs[?OutputKey=='EC2PublicIP'].OutputValue"
+          EC2_PUBLIC_IP=$(aws cloudformation describe-stacks \
+            --stack-name cropchain-infra \
+            --query "$QUERY" --output text)
+
           if [ -z "$EC2_PUBLIC_IP" ] || [ "$EC2_PUBLIC_IP" == "None" ]; then
             echo "Failed to retrieve EC2 Public IP."
             exit 1
           fi
-          
+
           echo "Checking Backend Health Endpoint: http://$EC2_PUBLIC_IP:3001/api/health"
-          
+
           # Wait up to 120 seconds for the service to become responsive (retry every 10 seconds)
           for i in {1..12}; do
             HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://$EC2_PUBLIC_IP:3001/api/health || true)
@@ -124,6 +127,6 @@ jobs:
             echo "Attempt $i: Application not yet ready (HTTP $HTTP_STATUS). Waiting 10 seconds..."
             sleep 10
           done
-          
+
           echo "❌ Health check failed after 120 seconds."
           exit 1

@@ -66,5 +66,8 @@
   },
   "engines": {
     "node": ">=18.18.0"
+  },
+  "overrides": {
+    "argparse": "1.0.10"
   }
 }

@@ -31,7 +31,7 @@
    ```
 
 4. **Test the AI Chatbot**
-   - Open http://localhost:5173
+   - Open <http://localhost:5173>
    - Look for the floating chat button (bottom-right)
    - Try asking: "How do I track a batch?"
 

@@ -82,7 +82,9 @@ jobs:
         with:
           target: "smart-contracts/"
           fail-on: all
-          slither-args: '--filter-paths "smart-contracts/contracts/lib/openzeppelin/**" --exclude naming-convention,external-function,low-level-calls,assembly,constable-states'
+          slither-args: >-
+            --filter-paths "smart-contracts/contracts/lib/openzeppelin/**"
+            --exclude naming-convention,external-function,low-level-calls,assembly,constable-states
 
   # Job 3: Backend Tests
   backend-tests:
@@ -325,7 +327,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    
+
     strategy:
       fail-fast: false
       matrix:

@@ -1,7 +1,7 @@
 default: true
 
 # Exclude some rules that are too strict
-MD013: false # Line length
-MD033: false # No inline HTML
-MD041: false # First line in file should be a top level heading
-MD024: false # Multiple headings with the same content
+MD013: false  # Line length
+MD033: false  # No inline HTML
+MD041: false  # First line in file should be a top level heading
+MD024: false  # Multiple headings with the same content

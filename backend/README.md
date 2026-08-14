@@ -64,6 +64,7 @@ Here are the user interface designs for CropChain:
    ```
 
 3. **Start the server**
+
    ```bash
    # Development
    npm run dev
@@ -164,7 +165,7 @@ BCRYPT_ROUNDS=12                                           # Password hashing ro
 
 ### Batch Management
 
-```
+```text
 POST   /api/batches              - Create new batch (rate limited: 20/15min)
 GET    /api/batches              - Get all batches with stats
 GET    /api/batches/:batchId     - Get specific batch
@@ -173,7 +174,7 @@ PUT    /api/batches/:batchId     - Update batch with new stage
 
 ### Authentication (Placeholder)
 
-```
+```text
 POST   /api/auth/login           - User login (rate limited: 5/15min)
 POST   /api/auth/register        - User registration (rate limited: 5/15min)
 POST   /api/auth/refresh         - Refresh access token from HttpOnly cookie
@@ -182,7 +183,7 @@ POST   /api/auth/logout          - Clear refresh cookie
 
 ### System
 
-```
+```text
 GET    /api/health               - Health check endpoint
 ```
 
@@ -264,7 +265,7 @@ curl -X POST http://localhost:3001/api/batches \
 
 ### Log Format
 
-```
+```text
 [TIMESTAMP] METHOD PATH - IP: x.x.x.x - User-Agent: ...
 [SECURITY WARNING] Suspicious pattern detected from IP x.x.x.x
 [SUCCESS] Batch created: CROP-2024-001 by Farmer Name from IP: x.x.x.x

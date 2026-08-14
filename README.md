@@ -176,7 +176,7 @@ This starts:
 
 ## Automated AWS Deployment
 
-CropChain uses GitHub Actions to automate deployments to our AWS infrastructure. 
+CropChain uses GitHub Actions to automate deployments to our AWS infrastructure.
 
 When code is merged to the `main` branch and passes all CI tests, security scans, and SBOM generation, the `Deploy to AWS Production` workflow is triggered.
 
@@ -188,13 +188,13 @@ When code is merged to the `main` branch and passes all CI tests, security scans
 
 ## Access the Services
 
-| Service      | URL                       |
-| ------------ | ------------------------- |
-| Frontend     | http://localhost:3000     |
-| Backend API  | http://localhost:3001     |
-| ML Service   | http://localhost:5001     |
-| Hardhat Node | http://localhost:8545     |
-| MongoDB      | mongodb://localhost:27017 |
+| Service      | URL                         |
+| ------------ | --------------------------- |
+| Frontend     | `http://localhost:3000`     |
+| Backend API  | `http://localhost:3001`     |
+| ML Service   | `http://localhost:5001`     |
+| Hardhat Node | `http://localhost:8545`     |
+| MongoDB      | `mongodb://localhost:27017` |
 
 ---
 
@@ -246,10 +246,6 @@ docker compose down -v
 docker images
 ```
 
-```
-
-```
-
 ## Quick Start
 
 ### Prerequisites
@@ -291,6 +287,7 @@ docker images
    ```
 
 4. **Configure AI Chatbot** (Optional)
+
    ```bash
    # Add Gemini API key to backend/.env
    echo "GEMINI_API_KEY=your_gemini_api_key_here" >> backend/.env
@@ -312,6 +309,7 @@ docker images
    ```
 
 3. **Deploy Smart Contracts** (optional, for blockchain integration)
+
    ```bash
    # For local development
    npx hardhat node
@@ -428,7 +426,7 @@ sequenceDiagram
 
 ### Environment Variables
 
-**Backend (.env)**
+#### Backend (.env)
 
 ```env
 # Server
@@ -456,7 +454,7 @@ AI_TEMPERATURE=0.7
 ML_API_KEY=your_ml_api_key_here
 ```
 
-**Frontend (.env)**
+#### Frontend (.env)
 
 ```env
 # API Configuration
@@ -466,7 +464,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 NEXT_PUBLIC_DEV_MODE=true
 ```
 
-**Smart Contracts (hardhat.config.js)**
+#### Smart Contracts (hardhat.config.js)
 
 ```javascript
 networks: {
@@ -514,6 +512,7 @@ We provide an automated script to deploy the full stack to AWS using CloudFormat
 
 **Post-Deployment Verification:**
 The deployment script includes automated health checks to verify that services have started correctly before completing. It polls the following endpoints with retry logic:
+
 - Backend Health Check: `http://<EC2_IP>:3001/api/health`
 - ML Service Health Check: `http://<EC2_IP>:5001/health`
 
@@ -559,7 +558,7 @@ npx hardhat run scripts/deploy.js --network polygon
 
 ## Technology Stack
 
-**Frontend**
+### Frontend
 
 - React 18 + TypeScript
 - Tailwind CSS
@@ -568,7 +567,7 @@ npx hardhat run scripts/deploy.js --network polygon
 - QRCode.js
 - Framer Motion (animations)
 
-**Backend**
+### Backend
 
 - Node.js + Express
 - Ethers.js
@@ -578,7 +577,7 @@ npx hardhat run scripts/deploy.js --network polygon
 - Gemini API Integration
 - Axios HTTP Client
 
-**Machine Learning**
+### Machine Learning
 
 - Python 3.11
 - Flask (API framework)
@@ -586,14 +585,14 @@ npx hardhat run scripts/deploy.js --network polygon
 - Gunicorn (WSGI server)
 - NumPy & Joblib
 
-**Blockchain**
+### Blockchain
 
 - Solidity ^0.8.19
 - Hardhat Development Environment
 - Ethereum/Polygon Networks
 - OpenZeppelin Libraries
 
-**DevOps**
+### DevOps
 
 - ESLint + Prettier
 - Husky Git Hooks
@@ -667,20 +666,20 @@ In production, the private key is fetched from **AWS Secrets Manager** at startu
 1. Create a secret in AWS Secrets Manager:
    - **Secret name:** `cropchain/blockchain-private-key`
    - **Secret value (JSON):**
+
 ```json
      { "private_key": "0x...your_production_key..." }
 ```
 
-2. Grant your EC2 / ECS task role `secretsmanager:GetSecretValue` on that ARN.
+1. Grant your EC2 / ECS task role `secretsmanager:GetSecretValue` on that ARN.
 
-3. Set these environment variables on your server (not `.env`):
+2. Set these environment variables on your server (not `.env`):
 
 NODE_ENV=production
 AWS_SECRET_ARN=arn:aws:secretsmanager:REGION:ACCOUNT:secret:cropchain/blockchain-private-key
 AWS_REGION=us-east-1
 
-
-4. Do **not** set `PRIVATE_KEY` — the server will refuse to start if it is present.
+1. Do **not** set `PRIVATE_KEY` — the server will refuse to start if it is present.
 
 The server performs a startup check and exits immediately if production is
 misconfigured, preventing accidental deploys with an exposed key.
@@ -744,9 +743,9 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 ---
 
-**Built with love for transparent agriculture and food safety**
+Built with love for transparent agriculture and food safety
 
-_CropChain - Connecting farms to forks with blockchain transparency_
+CropChain - Connecting farms to forks with blockchain transparency
 
 ## ✨ README Improvement Notes
 

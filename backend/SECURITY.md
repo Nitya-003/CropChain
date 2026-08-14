@@ -10,7 +10,7 @@ This document outlines the comprehensive security measures implemented in the Cr
 
 **Implementation**: `express-rate-limit` middleware with tiered protection levels.
 
-#### Rate Limiting Tiers:
+#### Rate Limiting Tiers
 
 - **General Limiter**: 100 requests per 15 minutes per IP
   - Applied to all routes
@@ -26,7 +26,7 @@ This document outlines the comprehensive security measures implemented in the Cr
   - Prevents batch creation/update spam
   - Balances legitimate use with abuse prevention
 
-#### Configuration Features:
+#### Configuration Features
 
 - Standard headers for rate limit information
 - Custom error messages with retry information
@@ -37,14 +37,14 @@ This document outlines the comprehensive security measures implemented in the Cr
 
 **Implementation**: `express-mongo-sanitize` middleware.
 
-#### Protection Features:
+#### Protection Features
 
 - Removes/replaces MongoDB operators (`$where`, `$ne`, `$gt`, etc.)
 - Sanitizes query parameters, request body, and URL parameters
 - Configurable replacement character (`_`)
 - Logging of sanitization events for security monitoring
 
-#### Monitored Patterns:
+#### Monitored Patterns
 
 ```javascript
 const suspiciousPatterns = [
@@ -63,7 +63,7 @@ const suspiciousPatterns = [
 
 **Implementation**: Comprehensive validation schemas using Zod library.
 
-#### Batch Creation Schema (`createBatchSchema`):
+#### Batch Creation Schema (`createBatchSchema`)
 
 ```javascript
 {
@@ -78,7 +78,7 @@ const suspiciousPatterns = [
 }
 ```
 
-#### Batch Update Schema (`updateBatchSchema`):
+#### Batch Update Schema (`updateBatchSchema`)
 
 ```javascript
 {
@@ -90,7 +90,7 @@ const suspiciousPatterns = [
 }
 ```
 
-#### Batch ID Validation:
+#### Batch ID Validation
 
 - Format: `CROP-YYYY-XXXX` (e.g., `CROP-2024-0001`)
 - Regex validation for consistent format
@@ -100,7 +100,7 @@ const suspiciousPatterns = [
 
 **Implementation**: `helmet` middleware for security headers.
 
-#### Headers Applied:
+#### Headers Applied
 
 - **Content Security Policy**: Prevents XSS attacks
 - **X-Frame-Options**: Prevents clickjacking
@@ -112,7 +112,7 @@ const suspiciousPatterns = [
 
 **Implementation**: Custom security logging middleware.
 
-#### Logged Information:
+#### Logged Information
 
 - Timestamp of request
 - HTTP method and path
@@ -121,7 +121,7 @@ const suspiciousPatterns = [
 - Suspicious pattern detection
 - Request success/failure status
 
-#### Security Alerts:
+#### Security Alerts
 
 - Automatic detection of suspicious patterns
 - Warning logs for potential attacks
@@ -131,7 +131,7 @@ const suspiciousPatterns = [
 
 **Implementation**: Production-grade error handling with information disclosure protection.
 
-#### Features:
+#### Features
 
 - Environment-aware error responses
 - Detailed errors in development
@@ -143,7 +143,7 @@ const suspiciousPatterns = [
 
 **Implementation**: Secure CORS setup with environment-based origins.
 
-#### Configuration:
+#### Configuration
 
 - Configurable allowed origins
 - Credentials support
@@ -154,7 +154,7 @@ const suspiciousPatterns = [
 
 **Implementation**: Body parsing limits to prevent DoS attacks.
 
-#### Limits:
+#### Limits
 
 - JSON payload: 10MB maximum
 - URL-encoded data: 10MB maximum
@@ -175,7 +175,7 @@ The security middleware is applied in the following order:
 
 ## API Endpoint Security
 
-### Protected Endpoints:
+### Protected Endpoints
 
 #### Authentication Routes (Future Implementation)
 
@@ -195,7 +195,7 @@ The security middleware is applied in the following order:
 
 ## Validation Error Responses
 
-### Structure:
+### Structure
 
 ```json
 {
@@ -209,7 +209,7 @@ The security middleware is applied in the following order:
 }
 ```
 
-### Rate Limit Error Response:
+### Rate Limit Error Response
 
 ```json
 {
@@ -231,7 +231,7 @@ The security middleware is applied in the following order:
 
 ## Monitoring and Alerting
 
-### Security Events Logged:
+### Security Events Logged
 
 - Rate limit violations
 - Validation failures
@@ -240,9 +240,9 @@ The security middleware is applied in the following order:
 - 404 errors (potential reconnaissance)
 - Server errors with IP tracking
 
-### Log Format:
+### Log Format
 
-```
+```text
 [TIMESTAMP] METHOD PATH - IP: x.x.x.x - User-Agent: ...
 [SECURITY WARNING] Suspicious pattern detected from IP x.x.x.x: pattern
 [SUCCESS] Batch created: CROP-2024-001 by Farmer Name from IP: x.x.x.x
@@ -250,7 +250,7 @@ The security middleware is applied in the following order:
 
 ## Environment Variables
 
-### Required Security Configuration:
+### Required Security Configuration
 
 ```env
 NODE_ENV=production
@@ -258,7 +258,7 @@ FRONTEND_URL=https://your-frontend-domain.com
 PORT=3001
 ```
 
-### Optional Security Configuration:
+### Optional Security Configuration
 
 ```env
 RATE_LIMIT_WINDOW_MS=900000  # 15 minutes
@@ -269,7 +269,7 @@ BATCH_RATE_LIMIT_MAX=20
 
 ## Testing Security Features
 
-### Rate Limiting Test:
+### Rate Limiting Test
 
 ```bash
 # Test general rate limit
@@ -282,7 +282,7 @@ for i in {1..21}; do curl http://localhost:3001/api/batches; done
 for i in {1..6}; do curl -X POST http://localhost:3001/api/auth/login; done
 ```
 
-### Validation Test:
+### Validation Test
 
 ```bash
 # Test invalid batch creation
@@ -291,7 +291,7 @@ curl -X POST http://localhost:3001/api/batches \
   -d '{"farmerName": "A", "quantity": "invalid"}'
 ```
 
-### NoSQL Injection Test:
+### NoSQL Injection Test
 
 ```bash
 # Test injection attempt (should be sanitized)

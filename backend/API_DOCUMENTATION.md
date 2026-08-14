@@ -19,7 +19,7 @@ Access the interactive Swagger/OpenAPI documentation at:
 
 Most endpoints require JWT authentication. Include the token in the Authorization header:
 
-```
+```text
 Authorization: Bearer {token}
 ```
 
@@ -89,7 +89,7 @@ When rate limit is exceeded, you'll receive:
 
 #### Get API Status
 
-```
+```text
 GET /api/status
 ```
 
@@ -116,7 +116,7 @@ Returns the current status of the API and database connection.
 
 #### Register User
 
-```
+```text
 POST /api/auth/register
 ```
 
@@ -161,7 +161,7 @@ Create a new user account.
 
 #### Login User
 
-```
+```text
 POST /api/auth/login
 ```
 
@@ -207,7 +207,7 @@ Authenticate a user and receive a JWT token.
 
 #### Create Batch
 
-```
+```text
 POST /api/batches
 Rate Limited: 20 requests per 15 minutes
 ```
@@ -263,7 +263,7 @@ Create a new crop batch.
 
 #### Get Batch
 
-```
+```text
 GET /api/batches/:batchId
 Rate Limited: 20 requests per 15 minutes
 ```
@@ -308,7 +308,7 @@ Retrieve details of a specific batch.
 
 #### Get All Batches
 
-```
+```text
 GET /api/batches
 Rate Limited: 20 requests per 15 minutes
 ```
@@ -338,7 +338,7 @@ Retrieve all batches with statistics.
 
 #### Update Batch
 
-```
+```text
 PUT /api/batches/:batchId
 Rate Limited: 20 requests per 15 minutes
 ```
@@ -385,7 +385,7 @@ Update batch status or add supply chain update.
 
 #### Recall Batch
 
-```
+```text
 POST /api/batches/:batchId/recall
 Rate Limited: 20 requests per 15 minutes
 ```
@@ -414,7 +414,7 @@ Mark a batch as recalled (for quality issues, etc.).
 
 #### Check Verification Status
 
-```
+```text
 GET /api/verification/check/:userId
 ```
 
@@ -438,7 +438,7 @@ Check if a user is verified (public endpoint).
 
 #### Link Wallet
 
-```
+```text
 POST /api/verification/link-wallet
 Auth Required: Yes
 ```
@@ -458,7 +458,7 @@ Link a blockchain wallet to user account.
 
 #### Issue Credential
 
-```
+```text
 POST /api/verification/issue
 Auth Required: Yes (Admin Only)
 ```
@@ -469,7 +469,7 @@ Issue a verifiable credential to a user.
 
 #### Revoke Credential
 
-```
+```text
 POST /api/verification/revoke
 Auth Required: Yes (Admin Only)
 ```
@@ -482,7 +482,7 @@ Revoke a user's credential.
 
 #### Send Chat Message
 
-```
+```text
 POST /api/ai/chat
 Rate Limited: 20 requests per 15 minutes
 ```
@@ -521,7 +521,7 @@ Send a message to the AI chatbot for assistance.
 
 #### Get Personalized Activity Feed
 
-```
+```text
 GET /api/activities/feed
 ```
 
@@ -578,7 +578,7 @@ Retrieve a personalized, paginated chronological timeline of supply-chain events
 
 #### Get All Activities (Admin Only)
 
-```
+```text
 GET /api/activities
 ```
 
@@ -594,7 +594,7 @@ Retrieve a paginated list of all activities across the platform.
 
 #### Get Activity by ID
 
-```
+```text
 GET /api/activities/:id
 ```
 
@@ -665,7 +665,7 @@ if (data.success) {
 
 For large datasets, batches are returned in chunks. Use timestamps to implement cursor-based pagination:
 
-```
+```text
 GET /api/batches?createdBefore=2024-02-13T10:30:00.000Z&limit=50
 ```
 
@@ -673,7 +673,7 @@ GET /api/batches?createdBefore=2024-02-13T10:30:00.000Z&limit=50
 
 Filter batches by farmer or crop type:
 
-```
+```text
 GET /api/batches?farmerName=Rajesh&cropType=rice
 ```
 
@@ -705,8 +705,8 @@ GET /api/docs/swagger.json
 
 For issues or questions:
 
-- Email: support@cropchain.com
-- GitHub Issues: https://github.com/NithinRegidi/CropChain-OSS/issues
+- Email: <support@cropchain.com>
+- GitHub Issues: <https://github.com/NithinRegidi/CropChain-OSS/issues>
 
 ---
 
