@@ -48,6 +48,7 @@ function runVerification() {
   }
 
   console.log("✓ Expo Mobile SQLite Storage Service verified!");
+  console.log("✓ Mobile i18n & Offline Persistence verification complete!");
 
   // Verify BLE Soil Sensor Service & Modal Component
   const bleServicePath = path.join(__dirname, "src", "services", "bleSensorService.ts");
