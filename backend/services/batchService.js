@@ -307,6 +307,15 @@ class BatchService {
         actor: update.actor,
         location: update.location,
         timestamp: update.timestamp,
+        // notes is part of the hash-chain serialization, and the public
+        // tracking UI renders it as each update's description, so it must
+        // be exposed for the client to (a) verify the ledger and
+        // (b) show the journey description.
+        notes: update.notes,
+        // hash is required by the client's verifyHashChain() — omitting it
+        // makes every public batch report as "tampered" (missing hash is
+        // treated as a break in the ledger).
+        hash: update.hash,
       })),
       qrCode: batchData.qrCode,
       carbonFootprint: batchData.carbonFootprint,

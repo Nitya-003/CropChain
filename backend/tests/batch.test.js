@@ -180,6 +180,7 @@ describe("Batch API Endpoints", () => {
             location: "Test Origin",
             timestamp: "2024-01-01T00:00:00.000Z",
             notes: "Initial harvest recorded",
+            hash: "abc123hash",
           },
         ],
         currentTemperature: 72,
@@ -219,7 +220,15 @@ describe("Batch API Endpoints", () => {
     expect(res.body.data.batch).not.toHaveProperty("pendingApprovalId");
     expect(res.body.data.batch).not.toHaveProperty("approvalHistory");
     expect(res.body.data.batch.updates[0]).not.toHaveProperty("_id");
-    expect(res.body.data.batch.updates[0]).not.toHaveProperty("notes");
+    // notes and hash are intentionally exposed on the public endpoint: notes
+    // is part of the hash-chain serialization and is rendered as each update's
+    // description, and hash is required for the client's verifyHashChain().
+    expect(res.body.data.batch.updates[0]).toHaveProperty("notes");
+    expect(res.body.data.batch.updates[0]).toHaveProperty("hash");
+    expect(res.body.data.batch.updates[0].notes).toEqual(
+      "Initial harvest recorded",
+    );
+    expect(res.body.data.batch.updates[0].hash).toEqual("abc123hash");
   });
 
   it("should return 404 for a missing public tracking batch", async () => {
