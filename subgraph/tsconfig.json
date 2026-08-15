@@ -1,0 +1,10 @@
+{
+  "extends": "@graphprotocol/graph-ts/tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "CommonJS",
+    "lib": ["ESNext"],
+    "strict": true
+  },
+  "include": ["src"]
+}

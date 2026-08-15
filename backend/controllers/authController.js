@@ -9,6 +9,7 @@ const apiResponse = require('../utils/apiResponse');
 const { verifyMessage } = require('ethers');
 const { VALID_ROLES, ROLES } = require('../constants/permissions');
 const logger = require('../utils/logger');
+const { revokeToken } = require('../services/tokenBlacklist');
 require('dotenv').config();
 const Redis = require('ioredis');
 const { toNumber, toDecimal, fromDecimal } = require('../utils/decimalHelpers');
@@ -238,6 +239,17 @@ const loginUser = async (req, res) => {
     const user = await User.findOne({ email }).select("+password");
 
     if (user && (await bcrypt.compare(password, user.password))) {
+      // Reject non-active accounts before issuing any token
+      if (user.status !== 'active') {
+        logger.warn('Login blocked: account not active', { email: user.email, status: user.status });
+        return res
+          .status(403)
+          .json(apiResponse.errorResponse(
+            'Your account is not active. Please contact support.',
+            'ACCOUNT_NOT_ACTIVE',
+            403,
+          ));
+      }
       attachRefreshCookie(res, user);
       const response = apiResponse.successResponse(
         buildAuthPayload(user),
@@ -491,6 +503,18 @@ const walletLogin = async (req, res) => {
         );
     }
 
+    // Reject non-active accounts before issuing any token
+    if (user.status !== 'active') {
+      logger.warn('Wallet login blocked: account not active', { walletAddress: normalizedAddress, status: user.status });
+      return res
+        .status(403)
+        .json(apiResponse.errorResponse(
+          'Your account is not active. Please contact support.',
+          'ACCOUNT_NOT_ACTIVE',
+          403,
+        ));
+    }
+
     // Generate JWT with user's role from database
     attachRefreshCookie(res, user);
     const response = apiResponse.successResponse(
@@ -695,11 +719,12 @@ const refreshSession = async (req, res) => {
         );
     }
 
-    attachRefreshCookie(res, user);
+    // Rotate the token: increment the version so this refresh token and any
+    // previously issued refresh tokens (same user) are invalidated immediately.
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
 
-    return res.json(
-      apiResponse.successResponse(buildAuthPayload(user), "Session refreshed"),
-    );
+    attachRefreshCookie(res, user);
   } catch (error) {
     clearRefreshCookie(res);
 
@@ -711,7 +736,16 @@ const refreshSession = async (req, res) => {
   }
 };
 
-const logoutUser = (req, res) => {
+const logoutUser = async (req, res) => {
+  // Revoke the specific access token so it cannot be reused after logout.
+  // `req.jwt` is attached by the `protect` middleware after signature verify.
+  try {
+    if (req.jwt) {
+      await revokeToken(req.jwt);
+    }
+  } catch (err) {
+    logger.error('Failed to revoke token on logout', { error: err.message });
+  }
   clearRefreshCookie(res);
   return res.json(apiResponse.successResponse(null, "Logout successful"));
 };
@@ -727,6 +761,16 @@ const deleteAccount = async (req, res) => {
         }
 
         await User.findByIdAndDelete(req.user._id);
+
+        // Revoke the caller's current access token so a captured token cannot
+        // be reused after the issuing account is deleted.
+        try {
+            if (req.jwt) {
+                await revokeToken(req.jwt);
+            }
+        } catch (err) {
+            logger.error('Failed to revoke token on account deletion', { error: err.message });
+        }
 
         clearRefreshCookie(res);
 

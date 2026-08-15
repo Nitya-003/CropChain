@@ -413,6 +413,27 @@ batchSchema.index({ isRecalled: 1 });
 // Compound index for pagination and sorting optimization
 batchSchema.index({ currentStage: 1, createdAt: -1 });
 
+// Text index for full-text search scalability
+batchSchema.index(
+  {
+    batchId: "text",
+    farmerName: "text",
+    cropType: "text",
+    origin: "text",
+    description: "text"
+  },
+  {
+    weights: {
+      batchId: 10,
+      farmerName: 5,
+      cropType: 3,
+      origin: 2,
+      description: 1
+    },
+    name: "BatchTextIndex"
+  }
+);
+
 // Pre-save validation
 batchSchema.pre("save", function (next) {
   // Ensure batchId is not empty
@@ -555,12 +576,12 @@ batchSchema.statics.findByFarmerId = function (farmerId) {
   return this.find({ farmerId }).sort({ createdAt: -1 });
 };
 
-batchSchema.statics.getStats = function () {
+batchSchema.statics.getStats = async function () {
   /**
    * Get overall batch statistics
    * @returns {Promise} Promise resolving to statistics object
    */
-  return this.aggregate([
+  const result = await this.aggregate([
     {
       $group: {
         _id: null,
@@ -580,15 +601,17 @@ batchSchema.statics.getStats = function () {
         recalledBatches: 1,
       },
     },
-  ]).then(
-    (result) =>
-      result[0] || {
-        totalBatches: 0,
-        totalQuantity: 0,
-        uniqueFarmers: 0,
-        recalledBatches: 0,
-      },
+  ]);
+  return (
+    result[0] || {
+      totalBatches: 0,
+      totalQuantity: 0,
+      uniqueFarmers: 0,
+      recalledBatches: 0,
+    }
   );
 };
 
-module.exports = mongoose.model("Batch", batchSchema);
+const Batch = mongoose.model("Batch", batchSchema);
+
+module.exports = Batch;

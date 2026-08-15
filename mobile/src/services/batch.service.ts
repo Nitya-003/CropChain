@@ -35,4 +35,15 @@ export const batchService = {
     );
     return res.data;
   },
+
+  async bulkUpdateStage(
+    batchIds: string[],
+    data: BatchStageUpdatePayload,
+  ): Promise<{ processed: number, failed: number, results: any[], errors: any[] }> {
+    const res = await api.post<{ data: { processed: number, failed: number, results: any[], errors: any[] } }>("/batches/bulk/status", {
+      batchIds,
+      ...data
+    });
+    return res.data;
+  },
 };

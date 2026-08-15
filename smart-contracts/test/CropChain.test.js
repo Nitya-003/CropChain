@@ -24,8 +24,12 @@ describe("CropChain", function () {
     [owner, farmer, mandi, transporter, retailer, oracle, other] =
       await ethers.getSigners();
 
+    const MinimalForwarder = await ethers.getContractFactory("MinimalForwarder");
+    const forwarder = await MinimalForwarder.deploy();
+    const forwarderAddress = await forwarder.getAddress();
+
     const CropChain = await ethers.getContractFactory("CropChain");
-    cropChain = await CropChain.deploy();
+    cropChain = await CropChain.deploy(forwarderAddress);
     await cropChain.waitForDeployment();
 
     // Get role constants

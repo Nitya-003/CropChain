@@ -13,6 +13,7 @@ const logger = require('../utils/logger');
 const { emitToBatchRoom } = require('../services/socketService');
 const activityService = require('../services/activityService');
 const batchService = require('../services/batchService');
+const mlService = require('../services/mlService');
 const QRCode = require('qrcode');
 const { calculateUpdateHash } = require('../utils/cryptography');
 const { 
@@ -309,14 +310,12 @@ exports.getBatches = async (req, res) => {
 
     const query = {};
 
-    // 1. Unified Search parameter (regex matches on batchId, cropType, farmerName)
+    // 1. Unified Search parameter (MongoDB Text Index)
     if (search) {
-      const escaped = escapeRegex(search.trim());
-      query.$or = [
-        { batchId: { $regex: escaped, $options: "i" } },
-        { cropType: { $regex: escaped, $options: "i" } },
-        { farmerName: { $regex: escaped, $options: "i" } },
-      ];
+      const trimmedSearch = search.trim();
+      if (trimmedSearch) {
+        query.$text = { $search: trimmedSearch };
+      }
     }
 
     // 2. Individual parameters (from existing & test requirements)
@@ -367,10 +366,23 @@ exports.getBatches = async (req, res) => {
     const skip = (pageNumber - 1) * limitNumber;
 
     const sort = {};
-    sort[sortBy] = sortOrder.toLowerCase() === "asc" ? 1 : -1;
+    
+    // If text search is active and no specific sort is requested, sort by relevance
+    if (search && sortBy === "createdAt") {
+      sort.score = { $meta: "textScore" };
+    } else {
+      sort[sortBy] = sortOrder.toLowerCase() === "asc" ? 1 : -1;
+    }
 
     // Use lean() for read-only queries to skip Mongoose document hydration
-    const batches = await Batch.find(query)
+    const findQuery = Batch.find(query);
+    
+    // Project text score if search is active
+    if (search) {
+      findQuery.select({ score: { $meta: "textScore" } });
+    }
+
+    const batches = await findQuery
       .lean()
       .sort(sort)
       .skip(skip)
@@ -606,13 +618,29 @@ exports.recordIoTData = async (req, res) => {
         
         const validationResult = recordIoTDataSchema.safeParse(req.body);
         if (!validationResult.success) {
-            const details = validationResult.error.errors.map(err => err.message);
+            const issues = validationResult.error.issues || validationResult.error.errors || [];
+            const details = issues.map(err => err.message);
             return res.status(400).json(apiResponse.errorResponse('Validation failed', 'VALIDATION_ERROR', 400, details));
         }
         
         const { temperature, humidity } = validationResult.data;
 
         const batch = await spoilageDetectionService.recordIoTData(batchId, temperature, humidity);
+
+        try {
+            const mlPrediction = await mlService.predictQuality(temperature, humidity, batch.cropType);
+            if (mlPrediction) {
+                batch.spoilageRisk = {
+                    riskScore: mlPrediction.riskScore,
+                    riskLevel: mlPrediction.riskLevel,
+                    factors: mlPrediction.factors,
+                    predictedAt: new Date()
+                };
+                await batch.save();
+            }
+        } catch (mlErr) {
+            logger.warn("ML Quality prediction failed", { error: mlErr.message });
+        }
 
         await activityService.logActivity({
             userId: req.user.id || req.user._id,
@@ -634,6 +662,7 @@ exports.recordIoTData = async (req, res) => {
                 currentHumidity: batch.iotData.currentHumidity,
                 isSpoiled: batch.iotData.isSpoiled,
                 lastUpdated: batch.iotData.lastUpdated,
+                spoilageRisk: batch.spoilageRisk
             }, 'IoT data recorded successfully')
         );
     } catch (error) {
@@ -695,4 +724,57 @@ exports.getIoTData = async (req, res) => {
   }
 };
 
+/**
+ * Bulk update multiple batches
+ * @route POST /api/batches/bulk/status
+ * @access Private
+ */
+exports.bulkUpdateBatchStatus = async (req, res) => {
+    try {
+        const { batchIds, stage, location, notes, actorName } = req.body;
+        
+        if (!Array.isArray(batchIds) || batchIds.length === 0) {
+            return res.status(400).json(apiResponse.errorResponse('batchIds array is required', 'VALIDATION_ERROR', 400));
+        }
+
+        const updateData = { stage, location, notes, actorName };
+        const validationResult = updateBatchSchema.safeParse(updateData);
+        
+        if (!validationResult.success) {
+            const issues = validationResult.error.issues || validationResult.error.errors || [];
+            const details = issues.map(err => err.message);
+            return res.status(400).json(apiResponse.errorResponse('Validation failed', 'VALIDATION_ERROR', 400, details));
+        }
+
+        const validatedData = validationResult.data;
+        const results = [];
+        const errors = [];
+
+        // Process sequentially to avoid overwhelming the blockchain queue at once, 
+        // though we could use Promise.all if the queue is robust enough.
+        for (const batchId of batchIds) {
+            const result = await batchService.updateBatch(batchId, validatedData, req.user);
+            if (result.success) {
+                results.push({ batchId, success: true });
+            } else {
+                errors.push({ batchId, error: result.error });
+            }
+        }
+
+        if (results.length === 0 && errors.length > 0) {
+             return res.status(500).json(apiResponse.errorResponse('All bulk updates failed', 'BULK_UPDATE_ERROR', 500, errors));
+        }
+
+        res.json(apiResponse.successResponse({ 
+            processed: results.length,
+            failed: errors.length,
+            results,
+            errors
+        }, 'Bulk update processed'));
+
+    } catch (error) {
+        logger.error('Error processing bulk update', { error: error.message, stack: error.stack });
+        res.status(500).json(apiResponse.errorResponse('Failed to process bulk update', 'BULK_UPDATE_ERROR', 500));
+    }
 .catch(err => console.error("Promise.all failed:", err));
+};
