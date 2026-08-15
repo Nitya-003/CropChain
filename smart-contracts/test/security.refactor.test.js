@@ -17,8 +17,12 @@ describe("CropChain Security Refactor", function () {
   async function deployFixture() {
     const [owner, buyer, oracle] = await ethers.getSigners();
 
+    const MinimalForwarder = await ethers.getContractFactory("MinimalForwarder");
+    const forwarder = await MinimalForwarder.deploy();
+    const forwarderAddress = await forwarder.getAddress();
+
     const CropChain = await ethers.getContractFactory("CropChain");
-    const cropChain = await CropChain.deploy();
+    const cropChain = await CropChain.deploy(forwarderAddress);
     await cropChain.waitForDeployment();
 
     return { cropChain, owner, buyer, oracle };
@@ -178,6 +182,102 @@ describe("CropChain Security Refactor", function () {
     ).to.be.revertedWith("TWAP deviation too high");
   });
 
+  it("rejects creating a listing when the crop has no oracle price", async function () {
+    const { cropChain, oracle } = await deployFixture();
+
+    const cropType = ethers.keccak256(ethers.toUtf8Bytes("SORGHUM"));
+    const batchId = ethers.keccak256(ethers.toUtf8Bytes("BATCH-006"));
+
+    await cropChain.setRole(oracle.address, Roles.Farmer);
+
+    await cropChain
+      .connect(oracle)
+      .createBatch(
+        batchId,
+        cropType,
+        "ipfs://bafybeigdyrztqz4xq7x4z7m4xq7x4z7m4xq7x4z7m4",
+        50,
+        "farmer",
+        "origin",
+        "notes",
+      );
+
+    await expect(
+      cropChain
+        .connect(oracle)
+        .createListing(batchId, 10, ethers.parseEther("1000")),
+    ).to.be.revertedWith("Crop type not priced");
+  });
+
+  it("enforces the deviation guard at purchase with a single spot observation", async function () {
+    const { cropChain, buyer, oracle } = await deployFixture();
+
+    const cropType = ethers.keccak256(ethers.toUtf8Bytes("QUINOA"));
+    const batchId = ethers.keccak256(ethers.toUtf8Bytes("BATCH-007"));
+
+    await cropChain.setRole(oracle.address, Roles.Oracle);
+    await cropChain.connect(oracle).recordSpotPrice(cropType, ethers.parseEther("1"));
+    await cropChain.setRole(oracle.address, Roles.Farmer);
+
+    await cropChain
+      .connect(oracle)
+      .createBatch(
+        batchId,
+        cropType,
+        "ipfs://bafybeigdyrztqz4xq7x4z7m4xq7x4z7m4xq7x4z7m4",
+        50,
+        "farmer",
+        "origin",
+        "notes",
+      );
+
+    // The listing at 1000x market value is created...
+    await cropChain
+      .connect(oracle)
+      .createListing(batchId, 10, ethers.parseEther("1000"));
+
+    // ...but the purchase reverts instead of silently bypassing price protection.
+    await expect(
+      cropChain
+        .connect(buyer)
+        .buyFromListing(1, 1, { value: ethers.parseEther("1000") }),
+    ).to.be.revertedWith("TWAP deviation too high");
+  });
+
+  it("allows purchase at a fair price with only a single spot observation", async function () {
+    const { cropChain, buyer, oracle } = await deployFixture();
+
+    const cropType = ethers.keccak256(ethers.toUtf8Bytes("LENTIL"));
+    const batchId = ethers.keccak256(ethers.toUtf8Bytes("BATCH-008"));
+    const unitPrice = ethers.parseEther("1");
+
+    await cropChain.setRole(oracle.address, Roles.Oracle);
+    await cropChain.connect(oracle).recordSpotPrice(cropType, unitPrice);
+    await cropChain.setRole(oracle.address, Roles.Farmer);
+
+    await cropChain
+      .connect(oracle)
+      .createBatch(
+        batchId,
+        cropType,
+        "ipfs://bafybeigdyrztqz4xq7x4z7m4xq7x4z7m4xq7x4z7m4",
+        50,
+        "farmer",
+        "origin",
+        "notes",
+      );
+
+    await cropChain.connect(oracle).createListing(batchId, 10, unitPrice);
+
+    await expect(
+      cropChain.connect(buyer).buyFromListing(1, 1, { value: unitPrice }),
+    ).to.not.be.reverted;
+
+    expect(await cropChain.pendingWithdrawals(oracle.address)).to.equal(
+      unitPrice,
+    );
+  });
+
   it("restricts circuit breaker and TWAP tuning to the admin role", async function () {
     const { cropChain, buyer } = await deployFixture();
 
@@ -213,6 +313,10 @@ describe("CropChain Security Refactor", function () {
     const batchId = ethers.keccak256(ethers.toUtf8Bytes("BATCH-005"));
     const unitPrice = ethers.parseEther("1");
 
+    // Price the crop so the listing passes the oracle-price gate; this test
+    // only validates custody, not pricing.
+    await cropChain.setRole(oracle.address, Roles.Oracle);
+    await cropChain.connect(oracle).recordSpotPrice(cropType, unitPrice);
     await cropChain.setRole(oracle.address, Roles.Farmer);
     await cropChain.setRole(mandi.address, Roles.Mandi);
 

@@ -13,6 +13,7 @@ const logger = require('../utils/logger');
 const { emitToBatchRoom } = require('../services/socketService');
 const activityService = require('../services/activityService');
 const batchService = require('../services/batchService');
+const mlService = require('../services/mlService');
 const QRCode = require('qrcode');
 const { calculateUpdateHash } = require('../utils/cryptography');
 const { 
@@ -28,7 +29,7 @@ const escapeRegex = (value) =>
 const CSV_FORMULA_PREFIX = /^[=+\-@]/;
 
 const escapeCsvCell = (value) => {
-  if (value == null) return '""';
+  if (value === null) return '""';
   const str = String(value);
   const escaped = str.replace(/"/g, '""');
   if (CSV_FORMULA_PREFIX.test(escaped)) {
@@ -606,13 +607,29 @@ exports.recordIoTData = async (req, res) => {
         
         const validationResult = recordIoTDataSchema.safeParse(req.body);
         if (!validationResult.success) {
-            const details = validationResult.error.errors.map(err => err.message);
+            const issues = validationResult.error.issues || validationResult.error.errors || [];
+            const details = issues.map(err => err.message);
             return res.status(400).json(apiResponse.errorResponse('Validation failed', 'VALIDATION_ERROR', 400, details));
         }
         
         const { temperature, humidity } = validationResult.data;
 
         const batch = await spoilageDetectionService.recordIoTData(batchId, temperature, humidity);
+
+        try {
+            const mlPrediction = await mlService.predictQuality(temperature, humidity, batch.cropType);
+            if (mlPrediction) {
+                batch.spoilageRisk = {
+                    riskScore: mlPrediction.riskScore,
+                    riskLevel: mlPrediction.riskLevel,
+                    factors: mlPrediction.factors,
+                    predictedAt: new Date()
+                };
+                await batch.save();
+            }
+        } catch (mlErr) {
+            logger.warn("ML Quality prediction failed", { error: mlErr.message });
+        }
 
         await activityService.logActivity({
             userId: req.user.id || req.user._id,
@@ -634,6 +651,7 @@ exports.recordIoTData = async (req, res) => {
                 currentHumidity: batch.iotData.currentHumidity,
                 isSpoiled: batch.iotData.isSpoiled,
                 lastUpdated: batch.iotData.lastUpdated,
+                spoilageRisk: batch.spoilageRisk
             }, 'IoT data recorded successfully')
         );
     } catch (error) {
@@ -747,4 +765,5 @@ exports.bulkUpdateBatchStatus = async (req, res) => {
         logger.error('Error processing bulk update', { error: error.message, stack: error.stack });
         res.status(500).json(apiResponse.errorResponse('Failed to process bulk update', 'BULK_UPDATE_ERROR', 500));
     }
+.catch(err => console.error("Promise.all failed:", err));
 };

@@ -723,13 +723,35 @@ const bulkIssueCredentials = async (req, res) => {
     const maxRowsPerJob =
       parseInt(process.env.MAX_BULK_ROWS_PER_JOB, 10) || 5000;
 
+    // Hard cap on the number of rows parseCSV will materialize, independent of
+    // MAX_BULK_ROWS_PER_JOB (which only bounds validated/accepted rows). This
+    // stops a maliciously large CSV (many short rows within the byte cap) from
+    // OOMing the process during parsing. See #1310.
+    const MAX_BULK_CSV_ROWS =
+      parseInt(process.env.MAX_BULK_CSV_ROWS, 10) || 100000;
+
     const {
       validateHeadersExact,
       safeHeaderKey,
     } = require("../utils/bulkCsvValidation");
 
-    // Strict parse + header validation.
-    const recordsRaw = bulkVerificationService.parseCSV(csvText);
+    // Strict parse + header validation. parseCSV throws BulkCsvRowLimitError
+    // (mapped to a 400 below) if the row count exceeds MAX_BULK_CSV_ROWS.
+    let recordsRaw;
+    try {
+      recordsRaw = bulkVerificationService.parseCSV(csvText, {
+        maxRows: MAX_BULK_CSV_ROWS,
+      });
+    } catch (parseErr) {
+      if (parseErr instanceof bulkVerificationService.BulkCsvRowLimitError) {
+        return res.status(400).json(
+          apiResponse.validationErrorResponse([
+            `CSV exceeds the maximum of ${MAX_BULK_CSV_ROWS} rows. Please split the file and retry.`,
+          ]),
+        );
+      }
+      throw parseErr;
+    }
     if (!Array.isArray(recordsRaw) || recordsRaw.length === 0) {
       return res
         .status(400)
@@ -776,7 +798,7 @@ const bulkIssueCredentials = async (req, res) => {
     }
 
     const adminId = req.user.id;
-    const dryRun = req.query.dryRun === "true" || req.body?.dryRun === true;
+    const dryRun = req.query.dryRun === "true" || req.body?.dryRun ;
     const job = await BulkVerificationJob.create({
       status: "pending",
       mode: dryRun ? "dry-run" : "bulk",
@@ -852,7 +874,12 @@ const getBulkJobStatus = async (req, res) => {
 const streamBulkJobEvents = async (req, res) => {
   const { jobId } = req.params;
 
+  let clientDisconnected = false;
+
   const writeEvent = (event, data) => {
+    if (clientDisconnected || res.writableEnded || res.destroyed) {
+      return;
+    }
     res.write(`event: ${event}\n`);
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
@@ -894,13 +921,14 @@ const streamBulkJobEvents = async (req, res) => {
 
   // If client disconnects, stop polling.
   req.on("close", () => {
+    clientDisconnected = true;
     safeClose();
   });
 
   try {
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
+    while (!clientDisconnected) {
       const jobDoc = await BulkVerificationJob.findById(jobId);
+      if (clientDisconnected) break;
       const job =
         jobDoc && typeof jobDoc.lean === "function"
           ? await jobDoc.lean()
@@ -989,6 +1017,7 @@ const streamBulkJobEvents = async (req, res) => {
       }
 
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+      if (clientDisconnected) break;
     }
   } catch (error) {
     try {

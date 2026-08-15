@@ -15,11 +15,25 @@ const {
 } = require("./verificationSecurityService");
 
 /**
+ * Error thrown when a bulk CSV exceeds the configured row cap during parsing.
+ * Surfaced as a 400 by the controller so a maliciously large file cannot OOM
+ * the process by forcing unbounded in-memory record accumulation. See #1310.
+ */
+class BulkCsvRowLimitError extends Error {
+  constructor(maxRows) {
+    super(`CSV row limit exceeded (max ${maxRows} data rows)`);
+    this.name = "BulkCsvRowLimitError";
+    this.code = "BULK_CSV_ROW_LIMIT_EXCEEDED";
+    this.maxRows = maxRows;
+  }
+}
+
+/**
  * Parses CSV text adhering to RFC-4180 standards (supporting quoted fields, escaped quotes, commas, and multiline values).
  * @param {string} csvText - Raw CSV content
  * @returns {Array<Object>} List of parsed objects mapped to lowercase headers
  */
-const parseCSV = (csvText) => {
+const parseCSV = (csvText, { maxRows } = {}) => {
   const lines = [];
   let currentLine = [];
   let currentField = "";
@@ -48,6 +62,9 @@ const parseCSV = (csvText) => {
         currentLine.length > 0 &&
         (currentLine.length > 1 || currentLine[0] !== "")
       ) {
+        if (maxRows != null && lines.length > maxRows) {
+          throw new BulkCsvRowLimitError(maxRows);
+        }
         lines.push(currentLine);
       }
       currentLine = [];
@@ -521,4 +538,5 @@ module.exports = {
   processJob,
   retryJob,
   reconstructRetryRecords,
+  BulkCsvRowLimitError,
 };

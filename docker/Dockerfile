@@ -17,6 +17,8 @@ FROM base AS frontend-runner
 ENV NODE_ENV=production
 RUN npm install -g serve@14.2.4
 COPY --from=frontend-builder /app/frontend/dist ./dist
+RUN chown -R node:node /app/dist
+USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
