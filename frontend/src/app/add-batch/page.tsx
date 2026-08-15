@@ -135,10 +135,28 @@ const AddBatchContent: React.FC = () => {
                 id: "web3-sync",
               });
 
+              // Build a per-batch provenance descriptor instead of a fixed
+              // placeholder CID so every on-chain record uniquely identifies
+              // the batch's data. TODO: replace with a real IPFS pin
+              // (Pinata / web3.storage / nft.storage) once configured, then
+              // use the returned CID here.
+              const provenanceMetadata = {
+                batchId: batch.batchId,
+                cropType: batch.cropType,
+                quantity: batch.quantity,
+                farmerName: batch.farmerName,
+                origin: batch.origin,
+                description: batch.description || "Initial harvest recorded",
+                recordedAt: batch.createdAt || new Date().toISOString(),
+              };
+              const ipfsDescriptor = ethers.id(
+                JSON.stringify(provenanceMetadata),
+              );
+
               const tx = await contract.createBatch(
                 ethers.encodeBytes32String(batch.batchId),
                 ethers.encodeBytes32String(batch.cropType.toUpperCase()),
-                "QmYwAPJhy5n2aBhajbN7yXq3TqK6Lj5ee2ov3333333333", // 46-char valid IPFS CID
+                ipfsDescriptor,
                 BigInt(batch.quantity),
                 batch.farmerName,
                 batch.origin,
