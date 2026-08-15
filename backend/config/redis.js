@@ -94,10 +94,32 @@ function getRedisConnection() {
  * @returns {Redis} New Redis connection instance
  */
 function createQueueConnection() {
-  return new Redis({
+  const connection = new Redis({
     ...connectionOptions,
     maxRetriesPerRequest: null, // BullMQ requires this to be null
   });
+
+  // BullMQ does not attach an 'error' listener to the user-provided
+  // connection. If the ioredis client emits 'error' with no listener
+  // (e.g. during a Redis failover / socket disconnect), Node treats it as
+  // an unhandled error and the process crashes with
+  // UnhandledPromiseRejectionError. Log the error here and let ioredis
+  // recover via retryStrategy / reconnectOnError instead of crashing.
+  connection.on("error", (err) => {
+    logger.error("❌ BullMQ Redis connection error", {
+      error: err.message,
+    });
+  });
+  connection.on("close", () => {
+    logger.warn("⚠️ BullMQ Redis connection closed");
+  });
+  connection.on("reconnecting", (delay) => {
+    logger.warn(
+      `🔄 BullMQ Redis reconnecting in ${delay}ms...`,
+    );
+  });
+
+  return connection;
 }
 
 /**
