@@ -26,7 +26,7 @@ jobs:
         run: |
           if [ -f "package.json" ]; then
             npm ci --legacy-peer-deps || npm install --legacy-peer-deps
-            npx license-checker-rseidelsohn --summary --onlyAllow "MIT;ISC;Apache-2.0;BSD-3-Clause;BSD-2-Clause;CC-BY-4.0;CC-BY-3.0;CC0-1.0;Unlicense"
+            npx license-checker-rseidelsohn --summary --onlyAllow "MIT;ISC;Apache-2.0;BSD-3-Clause;BSD-2-Clause;CC-BY-4.0;CC-BY-3.0;CC0-1.0;Unlicense;Python-2.0;0BSD;BlueOak-1.0.0"
           fi
 
       - name: Check Frontend Licenses
@@ -34,7 +34,7 @@ jobs:
           if [ -d "frontend" ] && [ -f "frontend/package.json" ]; then
             cd frontend
             npm ci --legacy-peer-deps || npm install --legacy-peer-deps
-            npx license-checker-rseidelsohn --summary --onlyAllow "MIT;ISC;Apache-2.0;BSD-3-Clause;BSD-2-Clause;CC-BY-4.0;CC-BY-3.0;CC0-1.0;Unlicense;Python-2.0;0BSD"
+            npx license-checker-rseidelsohn --summary --onlyAllow "MIT;ISC;Apache-2.0;BSD-3-Clause;BSD-2-Clause;CC-BY-4.0;CC-BY-3.0;CC0-1.0;Unlicense;Python-2.0;0BSD;BlueOak-1.0.0"
           fi
 
       - name: Check Backend Licenses
@@ -42,7 +42,7 @@ jobs:
           if [ -d "backend" ] && [ -f "backend/package.json" ]; then
             cd backend
             npm ci --legacy-peer-deps || npm install --legacy-peer-deps
-            npx license-checker-rseidelsohn --summary --onlyAllow "MIT;ISC;Apache-2.0;BSD-3-Clause;BSD-2-Clause;CC-BY-4.0;CC-BY-3.0;CC0-1.0;Unlicense;Python-2.0;0BSD"
+            npx license-checker-rseidelsohn --summary --onlyAllow "MIT;ISC;Apache-2.0;BSD-3-Clause;BSD-2-Clause;CC-BY-4.0;CC-BY-3.0;CC0-1.0;Unlicense;Python-2.0;0BSD;BlueOak-1.0.0"
           fi
 
       - name: Check Smart Contracts Licenses
@@ -50,5 +50,5 @@ jobs:
           if [ -d "smart-contracts" ] && [ -f "smart-contracts/package.json" ]; then
             cd smart-contracts
             npm ci --legacy-peer-deps || npm install --legacy-peer-deps
-            npx license-checker-rseidelsohn --summary --onlyAllow "MIT;ISC;Apache-2.0;BSD-3-Clause;BSD-2-Clause;CC-BY-4.0;CC-BY-3.0;CC0-1.0;Unlicense;Python-2.0;0BSD"
+            npx license-checker-rseidelsohn --summary --onlyAllow "MIT;ISC;Apache-2.0;BSD-3-Clause;BSD-2-Clause;CC-BY-4.0;CC-BY-3.0;CC0-1.0;Unlicense;Python-2.0;0BSD;BlueOak-1.0.0"
           fi
