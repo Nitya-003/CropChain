@@ -555,12 +555,12 @@ batchSchema.statics.findByFarmerId = function (farmerId) {
   return this.find({ farmerId }).sort({ createdAt: -1 });
 };
 
-batchSchema.statics.getStats = function () {
+batchSchema.statics.getStats = async function () {
   /**
    * Get overall batch statistics
    * @returns {Promise} Promise resolving to statistics object
    */
-  return this.aggregate([
+  const result = await this.aggregate([
     {
       $group: {
         _id: null,
@@ -580,5 +580,17 @@ batchSchema.statics.getStats = function () {
         recalledBatches: 1,
       },
     },
-  ]).then(
-  .catch(err => console.error(err))
+  ]);
+  return (
+    result[0] || {
+      totalBatches: 0,
+      totalQuantity: 0,
+      uniqueFarmers: 0,
+      recalledBatches: 0,
+    }
+  );
+};
+
+const Batch = mongoose.model("Batch", batchSchema);
+
+module.exports = Batch;
