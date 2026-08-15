@@ -23,5 +23,9 @@ RUN python train.py
 
 EXPOSE 5001
 
+# Healthcheck to monitor container status
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')" || exit 1
+
 # Use gunicorn as the application server
 CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "2", "--timeout", "60", "app:app"]

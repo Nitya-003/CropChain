@@ -1,6 +1,7 @@
-﻿const { ethers } = require("ethers");
+const { ethers } = require("ethers");
 require("dotenv").config();
 const logger = require("../utils/logger");
+const { loadWallet } = require("../utils/keystore");
 
 class OracleService {
   constructor() {
@@ -9,12 +10,23 @@ class OracleService {
     this.oracleWallet = null;
     this.isListening = false;
     this.requestQueue = new Map(); // Track pending requests
+    // In-memory sequential nonce manager. Without it, concurrent
+    // fulfillIoTData() calls race on the RPC's pending nonce and produce
+    // NONCE_EXPIRED / REPLACEMENT_UNDERPRIDED errors (#1309).
+    this._pendingNonce = null;
+    this._nonceLock = Promise.resolve();
+    this.stats = {
+      totalProcessed: 0,
+      totalSuccess: 0,
+      totalFailed: 0,
+      totalResponseTimeMs: 0,
+    };
     this._reconnecting = false;
     this._contractABI = [
       "event IoTDataRequested(bytes32 indexed batchId, address requester)",
       "event IoTDataFulfilled(bytes32 indexed batchId, int256 temperature, int256 humidity, bool isSpoiled)",
       "function fulfillIoTData(bytes32 batchId, int256 temperature, int256 humidity) external",
-      "function getBatch(bytes32 batchId) view returns (tuple(address farmer, uint256 quantity, string stage, bool exists, int256 temperature, int256 humidity, bool isSpoiled))",
+      "function getBatch(bytes32 batchId) view returns (tuple(bytes32 batchId, bytes32 cropTypeHash, string ipfsCID, uint256 quantity, uint256 createdAt, address creator, bool exists, bool isRecalled, int256 currentTemperature, int256 currentHumidity, bool isSpoiled))",
     ];
   }
 
@@ -25,14 +37,6 @@ class OracleService {
     try {
       logger.info("🔮 Initializing Oracle Service...");
 
-      // Setup oracle wallet and check environment variables first
-      const privateKey = process.env.ORACLE_PRIVATE_KEY;
-      if (!privateKey) {
-        throw new Error(
-          "ORACLE_PRIVATE_KEY not found in environment variables",
-        );
-      }
-
       const contractAddress = process.env.CONTRACT_ADDRESS;
       if (!contractAddress) {
         throw new Error("CONTRACT_ADDRESS not found in environment variables");
@@ -42,7 +46,15 @@ class OracleService {
       const providerUrl = process.env.PROVIDER_URL || "http://localhost:8545";
       this.provider = await this._createProvider(providerUrl);
 
-      this.oracleWallet = new ethers.Wallet(privateKey, this.provider);
+      // Credentials are resolved via utils/keystore (encrypted keystore, AWS
+      // KMS, Vault, or deprecated ORACLE_PRIVATE_KEY env var).
+      this.oracleWallet = await loadWallet(this.provider, "oracle");
+      if (!this.oracleWallet) {
+        throw new Error(
+          "No oracle signing credentials found: set ORACLE_KEYSTORE_PATH + " +
+            "ORACLE_KEYSTORE_PASSWORD, AWS KMS, Vault, or ORACLE_PRIVATE_KEY (deprecated)",
+        );
+      }
       logger.info(`🔑 Oracle wallet address: ${this.oracleWallet.address}`);
 
       this.contract = new ethers.Contract(
@@ -57,7 +69,9 @@ class OracleService {
       logger.info("✅ Oracle Service initialized successfully");
       return true;
     } catch (error) {
-      logger.error("❌ Failed to initialize Oracle Service:", error.message);
+      logger.error("❌ Failed to initialize Oracle Service:", {
+        error: error.message,
+      });
       throw error;
     }
   }
@@ -71,13 +85,13 @@ class OracleService {
     const ws = provider._websocket;
     if (ws) {
       ws.addEventListener("close", () => {
-        console.log(
+        logger.info(
           "⚠️ Oracle WebSocket disconnected. Initiating reconnection...",
         );
         this._scheduleReconnect();
       });
       ws.addEventListener("error", (err) => {
-        console.error("⚠️ Oracle WebSocket error:", err.message || err);
+        logger.error("⚠️ Oracle WebSocket error:", { error: err.message || err });
       });
     }
 
@@ -98,7 +112,7 @@ class OracleService {
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const delay = baseDelay * Math.pow(2, attempt - 1);
-      console.log(
+      logger.info(
         `🔄 Reconnection attempt ${attempt}/${maxAttempts} in ${delay}ms...`,
       );
 
@@ -120,8 +134,7 @@ class OracleService {
         this.provider = await this._createProvider(providerUrl);
 
         // Reconnect wallet and contract to the new provider
-        const privateKey = process.env.ORACLE_PRIVATE_KEY;
-        this.oracleWallet = new ethers.Wallet(privateKey, this.provider);
+        this.oracleWallet = await loadWallet(this.provider, "oracle");
         const contractAddress = process.env.CONTRACT_ADDRESS;
         this.contract = new ethers.Contract(
           contractAddress,
@@ -132,18 +145,18 @@ class OracleService {
         // Re-register event listeners
         await this.startEventListening();
 
-        console.log("✅ Oracle reconnected successfully");
+        logger.info("✅ Oracle reconnected successfully");
         this._reconnecting = false;
         return;
       } catch (error) {
-        console.error(
+        logger.error(
           `❌ Reconnection attempt ${attempt} failed:`,
-          error.message,
+          { error: error.message },
         );
       }
     }
 
-    console.error("❌ All reconnection attempts exhausted. Oracle is offline.");
+    logger.error("❌ All reconnection attempts exhausted. Oracle is offline.");
     this._reconnecting = false;
   }
 
@@ -167,7 +180,9 @@ class OracleService {
       this.isListening = true;
       logger.info("✅ Event listening started successfully");
     } catch (error) {
-      logger.error("❌ Failed to start event listening:", error.message);
+      logger.error("❌ Failed to start event listening:", {
+        error: error.message,
+      });
       throw error;
     }
   }
@@ -210,7 +225,7 @@ class OracleService {
     } catch (error) {
       logger.error(
         `❌ Failed to handle IoT request for batch ${batchId}:`,
-        error.message,
+        { error: error.message },
       );
 
       // Remove from queue even on failure
@@ -222,6 +237,34 @@ class OracleService {
   /**
    * Fulfill IoT data on the blockchain
    */
+  async _acquireNonce() {
+    return this._withNonceLock(async () => {
+      if (this._pendingNonce === null) {
+        const address = this.oracleWallet?.address;
+        const getTn = this.provider?.getTransactionCount;
+        if (typeof getTn !== "function" || !address) {
+          return undefined;
+        }
+        this._pendingNonce = BigInt(
+          await getTn.call(this.provider, address, "pending"),
+        );
+      }
+      const nonce = this._pendingNonce;
+      this._pendingNonce += 1n;
+      return nonce;
+    });
+  }
+
+  _resetNonce() {
+    this._pendingNonce = null;
+  }
+
+  async _withNonceLock(fn) {
+    const result = this._nonceLock.then(fn, fn);
+    this._nonceLock = result.catch(() => {});
+    return result;
+  }
+
   async fulfillIoTData(batchId, iotData) {
     try {
       logger.info(`🔗 Fulfilling IoT data on blockchain...`);
@@ -238,15 +281,42 @@ class OracleService {
 
       logger.info(`⛽ Gas estimate: ${gasEstimate.toString()}`);
 
-      const tx = await this.contract.fulfillIoTData(
-        batchId,
-        temperatureRaw,
-        iotData.humidity,
-        {
-          gasLimit: Math.floor(gasEstimate * 1.2), // 20% buffer
-          gasPrice: await this.provider.getFeeData(),
-        },
-      );
+      // ethers v6 estimateGas returns a bigint, so apply the 20% buffer with
+      // bigint arithmetic instead of Math.floor(number * 1.2).
+      const gasLimit = (gasEstimate * 120n) / 100n;
+
+      // Resolve fee fields from the provider's FeeData (ethers v6 requires
+      // individual bigint fee values, not the whole FeeData object).
+      const feeData = await this.provider.getFeeData();
+      const overrides = { gasLimit };
+      if (feeData.maxFeePerGas != null && feeData.maxPriorityFeePerGas != null) {
+        overrides.maxFeePerGas = feeData.maxFeePerGas;
+        overrides.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
+      } else if (feeData.gasPrice != null) {
+        overrides.gasPrice = feeData.gasPrice;
+      }
+
+      // Acquire a sequential nonce and submit under the single-flight lock so
+      // concurrent fulfillIoTData() calls don't race on the RPC pending nonce
+      // (#1309). When no nonce source is available (e.g. tests / missing
+      // provider method), nonce is undefined and ethers auto-manages it.
+      const nonce = await this._acquireNonce();
+      if (nonce !== undefined) overrides.nonce = nonce;
+
+      let tx;
+      try {
+        tx = await this.contract.fulfillIoTData(
+          batchId,
+          temperatureRaw,
+          iotData.humidity,
+          overrides,
+        );
+      } catch (sendError) {
+        // A dropped/replaced tx invalidates the cached nonce: re-sync on the
+        // next call so a stale counter doesn't poison subsequent sends.
+        this._resetNonce();
+        throw sendError;
+      }
 
       logger.info(`📤 Transaction sent: ${tx.hash}`);
 
@@ -259,9 +329,49 @@ class OracleService {
 
       return receipt;
     } catch (error) {
-      logger.error("❌ Failed to fulfill IoT data:", error.message);
+      logger.error("❌ Failed to fulfill IoT data:", { error: error.message });
       throw error;
     }
+  }
+
+  /**
+   * Record a completed oracle request telemetry metric
+   */
+  recordRequest(durationMs, success = true) {
+    this.stats.totalProcessed += 1;
+    if (success) {
+      this.stats.totalSuccess += 1;
+    } else {
+      this.stats.totalFailed += 1;
+    }
+    this.stats.totalResponseTimeMs += Math.max(0, durationMs || 0);
+  }
+
+  /**
+   * Get calculated performance statistics
+   */
+  getPerformanceStats() {
+    if (this.stats.totalProcessed === 0) {
+      return {
+        averageResponseTime: "N/A",
+        successRate: "N/A",
+        totalProcessed: 0,
+        totalSuccess: 0,
+        totalFailed: 0,
+      };
+    }
+
+    const avgMs = this.stats.totalResponseTimeMs / this.stats.totalProcessed;
+    const avgSec = (avgMs / 1000).toFixed(1);
+    const ratePct = ((this.stats.totalSuccess / this.stats.totalProcessed) * 100).toFixed(1);
+
+    return {
+      averageResponseTime: `${avgSec}s`,
+      successRate: `${ratePct}%`,
+      totalProcessed: this.stats.totalProcessed,
+      totalSuccess: this.stats.totalSuccess,
+      totalFailed: this.stats.totalFailed,
+    };
   }
 
   /**
@@ -293,7 +403,7 @@ class OracleService {
         await this.provider.destroy();
       }
     } catch (error) {
-      logger.error("❌ Error stopping oracle service:", error.message);
+      logger.error("❌ Error stopping oracle service:", { error: error.message });
     }
   }
 
@@ -308,21 +418,63 @@ class OracleService {
 
       const batchData = await this.contract.getBatch(batchId);
 
+      if (!batchData.exists) {
+        return {
+          batchId: ethers.decodeBytes32String(batchId),
+          exists: false,
+          temperature: null,
+          humidity: null,
+          isSpoiled: false,
+        };
+      }
+
+      // getBatch (CropChain.sol:534) returns the full 11-field CropBatch
+      // struct; the real sensor readings live in currentTemperature /
+      // currentHumidity / isSpoiled (see #1326).
       return {
         batchId: ethers.decodeBytes32String(batchId),
-        temperature: batchData.temperature
-          ? batchData.temperature.toNumber() / 10
+        temperature: batchData.currentTemperature != null
+          ? Number(batchData.currentTemperature) / 10
           : null,
-        humidity: batchData.humidity ? batchData.humidity.toNumber() : null,
+        humidity: batchData.currentHumidity != null
+          ? Number(batchData.currentHumidity)
+          : null,
         isSpoiled: batchData.isSpoiled || false,
-        exists: batchData.exists || false,
+        exists: true,
       };
     } catch (error) {
-      logger.error(
-        `❌ Failed to get IoT data for batch ${batchId}:`,
-        error.message,
+      // getBatch carries the batchExists modifier, so querying a missing batch
+      // reverts instead of returning exists=false. Map that revert to a clean
+      // "batch not found" (404) while still surfacing genuine RPC failures.
+      const isRevert =
+        error?.code === "CALL_EXCEPTION" ||
+        error?.info?.error?.code === "CALL_EXCEPTION" ||
+        /execution reverted/i.test(error?.shortMessage || error?.message || "");
+
+      if (!isRevert) {
+        logger.error(
+          `❌ Failed to get IoT data for batch ${batchId}:`,
+          { error: error.message },
+        );
+        throw error;
+      }
+
+      logger.warn(
+        `⚠️ batch ${batchId} getBatch reverted (batch does not exist): ${error.message}`,
       );
-      throw error;
+      let decodedBatchId = batchId;
+      try {
+        decodedBatchId = ethers.decodeBytes32String(batchId);
+      } catch {
+        // keep raw batchId if it is not a decodable bytes32
+      }
+      return {
+        batchId: decodedBatchId,
+        exists: false,
+        temperature: null,
+        humidity: null,
+        isSpoiled: false,
+      };
     }
   }
 }

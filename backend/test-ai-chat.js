@@ -1,6 +1,7 @@
 // Simple test script to verify AI chat functionality
 require("dotenv").config();
 const aiService = require("./services/aiService");
+const logger = require("./utils/logger");
 
 // Mock batch service for testing
 const mockBatchService = {
@@ -95,7 +96,7 @@ const mockBatchService = {
 };
 
 async function testAIChat() {
-  console.log("🧪 Testing AI Chat Service...\n");
+  logger.info("🧪 Testing AI Chat Service...\n");
 
   const testCases = [
     "Hello, what can you help me with?",
@@ -109,31 +110,31 @@ async function testAIChat() {
   ];
 
   for (const message of testCases) {
-    console.log(`📝 User: ${message}`);
+    logger.info(`📝 User: ${message}`);
 
     try {
       const response = await aiService.chat(message, mockBatchService);
-      console.log(`🤖 AI: ${response.message}`);
+      logger.info(`🤖 AI: ${response.message}`);
 
       if (response.functionCalled) {
-        console.log(`⚡ Function called: ${response.functionCalled}`);
-        console.log(
+        logger.info(`⚡ Function called: ${response.functionCalled}`);
+        logger.info(
           `📊 Result: ${JSON.stringify(response.functionResult, null, 2)}`,
         );
       }
     } catch (error) {
-      console.error(`❌ Error: ${error.message}`);
+      logger.error(`❌ Error: ${error.message}`);
     }
 
-    console.log("---\n");
+    logger.info("---\n");
   }
 
-  console.log("✅ AI Chat Service test completed!");
+  logger.info("✅ AI Chat Service test completed!");
 }
 
 // Run the test
 if (require.main === module) {
-  testAIChat().catch(console.error);
+  testAIChat().catch((err) => logger.error(err));
 }
 
 module.exports = { testAIChat };

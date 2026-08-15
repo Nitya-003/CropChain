@@ -43,12 +43,15 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         bool isSpoiled;
     }
 
+    // Verbose human-readable fields (actorName, location, notes) are emitted
+    // in the BatchUpdated event for off-chain retrieval and stored as a single
+    // keccak256 content hash on-chain. Storing the raw strings cost ~20k gas
+    // per 32-byte slot (up to ~22 slots for a 500-char notes field); the hash
+    // is a single SSTORE slot. See #1287.
     struct SupplyChainUpdate {
         Stage stage;
-        string actorName;
-        string location;
+        bytes32 contentHash; // keccak256(abi.encodePacked(actorName, location, notes))
         uint256 timestamp;
-        string notes;
         address updatedBy;
     }
 
@@ -79,6 +82,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     ///      Prevents double-listing and over-allocation beyond the physical batch quantity.
     mapping(bytes32 => uint256) public batchListedQuantity;
     mapping(bytes32 => address) public nextCustodianApproval;
+    mapping(bytes32 => uint256[]) public batchListingIds;
 
     bytes32[] public allBatchIds;
 
@@ -205,6 +209,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
 
     function setTwapConfig(uint256 twapWindowSeconds, uint256 maxDeviationBps) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         require(twapWindowSeconds > 0, "Window=0");
+        require(twapWindowSeconds <= 7 days, "Window too large");
         require(maxDeviationBps <= 5000, "Deviation too high");
 
         twapWindow = twapWindowSeconds;
@@ -250,10 +255,8 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         _batchUpdates[batchId].push(
             SupplyChainUpdate({
                 stage: Stage.Farmer,
-                actorName: actorName,
-                location: location,
+                contentHash: _contentHash(actorName, location, notes),
                 timestamp: block.timestamp,
-                notes: notes,
                 updatedBy: msg.sender
             })
         );
@@ -303,16 +306,25 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         // (they can no longer be bought).
         batchListedQuantity[batchId] = 0;
 
+        // Deactivate all existing listings for this batch to prevent ghost listings
+        uint256[] storage bListings = batchListingIds[batchId];
+        for (uint256 i = 0; i < bListings.length; i++) {
+            uint256 lId = bListings[i];
+            if (listings[lId].active) {
+                listings[lId].active = false;
+                listings[lId].quantityAvailable = 0;
+                emit ListingCancelled(lId, msg.sender);
+            }
+        }
+
         // Dynamic role checks based on stage transition
         require(_canUpdateStage(batchId, stage), "Role not allowed for this stage transition");
 
         _batchUpdates[batchId].push(
             SupplyChainUpdate({
                 stage: stage,
-                actorName: actorName,
-                location: location,
+                contentHash: _contentHash(actorName, location, notes),
                 timestamp: block.timestamp,
-                notes: notes,
                 updatedBy: msg.sender
             })
         );
@@ -338,6 +350,9 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         require(!batch.isSpoiled, "Batch is spoiled");
         require(quantity > 0, "Quantity must be > 0");
         require(unitPriceWei > 0, "Price=0");
+        // The crop must have been priced by the oracle before it can be listed,
+        // so the TWAP/deviation guard in buyFromListing always has a reference.
+        require(latestOraclePrice[batch.cropTypeHash] > 0, "Crop type not priced");
 
         SupplyChainUpdate[] storage updates = _batchUpdates[batchId];
         SupplyChainUpdate storage latestUpdate = updates[updates.length - 1];
@@ -379,6 +394,8 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
             createdAt: block.timestamp
         });
 
+        batchListingIds[batchId].push(listingId);
+
         emit ListingCreated(listingId, batchId, listingSeller, quantity, unitPriceWei);
 
         return listingId;
@@ -400,10 +417,15 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         
         require(listing.seller == _getCurrentCustodian(listing.batchId), "Seller is no longer the custodian");
 
-        uint256 twapPrice = getTwapPrice(batch.cropTypeHash, twapWindow);
-        if (twapPrice > 0) {
-            require(_withinDeviation(listing.unitPriceWei, twapPrice, maxPriceDeviationBps), "TWAP deviation too high");
+        uint256 referencePrice = getTwapPrice(batch.cropTypeHash, twapWindow);
+        // Cold-start fallback: if there are no TWAP observations yet, fall back
+        // to the latest oracle spot price so the deviation guard is never
+        // silently skipped. Revert if the crop has never been priced at all.
+        if (referencePrice == 0) {
+            referencePrice = latestOraclePrice[batch.cropTypeHash];
         }
+        require(referencePrice > 0, "No oracle price for crop type");
+        require(_withinDeviation(listing.unitPriceWei, referencePrice, maxPriceDeviationBps), "TWAP deviation too high");
 
         uint256 totalCost = listing.unitPriceWei * quantity;
         require(msg.value >= totalCost, "Insufficient payment");
@@ -440,10 +462,8 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
                 // Inherit the stage from the parent's latest update, or default to Transport/Retailer?
                 // For simplicity, we assign it to the buyer as the new custodian at the current stage
                 stage: _batchUpdates[listing.batchId].length > 0 ? _batchUpdates[listing.batchId][_batchUpdates[listing.batchId].length - 1].stage : Stage.Farmer,
-                actorName: "Buyer",
-                location: "Marketplace",
+                contentHash: _contentHash("Buyer", "Marketplace", "Purchased and split from parent batch"),
                 timestamp: block.timestamp,
-                notes: "Purchased and split from parent batch",
                 updatedBy: msg.sender
             })
         );
@@ -565,10 +585,16 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         uint256 endTime = block.timestamp;
         uint256 weightedSum;
         uint256 totalWeight;
+        uint256 maxIterations = 256;
+        uint256 iterations = 0;
 
         for (uint256 i = len; i > 0; ) {
             unchecked {
                 i -= 1;
+                iterations += 1;
+            }
+            if (iterations > maxIterations) {
+                break;
             }
 
             PriceObservation storage current = observations[i];
@@ -594,8 +620,29 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         return weightedSum / totalWeight;
     }
 
+    function getActiveListings() external view returns (MarketListing[] memory) {
+        uint256 activeCount = 0;
+        for (uint256 i = 1; i < nextListingId; i++) {
+            if (listings[i].active) {
+                activeCount++;
+            }
+        }
+
+        MarketListing[] memory activeListings = new MarketListing[](activeCount);
+        uint256 currentIndex = 0;
+        for (uint256 i = 1; i < nextListingId; i++) {
+            if (listings[i].active) {
+                activeListings[currentIndex] = listings[i];
+                currentIndex++;
+            }
+        }
+
+        return activeListings;
+    }
+
     function grantStakeholderRole(bytes32 role, address account) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         require(account != address(0), "Invalid address");
+        require(account != owner, "Cannot change owner role");
         require(
             role == FARMER_ROLE || role == MANDI_ROLE || role == TRANSPORTER_ROLE || role == RETAILER_ROLE || role == ORACLE_ROLE,
             "Invalid stakeholder role"
@@ -620,13 +667,7 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
         emit RoleUpdated(account, roles[account]);
     }
 
-    function _canUpdate(Stage stage, ActorRole role) internal pure returns (bool) {
-        if (stage == Stage.Farmer && role == ActorRole.Farmer) return true;
-        if (stage == Stage.Mandi && role == ActorRole.Mandi) return true;
-        if (stage == Stage.Transport && role == ActorRole.Transporter) return true;
-        if (stage == Stage.Retailer && role == ActorRole.Retailer) return true;
-        return false;
-    }
+
 
     function _getCurrentCustodian(bytes32 batchId) internal view returns (address) {
         SupplyChainUpdate[] storage updates = _batchUpdates[batchId];
@@ -701,6 +742,15 @@ contract CropChain is Pausable, ReentrancyGuard, AccessControl {
     function _validateStringLength(string memory str, uint256 minLen, uint256 maxLen, string memory errorMessage) internal pure {
         uint256 length = bytes(str).length;
         require(length >= minLen && length <= maxLen, errorMessage);
+    }
+
+    /**
+     * @dev Content hash of the verbose supply-chain metadata (actorName,
+     * location, notes). Only this hash is written to storage; the raw strings
+     * are emitted in the BatchUpdated event for off-chain clients. See #1287.
+     */
+    function _contentHash(string memory actorName, string memory location, string memory notes) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(actorName, location, notes));
     }
 
     /**

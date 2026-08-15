@@ -1,6 +1,7 @@
 const { ethers } = require("ethers");
+const logger = require("../utils/logger");
 const User = require("../models/User");
-const { isAdminRole } = require("../constants/permissions");
+const { isAdminRole, ROLES } = require("../constants/permissions");
 const {
   buildVerificationMessage,
   CHALLENGE_ACTIONS,
@@ -26,7 +27,7 @@ class DIDService {
       const recoveredAddress = ethers.verifyMessage(message, signature);
       return recoveredAddress.toLowerCase() === expectedAddress.toLowerCase();
     } catch (error) {
-      console.error("Signature verification failed:", error);
+      logger.error("Signature verification failed:", error);
       return false;
     }
   }
@@ -72,12 +73,15 @@ class DIDService {
             metadata: { error: "User not found" },
           });
         } catch (e) {
-          console.error(e);
+          logger.error(e);
         }
         throw new Error("User not found");
       }
 
-      if (!verifier || !isAdminRole(verifier.role)) {
+      if (
+        !verifier ||
+        (!isAdminRole(verifier.role) && verifier.role !== ROLES.MANDI)
+      ) {
         try {
           await VerificationEvent.create({
             action: "credential_issued",
@@ -90,7 +94,7 @@ class DIDService {
             },
           });
         } catch (e) {
-          console.error(e);
+          logger.error(e);
         }
         throw new Error("Only Mandi officers (admins) can verify users");
       }
@@ -109,7 +113,7 @@ class DIDService {
             metadata: { error: "A valid issuance challenge is required" },
           });
         } catch (e) {
-          console.error(e);
+          logger.error(e);
         }
         throw new Error("A valid issuance challenge is required");
       }
@@ -125,7 +129,7 @@ class DIDService {
             metadata: { error: "User is already verified" },
           });
         } catch (e) {
-          console.error(e);
+          logger.error(e);
         }
         throw new Error("User is already verified");
       }
@@ -143,7 +147,7 @@ class DIDService {
             metadata: { error: "User does not have a linked wallet address" },
           });
         } catch (e) {
-          console.error(e);
+          logger.error(e);
         }
         throw new Error("User does not have a linked wallet address");
       }
@@ -165,7 +169,7 @@ class DIDService {
             },
           });
         } catch (e) {
-          console.error(e);
+          logger.error(e);
         }
         throw new Error(
           "Provided wallet address does not match linked wallet address",
@@ -201,7 +205,7 @@ class DIDService {
             metadata: { error: "Verifier wallet address not found" },
           });
         } catch (e) {
-          console.error(e);
+          logger.error(e);
         }
         throw new Error("Verifier wallet address not found");
       }
@@ -223,7 +227,7 @@ class DIDService {
           metadata: { message, signature, isValid: isValidSignature },
         });
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       }
 
       if (!isValidSignature) {
@@ -237,7 +241,7 @@ class DIDService {
             metadata: { error: "Invalid verifier signature" },
           });
         } catch (e) {
-          console.error(e);
+          logger.error(e);
         }
         throw new Error("Invalid verifier signature");
       }
@@ -281,7 +285,7 @@ class DIDService {
           },
         });
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       }
 
       // Sync user role to blockchain
@@ -290,9 +294,9 @@ class DIDService {
         try {
           await blockchainService.syncUserRole(user.walletAddress, user.role);
         } catch (bcError) {
-          console.error(
+          logger.error(
             `Failed to sync user role on blockchain for ${user.email} during credential issue:`,
-            bcError.message,
+            { error: bcError.message },
           );
         }
       }
@@ -310,9 +314,9 @@ class DIDService {
           },
         );
       } catch (sockErr) {
-        console.error(
+        logger.error(
           "Failed to emit socket verification status (verified):",
-          sockErr.message,
+          { error: sockErr.message },
         );
       }
 
@@ -333,7 +337,7 @@ class DIDService {
           metadata: { error: error.message || error.toString() },
         });
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       }
 
       // Emit failed socket status
@@ -350,9 +354,9 @@ class DIDService {
           },
         );
       } catch (sockErr) {
-        console.error(
+        logger.error(
           "Failed to emit socket verification status (failed):",
-          sockErr.message,
+          { error: sockErr.message },
         );
       }
 
@@ -382,7 +386,7 @@ class DIDService {
             metadata: { error: "User not found" },
           });
         } catch (e) {
-          console.error(e);
+          logger.error(e);
         }
         throw new Error("User not found");
       }
@@ -398,7 +402,7 @@ class DIDService {
             metadata: { error: "Only admins can revoke credentials" },
           });
         } catch (e) {
-          console.error(e);
+          logger.error(e);
         }
         throw new Error("Only admins can revoke credentials");
       }
@@ -414,7 +418,7 @@ class DIDService {
             metadata: { error: "User is not verified" },
           });
         } catch (e) {
-          console.error(e);
+          logger.error(e);
         }
         throw new Error("User is not verified");
       }
@@ -452,7 +456,7 @@ class DIDService {
           },
         });
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       }
 
       // Revoke user role on blockchain (sync to ActorRole.None)
@@ -461,9 +465,9 @@ class DIDService {
         try {
           await blockchainService.syncUserRole(user.walletAddress, "none");
         } catch (bcError) {
-          console.error(
+          logger.error(
             `Failed to revoke user role on blockchain for ${user.email}:`,
-            bcError.message,
+            { error: bcError.message },
           );
         }
       }
@@ -481,9 +485,9 @@ class DIDService {
           },
         );
       } catch (sockErr) {
-        console.error(
+        logger.error(
           "Failed to emit socket verification status (unverified):",
-          sockErr.message,
+          { error: sockErr.message },
         );
       }
 
@@ -501,7 +505,7 @@ class DIDService {
           metadata: { error: error.message || error.toString() },
         });
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       }
 
       // Emit failed socket status
@@ -518,9 +522,9 @@ class DIDService {
           },
         );
       } catch (sockErr) {
-        console.error(
+        logger.error(
           "Failed to emit socket verification status (failed):",
-          sockErr.message,
+          { error: sockErr.message },
         );
       }
 
@@ -578,7 +582,7 @@ class DIDService {
             metadata: { error: "User not found" },
           });
         } catch (e) {
-          console.error(e);
+          logger.error(e);
         }
         throw new Error("User not found");
       }
@@ -594,7 +598,7 @@ class DIDService {
             metadata: { error: "A valid wallet linking challenge is required" },
           });
         } catch (e) {
-          console.error(e);
+          logger.error(e);
         }
         throw new Error("A valid wallet linking challenge is required");
       }
@@ -625,7 +629,7 @@ class DIDService {
           metadata: { message, signature, isValid: isValidSignature },
         });
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       }
 
       if (!isValidSignature) {
@@ -639,7 +643,7 @@ class DIDService {
             metadata: { error: "Invalid signature" },
           });
         } catch (e) {
-          console.error(e);
+          logger.error(e);
         }
         throw new Error("Invalid signature");
       }
@@ -661,7 +665,7 @@ class DIDService {
           },
         });
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       }
 
       // Emit linked socket status
@@ -677,9 +681,9 @@ class DIDService {
           },
         );
       } catch (sockErr) {
-        console.error(
+        logger.error(
           "Failed to emit socket verification status (linked):",
-          sockErr.message,
+          { error: sockErr.message },
         );
       }
 
@@ -699,7 +703,7 @@ class DIDService {
           metadata: { error: error.message || error.toString() },
         });
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       }
 
       // Emit failed socket status
@@ -716,9 +720,9 @@ class DIDService {
           },
         );
       } catch (sockErr) {
-        console.error(
+        logger.error(
           "Failed to emit socket verification status (failed):",
-          sockErr.message,
+          { error: sockErr.message },
         );
       }
 

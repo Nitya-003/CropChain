@@ -13,6 +13,7 @@ const logger = require('../utils/logger');
 const { emitToBatchRoom } = require('../services/socketService');
 const activityService = require('../services/activityService');
 const batchService = require('../services/batchService');
+const mlService = require('../services/mlService');
 const QRCode = require('qrcode');
 const { calculateUpdateHash } = require('../utils/cryptography');
 const { 
@@ -28,7 +29,7 @@ const escapeRegex = (value) =>
 const CSV_FORMULA_PREFIX = /^[=+\-@]/;
 
 const escapeCsvCell = (value) => {
-  if (value == null) return '""';
+  if (value === null) return '""';
   const str = String(value);
   const escaped = str.replace(/"/g, '""');
   if (CSV_FORMULA_PREFIX.test(escaped)) {
@@ -81,7 +82,7 @@ const generateQRCode = async (batchId) => {
       },
     });
   } catch (error) {
-    console.error("Failed to generate QR code:", error);
+    logger.error("Failed to generate QR code", { error: error.message, stack: error.stack });
     return "";
   }
 };
@@ -285,14 +286,7 @@ exports.recallBatch = async (req, res) => {
   }
 };
 
-// Helper function to simulate blockchain hash (replace with actual blockchain integration)
-const simulateBlockchainHash = (data) => {
-  const crypto = require("crypto");
-  return crypto
-    .createHash("sha256")
-    .update(JSON.stringify(data) + Date.now() + crypto.randomBytes(16).toString("hex"))
-    .digest("hex");
-};
+
 
 exports.getBatches = async (req, res) => {
   try {
@@ -515,52 +509,6 @@ exports.updateBatchStatus = async (req, res) => {
 };
 
 exports.exportBatch = async (req, res) => {
-    try {
-        const { batchId } = req.params;
-        const { format = 'pdf' } = req.query;
-
-        const batch = await Batch.findOne({ batchId }).lean();
-        if (!batch) {
-            return res.status(404).json(
-                apiResponse.errorResponse('Batch not found', 'BATCH_NOT_FOUND', 404)
-            );
-        }
-
-        if (batch.iotData) {
-            batch.currentTemperature = batch.iotData.currentTemperature ?? null;
-            batch.currentHumidity = batch.iotData.currentHumidity ?? null;
-            batch.isSpoiled = batch.iotData.isSpoiled ?? false;
-            batch.iotTimestamp = batch.iotData.lastUpdated ?? null;
-            delete batch.iotData;
-        }
-
-        if (format === 'csv') {
-            const csvData = [
-                'Field,Value',
-                `Batch ID,${escapeCsvCell(batch.batchId)}`,
-                `Crop Type,${escapeCsvCell(batch.cropType)}`,
-                `Quantity,${escapeCsvCell(batch.quantity + ' kg')}`,
-                `Harvest Date,${escapeCsvCell(batch.harvestDate || 'N/A')}`,
-                `Origin,${escapeCsvCell(batch.origin)}`,
-                `Farmer,${escapeCsvCell(batch.farmerName)}`,
-                `Current Stage,${escapeCsvCell(batch.currentStage)}`,
-                `Status,${escapeCsvCell(batch.isSpoiled ? 'Spoiled' : 'Active')}`,
-            ];
-
-            if (batch.updates?.length) {
-                csvData.push('');
-                csvData.push('Timeline');
-                csvData.push('Stage,Actor,Location,Date,Notes');
-                batch.updates.forEach(u => {
-                    csvData.push([
-                        escapeCsvCell(u.stage),
-                        escapeCsvCell(u.actor),
-                        escapeCsvCell(u.location),
-                        escapeCsvCell(u.timestamp),
-                        escapeCsvCell(u.notes),
-                    ].join(','));
-                });
-            }
   try {
     const { batchId } = req.params;
     const { format = "pdf" } = req.query;
@@ -602,14 +550,6 @@ exports.exportBatch = async (req, res) => {
         `Farmer,${escapeCsvCell(batch.farmerName)}`,
         `Current Stage,${escapeCsvCell(batch.currentStage)}`,
         `Status,${escapeCsvCell(batch.isSpoiled ? "Spoiled" : "Active")}`,
-        `Batch ID,${sanitizeCSV(batch.batchId)}`,
-        `Crop Type,${sanitizeCSV(batch.cropType)}`,
-        `Quantity,${batch.quantity} kg`,
-        `Harvest Date,${batch.harvestDate || "N/A"}`,
-        `Origin,${sanitizeCSV(batch.origin)}`,
-        `Farmer,${sanitizeCSV(batch.farmerName)}`,
-        `Current Stage,${sanitizeCSV(batch.currentStage)}`,
-        `Status,${batch.isSpoiled ? "Spoiled" : "Active"}`,
       ];
 
       if (batch.updates?.length) {
@@ -625,14 +565,6 @@ exports.exportBatch = async (req, res) => {
               escapeCsvCell(u.timestamp),
               escapeCsvCell(u.notes),
             ].join(","),
-          );
-          const stage = sanitizeCSV(u.stage || "").replace(/"/g, '""');
-          const actor = sanitizeCSV(u.actor || "").replace(/"/g, '""');
-          const location = sanitizeCSV(u.location || "").replace(/"/g, '""');
-          const timestamp = sanitizeCSV(u.timestamp || "").replace(/"/g, '""');
-          const notes = sanitizeCSV(u.notes || "").replace(/"/g, '""');
-          csvData.push(
-            `"${stage}","${actor}","${location}","${timestamp}","${notes}"`,
           );
         });
       }
@@ -656,7 +588,7 @@ exports.exportBatch = async (req, res) => {
     res.setHeader("Content-Length", pdfBuffer.length);
     return res.send(pdfBuffer);
   } catch (error) {
-    console.error("Export failed:", error);
+    logger.error("Export failed", { error: error.message, stack: error.stack });
     return res
       .status(500)
       .json(apiResponse.errorResponse("Export failed", "EXPORT_ERROR", 500));
@@ -675,13 +607,29 @@ exports.recordIoTData = async (req, res) => {
         
         const validationResult = recordIoTDataSchema.safeParse(req.body);
         if (!validationResult.success) {
-            const details = validationResult.error.errors.map(err => err.message);
+            const issues = validationResult.error.issues || validationResult.error.errors || [];
+            const details = issues.map(err => err.message);
             return res.status(400).json(apiResponse.errorResponse('Validation failed', 'VALIDATION_ERROR', 400, details));
         }
         
         const { temperature, humidity } = validationResult.data;
 
         const batch = await spoilageDetectionService.recordIoTData(batchId, temperature, humidity);
+
+        try {
+            const mlPrediction = await mlService.predictQuality(temperature, humidity, batch.cropType);
+            if (mlPrediction) {
+                batch.spoilageRisk = {
+                    riskScore: mlPrediction.riskScore,
+                    riskLevel: mlPrediction.riskLevel,
+                    factors: mlPrediction.factors,
+                    predictedAt: new Date()
+                };
+                await batch.save();
+            }
+        } catch (mlErr) {
+            logger.warn("ML Quality prediction failed", { error: mlErr.message });
+        }
 
         await activityService.logActivity({
             userId: req.user.id || req.user._id,
@@ -703,6 +651,7 @@ exports.recordIoTData = async (req, res) => {
                 currentHumidity: batch.iotData.currentHumidity,
                 isSpoiled: batch.iotData.isSpoiled,
                 lastUpdated: batch.iotData.lastUpdated,
+                spoilageRisk: batch.spoilageRisk
             }, 'IoT data recorded successfully')
         );
     } catch (error) {
@@ -711,7 +660,7 @@ exports.recordIoTData = async (req, res) => {
                 apiResponse.errorResponse('Batch not found', 'BATCH_NOT_FOUND', 404)
             );
         }
-        console.error('Error recording IoT data:', error);
+        logger.error('Error recording IoT data', { error: error.message, stack: error.stack });
         res.status(500).json(
             apiResponse.errorResponse('Failed to record IoT data', 'IOT_RECORD_ERROR', 500)
         );
@@ -751,7 +700,7 @@ exports.getIoTData = async (req, res) => {
           apiResponse.errorResponse("Batch not found", "BATCH_NOT_FOUND", 404),
         );
     }
-    console.error("Error getting IoT data:", error);
+    logger.error("Error getting IoT data", { error: error.message, stack: error.stack });
     res
       .status(500)
       .json(
@@ -762,4 +711,7 @@ exports.getIoTData = async (req, res) => {
         ),
       );
   }
+};
+
+.catch(err => console.error("Promise.all failed:", err));
 };

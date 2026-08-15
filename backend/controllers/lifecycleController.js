@@ -145,12 +145,19 @@ exports.updateLifecycle = async (req, res) => {
       const userId = (req.user.id || req.user._id)?.toString().trim().toLowerCase();
       const batchFarmerId = batch.farmerId?.toString().trim().toLowerCase();
       const isOwner = userId === batchFarmerId;
+      const isFarmer = req.user.role === "farmer";
+      const stageAuthorized = isAuthorizedForStage(req.user.role, stage);
+      // Farmers must own the batch they advance to Growing/Harvested.
+      // Other roles (transporter/mandi/retailer/quality_inspector) only
+      // need stage authorization and never own the batch.
+      const allowed = isFarmer ? isOwner && stageAuthorized : stageAuthorized;
 
-      if (!isOwner) {
-        logger.warn("Lifecycle update rejected: user does not own this batch", {
+      if (!allowed) {
+        logger.warn("Lifecycle update rejected: user does not own this batch and role is not authorized for target stage", {
           userId,
           role: req.user.role,
           batchId: batch.batchId,
+          targetStage: stage,
           batchOwner: batch.farmerId
         });
         return res.status(403).json(apiResponse.errorResponse(

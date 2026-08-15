@@ -29,7 +29,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isWalletConnected: boolean;
   updateUser: (updatedUser: User) => void;
-  addFunds: (amount: number) => Promise<void>;
+  addFunds: (amount: number, userId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,6 +54,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const [isWalletConnected, setIsWalletConnected] = useState(false);
 
   useEffect(() => {
+    const handleAuthLogout = () => {
+      setUser(null);
+      setIsWalletConnected(false);
+      setAuthToken(null);
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("auth:logout", handleAuthLogout);
+    }
+
     const initAuth = async () => {
       try {
         const response = await authService.refreshSession();
@@ -69,6 +79,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       }
     };
     initAuth();
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("auth:logout", handleAuthLogout);
+      }
+    };
   }, []);
 
   const checkWalletConnected = async () => {
@@ -244,15 +260,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     localStorage.setItem("user", JSON.stringify(sanitized));
   };
 
-  const addFunds = async (amount: number) => {
+  /**
+   * Add funds to a user's balance.
+   *
+   * `userId` identifies the target account (an admin may add funds to any
+   * user, not just themselves). The backend requires both `amount` and
+   * `userId` — sending amount alone results in a "Please provide a target
+   * userId" error.
+   *
+   * Note: the response contains the *target* user's updated record, which
+   * may not be the currently logged-in admin. We only update local auth
+   * state (`user`) when the target matches the logged-in user, so an admin
+   * crediting someone else's account doesn't get their own session
+   * overwritten with the other user's data.
+   */
+  const addFunds = async (amount: number, userId: string) => {
     setIsLoading(true);
     try {
-      const response = await apiClient.post("/auth/add-funds", { amount });
+      const response = await apiClient.post("/auth/add-funds", {
+        amount,
+        userId,
+      });
       const updatedUser = response.data.data.user;
-      setUser(updatedUser);
-      persistUser(updatedUser);
+
+      if (user && updatedUser.id === user.id) {
+        setUser(updatedUser);
+        persistUser(updatedUser);
+      }
+
       toast.success(
-        `${amount.toLocaleString()} credits added to your balance!`,
+        `${amount.toLocaleString()} credits added to the account!`,
       );
     } catch (error: any) {
       const message = error.response?.data?.message || "Failed to add funds";

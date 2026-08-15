@@ -302,6 +302,19 @@ const batchSchema = new mongoose.Schema(
         stageHistory: [],
       }),
     },
+    carbonFootprint: {
+      totalEmissions: {
+        type: Number,
+        default: 0
+      },
+      transportLegs: [{
+        origin: String,
+        destination: String,
+        distanceKm: Number,
+        emissionsKgCO2: Number,
+        timestamp: { type: Date, default: Date.now }
+      }]
+    },
     status: {
       type: String,
       enum: ["Active", "Flagged", "Inactive"],
@@ -542,12 +555,12 @@ batchSchema.statics.findByFarmerId = function (farmerId) {
   return this.find({ farmerId }).sort({ createdAt: -1 });
 };
 
-batchSchema.statics.getStats = function () {
+batchSchema.statics.getStats = async function () {
   /**
    * Get overall batch statistics
    * @returns {Promise} Promise resolving to statistics object
    */
-  return this.aggregate([
+  const result = await this.aggregate([
     {
       $group: {
         _id: null,
@@ -567,15 +580,17 @@ batchSchema.statics.getStats = function () {
         recalledBatches: 1,
       },
     },
-  ]).then(
-    (result) =>
-      result[0] || {
-        totalBatches: 0,
-        totalQuantity: 0,
-        uniqueFarmers: 0,
-        recalledBatches: 0,
-      },
+  ]);
+  return (
+    result[0] || {
+      totalBatches: 0,
+      totalQuantity: 0,
+      uniqueFarmers: 0,
+      recalledBatches: 0,
+    }
   );
 };
 
-module.exports = mongoose.model("Batch", batchSchema);
+const Batch = mongoose.model("Batch", batchSchema);
+
+module.exports = Batch;

@@ -3,6 +3,7 @@ const router = express.Router();
 const oracleService = require("../services/oracleService");
 const { protect, authorizeRoles } = require("../middleware/auth");
 const apiResponse = require("../utils/apiResponse");
+const logger = require("../utils/logger");
 
 /**
  * Get oracle service status
@@ -28,7 +29,7 @@ router.get("/status", (req, res) => {
 
     res.json(response);
   } catch (error) {
-    console.error("Error getting oracle status:", error);
+    logger.error("Error getting oracle status", { error: error.message, stack: error.stack });
     const response = apiResponse.errorResponse(
       "Failed to get oracle status",
       "ORACLE_STATUS_ERROR",
@@ -81,9 +82,9 @@ router.get("/batch/:batchId/iot-data", protect, async (req, res) => {
 
     res.json(response);
   } catch (error) {
-    console.error(
-      `Error getting IoT data for batch ${req.params.batchId}:`,
-      error,
+    logger.error(
+      `Error getting IoT data for batch ${req.params.batchId}`,
+      { error: error.message, stack: error.stack },
     );
     const response = apiResponse.errorResponse(
       "Failed to retrieve IoT data",
@@ -110,25 +111,23 @@ router.get(
       // Calculate uptime (simplified - in production, store start time)
       const uptimeHours = process.uptime() / 3600;
 
+      const performance = oracleService.getPerformanceStats();
+
       const response = apiResponse.successResponse(
         {
           oracle: {
             ...status,
-            uptimeHours: Math.round(uptimeHours * 100) / 100,
+            uptimeHours: Math.round(uptimeHours * 100 + Number.EPSILON) / 100,
             version: "1.0.0",
           },
-          performance: {
-            averageResponseTime: "2.3s", // Mock data
-            successRate: "99.8%", // Mock data
-            totalProcessed: 1247, // Mock data
-          },
+          performance,
         },
         "Oracle statistics retrieved successfully",
       );
 
       res.json(response);
     } catch (error) {
-      console.error("Error getting oracle stats:", error);
+      logger.error("Error getting oracle stats", { error: error.message, stack: error.stack });
       const response = apiResponse.errorResponse(
         "Failed to retrieve oracle statistics",
         "ORACLE_STATS_ERROR",

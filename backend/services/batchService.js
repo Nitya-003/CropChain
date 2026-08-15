@@ -11,6 +11,7 @@ const blockchainService = require("./blockchainService");
 const blockchainQueue = require("./blockchainQueue");
 const notificationService = require("./notificationService");
 const { emitToBatchRoom, emitGlobal } = require("./socketService");
+const carbonService = require("./carbonService");
 const apiResponse = require("../utils/apiResponse");
 const {
   getStageNumber,
@@ -92,8 +93,32 @@ class BatchService {
         const batchId = await this.generateBatchId(session);
         const qrCode = await this.generateQRCode(batchId);
 
-        const blockchainHash =
-          batchData.blockchainHash || blockchainService.simulateHash(batchData);
+        let blockchainHash = batchData.blockchainHash || "";
+        let syncStatus = "pending";
+
+        // Perform actual synchronous blockchain interaction
+        if (blockchainService.isAvailable()) {
+            const txResult = await blockchainService.createBatchOnChain(
+                batchId,
+                batchData.cropType,
+                blockchainHash, // ipfsCID placeholder
+                batchData.quantity,
+                batchData.farmerName || user.name,
+                batchData.origin,
+                batchData.description || "Initial harvest recorded"
+            );
+            
+            if (txResult.success) {
+                blockchainHash = txResult.transactionHash;
+                syncStatus = "synced";
+            } else {
+                throw new Error(`Blockchain transaction failed: ${txResult.error || txResult.message}`);
+            }
+        } else {
+            // Fallback for demo mode
+            blockchainHash = blockchainService.simulateHash(batchData);
+            logger.warn(`Blockchain not available. Using simulated hash: ${blockchainHash}`);
+        }
 
         const initialUpdate = {
           stage: "farmer",
@@ -122,7 +147,7 @@ class BatchService {
               isRecalled: false,
               qrCode,
               blockchainHash,
-              syncStatus: batchData.blockchainHash ? "synced" : "pending",
+              syncStatus,
               updates: [initialUpdate],
               lifecycle: {
                 currentStage: "Registered",
@@ -146,10 +171,8 @@ class BatchService {
         await session.commitTransaction();
         session.endSession();
 
-        // Try to sync with blockchain (non-blocking)
-        if (createdBatch.syncStatus !== "synced") {
-          this.syncToBlockchain(createdBatch, "create");
-        }
+        // Sync to blockchain (update) is still async if needed, but create is now synchronous.
+        // We only call syncToBlockchain for updates or if we specifically decided to fall back.
 
         // Log platform activities
         await activityService.logActivity({
@@ -286,6 +309,7 @@ class BatchService {
         timestamp: update.timestamp,
       })),
       qrCode: batchData.qrCode,
+      carbonFootprint: batchData.carbonFootprint,
       isSpoiled: batchData.isSpoiled ?? iotData.isSpoiled,
       currentTemperature:
         batchData.currentTemperature ?? iotData.currentTemperature,
@@ -425,16 +449,46 @@ class BatchService {
       const blockchainHash =
         updateData.blockchainHash || blockchainService.simulateHash(updateData);
 
+      const previousLocation = previousBatch.updates && previousBatch.updates.length > 0
+        ? previousBatch.updates[previousBatch.updates.length - 1].location
+        : previousBatch.origin;
+
+      const updatePayload = {
+        $push: {
+          updates: newUpdate,
+        },
+        currentStage: normalizedStage,
+        blockchainHash,
+        syncStatus: updateData.blockchainHash ? "synced" : "pending",
+      };
+
+      if (
+        previousLocation.toLowerCase().trim() !== updateData.location.toLowerCase().trim() &&
+        ["transport", "retailer"].includes(normalizedStage)
+      ) {
+        const emissionsData = carbonService.calculateEmissions(
+          previousLocation,
+          updateData.location,
+          previousBatch.quantity
+        );
+
+        if (emissionsData.emissionsKgCO2 > 0) {
+          updatePayload.$push["carbonFootprint.transportLegs"] = {
+            origin: previousLocation,
+            destination: updateData.location,
+            distanceKm: emissionsData.distanceKm,
+            emissionsKgCO2: emissionsData.emissionsKgCO2,
+            timestamp: new Date(),
+          };
+          updatePayload.$inc = {
+            "carbonFootprint.totalEmissions": emissionsData.emissionsKgCO2,
+          };
+        }
+      }
+
       const batch = await Batch.findOneAndUpdate(
         { batchId },
-        {
-          $push: {
-            updates: newUpdate,
-          },
-          currentStage: normalizedStage,
-          blockchainHash,
-          syncStatus: updateData.blockchainHash ? "synced" : "pending",
-        },
+        updatePayload,
         { new: true, runValidators: true },
       );
 
@@ -774,20 +828,9 @@ class BatchService {
 
     try {
       if (action === "create") {
-        const batchData = {
-          batchId: batch.batchId,
-          cropType: batch.cropType,
-          ipfsCID: batch.blockchainHash || "",
-          quantity: batch.quantity,
-          farmerName: batch.farmerName,
-          origin: batch.origin,
-          description: batch.description || "",
-        };
-
-        await blockchainQueue.addCreateBatchJob(batchData);
-        logger.info(
-          `[BatchService] Queued createBatch job for ${batch.batchId}`,
-        );
+        // Create is now handled synchronously in createBatch(). 
+        // This block is preserved just in case demo-mode batches need manual syncing later.
+        logger.info(`[BatchService] Batch ${batch.batchId} create sync is handled synchronously now.`);
       } else if (action === "update") {
         const lastUpdate =
           batch.updates && batch.updates.length > 0
@@ -816,4 +859,14 @@ class BatchService {
 }
 
 // Export singleton instance
+module.exports = new BatchService();
+
+.catch(err => console.error("Promise.all failed:", err));
+.catch(err => console.error("Promise.all failed:", err));
+.catch(err => console.error("Promise.all failed:", err));
+.catch(err => console.error("Promise.all failed:", err));
+.catch(err => console.error("Promise.all failed:", err));
+.catch(err => console.error("Promise.all failed:", err));
+.catch(err => console.error("Promise.all failed:", err));
+.catch(err => console.error("Promise.all failed:", err));
 module.exports = new BatchService();

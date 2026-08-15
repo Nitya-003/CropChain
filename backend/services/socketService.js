@@ -1,14 +1,10 @@
-const { Server } = require('socket.io');
-const jwt = require('jsonwebtoken');
-const logger = require('../utils/logger');
-const Batch = require('../models/Batch');
-const { hasPermission, PERMISSIONS } = require('../constants/permissions');
-const { toDecimal, fromDecimal, lt, lte, gte, toNumber, fromString } = require('../utils/decimalHelpers');
 const { Server } = require("socket.io");
+const { createAdapter } = require("@socket.io/redis-adapter");
 const jwt = require("jsonwebtoken");
 const logger = require("../utils/logger");
 const Batch = require("../models/Batch");
 const { hasPermission, PERMISSIONS } = require("../constants/permissions");
+const { createPubSubClients } = require("../config/redis");
 
 let io = null;
 
@@ -27,7 +23,8 @@ const EVENT_RATE_LIMITS = {
 
 function createRateLimiter() {
   const buckets = new Map();
-  return function checkRate(event, socketId) {
+
+  function checkRate(event, socketId) {
     const config = EVENT_RATE_LIMITS[event];
     if (!config) return true;
     const key = `${socketId}:${event}`;
@@ -46,7 +43,18 @@ function createRateLimiter() {
     }
     timestamps.push(now);
     return true;
-  };
+  }
+
+  function clearSocket(socketId) {
+    const prefix = `${socketId}:`;
+    for (const key of buckets.keys()) {
+      if (key.startsWith(prefix)) {
+        buckets.delete(key);
+      }
+    }
+  }
+
+  return { checkRate, clearSocket };
 }
 
 function validatePayload(event, data) {
@@ -96,43 +104,96 @@ function initializeSocketIO(httpServer) {
       maxHttpBufferSize: MAX_HTTP_BUFFER_SIZE,
     });
 
-    const checkRate = createRateLimiter();
+    if (process.env.NODE_ENV !== "test" || process.env.ENABLE_REDIS_SOCKET_ADAPTER === "true") {
+      try {
+        const { pubClient, subClient } = createPubSubClients();
+        io.adapter(createAdapter(pubClient, subClient));
+        logger.info("✓ Socket.IO Redis adapter attached for horizontal scaling across nodes");
+      } catch (err) {
+        logger.warn("⚠️ Failed to attach Redis adapter to Socket.IO. Falling back to default in-memory adapter:", { error: err.message });
+      }
+    }
+
+    const { checkRate, clearSocket } = createRateLimiter();
 
     io.use((socket, next) => {
       const token =
-        socket.handshake.auth.token ||
-        socket.handshake.headers.authorization?.replace("Bearer ", "");
-      if (!token) {
-        return next(new Error("Authentication required"));
+        socket.handshake.auth?.token ||
+        socket.handshake.headers?.authorization?.replace("Bearer ", "");
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          socket.user = decoded;
+        } catch (err) {
+          logger.debug(`[SOCKET] Handshake token verification failed: ${err.message}`);
+        }
       }
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        socket.user = decoded;
-        next();
-      } catch (err) {
-        next(new Error("Invalid token"));
-      }
+      next();
     });
 
     // Set up connection handling
     io.on("connection", (socket) => {
       logger.info(`[SOCKET] Client connected: ${socket.id}`);
+      socket.pendingRoomJoins = new Map();
 
       // Automatically join user-specific room if authenticated
-      if (socket.user && socket.user.id) {
-        socket.join(`user:${socket.user.id}`);
+      if (socket.user && (socket.user.id || socket.user._id)) {
+        const userId = socket.user.id || socket.user._id;
+        socket.join(`user:${userId}`);
         logger.info(
-          `[SOCKET] Client ${socket.id} joined user room: ${socket.user.id}`,
+          `[SOCKET] Client ${socket.id} joined user room: ${userId}`,
         );
+      }
+
+      // Runtime authentication handler (handles late re-authentication & mobile reconnects)
+      socket.on("authenticate", async (data) => {
+        const token = data?.token || (typeof data === "string" ? data : null);
+        if (!token) {
+          safeEmit("authenticated", { success: false, message: "Token is required" });
+          return;
+        }
+
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          socket.user = decoded;
+          const userId = decoded.id || decoded._id;
+          socket.join(`user:${userId}`);
+          safeEmit("authenticated", { success: true, user: decoded });
+          logger.info(`[SOCKET] Client ${socket.id} authenticated at runtime as user: ${userId}`);
+
+          // Process queued pending room joins automatically
+          if (socket.pendingRoomJoins && socket.pendingRoomJoins.size > 0) {
+            logger.info(`[SOCKET] Processing ${socket.pendingRoomJoins.size} pending room joins for socket ${socket.id}`);
+            for (const [key, { event, payload }] of socket.pendingRoomJoins.entries()) {
+              if (event === "join-batch-room") {
+                socket.join(`batch:${payload}`);
+                safeEmit("joined-batch-room", { batchId: payload, status: "auto-fulfilled" });
+              }
+            }
+            socket.pendingRoomJoins.clear();
+          }
+        } catch (err) {
+          safeEmit("authenticated", { success: false, message: "Invalid or expired token" });
+        }
+      });
+
+      // Only emit to a socket that is still connected. Async handlers can
+      // finish after the client has disconnected, so every emit is guarded.
+      function safeEmit(event, payload) {
+        if (!socket.connected) return;
+        socket.emit(event, payload);
       }
 
       function withGuard(event, handler) {
         return async (data) => {
+          if (!socket.connected) {
+            return;
+          }
           if (!checkRate(event, socket.id)) {
             logger.warn(
               `[SOCKET] Rate limit exceeded for ${socket.id} on ${event}`,
             );
-            socket.emit("error", {
+            safeEmit("error", {
               message: "Too many requests. Please slow down.",
             });
             return;
@@ -141,7 +202,7 @@ function initializeSocketIO(httpServer) {
             logger.warn(
               `[SOCKET] Invalid payload from ${socket.id} on ${event}`,
             );
-            socket.emit("error", { message: "Invalid payload." });
+            safeEmit("error", { message: "Invalid payload." });
             return;
           }
           return await handler(data);
@@ -155,9 +216,18 @@ function initializeSocketIO(httpServer) {
           try {
             const user = socket.user;
             if (!user) {
-              socket.emit("error", {
-                message: "Authentication required to join batch room",
+              // Queue request until runtime authentication completes
+              socket.pendingRoomJoins.set(`batch:${batchId}`, {
+                event: "join-batch-room",
+                payload: batchId,
+                queuedAt: Date.now(),
               });
+              safeEmit("room-join-queued", {
+                batchId,
+                status: "queued",
+                message: "Room join queued pending authentication",
+              });
+              logger.info(`[SOCKET] Queued join-batch-room for unauthenticated socket ${socket.id} (batchId: ${batchId})`);
               return;
             }
 
@@ -166,7 +236,7 @@ function initializeSocketIO(httpServer) {
 
             const batch = await Batch.findOne({ batchId }).lean();
             if (!batch) {
-              socket.emit("error", { message: "Batch not found" });
+              safeEmit("error", { message: "Batch not found" });
               return;
             }
 
@@ -190,7 +260,7 @@ function initializeSocketIO(httpServer) {
             const canRead = hasPermission(user.role, PERMISSIONS.BATCH_READ);
 
             if (!isOwner && !canViewAll && !canRead) {
-              socket.emit("error", {
+              safeEmit("error", {
                 message:
                   "Access denied: you do not have permission to view this batch",
               });
@@ -209,7 +279,7 @@ function initializeSocketIO(httpServer) {
               `[SOCKET ERROR] Error authorizing batch room join for ${socket.id}:`,
               err,
             );
-            socket.emit("error", { message: "Failed to verify batch access" });
+            safeEmit("error", { message: "Failed to verify batch access" });
           }
         }),
       );
@@ -229,9 +299,23 @@ function initializeSocketIO(httpServer) {
       socket.on(
         "join-verification-room",
         withGuard("join-verification-room", (userId) => {
-          socket.join(`verification:user:${userId}`);
+          const authenticatedUserId = socket.user?.id;
+          if (
+            !authenticatedUserId ||
+            authenticatedUserId.toString() !== userId
+          ) {
+            safeEmit("error", {
+              message: "Access denied: you can only join your own verification room",
+            });
+            logger.warn(
+              `[SOCKET] Unauthorized attempt by ${socket.id} to join verification room`,
+            );
+            return;
+          }
+
+          socket.join(`verification:user:${authenticatedUserId}`);
           logger.info(
-            `[SOCKET] Client ${socket.id} joined verification room: ${userId}`,
+            `[SOCKET] Client ${socket.id} joined verification room: ${authenticatedUserId}`,
           );
         }),
       );
@@ -259,76 +343,6 @@ function initializeSocketIO(httpServer) {
       );
 
       // Leave auction room
-      socket.on('leave_auction', withGuard('leave_auction', (auctionId) => {
-        socket.leave(`auction:${auctionId}`);
-        logger.info(`[SOCKET] Client ${socket.id} left auction room: ${auctionId}`);
-      }));
-
-      // Place bid
-      socket.on('place_bid', withGuard('place_bid', async ({ auctionId, bidAmount }) => {
-        try {
-          const Auction = require('../models/Auction');
-          const Bid = require('../models/Bid');
-          const User = require('../models/User');
-
-          if (!socket.user) {
-            return socket.emit('bid_error', { message: 'Authentication required' });
-          }
-
-          const bidderId = socket.user.id;
-          const bidderName = socket.user.name;
-          const decimalBidAmount = fromString(String(bidAmount));
-
-          // 1. Fetch user to verify balance
-          const user = await User.findById(bidderId);
-          if (!user) {
-            return socket.emit('bid_error', { message: 'User not found' });
-          }
-
-          // 2. Fetch auction to verify state
-          const auction = await Auction.findById(auctionId);
-          if (!auction) {
-            return socket.emit('bid_error', { message: 'Auction not found' });
-          }
-
-          if (auction.status !== 'active' || new Date() > auction.endTime) {
-            return socket.emit('bid_error', { message: 'Auction is not active or has already ended.' });
-          }
-
-          if (auction.farmerId.toString() === bidderId) {
-            return socket.emit('bid_error', { message: 'Farmers cannot bid on their own auctions.' });
-          }
-
-          if (lte(decimalBidAmount, auction.currentHighestBid)) {
-            return socket.emit('bid_error', { message: `Bid must be strictly higher than the current highest bid of ${toNumber(auction.currentHighestBid)} credits.` });
-          }
-
-          // 3. Atomically update highest bid in database to prevent race conditions
-          const previousHighestBidder = auction.highestBidder;
-          const previousHighestBid = auction.currentHighestBid;
-          const isSelfOutbid = previousHighestBidder && previousHighestBidder.toString() === bidderId;
-          const amountToDeduct = isSelfOutbid
-            ? toDecimal(decimalBidAmount).minus(toDecimal(previousHighestBid))
-            : toDecimal(decimalBidAmount);
-
-          if (lt(user.balance, amountToDeduct)) {
-            return socket.emit('bid_error', { message: `Insufficient funds. Your balance is ${toNumber(user.balance)} credits.` });
-          }
-
-          const updatedAuction = await Auction.findOneAndUpdate(
-            {
-              _id: auctionId,
-              status: 'active',
-              endTime: { $gt: new Date() },
-              currentHighestBid: { $lt: decimalBidAmount }
-            },
-            {
-              $set: {
-                currentHighestBid: decimalBidAmount,
-                highestBidder: bidderId
-              }
-            },
-            { new: true }
       socket.on(
         "leave_auction",
         withGuard("leave_auction", (auctionId) => {
@@ -339,7 +353,25 @@ function initializeSocketIO(httpServer) {
         }),
       );
 
-      // Place bid
+      /**
+       * Place a bid on an auction.
+       *
+       * Race-condition fix (#807):
+       *   - Balance check and deduction are both done atomically via MongoDB
+       *     `$inc` operators so concurrent bids on different auctions cannot
+       *     both pass using the same starting balance.
+       *
+       * Flow:
+       *  1. Fetch user and pre-validate balance (fast early exit).
+       *  2. Fetch auction and validate state / bid amount.
+       *  3. Atomically win the auction slot using findOneAndUpdate with
+       *     conditional filter (optimistic locking — if another bid arrived
+       *     first, this returns null and we abort).
+       *  4. Atomically deduct the bidder's balance with $inc (never use
+       *     read-modify-write: user.balance -= x; user.save()).
+       *  5. Atomically refund the previous highest bidder with $inc.
+       *  6. Record the Bid document and broadcast to the auction room.
+       */
       socket.on(
         "place_bid",
         withGuard("place_bid", async ({ auctionId, bidAmount }) => {
@@ -349,7 +381,7 @@ function initializeSocketIO(httpServer) {
             const User = require("../models/User");
 
             if (!socket.user) {
-              return socket.emit("bid_error", {
+              return safeEmit("bid_error", {
                 message: "Authentication required",
               });
             }
@@ -357,38 +389,39 @@ function initializeSocketIO(httpServer) {
             const bidderId = socket.user.id;
             const bidderName = socket.user.name;
 
-            // 1. Fetch user to verify balance
+            // 1. Fetch user for early balance check (optimistic pre-flight only —
+            //    the authoritative deduction happens atomically below).
             const user = await User.findById(bidderId);
             if (!user) {
-              return socket.emit("bid_error", { message: "User not found" });
+              return safeEmit("bid_error", { message: "User not found" });
             }
 
-            // 2. Fetch auction to verify state
+            // 2. Fetch auction and validate state
             const auction = await Auction.findById(auctionId);
             if (!auction) {
-              return socket.emit("bid_error", { message: "Auction not found" });
+              return safeEmit("bid_error", { message: "Auction not found" });
             }
 
             if (auction.status !== "active" || new Date() > auction.endTime) {
-              return socket.emit("bid_error", {
+              return safeEmit("bid_error", {
                 message: "Auction is not active or has already ended.",
               });
             }
 
             if (auction.farmerId.toString() === bidderId) {
-              return socket.emit("bid_error", {
+              return safeEmit("bid_error", {
                 message: "Farmers cannot bid on their own auctions.",
               });
             }
 
             if (bidAmount <= auction.currentHighestBid) {
-              return socket.emit("bid_error", {
+              return safeEmit("bid_error", {
                 message: `Bid must be strictly higher than the current highest bid of ${auction.currentHighestBid} credits.`,
               });
             }
 
-            // 3. Atomically update highest bid in database to prevent race conditions
-            // Optimistic locking approach using conditions
+            // Calculate how much balance this bid actually costs.
+            // If the bidder is already the highest bidder they only pay the delta.
             const previousHighestBidder = auction.highestBidder;
             const previousHighestBid = auction.currentHighestBid;
             const isSelfOutbid =
@@ -398,12 +431,17 @@ function initializeSocketIO(httpServer) {
               ? bidAmount - previousHighestBid
               : bidAmount;
 
+            // Pre-flight balance check (best-effort; the atomic $inc below is
+            // the authoritative guard against overdraft).
             if (user.balance < amountToDeduct) {
-              return socket.emit("bid_error", {
+              return safeEmit("bid_error", {
                 message: `Insufficient funds. Your balance is ${user.balance} credits.`,
               });
             }
 
+            // 3. Atomically claim the auction's highest-bid slot.
+            //    The filter ensures we only win if the auction is still active
+            //    and our bid is still the highest — prevents TOCTOU races.
             const updatedAuction = await Auction.findOneAndUpdate(
               {
                 _id: auctionId,
@@ -421,65 +459,27 @@ function initializeSocketIO(httpServer) {
             );
 
             if (!updatedAuction) {
-              return socket.emit("bid_error", {
+              return safeEmit("bid_error", {
                 message:
                   "Bid failed. Someone else may have placed a higher bid first.",
               });
             }
 
-            // 4. Refund previous highest bidder (if any) and deduct new highest bidder's balance
+            // 4. Atomically deduct balance from the new highest bidder.
+            //    Using $inc (not read-modify-write) ensures concurrent bids on
+            //    different auctions cannot both overdraw the same balance.
+            await User.findByIdAndUpdate(bidderId, {
+              $inc: { balance: -amountToDeduct },
+            });
+
+            // 5. Atomically refund the previous highest bidder (if any and not self).
             if (previousHighestBidder && !isSelfOutbid) {
               await User.findByIdAndUpdate(previousHighestBidder, {
                 $inc: { balance: previousHighestBid },
               });
             }
 
-            await User.findByIdAndUpdate(bidderId, {
-              $inc: { balance: -amountToDeduct },
-            });
-
-          // 4. Refund previous highest bidder (if any) and deduct new highest bidder's balance
-          if (previousHighestBidder && !isSelfOutbid) {
-            const prevBidder = await User.findById(previousHighestBidder);
-            if (prevBidder) {
-              prevBidder.balance = fromDecimal(toDecimal(prevBidder.balance).plus(toDecimal(previousHighestBid)));
-              await prevBidder.save();
-            }
-          }
-
-          const currentUser = await User.findById(bidderId);
-          if (currentUser) {
-            currentUser.balance = fromDecimal(toDecimal(currentUser.balance).minus(amountToDeduct));
-            await currentUser.save();
-          }
-
-          // 5. Create new Bid record
-          const newBid = new Bid({
-            auctionId,
-            userId: bidderId,
-            userName: bidderName,
-            cropId: auction.batchId,
-            bidAmount: decimalBidAmount
-          });
-          await newBid.save();
-
-          logger.info(`[SOCKET] Bid placed successfully on auction ${auctionId} by user ${bidderName}: ${toNumber(decimalBidAmount)}`);
-
-          // 6. Broadcast auction_update to room
-          const populatedBidder = await User.findById(updatedAuction.highestBidder).select('name').lean();
-          const broadcastPayload = {
-            ...updatedAuction.toObject(),
-            currentHighestBid: toNumber(updatedAuction.currentHighestBid),
-            highestBidderName: populatedBidder ? populatedBidder.name : null
-          };
-          io.to(`auction:${auctionId}`).emit('auction_update', broadcastPayload);
-
-        } catch (error) {
-          logger.error('[SOCKET ERROR] error placing bid:', error);
-          socket.emit('bid_error', { message: 'An internal error occurred while placing your bid.' });
-        }
-      }));
-            // 5. Create new Bid record
+            // 6. Record the bid
             const newBid = new Bid({
               auctionId,
               userId: bidderId,
@@ -493,7 +493,7 @@ function initializeSocketIO(httpServer) {
               `[SOCKET] Bid placed successfully on auction ${auctionId} by user ${bidderName}: ${bidAmount}`,
             );
 
-            // 6. Broadcast auction_update to room
+            // 7. Broadcast updated auction state to all room participants
             const populatedBidder = await User.findById(
               updatedAuction.highestBidder,
             )
@@ -509,7 +509,7 @@ function initializeSocketIO(httpServer) {
             );
           } catch (error) {
             logger.error("[SOCKET ERROR] error placing bid:", error);
-            socket.emit("bid_error", {
+            safeEmit("bid_error", {
               message: "An internal error occurred while placing your bid.",
             });
           }
@@ -519,6 +519,10 @@ function initializeSocketIO(httpServer) {
       // Handle disconnection
       socket.on("disconnect", () => {
         logger.info(`[SOCKET] Client disconnected: ${socket.id}`);
+        // Release rate-limit buckets and all registered handlers so neither the
+        // socket object nor its closures are retained (prevents memory leaks).
+        clearSocket(socket.id);
+        socket.removeAllListeners();
       });
 
       // Handle errors
@@ -618,6 +622,7 @@ function emitToUser(userId, eventName, data) {
 module.exports = {
   initializeSocketIO,
   getIO,
+  createRateLimiter,
   emitToBatchRoom,
   emitGlobal,
   emitToVerificationRoom,

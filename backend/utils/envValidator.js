@@ -5,6 +5,7 @@
  */
 
 const logger = require("./logger");
+const keystore = require("./keystore");
 
 const REQUIRED_VARS = {
   MONGODB_URI: {
@@ -32,11 +33,6 @@ const REQUIRED_VARS = {
     description: "Deployed smart contract address",
     validate: (v) => /^0x[a-fA-F0-9]{40}$/.test(v),
     hint: "Expected format: 0x followed by 40 hexadecimal characters",
-  },
-  PRIVATE_KEY: {
-    description: "Private key for blockchain transactions",
-    validate: (v) => /^(0x)?[a-fA-F0-9]{64}$/.test(v),
-    hint: "Expected a 64-character hex string (with or without 0x prefix)",
   },
   AUDIT_EVENT_HMAC_SECRET: {
     description: "HMAC secret for audit event hash-chain integrity",
@@ -80,6 +76,24 @@ const validateEnv = () => {
       errors.push(
         "  - JWT_SECRET and JWT_REFRESH_SECRET must be different values for security.",
       );
+    }
+  }
+
+  // Blockchain signing credentials may come from an encrypted keystore, AWS
+  // KMS, or HashiCorp Vault — a plaintext PRIVATE_KEY is no longer required.
+  if (!keystore.hasSigningMaterial("default")) {
+    errors.push(
+      "  - signing credentials (blockchain): configure WALLET_KEYSTORE_PATH + " +
+        "WALLET_KEYSTORE_PASSWORD (recommended), AWS KMS, HashiCorp Vault, or " +
+        "PRIVATE_KEY (deprecated)\n",
+    );
+  }
+  const plaintextPk = keystore.resolvePlaintextKey("default");
+  if (plaintextPk) {
+    try {
+      keystore.normalizePrivateKey(plaintextPk);
+    } catch (error) {
+      errors.push(`  - PRIVATE_KEY: ${error.message}\n`);
     }
   }
 

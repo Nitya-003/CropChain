@@ -37,10 +37,10 @@ if (process.env.NODE_ENV !== "test") {
 }
 
 const { validateEnv } = require("./utils/envValidator");
+const keystore = require("./utils/keystore");
 const REQUIRED_ENV_VARS = [
   "INFURA_URL",
   "CONTRACT_ADDRESS",
-  "PRIVATE_KEY",
   "JWT_SECRET",
   "MONGODB_URI",
 ];
@@ -51,8 +51,12 @@ if (process.env.NODE_ENV !== "test") {
     }
   });
 
-  if (!/^0x[a-fA-F0-9]{64}$/.test(process.env.PRIVATE_KEY)) {
-    throw new Error("Invalid PRIVATE_KEY format");
+  if (!keystore.hasSigningMaterial("default")) {
+    throw new Error(
+      "Missing blockchain signing credentials: set WALLET_KEYSTORE_PATH + " +
+        "WALLET_KEYSTORE_PASSWORD (recommended), AWS KMS, HashiCorp Vault, or " +
+        "PRIVATE_KEY (deprecated).",
+    );
   }
   validateEnv();
 }
@@ -71,6 +75,8 @@ const batchRoutes = require("./routes/batchRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const logisticsRoutes = require("./routes/logisticsRoutes");
+const iotRoutes = require("./routes/iotRoutes");
+const nftRoutes = require("./routes/nftRoutes");
 const {
   authLimiter,
   registerLimiter,
@@ -128,18 +134,24 @@ app.use("/api/verification", generalLimiter, verificationRoutes);
 app.use("/api/recommend", aiLimiter, recommendRoutes);
 app.use("/api/activities", generalLimiter, activityRoutes);
 app.use("/api/approvals", batchLimiter, approvalRoutes);
-app.use("/api/auctions", auctionRoutes);
+app.use("/api/auctions", generalLimiter, auctionRoutes);
 
 // Batches & Lifecycle
 app.use("/api/batches", generalLimiter, lifecycleRoutes);
 app.use("/api/batches", batchLimiter, batchRoutes);
 
 // AI Chat
-app.use("/api/ai", aiRoutes);
+app.use("/api/ai", aiLimiter, aiRoutes);
 
 // Notifications & Logistics
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/logistics", generalLimiter, logisticsRoutes);
+
+// Dynamic NFT Routes
+app.use("/api/nft", generalLimiter, nftRoutes);
+
+// IoT Data Ingestion
+app.use("/api/iot", generalLimiter, iotRoutes);
 
 // 404 handler
 app.use("*", (req, res) => {

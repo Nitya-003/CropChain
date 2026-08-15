@@ -40,6 +40,8 @@ services:
       - REDIS_PORT=6379
       - CONTRACT_ADDRESS=0x2c79F3f6b448270ADF667CA5d23d23feC4d15Fa4
       - ETH_PRIVATE_KEY=${ETH_PRIVATE_KEY}
+      - WALLET_KEYSTORE_JSON=${WALLET_KEYSTORE_JSON}
+      - WALLET_KEYSTORE_PASSWORD=${WALLET_KEYSTORE_PASSWORD}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
@@ -62,6 +64,22 @@ services:
       - "443:443"
     volumes:
       - ./backend/nginx/certs:/etc/nginx/certs
+    networks:
+      - cropchain-network
+    depends_on:
+      - backend
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cropchain-frontend-prod
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://cropapi.sonusid.in}
     networks:
       - cropchain-network
     depends_on:

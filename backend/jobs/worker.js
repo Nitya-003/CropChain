@@ -1,9 +1,10 @@
 const { Worker } = require("bullmq");
 const { createQueueConnection } = require("../config/redis");
 const { QUEUE_NAMES, JOB_TYPES, addEmailJob } = require("./queue");
-const { sendEmail } = require("../services/emailService");
+const { sendEmail, compileTemplate } = require("../services/emailService");
 const Batch = require("../models/Batch");
 const User = require("../models/User");
+const logger = require("../utils/logger");
 
 let worker = null;
 
@@ -12,10 +13,23 @@ let worker = null;
  * @param {Object} job
  */
 async function processSendEmail(job) {
-  const { to, subject, html } = job.data;
+  const { to, subject, templateData } = job.data;
   console.log(`[NotificationWorker] Sending email to ${to}`);
+  logger.info(`[NotificationWorker] Sending email to ${to}`);
 
   await job.updateProgress(10);
+  
+  // Handle backward compatibility (if raw html is sent) or use templating
+  let html = job.data.html;
+  if (templateData && templateData.templateName) {
+    try {
+      html = compileTemplate(templateData.templateName, templateData.context || {});
+    } catch (err) {
+      console.error(`[NotificationWorker] Template compilation failed:`, err.message);
+      throw new Error(`Template compilation failed: ${err.message}`);
+    }
+  }
+
   const result = await sendEmail(to, subject, html);
   await job.updateProgress(100);
 
@@ -31,7 +45,7 @@ async function processSendEmail(job) {
  * @param {Object} job
  */
 async function processDelayedAlertCheck(job) {
-  console.log(`[NotificationWorker] Running delayed alert check...`);
+  logger.info(`[NotificationWorker] Running delayed alert check...`);
 
   const thresholdDays = parseInt(process.env.DELAYED_ALERT_DAYS, 10) || 3;
   const thresholdDate = new Date();
@@ -44,7 +58,7 @@ async function processDelayedAlertCheck(job) {
     updatedAt: { $lt: thresholdDate },
   }).lean();
 
-  console.log(
+  logger.info(
     `[NotificationWorker] Found ${delayedBatches.length} delayed batches.`,
   );
   await job.updateProgress(50);
@@ -56,14 +70,18 @@ async function processDelayedAlertCheck(job) {
     const farmer = await User.findById(batch.farmerId).lean();
     if (farmer && farmer.email) {
       const subject = `Supply Chain Alert: Batch ${batch.batchId} Delayed`;
-      const html = `
-                <h2>Supply Chain Alert</h2>
-                <p>Hello ${farmer.name},</p>
-                <p>Your batch <strong>${batch.batchId}</strong> (${batch.cropType}) has been in the <strong>${batch.currentStage}</strong> stage for over ${thresholdDays} days without an update.</p>
-                <p>Please check with the current custodian or platform administrators.</p>
-                <p>CropChain Team</p>
-            `;
-      await addEmailJob(farmer.email, subject, html);
+      const templateData = {
+        templateName: "delayedAlert",
+        context: {
+          farmerName: farmer.name || farmer.email,
+          batchId: batch.batchId,
+          cropType: batch.cropType,
+          currentStage: batch.currentStage,
+          thresholdDays: thresholdDays,
+          dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard`
+        }
+      };
+      await addEmailJob(farmer.email, subject, templateData);
       emailsQueued++;
     }
   }
@@ -111,18 +129,18 @@ function initializeWorker() {
   });
 
   worker.on("completed", (job, result) => {
-    console.log(`[NotificationWorker] Job ${job.id} completed.`, result);
+    logger.info(`[NotificationWorker] Job ${job.id} completed`, { result });
   });
 
   worker.on("failed", (job, err) => {
-    console.error(`[NotificationWorker] Job ${job?.id} failed:`, err.message);
+    logger.error(`[NotificationWorker] Job ${job?.id} failed`, { error: err.message });
   });
 
   worker.on("error", (err) => {
-    console.error("[NotificationWorker] Worker error:", err.message);
+    logger.error("[NotificationWorker] Worker error", { error: err.message });
   });
 
-  console.log("✓ Notification worker started");
+  logger.info("✓ Notification worker started");
   return worker;
 }
 
@@ -134,7 +152,7 @@ async function stopWorker() {
   if (worker) {
     await worker.close();
     worker = null;
-    console.log("✓ Notification worker stopped");
+    logger.info("✓ Notification worker stopped");
   }
 }
 

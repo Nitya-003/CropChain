@@ -84,6 +84,23 @@ mumbai: {
 - **Fail-Safe**: Empty accounts array prevents accidental transactions
 - **Hardhat Compliant**: Follows Hardhat best practices
 
+## CI/CD Security & Container Scanning
+
+CropChain utilizes GitHub Actions to automate security scanning across our containerized infrastructure.
+
+### Trivy Vulnerability Scanner
+To prevent vulnerable images from being deployed, all Docker images (Frontend, Backend, and ML Service) are automatically built and scanned using Trivy during the CI workflow.
+
+- **Threshold**: The build fails if vulnerabilities with `HIGH` or `CRITICAL` severity are detected.
+- **Reporting**: Scan results are exported in SARIF format and uploaded to the GitHub Security Code Scanning tab for continuous visibility and tracking.
+## Supply Chain Security (SBOM)
+
+To maintain visibility into our software supply chain and third-party dependencies, CropChain automatically generates a Software Bill of Materials (SBOM) during the CI pipeline.
+
+- **Standard**: We use the SPDX format for our generated SBOMs.
+- **Access**: The SBOM is automatically uploaded as a GitHub Actions artifact (`cropchain-sbom.spdx.json`) upon every build. It can be downloaded from the "Artifacts" section of any successful workflow run.
+- **Tooling**: We utilize the official `anchore/sbom-action` to ensure reproducible and accurate SBOM generation.
+
 ## Setup Instructions
 
 ### For Local Development

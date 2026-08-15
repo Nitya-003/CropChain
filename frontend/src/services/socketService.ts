@@ -113,6 +113,7 @@ export const disconnectSocket = (): void => {
   if (socketInstance) {
     socketInstance.disconnect();
     socketInstance = null;
+
     console.log("[SOCKET] Disconnected manually");
   }
 };

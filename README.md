@@ -1,5 +1,6 @@
 # CropChain - Blockchain Crop Supply Chain Tracker
 
+[![CI](https://github.com/AnzalKhan16/CropChain/actions/workflows/ci.yml/badge.svg)](https://github.com/AnzalKhan16/CropChain/actions/workflows/ci.yml)
 <p align="center">
   <img src="https://img.shields.io/badge/Apertre-3.0-orange?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Apertre 3.0 Badge">
   <img src="https://img.shields.io/badge/GSSoC-2026-ffd700?style=for-the-badge&logo=github&logoColor=black" alt="GSSoC 2026 Badge">
@@ -85,6 +86,15 @@ The system is live and deployed across production services:
 ````md
 ## Docker Setup
 
+### Published Images (GHCR)
+
+Validated Docker images are automatically published to the GitHub Container Registry (GHCR) upon merging to the `main` branch or creating a release tag.
+
+Available images include:
+- `ghcr.io/<repository-owner>/backend:latest` (or `:main`, `:sha-<commit>`)
+- `ghcr.io/<repository-owner>/frontend:latest`
+- `ghcr.io/<repository-owner>/ml-service:latest`
+
 ### Prerequisites
 
 Make sure the following are installed on your system:
@@ -161,6 +171,18 @@ This starts:
 - ML Service (Python + Flask)
 - MongoDB Database
 - Hardhat Blockchain Node
+
+---
+
+## Automated AWS Deployment
+
+CropChain uses GitHub Actions to automate deployments to our AWS infrastructure. 
+
+When code is merged to the `main` branch and passes all CI tests, security scans, and SBOM generation, the `Deploy to AWS Production` workflow is triggered.
+
+- **Authentication**: Securely authenticates with AWS via OpenID Connect (OIDC) or Repository Secrets (`AWS_ROLE_ARN`).
+- **Deployment**: Uses the `deploy-aws.sh` script to package the codebase and deploy via AWS CloudFormation and Systems Manager (SSM) to an EC2 instance.
+- **Verification**: Automatically performs a health check on the deployed backend API to ensure successful deployment.
 
 ---
 
@@ -482,6 +504,21 @@ npx hardhat test
 
 ## Deployment
 
+### AWS EC2 + Docker Compose Deployment
+
+We provide an automated script to deploy the full stack to AWS using CloudFormation and Systems Manager (SSM). This script sets up an EC2 instance, configures Docker, and starts the services.
+
+```bash
+./deploy-aws.sh
+```
+
+**Post-Deployment Verification:**
+The deployment script includes automated health checks to verify that services have started correctly before completing. It polls the following endpoints with retry logic:
+- Backend Health Check: `http://<EC2_IP>:3001/api/health`
+- ML Service Health Check: `http://<EC2_IP>:5001/health`
+
+The deployment will automatically fail if the services do not become healthy within the timeout period.
+
 ### Frontend Deployment (Netlify/Vercel)
 
 ```bash
@@ -607,6 +644,46 @@ The tracker renders dynamically as the `CropLifecycleTracker` component:
   - _Delay Alert Detection_: Automatically warns if a batch remains in a stage longer than configurable expectations (e.g. `⚠ Transport pending for 6 days`).
   - _Relative Timestamps_: Displayed as "3 hours ago", "Yesterday", or "5 days ago".
   - _Tooltip cards_: Displays complete metadata, blockchain transaction links, and timestamps on hover/focus.
+
+## 🔐 Secure Key Management
+
+CropChain uses a blockchain signing wallet to write supply chain records on-chain.
+The private key for this wallet **must never be stored as a plaintext environment variable in production**.
+
+### Local development
+
+For local testing only, add your dev wallet key to `.env`:
+
+```env
+PRIVATE_KEY=0x...your_local_dev_key...
+```
+
+> ⚠️ Never commit a real private key. Use a throwaway dev wallet with no real funds.
+
+### Production deployment
+
+In production, the private key is fetched from **AWS Secrets Manager** at startup:
+
+1. Create a secret in AWS Secrets Manager:
+   - **Secret name:** `cropchain/blockchain-private-key`
+   - **Secret value (JSON):**
+```json
+     { "private_key": "0x...your_production_key..." }
+```
+
+2. Grant your EC2 / ECS task role `secretsmanager:GetSecretValue` on that ARN.
+
+3. Set these environment variables on your server (not `.env`):
+
+NODE_ENV=production
+AWS_SECRET_ARN=arn:aws:secretsmanager:REGION:ACCOUNT:secret:cropchain/blockchain-private-key
+AWS_REGION=us-east-1
+
+
+4. Do **not** set `PRIVATE_KEY` — the server will refuse to start if it is present.
+
+The server performs a startup check and exits immediately if production is
+misconfigured, preventing accidental deploys with an exposed key.
 
 ---
 

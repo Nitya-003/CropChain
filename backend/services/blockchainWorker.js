@@ -13,8 +13,10 @@
  */
 
 const { Worker } = require("bullmq");
+const logger = require("../utils/logger");
 const { ethers } = require("ethers");
 const { createQueueConnection } = require("../config/redis");
+const { loadWallet } = require("../utils/keystore");
 const { QUEUE_NAMES, JOB_TYPES } = require("./blockchainQueue");
 const Batch = require("../models/Batch");
 const User = require("../models/User");
@@ -78,6 +80,7 @@ let worker = null;
 let provider = null;
 let wallet = null;
 let contract = null;
+let initPromise = null;
 
 // Contract ABI
 const contractABI = [
@@ -89,30 +92,60 @@ const contractABI = [
 ];
 
 /**
- * Initialize blockchain connection
+ * Initialize blockchain connection.
+ * Async because the signer may come from an encrypted keystore / KMS / Vault.
+ * @returns {Promise<boolean>} True when the worker has a connected contract
  */
-function initializeBlockchain() {
-  const PROVIDER_URL = process.env.INFURA_URL;
-  const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
-  const PRIVATE_KEY = process.env.PRIVATE_KEY;
+async function initializeBlockchain() {
+  if (initPromise) return initPromise;
 
-  if (!PROVIDER_URL || !CONTRACT_ADDRESS || !PRIVATE_KEY) {
-    console.warn(
-      "[Worker] Blockchain not configured - running in simulation mode",
-    );
-    return false;
-  }
+  initPromise = (async () => {
+    const providerUrl =
+      process.env.PROVIDER_URL ||
+      process.env.INFURA_URL ||
+      process.env.SEPOLIA_URL;
+    const contractAddress = process.env.CONTRACT_ADDRESS;
+    const privateKey =
+      process.env.PRIVATE_KEY ||
+      process.env.ETH_PRIVATE_KEY ||
+      process.env.BLOCKCHAIN_PRIVATE_KEY;
 
-  try {
-    provider = new ethers.JsonRpcProvider(PROVIDER_URL);
-    wallet = new ethers.Wallet(PRIVATE_KEY, provider);
-    contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, wallet);
-    console.log("✓ Worker blockchain connection initialized");
-    return true;
-  } catch (error) {
-    console.error("[Worker] Failed to initialize blockchain:", error.message);
-    return false;
-  }
+    if (
+      !providerUrl ||
+      !contractAddress ||
+      (!privateKey && !process.env.ORACLE_KEYSTORE_PATH)
+    ) {
+      logger.warn(
+        "[Worker] Blockchain not configured - running in simulation mode",
+      );
+      return false;
+    }
+
+    try {
+      provider = new ethers.JsonRpcProvider(providerUrl);
+      wallet =
+        (await loadWallet(provider, "oracle").catch(() => null)) ||
+        (privateKey ? new ethers.Wallet(privateKey, provider) : null);
+
+      if (!wallet) {
+        logger.warn(
+          "[Worker] Blockchain wallet could not be loaded - running in simulation mode",
+        );
+        return false;
+      }
+
+      contract = new ethers.Contract(contractAddress, contractABI, wallet);
+      logger.info("✓ Worker blockchain connection initialized");
+      return true;
+    } catch (error) {
+      logger.error("[Worker] Failed to initialize blockchain:", {
+        error: error.message,
+      });
+      return false;
+    }
+  })();
+
+  return initPromise;
 }
 
 /**
@@ -127,12 +160,14 @@ async function estimateGasWithBuffer(contractMethod, args) {
     const gasWithBuffer =
       (gasEstimate * BigInt(Math.floor(GAS_CONFIG.gasLimitMultiplier * 100))) /
       100n;
-    console.log(
+    logger.info(
       `[Worker] Gas estimate: ${gasEstimate.toString()}, with buffer: ${gasWithBuffer.toString()}`,
     );
     return gasWithBuffer;
   } catch (error) {
-    console.error("[Worker] Gas estimation failed:", error.message);
+    logger.error("[Worker] Gas estimation failed:", {
+      error: error.message,
+    });
     // Return a safe default if estimation fails
     return 500000n; // Safe default for batch operations
   }
@@ -152,7 +187,9 @@ async function getGasPrice() {
         feeData.maxPriorityFeePerGas || GAS_CONFIG.maxPriorityFeePerGas,
     };
   } catch (error) {
-    console.error("[Worker] Failed to get gas price:", error.message);
+    logger.error("[Worker] Failed to get gas price:", {
+      error: error.message,
+    });
     return {
       maxFeePerGas: GAS_CONFIG.maxFeePerGas,
       maxPriorityFeePerGas: GAS_CONFIG.maxPriorityFeePerGas,
@@ -169,13 +206,13 @@ async function getGasPrice() {
 async function waitForConfirmation(tx, timeout = 60000) {
   return new Promise(async (resolve, reject) => {
     const timeoutId = setTimeout(async () => {
-      console.log(
+      logger.info(
         `[Worker] Timeout waiting for ${tx.hash}, polling for receipt with grace period...`,
       );
       try {
         const receipt = await pollForReceipt(tx.hash, 30000);
         if (receipt) {
-          console.log(
+          logger.info(
             `[Worker] Receipt found during grace period for ${tx.hash}`,
           );
           resolve(receipt);
@@ -216,7 +253,7 @@ async function pollForReceipt(txHash, timeout = 30000) {
         return receipt;
       }
     } catch (err) {
-      console.log(`[Worker] Receipt poll error for ${txHash}: ${err.message}`);
+      logger.info(`[Worker] Receipt poll error for ${txHash}: ${err.message}`);
     }
     await new Promise((resolve) => setTimeout(resolve, pollInterval));
   }
@@ -231,14 +268,14 @@ async function pollForReceipt(txHash, timeout = 30000) {
  */
 async function processCreateBatch(job) {
   const { batchId, data } = job.data;
-  console.log(`[Worker] Processing createBatch for ${batchId}`);
+  logger.info(`[Worker] Processing createBatch for ${batchId}`);
 
   // Update progress
   await job.updateProgress(10);
 
   // Check if blockchain is configured
   if (!contract) {
-    console.log(
+    logger.info(
       `[Worker] No blockchain connection - marking ${batchId} as pending`,
     );
     await Batch.updateOne(
@@ -285,7 +322,7 @@ async function processCreateBatch(job) {
     try {
       const onChainBatch = await contract.getBatch(batchIdBytes32);
       if (onChainBatch.exists) {
-        console.log(
+        logger.info(
           `[Worker] Batch ${batchId} already exists on-chain, skipping duplicate submission`,
         );
         await Batch.updateOne(
@@ -302,7 +339,7 @@ async function processCreateBatch(job) {
         return { success: true, batchId, skipped: true };
       }
     } catch (err) {
-      console.log(
+      logger.info(
         `[Worker] Could not verify on-chain status for ${batchId}: ${err.message}`,
       );
     }
@@ -322,7 +359,7 @@ async function processCreateBatch(job) {
 
     // Get gas price
     const gasPrice = await getGasPrice();
-    console.log(
+    logger.info(
       `[Worker] Gas price - maxFee: ${ethers.formatUnits(gasPrice.maxFeePerGas, "gwei")} gwei`,
     );
 
@@ -344,7 +381,7 @@ async function processCreateBatch(job) {
       },
     );
 
-    console.log(`[Worker] Transaction submitted: ${tx.hash}`);
+    logger.info(`[Worker] Transaction submitted: ${tx.hash}`);
     await job.updateProgress(60);
 
     // Update batch with transaction hash
@@ -361,7 +398,7 @@ async function processCreateBatch(job) {
 
     // Wait for confirmation
     const receipt = await waitForConfirmation(tx);
-    console.log(
+    logger.info(
       `[Worker] Transaction confirmed in block ${receipt.blockNumber}`,
     );
 
@@ -400,9 +437,9 @@ async function processCreateBatch(job) {
         }
       }
     } catch (err) {
-      console.error(
+      logger.error(
         `[Worker] Failed to queue email for ${batchId}:`,
-        err.message,
+        { error: err.message },
       );
     }
 
@@ -416,7 +453,9 @@ async function processCreateBatch(job) {
       gasUsed: receipt.gasUsed.toString(),
     };
   } catch (error) {
-    console.error(`[Worker] createBatch failed for ${batchId}:`, error.message);
+    logger.error(`[Worker] createBatch failed for ${batchId}:`, {
+      error: error.message,
+    });
 
     // Check if error is recoverable
     const isRecoverable = isRecoverableError(error);
@@ -455,12 +494,12 @@ async function processCreateBatch(job) {
  */
 async function processUpdateBatch(job) {
   const { batchId, data } = job.data;
-  console.log(`[Worker] Processing updateBatch for ${batchId}`);
+  logger.info(`[Worker] Processing updateBatch for ${batchId}`);
 
   await job.updateProgress(10);
 
   if (!contract) {
-    console.log(
+    logger.info(
       `[Worker] No blockchain connection - marking ${batchId} update as pending`,
     );
     return { success: true, simulated: true, batchId };
@@ -499,7 +538,7 @@ async function processUpdateBatch(job) {
       if (prevTxHash) {
         const oldReceipt = await provider.getTransactionReceipt(prevTxHash);
         if (oldReceipt && oldReceipt.status === 1) {
-          console.log(
+          logger.info(
             `[Worker] Previous tx ${prevTxHash} already confirmed for ${batchId}, skipping duplicate update`,
           );
           await Batch.updateOne(
@@ -517,7 +556,7 @@ async function processUpdateBatch(job) {
         }
       }
     } catch (err) {
-      console.log(
+      logger.info(
         `[Worker] Could not verify previous tx receipt for ${batchId}: ${err.message}`,
       );
     }
@@ -552,7 +591,7 @@ async function processUpdateBatch(job) {
       },
     );
 
-    console.log(`[Worker] Update transaction submitted: ${tx.hash}`);
+    logger.info(`[Worker] Update transaction submitted: ${tx.hash}`);
     await job.updateProgress(60);
 
     // Update batch with transaction hash
@@ -569,7 +608,7 @@ async function processUpdateBatch(job) {
 
     // Wait for confirmation
     const receipt = await waitForConfirmation(tx);
-    console.log(`[Worker] Update confirmed in block ${receipt.blockNumber}`);
+    logger.info(`[Worker] Update confirmed in block ${receipt.blockNumber}`);
 
     await job.updateProgress(90);
 
@@ -606,9 +645,9 @@ async function processUpdateBatch(job) {
         }
       }
     } catch (err) {
-      console.error(
+      logger.error(
         `[Worker] Failed to queue email for update of ${batchId}:`,
-        err.message,
+        { error: err.message },
       );
     }
 
@@ -622,7 +661,9 @@ async function processUpdateBatch(job) {
       gasUsed: receipt.gasUsed.toString(),
     };
   } catch (error) {
-    console.error(`[Worker] updateBatch failed for ${batchId}:`, error.message);
+    logger.error(`[Worker] updateBatch failed for ${batchId}:`, {
+      error: error.message,
+    });
 
     const isRecoverable = isRecoverableError(error);
 
@@ -691,7 +732,7 @@ function isRecoverableError(error) {
  * @returns {Promise<Object>} Job result
  */
 async function processJob(job) {
-  console.log(`[Worker] Processing job ${job.id} of type ${job.name}`);
+  logger.info(`[Worker] Processing job ${job.id} of type ${job.name}`);
 
   switch (job.name) {
     case JOB_TYPES.CREATE_BATCH:
@@ -720,33 +761,42 @@ function initializeWorker() {
 
   const connection = createQueueConnection();
 
-  worker = new Worker(QUEUE_NAMES.BLOCKCHAIN, processJob, {
-    connection,
-    concurrency: parseInt(process.env.BLOCKCHAIN_WORKER_CONCURRENCY, 10) || 3,
-    limiter: {
-      max: parseInt(process.env.BLOCKCHAIN_RATE_LIMIT_MAX, 10) || 10,
-      duration: parseInt(process.env.BLOCKCHAIN_RATE_LIMIT_WINDOW, 10) || 60000, // 10 transactions per minute
+  worker = new Worker(
+    QUEUE_NAMES.BLOCKCHAIN,
+    async (job) => {
+      // Ensure the signer/contract is ready before processing any job.
+      await initializeBlockchain();
+      return processJob(job);
     },
-  });
+    {
+      connection,
+      concurrency: parseInt(process.env.BLOCKCHAIN_WORKER_CONCURRENCY, 10) || 3,
+      limiter: {
+        max: parseInt(process.env.BLOCKCHAIN_RATE_LIMIT_MAX, 10) || 10,
+        duration:
+          parseInt(process.env.BLOCKCHAIN_RATE_LIMIT_WINDOW, 10) || 60000, // 10 transactions per minute
+      },
+    },
+  );
 
   // Worker event handlers
   worker.on("completed", (job, result) => {
-    console.log(`[Worker] Job ${job.id} completed:`, result);
+    logger.info(`[Worker] Job ${job.id} completed:`, result);
   });
 
   worker.on("failed", (job, err) => {
-    console.error(`[Worker] Job ${job?.id} failed:`, err.message);
+    logger.error(`[Worker] Job ${job?.id} failed:`, { error: err.message });
   });
 
   worker.on("error", (err) => {
-    console.error("[Worker] Worker error:", err.message);
+    logger.error("[Worker] Worker error:", { error: err.message });
   });
 
   worker.on("stalled", (jobId) => {
-    console.warn(`[Worker] Job ${jobId} stalled`);
+    logger.warn(`[Worker] Job ${jobId} stalled`);
   });
 
-  console.log("✓ Blockchain transaction worker started");
+  logger.info("✓ Blockchain transaction worker started");
   return worker;
 }
 
@@ -765,7 +815,7 @@ async function stopWorker() {
   if (worker) {
     await worker.close();
     worker = null;
-    console.log("✓ Blockchain worker stopped");
+    logger.info("✓ Blockchain worker stopped");
   }
 }
 

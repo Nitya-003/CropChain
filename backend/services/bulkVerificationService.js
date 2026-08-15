@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const logger = require("../utils/logger");
 const User = require("../models/User");
 const BulkVerificationJob = require("../models/BulkVerificationJob");
 
@@ -14,11 +15,25 @@ const {
 } = require("./verificationSecurityService");
 
 /**
+ * Error thrown when a bulk CSV exceeds the configured row cap during parsing.
+ * Surfaced as a 400 by the controller so a maliciously large file cannot OOM
+ * the process by forcing unbounded in-memory record accumulation. See #1310.
+ */
+class BulkCsvRowLimitError extends Error {
+  constructor(maxRows) {
+    super(`CSV row limit exceeded (max ${maxRows} data rows)`);
+    this.name = "BulkCsvRowLimitError";
+    this.code = "BULK_CSV_ROW_LIMIT_EXCEEDED";
+    this.maxRows = maxRows;
+  }
+}
+
+/**
  * Parses CSV text adhering to RFC-4180 standards (supporting quoted fields, escaped quotes, commas, and multiline values).
  * @param {string} csvText - Raw CSV content
  * @returns {Array<Object>} List of parsed objects mapped to lowercase headers
  */
-const parseCSV = (csvText) => {
+const parseCSV = (csvText, { maxRows } = {}) => {
   const lines = [];
   let currentLine = [];
   let currentField = "";
@@ -47,6 +62,9 @@ const parseCSV = (csvText) => {
         currentLine.length > 0 &&
         (currentLine.length > 1 || currentLine[0] !== "")
       ) {
+        if (maxRows != null && lines.length > maxRows) {
+          throw new BulkCsvRowLimitError(maxRows);
+        }
         lines.push(currentLine);
       }
       currentLine = [];
@@ -435,7 +453,7 @@ const processJob = async (jobId, records, adminId, { dryRun } = {}) => {
             }
           })
           .catch((err) => {
-            console.error("Failed to save bulk job progress:", err);
+            logger.error("Failed to save bulk job progress:", err);
           });
       }
     }
@@ -508,7 +526,7 @@ const retryJob = async (jobId, failedRows, adminId) => {
 
   processJob(retryJob._id, retryRecords, adminId, { dryRun: false }).catch(
     (err) => {
-      console.error(`Error processing bulk retry job ${retryJob._id}:`, err);
+      logger.error(`Error processing bulk retry job ${retryJob._id}:`, err);
     },
   );
 
@@ -520,4 +538,5 @@ module.exports = {
   processJob,
   retryJob,
   reconstructRetryRecords,
+  BulkCsvRowLimitError,
 };

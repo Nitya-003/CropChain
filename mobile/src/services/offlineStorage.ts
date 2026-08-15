@@ -1,34 +1,58 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Batch, SyncQueueInput, SyncQueueItem } from "../types";
+import { sqliteStorage } from "./sqliteStorage";
 
 const KEYS = {
   BATCHES: "@cropchain/batches",
   QUEUE: "@cropchain/sync_queue",
   USER: "@cropchain/user",
   PENDING_COUNT: "@cropchain/pending_count",
+  SCAN_HISTORY: "@cropchain/scan_history",
 };
 
 export const offlineStorage = {
   async saveBatches(batches: Batch[]): Promise<void> {
+    await sqliteStorage.saveBatches(batches);
     await AsyncStorage.setItem(KEYS.BATCHES, JSON.stringify(batches));
   },
 
   async getBatches(): Promise<Batch[]> {
+    const sqliteBatches = await sqliteStorage.getBatches();
+    if (sqliteBatches.length > 0) return sqliteBatches;
     const data = await AsyncStorage.getItem(KEYS.BATCHES);
     return data ? JSON.parse(data) : [];
   },
 
   async saveBatch(batch: Batch): Promise<void> {
+    await sqliteStorage.saveBatch(batch);
     const batches = await this.getBatches();
     const index = batches.findIndex((b) => b.id === batch.id);
     if (index >= 0) batches[index] = batch;
     else batches.unshift(batch);
-    await this.saveBatches(batches);
+    await AsyncStorage.setItem(KEYS.BATCHES, JSON.stringify(batches));
   },
 
   async getBatch(id: string): Promise<Batch | undefined> {
+    const sqliteBatch = await sqliteStorage.getBatchById(id);
+    if (sqliteBatch) return sqliteBatch;
     const batches = await this.getBatches();
     return batches.find((b) => b.id === id);
+  },
+
+  async saveScanHistory(scanId: string): Promise<void> {
+    await sqliteStorage.saveScan(scanId);
+    const history = await this.getScanHistory();
+    if (!history.includes(scanId)) {
+      history.unshift(scanId);
+      await AsyncStorage.setItem(KEYS.SCAN_HISTORY, JSON.stringify(history.slice(0, 50)));
+    }
+  },
+
+  async getScanHistory(): Promise<string[]> {
+    const sqliteHistory = await sqliteStorage.getScanHistory();
+    if (sqliteHistory.length > 0) return sqliteHistory.map((s) => s.scanId);
+    const data = await AsyncStorage.getItem(KEYS.SCAN_HISTORY);
+    return data ? JSON.parse(data) : [];
   },
 
   async getPendingCount(): Promise<number> {
@@ -84,3 +108,4 @@ export const offlineStorage = {
     await AsyncStorage.multiRemove(Object.values(KEYS));
   },
 };
+

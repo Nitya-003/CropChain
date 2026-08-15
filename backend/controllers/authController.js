@@ -9,22 +9,10 @@ const apiResponse = require('../utils/apiResponse');
 const { verifyMessage } = require('ethers');
 const { VALID_ROLES, ROLES } = require('../constants/permissions');
 const logger = require('../utils/logger');
+const { revokeToken } = require('../services/tokenBlacklist');
 require('dotenv').config();
 const Redis = require('ioredis');
 const { toNumber, toDecimal, fromDecimal } = require('../utils/decimalHelpers');
-const User = require("../models/User");
-const generateToken = require("../utils/generateToken");
-const { generateRefreshToken } = require("../utils/generateToken");
-const bcrypt = require("bcryptjs");
-const crypto = require("crypto");
-const jwt = require("jsonwebtoken");
-const { z } = require("zod");
-const apiResponse = require("../utils/apiResponse");
-const { verifyMessage } = require("ethers");
-const { VALID_ROLES, ROLES } = require("../constants/permissions");
-const logger = require("../utils/logger");
-require("dotenv").config();
-const Redis = require("ioredis");
 
 let redis = null;
 
@@ -44,6 +32,7 @@ if (process.env.NODE_ENV !== "test") {
     logger.error("Redis connection error", { error: err.message });
   });
 }
+
 // Validation Schemas
 const passwordSchema = z.string()
     .min(8, 'Password must be at least 8 characters')
@@ -64,8 +53,8 @@ const registerSchema = z.object({
         .trim(),
     password: passwordSchema,
     role: z.enum(VALID_ROLES, {
-        errorMap: () => ({ 
-            message: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}` 
+        errorMap: () => ({
+            message: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}`
         })
     }).default(ROLES.FARMER)
 });
@@ -85,63 +74,6 @@ const updateProfileSchema = z.object({
 }).refine(data => Object.keys(data).length > 0, {
     message: "At least one field (name, email, or password) must be provided to update",
 });
-  name: z
-    .string()
-    .min(2, "Name must be at least 2 characters")
-    .max(50, "Name must be less than 50 characters")
-    .trim(),
-  email: z.string().email("Please provide a valid email").toLowerCase().trim(),
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .max(128, "Password too long")
-    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-    .regex(/[0-9]/, "Password must contain at least one number")
-    .regex(
-      /[^A-Za-z0-9]/,
-      "Password must contain at least one special character",
-    ),
-  role: z
-    .enum(VALID_ROLES, {
-      errorMap: () => ({
-        message: `Invalid role. Must be one of: ${VALID_ROLES.join(", ")}`,
-      }),
-    })
-    .default(ROLES.FARMER),
-});
-
-const updateProfileSchema = z
-  .object({
-    name: z
-      .string()
-      .min(2, "Name must be at least 2 characters")
-      .max(50, "Name must be less than 50 characters")
-      .trim()
-      .optional(),
-    email: z
-      .string()
-      .email("Please provide a valid email")
-      .toLowerCase()
-      .trim()
-      .optional(),
-    password: z
-      .string()
-      .min(8, "Password must be at least 8 characters")
-      .max(128, "Password too long")
-      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-      .regex(/[0-9]/, "Password must contain at least one number")
-      .regex(
-        /[^A-Za-z0-9]/,
-        "Password must contain at least one special character",
-      )
-      .optional(),
-  })
-  .refine((data) => Object.keys(data).length > 0, {
-    message:
-      "At least one field (name, email, or password) must be provided to update",
-  });
 
 const loginSchema = z.object({
   email: z.string().email("Please provide a valid email").toLowerCase().trim(),
@@ -156,12 +88,6 @@ const sanitizeUser = (user) => ({
     role: user.role,
     balance: toNumber(user.balance || 0),
     createdAt: user.createdAt
-  id: user._id,
-  name: user.name,
-  email: user.email,
-  role: user.role,
-  balance: user.balance || 0,
-  createdAt: user.createdAt,
 });
 
 const extractValidationDetails = (zodError) => {
@@ -313,6 +239,17 @@ const loginUser = async (req, res) => {
     const user = await User.findOne({ email }).select("+password");
 
     if (user && (await bcrypt.compare(password, user.password))) {
+      // Reject non-active accounts before issuing any token
+      if (user.status !== 'active') {
+        logger.warn('Login blocked: account not active', { email: user.email, status: user.status });
+        return res
+          .status(403)
+          .json(apiResponse.errorResponse(
+            'Your account is not active. Please contact support.',
+            'ACCOUNT_NOT_ACTIVE',
+            403,
+          ));
+      }
       attachRefreshCookie(res, user);
       const response = apiResponse.successResponse(
         buildAuthPayload(user),
@@ -448,7 +385,7 @@ const getNonce = async (req, res) => {
     }
 
     // Generate a unique nonce
-    const nonce = `CropChain Authentication ${Date.now()}`;
+    const nonce = crypto.randomBytes(32).toString('hex');
 
     // Store nonce with expiration (5 minutes)
     await redis.set(`nonce:${address.toLowerCase()}`, nonce, "EX", 300);
@@ -465,6 +402,56 @@ const getNonce = async (req, res) => {
         ),
       );
   }
+};
+
+/**
+ * Verify a wallet signature against the nonce stored for the given address.
+ *
+ * Shared by walletLogin and walletRegister:
+ * - Fetches the stored nonce (never falls back to a constant string)
+ * - Recovers the signing address from the signature
+ * - Confirms it matches the claimed address
+ * - Deletes the used nonce to prevent replay attacks
+ *
+ * @param {{ address: string, signature: string }} params
+ * @returns {Promise<string>} the verified, normalized address
+ * @throws {Error} with `status` and `message` when verification fails
+ */
+const verifyWalletSignature = async ({ address, signature }) => {
+  const normalizedAddress = address.toLowerCase();
+
+  // Get stored nonce
+  const storedNonce = await redis.get(`nonce:${normalizedAddress}`);
+  // ALWAYS require stored nonce - never fall back to constant string
+  if (!storedNonce) {
+    const error = new Error(
+      "No authentication nonce found. Please request a new one.",
+    );
+    error.status = 401;
+    throw error;
+  }
+
+  // Verify the signature against the stored nonce
+  let recoveredAddress;
+  try {
+    recoveredAddress = verifyMessage(storedNonce, signature);
+  } catch (error) {
+    const verificationError = new Error("Invalid signature");
+    verificationError.status = 401;
+    throw verificationError;
+  }
+
+  // Verify recovered address matches claimed address
+  if (recoveredAddress.toLowerCase() !== normalizedAddress) {
+    const error = new Error("Signature verification failed - address mismatch");
+    error.status = 401;
+    throw error;
+  }
+
+  // Delete used nonce to prevent replay attacks
+  await redis.del(`nonce:${normalizedAddress}`);
+
+  return normalizedAddress;
 };
 
 /**
@@ -486,45 +473,19 @@ const walletLogin = async (req, res) => {
       );
     }
 
-    const { address, signature, nonce: providedNonce } = validationResult.data;
-    const normalizedAddress = address.toLowerCase();
+    const { address, signature } = validationResult.data;
 
-    // Get stored nonce
-    const storedNonce = await redis.get(`nonce:${normalizedAddress}`);
-    // ALWAYS require stored nonce - never fall back to constant string
-    if (!storedNonce) {
-      return res
-        .status(401)
-        .json(
-          apiResponse.unauthorizedResponse(
-            "No authentication nonce found. Please request a new one.",
-          ),
-        );
-    }
-
-    // Use stored nonce (provided nonce is for backwards compatibility only)
-    const nonce = storedNonce;
-    // Clean up expired nonces
-
-    // Verify the signature
-    let recoveredAddress;
+    // Verify the wallet signature against the stored nonce
+    let normalizedAddress;
     try {
-      recoveredAddress = verifyMessage(nonce, signature);
+      normalizedAddress = await verifyWalletSignature({ address, signature });
     } catch (error) {
-      return res
-        .status(401)
-        .json(apiResponse.unauthorizedResponse("Invalid signature"));
-    }
-
-    // Verify recovered address matches claimed address
-    if (recoveredAddress.toLowerCase() !== normalizedAddress) {
-      return res
-        .status(401)
-        .json(
-          apiResponse.unauthorizedResponse(
-            "Signature verification failed - address mismatch",
-          ),
-        );
+      if (error.status) {
+        return res
+          .status(error.status)
+          .json(apiResponse.unauthorizedResponse(error.message));
+      }
+      throw error;
     }
 
     // Find user by wallet address
@@ -542,8 +503,18 @@ const walletLogin = async (req, res) => {
         );
     }
 
-    // Delete used nonce to prevent replay attacks
-    await redis.del(`nonce:${normalizedAddress}`);
+    // Reject non-active accounts before issuing any token
+    if (user.status !== 'active') {
+      logger.warn('Wallet login blocked: account not active', { walletAddress: normalizedAddress, status: user.status });
+      return res
+        .status(403)
+        .json(apiResponse.errorResponse(
+          'Your account is not active. Please contact support.',
+          'ACCOUNT_NOT_ACTIVE',
+          403,
+        ));
+    }
+
     // Generate JWT with user's role from database
     attachRefreshCookie(res, user);
     const response = apiResponse.successResponse(
@@ -614,44 +585,23 @@ const walletRegister = async (req, res) => {
       email,
       walletAddress,
       signature,
-      nonce: providedNonce,
       role,
     } = validationResult.data;
-    const normalizedAddress = walletAddress.toLowerCase();
 
-    // Get stored nonce
-    const storedNonce = await redis.get(`nonce:${normalizedAddress}`);
-
-    // ALWAYS require stored nonce - never fall back to constant string
-    if (!storedNonce) {
-      return res
-        .status(401)
-        .json(
-          apiResponse.unauthorizedResponse(
-            "No authentication nonce found. Please request a new one.",
-          ),
-        );
-    }
-
-    // Use stored nonce — storedNonce is a plain string returned from Redis
-    const nonce = storedNonce;
-
-    // Verify signature
-    let recoveredAddress;
+    // Verify the wallet signature against the stored nonce
+    let normalizedAddress;
     try {
-      recoveredAddress = verifyMessage(nonce, signature);
+      normalizedAddress = await verifyWalletSignature({
+        address: walletAddress,
+        signature,
+      });
     } catch (error) {
-      return res
-        .status(401)
-        .json(apiResponse.unauthorizedResponse("Invalid signature"));
-    }
-
-    if (recoveredAddress.toLowerCase() !== normalizedAddress) {
-      return res
-        .status(401)
-        .json(
-          apiResponse.unauthorizedResponse("Signature verification failed"),
-        );
+      if (error.status) {
+        return res
+          .status(error.status)
+          .json(apiResponse.unauthorizedResponse(error.message));
+      }
+      throw error;
     }
 
     // Check if user exists
@@ -679,9 +629,6 @@ const walletRegister = async (req, res) => {
       role,
       password: await bcrypt.hash(randomPassword, 12), // Secure random password for wallet users
     });
-
-    // Delete used nonce
-    await redis.del(`nonce:${normalizedAddress}`);
 
     attachRefreshCookie(res, user);
     const response = apiResponse.successResponse(
@@ -772,11 +719,12 @@ const refreshSession = async (req, res) => {
         );
     }
 
-    attachRefreshCookie(res, user);
+    // Rotate the token: increment the version so this refresh token and any
+    // previously issued refresh tokens (same user) are invalidated immediately.
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
 
-    return res.json(
-      apiResponse.successResponse(buildAuthPayload(user), "Session refreshed"),
-    );
+    attachRefreshCookie(res, user);
   } catch (error) {
     clearRefreshCookie(res);
 
@@ -788,9 +736,55 @@ const refreshSession = async (req, res) => {
   }
 };
 
-const logoutUser = (req, res) => {
+const logoutUser = async (req, res) => {
+  // Revoke the specific access token so it cannot be reused after logout.
+  // `req.jwt` is attached by the `protect` middleware after signature verify.
+  try {
+    if (req.jwt) {
+      await revokeToken(req.jwt);
+    }
+  } catch (err) {
+    logger.error('Failed to revoke token on logout', { error: err.message });
+  }
   clearRefreshCookie(res);
   return res.json(apiResponse.successResponse(null, "Logout successful"));
+};
+
+const deleteAccount = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return res.status(404).json(
+                apiResponse.errorResponse('User not found', 'USER_NOT_FOUND', 404)
+            );
+        }
+
+        await User.findByIdAndDelete(req.user._id);
+
+        // Revoke the caller's current access token so a captured token cannot
+        // be reused after the issuing account is deleted.
+        try {
+            if (req.jwt) {
+                await revokeToken(req.jwt);
+            }
+        } catch (err) {
+            logger.error('Failed to revoke token on account deletion', { error: err.message });
+        }
+
+        clearRefreshCookie(res);
+
+        logger.info('User account deleted', { userId: req.user._id });
+
+        return res.status(200).json(
+            apiResponse.successResponse(null, 'Account deleted successfully')
+        );
+    } catch (error) {
+        logger.error('Account deletion error', { error: error.message, stack: error.stack });
+        return res.status(500).json(
+            apiResponse.errorResponse('Failed to delete account', 'DELETE_ACCOUNT_FAILED', 500)
+        );
+    }
 };
 
 const forgotPassword = async (req, res) => {
@@ -926,96 +920,18 @@ const resetPassword = async (req, res) => {
 
         return res.json(
             apiResponse.successResponse(null, 'Password reset successful')
-  try {
-    const { token } = req.params;
-    const { password } = req.body;
-
-    if (!password) {
-      return res
-        .status(400)
-        .json(
-          apiResponse.errorResponse(
-            "New password is required",
-            "PASSWORD_REQUIRED",
-            400,
-          ),
         );
+    } catch (error) {
+        return res
+            .status(500)
+            .json(
+                apiResponse.errorResponse(
+                    'Server error during password reset',
+                    'SERVER_ERROR',
+                    500,
+                ),
+            );
     }
-
-    if (password.length < 8) {
-      return res
-        .status(400)
-        .json(
-          apiResponse.errorResponse(
-            "Password must be at least 8 characters long",
-            "INVALID_PASSWORD",
-            400,
-          ),
-        );
-    }
-
-    const passwordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,128}$/;
-    if (!passwordRegex.test(password)) {
-      return res
-        .status(400)
-        .json(
-          apiResponse.errorResponse(
-            "Password must be 8-128 characters and contain at least one uppercase letter, one lowercase letter, one number, and one special character",
-            "INVALID_PASSWORD",
-            400,
-          ),
-        );
-    }
-
-    const resetPasswordToken = crypto
-      .createHash("sha256")
-      .update(token)
-      .digest("hex");
-
-    const user = await User.findOne({
-      resetPasswordToken,
-      resetPasswordExpire: { $gt: Date.now() },
-    });
-
-        user.balance = fromDecimal(toDecimal(user.balance).plus(toDecimal(amount)));
-        await user.save();
-
-        logger.info('Funds added successfully', { adminId: req.user.id, targetUserId: user._id, amount, newBalance: toNumber(user.balance) });
-    if (!user) {
-      return res
-        .status(400)
-        .json(
-          apiResponse.errorResponse(
-            "Invalid or expired password reset token",
-            "INVALID_TOKEN",
-            400,
-          ),
-        );
-    }
-
-    const salt = await bcrypt.genSalt(12);
-    user.password = await bcrypt.hash(password, salt);
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
-    user.tokenVersion = (user.tokenVersion || 0) + 1;
-
-    await user.save();
-
-    return res.json(
-      apiResponse.successResponse(null, "Password reset successful"),
-    );
-  } catch (error) {
-    return res
-      .status(500)
-      .json(
-        apiResponse.errorResponse(
-          "Server error during password reset",
-          "SERVER_ERROR",
-          500,
-        ),
-      );
-  }
 };
 
 const addFunds = async (req, res) => {
@@ -1051,14 +967,14 @@ const addFunds = async (req, res) => {
       return res.status(404).json(apiResponse.notFoundResponse("User", userId));
     }
 
-    user.balance = (user.balance || 0) + amount;
+    user.balance = fromDecimal(toDecimal(user.balance || 0).plus(toDecimal(amount)));
     await user.save();
 
     logger.info("Funds added successfully", {
       adminId: req.user.id,
       targetUserId: user._id,
       amount,
-      newBalance: user.balance,
+      newBalance: toNumber(user.balance),
     });
 
     return res.json(
@@ -1120,55 +1036,8 @@ const setFallbackPassword = async (req, res) => {
         logger.error('Error setting fallback password', { error: error.message });
         return res.status(500).json(
             apiResponse.errorResponse('Server error while setting fallback password', 'SERVER_ERROR', 500)
-  try {
-    const { password } = req.body;
-
-    if (!password || password.length < 6) {
-      return res
-        .status(400)
-        .json(
-          apiResponse.errorResponse(
-            "Password must be at least 6 characters long",
-            "INVALID_PASSWORD",
-            400,
-          ),
         );
     }
-
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res
-        .status(404)
-        .json(apiResponse.notFoundResponse("User", req.user.id));
-    }
-
-    // Hash password with higher cost factor
-    const salt = await bcrypt.genSalt(12);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    user.password = hashedPassword;
-    await user.save();
-
-    logger.info("Fallback password set successfully", { userId: user._id });
-
-    return res.json(
-      apiResponse.successResponse(
-        { user: sanitizeUser(user) },
-        "Fallback password set successfully",
-      ),
-    );
-  } catch (error) {
-    logger.error("Error setting fallback password", { error: error.message });
-    return res
-      .status(500)
-      .json(
-        apiResponse.errorResponse(
-          "Server error while setting fallback password",
-          "SERVER_ERROR",
-          500,
-        ),
-      );
-  }
 };
 
 module.exports = {
@@ -1176,6 +1045,7 @@ module.exports = {
   loginUser,
   walletLogin,
   walletRegister,
+  verifyWalletSignature,
   getNonce,
   updateProfile,
   refreshSession,
@@ -1184,4 +1054,5 @@ module.exports = {
   resetPassword,
   addFunds,
   setFallbackPassword,
+  deleteAccount,
 };

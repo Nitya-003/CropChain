@@ -1,0 +1,16 @@
+<h2 style="color: #ca8a04;">⚠️ Supply Chain Alert</h2>
+<p>Hello {{farmerName}},</p>
+<p>We noticed that your crop batch has been idle in the supply chain without any recent updates.</p>
+
+<div class="card" style="border-left: 4px solid #ca8a04;">
+    <p><span class="highlight">Batch ID:</span> {{batchId}}</p>
+    <p><span class="highlight">Crop Type:</span> {{cropType}}</p>
+    <p><span class="highlight">Current Stage:</span> {{currentStage}}</p>
+    <p><span class="highlight">Days Delayed:</span> over {{thresholdDays}} days</p>
+</div>
+
+<p>Please check with the current custodian or platform administrators to ensure your batch is processed efficiently and avoids spoilage.</p>
+
+<a href="{{dashboardUrl}}" class="button" style="background-color: #ca8a04; color: #ffffff;">View Dashboard</a>
+
+<p>— The CropChain Team</p>

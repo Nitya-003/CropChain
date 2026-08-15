@@ -1,8 +1,6 @@
 const mongoose = require('mongoose');
 const { ROLES, VALID_ROLES } = require('../constants/permissions');
 const { fromString } = require('../utils/decimalHelpers');
-const mongoose = require("mongoose");
-const { ROLES, VALID_ROLES } = require("../constants/permissions");
 
 const userSchema = new mongoose.Schema(
   {
@@ -96,11 +94,13 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    expoPushToken: {
+      type: String,
+      sparse: true,
+    },
     balance: {
-        type: mongoose.Schema.Types.Decimal128,
-        default: () => fromString('100000')
-      type: Number,
-      default: 100000,
+      type: mongoose.Schema.Types.Decimal128,
+      default: () => fromString('100000')
     },
     lastLogin: { type: Date },
     resetPasswordToken: { type: String },
