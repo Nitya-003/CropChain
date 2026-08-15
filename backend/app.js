@@ -77,6 +77,7 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const logisticsRoutes = require("./routes/logisticsRoutes");
 const iotRoutes = require("./routes/iotRoutes");
 const relayerRoutes = require("./routes/relayerRoutes");
+const nftRoutes = require("./routes/nftRoutes");
 const {
   authLimiter,
   registerLimiter,
@@ -144,8 +145,11 @@ app.use("/api/batches", batchLimiter, batchRoutes);
 app.use("/api/ai", aiLimiter, aiRoutes);
 
 // Notifications & Logistics
-app.use("/api/notifications", generalLimiter, notificationRoutes);
+app.use("/api/notifications", notificationRoutes);
 app.use("/api/logistics", generalLimiter, logisticsRoutes);
+
+// Dynamic NFT Routes
+app.use("/api/nft", generalLimiter, nftRoutes);
 
 // IoT Data Ingestion
 app.use("/api/iot", generalLimiter, iotRoutes);

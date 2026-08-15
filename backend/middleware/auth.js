@@ -3,6 +3,7 @@ const User = require("../models/User");
 const Batch = require("../models/Batch");
 const { PERMISSIONS, ROLES, isAdminRole } = require("../constants/permissions");
 const RBACService = require("../services/rbacService");
+const { isRevoked } = require("../services/tokenBlacklist");
 const logger = require("../utils/logger");
 
 const protect = async (req, res, next) => {
@@ -22,6 +23,24 @@ const protect = async (req, res, next) => {
         .json({ error: "Not authorized", message: "Token is empty" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Reject tokens that have been explicitly revoked (logout / account
+    // deactivation). Tokens issued before this fix carry no `jti` and are
+    // skipped here, still subject to the tokenVersion check below.
+    if (decoded.jti && (await isRevoked(decoded))) {
+      logger.warn(`[AuthMiddleware] Revoked token used for user ${decoded.id} (jti: ${decoded.jti})`);
+      return res
+        .status(401)
+        .json({
+          error: "Not authorized",
+          message: "Token has been revoked. Please log in again.",
+        });
+    }
+
+    // Expose the decoded payload so downstream handlers (e.g. logout) can revoke
+    // this specific token without re-parsing the header.
+    req.jwt = decoded;
+
     const user = await User.findById(decoded.id).select("-password");
 
     if (!user)

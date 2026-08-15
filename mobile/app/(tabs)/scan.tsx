@@ -8,15 +8,28 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 import { useCameraPermission } from "react-native-vision-camera";
 import { useScanStore } from "../../src/services/scanStore";
+import { BLESoilScanModal } from "../../src/components/BLESoilScanModal";
+import type { SoilReading } from "../../src/services/bleSensorService";
 
 export default function ScanScreen() {
+  const { t } = useTranslation();
   const { hasPermission, requestPermission } = useCameraPermission();
   const [flash, setFlash] = useState(false);
   const [scanned, setScanned] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const [manualInput, setManualInput] = useState("");
+  const [bleModalVisible, setBleModalVisible] = useState(false);
+
+  const handleBleReading = (reading: SoilReading) => {
+    Alert.alert(
+      "🌱 BLE Soil Sensor Reading Captured",
+      `N: ${reading.nitrogen} | P: ${reading.phosphorus} | K: ${reading.potassium}\npH: ${reading.ph} | Moisture: ${reading.moisture}%`,
+      [{ text: "OK" }]
+    );
+  };
 
   useEffect(() => {
     if (!hasPermission) requestPermission();
@@ -30,26 +43,26 @@ export default function ScanScreen() {
 
       useScanStore.getState().setLastScanned(data);
 
-      Alert.alert("Batch Found", `Batch ID: ${data}`, [
+      Alert.alert(t("batch.found"), `${t("batch.id")}: ${data}`, [
         {
-          text: "View Details",
+          text: t("batch.title"),
           onPress: () => router.push(`/(tabs)/batches/${data}`),
         },
         {
-          text: "Scan Again",
+          text: t("scan.title"),
           onPress: () => {
             setScanned("");
             setIsScanning(false);
           },
         },
         {
-          text: "Cancel",
+          text: t("common.cancel"),
           style: "cancel",
           onPress: () => setIsScanning(false),
         },
       ]);
     },
-    [isScanning],
+    [isScanning, t],
   );
 
   const simulateScan = () => {
@@ -68,16 +81,16 @@ export default function ScanScreen() {
       <View className="flex-1 bg-gray-50 dark:bg-zinc-900 justify-center items-center px-6">
         <Ionicons name="camera" size={64} color="#9ca3af" />
         <Text className="text-lg font-semibold text-gray-900 dark:text-white mt-4">
-          Camera Permission Required
+          {t("scan.permissionRequired")}
         </Text>
         <Text className="text-gray-500 dark:text-gray-400 text-center mt-2">
-          Camera access is needed to scan QR codes on crop batches.
+          {t("scan.permissionDescription")}
         </Text>
         <TouchableOpacity
           onPress={requestPermission}
           className="mt-6 bg-primary py-3 px-8 rounded-xl"
         >
-          <Text className="text-white font-semibold">Grant Permission</Text>
+          <Text className="text-white font-semibold">{t("scan.grantPermission")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -90,7 +103,7 @@ export default function ScanScreen() {
         <View className="w-64 h-64 border-2 border-primary/60 rounded-2xl justify-center items-center">
           <Ionicons name="qr-code" size={80} color="rgba(22,163,74,0.3)" />
           <Text className="text-zinc-500 mt-4 text-sm text-center px-8">
-            Point camera at a CropChain QR code
+            {t("scan.instructions")}
           </Text>
         </View>
       </View>
@@ -98,37 +111,43 @@ export default function ScanScreen() {
       {/* Controls overlay */}
       <View className="absolute bottom-0 left-0 right-0 bg-zinc-900/90 px-6 pb-10 pt-6">
         <TouchableOpacity
-          onPress={simulateScan}
-          className="bg-primary py-3.5 rounded-xl items-center mb-3"
+          onPress={() => setBleModalVisible(true)}
+          className="bg-emerald-600/30 border border-emerald-500 py-3 rounded-xl items-center mb-4"
         >
-          <View className="flex-row items-center">
-            <Ionicons name="scan" size={20} color="white" />
-            <Text className="text-white font-semibold ml-2">
-              Simulate Scan (Demo)
-            </Text>
-          </View>
+          <Text className="text-emerald-400 font-bold">📡 Pair BLE Soil Sensor Probe</Text>
         </TouchableOpacity>
-
-        <View className="flex-row justify-center gap-6">
+        <TouchableOpacity
+          onPress={simulateScan}
+          className="bg-primary/20 border border-primary py-3 rounded-xl items-center mb-4"
+        >
+          <Text className="text-primary font-bold">{t("scan.simulate")}</Text>
+        </TouchableOpacity>
+        <View className="flex-row justify-around">
           <TouchableOpacity
             onPress={() => setFlash(!flash)}
             className="items-center"
           >
             <Ionicons
               name={flash ? "flash" : "flash-off"}
-              size={24}
+              size={28}
               color="white"
             />
-            <Text className="text-zinc-400 text-xs mt-1">Flash</Text>
+            <Text className="text-zinc-400 text-xs mt-1">{t("scan.flash")}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.back()}
             className="items-center"
           >
-            <Ionicons name="close" size={24} color="white" />
-            <Text className="text-zinc-400 text-xs mt-1">Cancel</Text>
+            <Ionicons name="close-circle" size={28} color="white" />
+            <Text className="text-zinc-400 text-xs mt-1">{t("scan.cancel")}</Text>
           </TouchableOpacity>
         </View>
+
+        <BLESoilScanModal
+          visible={bleModalVisible}
+          onClose={() => setBleModalVisible(false)}
+          onSelectReading={handleBleReading}
+        />
 
         {scanned ? (
           <View className="mt-4 bg-zinc-800 p-3 rounded-xl">

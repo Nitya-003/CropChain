@@ -10,12 +10,23 @@ class OracleService {
     this.oracleWallet = null;
     this.isListening = false;
     this.requestQueue = new Map(); // Track pending requests
+    // In-memory sequential nonce manager. Without it, concurrent
+    // fulfillIoTData() calls race on the RPC's pending nonce and produce
+    // NONCE_EXPIRED / REPLACEMENT_UNDERPRIDED errors (#1309).
+    this._pendingNonce = null;
+    this._nonceLock = Promise.resolve();
+    this.stats = {
+      totalProcessed: 0,
+      totalSuccess: 0,
+      totalFailed: 0,
+      totalResponseTimeMs: 0,
+    };
     this._reconnecting = false;
     this._contractABI = [
       "event IoTDataRequested(bytes32 indexed batchId, address requester)",
       "event IoTDataFulfilled(bytes32 indexed batchId, int256 temperature, int256 humidity, bool isSpoiled)",
       "function fulfillIoTData(bytes32 batchId, int256 temperature, int256 humidity) external",
-      "function getBatch(bytes32 batchId) view returns (tuple(address farmer, uint256 quantity, string stage, bool exists, int256 temperature, int256 humidity, bool isSpoiled))",
+      "function getBatch(bytes32 batchId) view returns (tuple(bytes32 batchId, bytes32 cropTypeHash, string ipfsCID, uint256 quantity, uint256 createdAt, address creator, bool exists, bool isRecalled, int256 currentTemperature, int256 currentHumidity, bool isSpoiled))",
     ];
   }
 
@@ -226,6 +237,34 @@ class OracleService {
   /**
    * Fulfill IoT data on the blockchain
    */
+  async _acquireNonce() {
+    return this._withNonceLock(async () => {
+      if (this._pendingNonce === null) {
+        const address = this.oracleWallet?.address;
+        const getTn = this.provider?.getTransactionCount;
+        if (typeof getTn !== "function" || !address) {
+          return undefined;
+        }
+        this._pendingNonce = BigInt(
+          await getTn.call(this.provider, address, "pending"),
+        );
+      }
+      const nonce = this._pendingNonce;
+      this._pendingNonce += 1n;
+      return nonce;
+    });
+  }
+
+  _resetNonce() {
+    this._pendingNonce = null;
+  }
+
+  async _withNonceLock(fn) {
+    const result = this._nonceLock.then(fn, fn);
+    this._nonceLock = result.catch(() => {});
+    return result;
+  }
+
   async fulfillIoTData(batchId, iotData) {
     try {
       logger.info(`🔗 Fulfilling IoT data on blockchain...`);
@@ -242,15 +281,42 @@ class OracleService {
 
       logger.info(`⛽ Gas estimate: ${gasEstimate.toString()}`);
 
-      const tx = await this.contract.fulfillIoTData(
-        batchId,
-        temperatureRaw,
-        iotData.humidity,
-        {
-          gasLimit: Math.floor(gasEstimate * 1.2), // 20% buffer
-          gasPrice: await this.provider.getFeeData(),
-        },
-      );
+      // ethers v6 estimateGas returns a bigint, so apply the 20% buffer with
+      // bigint arithmetic instead of Math.floor(number * 1.2).
+      const gasLimit = (gasEstimate * 120n) / 100n;
+
+      // Resolve fee fields from the provider's FeeData (ethers v6 requires
+      // individual bigint fee values, not the whole FeeData object).
+      const feeData = await this.provider.getFeeData();
+      const overrides = { gasLimit };
+      if (feeData.maxFeePerGas != null && feeData.maxPriorityFeePerGas != null) {
+        overrides.maxFeePerGas = feeData.maxFeePerGas;
+        overrides.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
+      } else if (feeData.gasPrice != null) {
+        overrides.gasPrice = feeData.gasPrice;
+      }
+
+      // Acquire a sequential nonce and submit under the single-flight lock so
+      // concurrent fulfillIoTData() calls don't race on the RPC pending nonce
+      // (#1309). When no nonce source is available (e.g. tests / missing
+      // provider method), nonce is undefined and ethers auto-manages it.
+      const nonce = await this._acquireNonce();
+      if (nonce !== undefined) overrides.nonce = nonce;
+
+      let tx;
+      try {
+        tx = await this.contract.fulfillIoTData(
+          batchId,
+          temperatureRaw,
+          iotData.humidity,
+          overrides,
+        );
+      } catch (sendError) {
+        // A dropped/replaced tx invalidates the cached nonce: re-sync on the
+        // next call so a stale counter doesn't poison subsequent sends.
+        this._resetNonce();
+        throw sendError;
+      }
 
       logger.info(`📤 Transaction sent: ${tx.hash}`);
 
@@ -266,6 +332,46 @@ class OracleService {
       logger.error("❌ Failed to fulfill IoT data:", { error: error.message });
       throw error;
     }
+  }
+
+  /**
+   * Record a completed oracle request telemetry metric
+   */
+  recordRequest(durationMs, success = true) {
+    this.stats.totalProcessed += 1;
+    if (success) {
+      this.stats.totalSuccess += 1;
+    } else {
+      this.stats.totalFailed += 1;
+    }
+    this.stats.totalResponseTimeMs += Math.max(0, durationMs || 0);
+  }
+
+  /**
+   * Get calculated performance statistics
+   */
+  getPerformanceStats() {
+    if (this.stats.totalProcessed === 0) {
+      return {
+        averageResponseTime: "N/A",
+        successRate: "N/A",
+        totalProcessed: 0,
+        totalSuccess: 0,
+        totalFailed: 0,
+      };
+    }
+
+    const avgMs = this.stats.totalResponseTimeMs / this.stats.totalProcessed;
+    const avgSec = (avgMs / 1000).toFixed(1);
+    const ratePct = ((this.stats.totalSuccess / this.stats.totalProcessed) * 100).toFixed(1);
+
+    return {
+      averageResponseTime: `${avgSec}s`,
+      successRate: `${ratePct}%`,
+      totalProcessed: this.stats.totalProcessed,
+      totalSuccess: this.stats.totalSuccess,
+      totalFailed: this.stats.totalFailed,
+    };
   }
 
   /**
@@ -312,21 +418,63 @@ class OracleService {
 
       const batchData = await this.contract.getBatch(batchId);
 
+      if (!batchData.exists) {
+        return {
+          batchId: ethers.decodeBytes32String(batchId),
+          exists: false,
+          temperature: null,
+          humidity: null,
+          isSpoiled: false,
+        };
+      }
+
+      // getBatch (CropChain.sol:534) returns the full 11-field CropBatch
+      // struct; the real sensor readings live in currentTemperature /
+      // currentHumidity / isSpoiled (see #1326).
       return {
         batchId: ethers.decodeBytes32String(batchId),
-        temperature: batchData.temperature
-          ? batchData.temperature.toNumber() / 10
+        temperature: batchData.currentTemperature != null
+          ? Number(batchData.currentTemperature) / 10
           : null,
-        humidity: batchData.humidity ? batchData.humidity.toNumber() : null,
+        humidity: batchData.currentHumidity != null
+          ? Number(batchData.currentHumidity)
+          : null,
         isSpoiled: batchData.isSpoiled || false,
-        exists: batchData.exists || false,
+        exists: true,
       };
     } catch (error) {
-      logger.error(
-        `❌ Failed to get IoT data for batch ${batchId}:`,
-        { error: error.message },
+      // getBatch carries the batchExists modifier, so querying a missing batch
+      // reverts instead of returning exists=false. Map that revert to a clean
+      // "batch not found" (404) while still surfacing genuine RPC failures.
+      const isRevert =
+        error?.code === "CALL_EXCEPTION" ||
+        error?.info?.error?.code === "CALL_EXCEPTION" ||
+        /execution reverted/i.test(error?.shortMessage || error?.message || "");
+
+      if (!isRevert) {
+        logger.error(
+          `❌ Failed to get IoT data for batch ${batchId}:`,
+          { error: error.message },
+        );
+        throw error;
+      }
+
+      logger.warn(
+        `⚠️ batch ${batchId} getBatch reverted (batch does not exist): ${error.message}`,
       );
-      throw error;
+      let decodedBatchId = batchId;
+      try {
+        decodedBatchId = ethers.decodeBytes32String(batchId);
+      } catch {
+        // keep raw batchId if it is not a decodable bytes32
+      }
+      return {
+        batchId: decodedBatchId,
+        exists: false,
+        temperature: null,
+        humidity: null,
+        isSpoiled: false,
+      };
     }
   }
 }

@@ -173,7 +173,7 @@ export default function AuctionRoomPage() {
   const handleCustomBidSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const amount = Number(customBid);
-    if (isNaN(amount) || amount <= 0) {
+    if (Number.isNaN(amount) || amount <= 0) {
       toast.error("Please enter a valid positive number");
       return;
     }
