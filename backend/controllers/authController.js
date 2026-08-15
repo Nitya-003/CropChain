@@ -173,6 +173,7 @@ const registerUser = async (req, res) => {
       email,
       password: hashedPassword,
       role,
+      status: "active",
     });
 
     if (user) {
@@ -628,6 +629,7 @@ const walletRegister = async (req, res) => {
       walletAddress: normalizedAddress,
       role,
       password: await bcrypt.hash(randomPassword, 12), // Secure random password for wallet users
+      status: "active",
     });
 
     attachRefreshCookie(res, user);
