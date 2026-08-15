@@ -100,3 +100,13 @@ typechain-types/
 
 # Temporary migration backup directories
 frontend-old/
+
+# Python / ML service
+__pycache__/
+*.py[cod]
+*.joblib
+*.pkl
+*.h5
+.venv/
+venv/
+.pytest_cache/

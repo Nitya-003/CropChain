@@ -143,6 +143,57 @@ describe("Context-Aware Batch Querying Tests", () => {
     });
   });
 
+  describe("Page Context Awareness", () => {
+    it("should build a different system prompt for the same question on different pages", async () => {
+      const mockBatchService = {
+        getDashboardStats: jest
+          .fn()
+          .mockResolvedValue({ stats: { totalBatches: 10 } }),
+      };
+
+      // response mock is generic enough to satisfy both calls; we only care what
+      // prompt each call was built with
+      const makeModel = () => ({
+        startChat: jest.fn().mockReturnValue({
+          sendMessage: jest.fn().mockResolvedValue({
+            response: { text: () => "ok", functionCalls: () => [] },
+          }),
+        }),
+      });
+
+      const originalProvider = aiService.provider;
+      const originalGenAI = aiService.genAI;
+      aiService.provider = "gemini";
+      const getGenerativeModel = jest.fn().mockImplementation(makeModel);
+      aiService.genAI = { getGenerativeModel };
+
+      await aiService.chatWithBatchContext(
+        "what should I do here?",
+        { currentPage: "add-batch", userRole: "farmer" },
+        mockBatchService,
+        null,
+        null,
+      );
+      await aiService.chatWithBatchContext(
+        "what should I do here?",
+        { currentPage: "track-batch", userRole: "farmer" },
+        mockBatchService,
+        null,
+        null,
+      );
+
+      const addBatchPrompt = getGenerativeModel.mock.calls[0][0].systemInstruction;
+      const trackBatchPrompt = getGenerativeModel.mock.calls[1][0].systemInstruction;
+
+      expect(addBatchPrompt).toContain("Current page: add-batch");
+      expect(trackBatchPrompt).toContain("Current page: track-batch");
+      expect(addBatchPrompt).not.toBe(trackBatchPrompt);
+
+      aiService.provider = originalProvider;
+      aiService.genAI = originalGenAI;
+    });
+  });
+
   describe("Gemini Function-Calling for Multi-Filter Queries", () => {
     it("should call search_batches with all requested filters and return only the matching batches", async () => {
       const matchingBatches = [

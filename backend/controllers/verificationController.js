@@ -723,13 +723,35 @@ const bulkIssueCredentials = async (req, res) => {
     const maxRowsPerJob =
       parseInt(process.env.MAX_BULK_ROWS_PER_JOB, 10) || 5000;
 
+    // Hard cap on the number of rows parseCSV will materialize, independent of
+    // MAX_BULK_ROWS_PER_JOB (which only bounds validated/accepted rows). This
+    // stops a maliciously large CSV (many short rows within the byte cap) from
+    // OOMing the process during parsing. See #1310.
+    const MAX_BULK_CSV_ROWS =
+      parseInt(process.env.MAX_BULK_CSV_ROWS, 10) || 100000;
+
     const {
       validateHeadersExact,
       safeHeaderKey,
     } = require("../utils/bulkCsvValidation");
 
-    // Strict parse + header validation.
-    const recordsRaw = bulkVerificationService.parseCSV(csvText);
+    // Strict parse + header validation. parseCSV throws BulkCsvRowLimitError
+    // (mapped to a 400 below) if the row count exceeds MAX_BULK_CSV_ROWS.
+    let recordsRaw;
+    try {
+      recordsRaw = bulkVerificationService.parseCSV(csvText, {
+        maxRows: MAX_BULK_CSV_ROWS,
+      });
+    } catch (parseErr) {
+      if (parseErr instanceof bulkVerificationService.BulkCsvRowLimitError) {
+        return res.status(400).json(
+          apiResponse.validationErrorResponse([
+            `CSV exceeds the maximum of ${MAX_BULK_CSV_ROWS} rows. Please split the file and retry.`,
+          ]),
+        );
+      }
+      throw parseErr;
+    }
     if (!Array.isArray(recordsRaw) || recordsRaw.length === 0) {
       return res
         .status(400)
