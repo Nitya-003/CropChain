@@ -352,10 +352,26 @@ exports.getBatches = async (req, res) => {
     if (start || end) {
       query.createdAt = {};
       if (start) {
-        query.createdAt.$gte = new Date(start);
+        const startDateObj = new Date(start);
+        if (Number.isNaN(startDateObj.getTime())) {
+          return res
+            .status(400)
+            .json(apiResponse.errorResponse("Invalid 'start' date. Use ISO 8601 format (e.g. 2024-01-01)."));
+        }
+        query.createdAt.$gte = startDateObj;
       }
       if (end) {
-        query.createdAt.$lte = new Date(end);
+        const endDateObj = new Date(end);
+        if (Number.isNaN(endDateObj.getTime())) {
+          return res
+            .status(400)
+            .json(apiResponse.errorResponse("Invalid 'end' date. Use ISO 8601 format (e.g. 2024-01-01)."));
+        }
+        query.createdAt.$lte = endDateObj;
+      }
+      // Drop an empty object if both ends were absent/invalid-but-silenced.
+      if (!query.createdAt.$gte && !query.createdAt.$lte) {
+        delete query.createdAt;
       }
     }
 
@@ -367,8 +383,21 @@ exports.getBatches = async (req, res) => {
     );
     const skip = (pageNumber - 1) * limitNumber;
 
+    // Allow-list sort keys so a client cannot inject arbitrary/malformed
+    // sort fields into the Mongoose query.
+    const ALLOWED_SORT_FIELDS = new Set([
+      "createdAt",
+      "updatedAt",
+      "batchId",
+      "cropType",
+      "quantity",
+      "farmerName",
+      "status",
+      "currentStage",
+    ]);
+    const safeSortBy = ALLOWED_SORT_FIELDS.has(sortBy) ? sortBy : "createdAt";
     const sort = {};
-    sort[sortBy] = sortOrder.toLowerCase() === "asc" ? 1 : -1;
+    sort[safeSortBy] = sortOrder.toLowerCase() === "asc" ? 1 : -1;
 
     // Use lean() for read-only queries to skip Mongoose document hydration
     const batches = await Batch.find(query)
@@ -711,7 +740,4 @@ exports.getIoTData = async (req, res) => {
         ),
       );
   }
-};
-
-.catch(err => console.error("Promise.all failed:", err));
 };
