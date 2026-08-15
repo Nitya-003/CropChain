@@ -1,6 +1,7 @@
 import os
 import io
 import base64
+import math
 import hmac
 import numpy as np
 import joblib
@@ -164,9 +165,34 @@ def predict_yield():
         return jsonify({"error": "Request body must be JSON"}), 400
 
     crop = body.get("crop", "unknown")
-    area = float(body.get("area_hectares", 0))
-    temp = float(body.get("avg_temperature", 25))
-    rainfall = float(body.get("expected_rainfall", 100))
+
+    numeric_fields = {
+        "area_hectares": ("area", 0),
+        "avg_temperature": ("temp", 25),
+        "expected_rainfall": ("rainfall", 100),
+    }
+    details = []
+    parsed = {}
+    for field, (var, default) in numeric_fields.items():
+        raw = body.get(field, default)
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            details.append(f"'{field}' must be a number")
+            parsed[var] = default
+            continue
+        if not math.isfinite(value):
+            details.append(f"'{field}' must be a finite number")
+            parsed[var] = default
+            continue
+        parsed[var] = value
+
+    if details:
+        return jsonify({"error": "Validation failed", "details": details}), 422
+
+    area = parsed["area"]
+    temp = parsed["temp"]
+    rainfall = parsed["rainfall"]
 
     if area <= 0:
         return jsonify({"error": "area_hectares must be > 0"}), 422
