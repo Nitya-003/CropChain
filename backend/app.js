@@ -76,6 +76,7 @@ const aiRoutes = require("./routes/aiRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const logisticsRoutes = require("./routes/logisticsRoutes");
 const iotRoutes = require("./routes/iotRoutes");
+const relayerRoutes = require("./routes/relayerRoutes");
 const nftRoutes = require("./routes/nftRoutes");
 const {
   authLimiter,
@@ -152,6 +153,9 @@ app.use("/api/nft", generalLimiter, nftRoutes);
 
 // IoT Data Ingestion
 app.use("/api/iot", generalLimiter, iotRoutes);
+
+// Relayer (Meta-Transactions)
+app.use("/api/relayer", generalLimiter, relayerRoutes);
 
 // 404 handler
 app.use("*", (req, res) => {

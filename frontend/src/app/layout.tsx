@@ -6,6 +6,7 @@ import { Providers } from "./providers";
 import Header from "../components/Header";
 import AIChatbot from "../components/AIChatbot";
 import OfflineIndicator from "../components/OfflineIndicator";
+import { LanguageProvider } from "../components/LanguageProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,15 +43,17 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <Providers>
-          <div className="min-h-screen bg-gradient-to-br from-green-50/40 to-blue-50/40 dark:from-black dark:to-black text-foreground transition-colors duration-200">
-            <OfflineIndicator />
-            <Header />
-            <main className="container mx-auto px-4 py-8">{children}</main>
-            <BackToTop />
-            <AIChatbot />
-          </div>
-        </Providers>
+        <LanguageProvider>
+          <Providers>
+            <div className="min-h-screen bg-gradient-to-br from-green-50/40 to-blue-50/40 dark:from-black dark:to-black text-foreground transition-colors duration-200">
+              <OfflineIndicator />
+              <Header />
+              <main className="container mx-auto px-4 py-8">{children}</main>
+              <BackToTop />
+              <AIChatbot />
+            </div>
+          </Providers>
+        </LanguageProvider>
       </body>
     </html>
   );

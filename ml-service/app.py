@@ -331,6 +331,26 @@ def predict_quality():
 
 
 
+from weather_pipeline import predict_yield_loss
+
+@app.route("/predict-yield-loss", methods=["POST"])
+@require_api_key
+@limiter.limit(os.environ.get("ML_RATE_LIMIT_YIELD", "20 per minute"))
+def predict_yield():
+    """
+    AI Weather Anomaly & Crop Yield Loss Prediction Endpoint.
+    Predicts yield loss percentage, climate anomaly risk tier, and mitigation tips.
+    """
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        res = predict_yield_loss(data)
+        if not res.get("success"):
+            return jsonify({"error": "Prediction failed", "details": res.get("error")}), 400
+        return jsonify(res), 200
+    except Exception as e:
+        return jsonify({"error": "Failed to process yield prediction payload", "details": str(e)}), 500
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
     app.run(host="0.0.0.0", port=port, debug=False)
