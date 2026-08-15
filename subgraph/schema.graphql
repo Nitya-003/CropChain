@@ -1,0 +1,27 @@
+type Batch @entity {
+  id: ID! # Batch ID
+  ipfsCID: String!
+  quantity: BigInt!
+  creator: Bytes! # Address
+  stage: Int! # enum Stage (0-5)
+  isRecalled: Boolean!
+  updates: [BatchUpdate!]! @derivedFrom(field: "batch")
+  createdAt: BigInt!
+  updatedAt: BigInt!
+}
+
+type BatchUpdate @entity {
+  id: ID! # transaction hash + log index
+  batch: Batch!
+  stage: Int!
+  actorName: String!
+  location: String!
+  updatedBy: Bytes!
+  timestamp: BigInt!
+}
+
+type Role @entity {
+  id: ID! # Address
+  role: Int! # enum ActorRole
+  updatedAt: BigInt!
+}

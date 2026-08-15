@@ -1,0 +1,30 @@
+specVersion: 0.0.5
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: CropChain
+    network: sepolia
+    source:
+      address: "0x0000000000000000000000000000000000000000"
+      abi: CropChain
+      startBlock: 1
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Batch
+        - BatchUpdate
+        - Role
+      abis:
+        - name: CropChain
+          file: ./abis/CropChain.json
+      eventHandlers:
+        - event: BatchCreated(indexed bytes32,string,uint256,indexed address)
+          handler: handleBatchCreated
+        - event: BatchUpdated(indexed bytes32,uint8,string,string,indexed address)
+          handler: handleBatchUpdated
+        - event: RoleUpdated(indexed address,uint8)
+          handler: handleRoleUpdated
+      file: ./src/mapping.ts
