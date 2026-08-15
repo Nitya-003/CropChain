@@ -12,9 +12,17 @@ async function main() {
     ethers.formatEther(await ethers.provider.getBalance(deployer.address)),
   );
 
+  // Deploy the Forwarder
+  console.log("Deploying MinimalForwarder...");
+  const MinimalForwarder = await ethers.getContractFactory("MinimalForwarder");
+  const forwarder = await MinimalForwarder.deploy();
+  await forwarder.waitForDeployment();
+  const forwarderAddress = await forwarder.getAddress();
+  console.log("MinimalForwarder deployed to:", forwarderAddress);
+
   // Deploy the contract
   const CropChain = await ethers.getContractFactory("CropChain");
-  const cropChain = await CropChain.deploy();
+  const cropChain = await CropChain.deploy(forwarderAddress);
 
   await cropChain.waitForDeployment();
   const contractAddress = await cropChain.getAddress();
