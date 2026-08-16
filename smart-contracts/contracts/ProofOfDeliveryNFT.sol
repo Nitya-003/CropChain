@@ -52,6 +52,45 @@ contract ProofOfDeliveryNFT is AccessControl, ReentrancyGuard {
         emit ProofMinted(batchId, tokenId, recipient, metadataURI);
     }
 
+    /**
+     * @dev Allows recipient to claim their Proof of Delivery NFT
+     */
+    function claimProofOfDelivery(bytes32 batchId, string calldata metadataURI)
+        external
+        nonReentrant
+        returns (uint256 tokenId)
+    {
+        require(batchId != bytes32(0), "Invalid batchId");
+        require(batchToTokenId[batchId] == 0, "Proof already minted");
+
+        unchecked {
+            totalSupply += 1;
+        }
+
+        tokenId = totalSupply;
+        _owners[tokenId] = msg.sender;
+        _balances[msg.sender] += 1;
+        _tokenURIs[tokenId] = metadataURI;
+        batchToTokenId[batchId] = tokenId;
+
+        emit Transfer(address(0), msg.sender, tokenId);
+        emit ProofMinted(batchId, tokenId, msg.sender, metadataURI);
+    }
+
+    /**
+     * @dev Fetch PoD details for a given batchId
+     */
+    function getProofByBatch(bytes32 batchId)
+        external
+        view
+        returns (uint256 tokenId, address owner, string memory uri)
+    {
+        tokenId = batchToTokenId[batchId];
+        require(tokenId != 0, "Proof not found for batch");
+        owner = _owners[tokenId];
+        uri = _tokenURIs[tokenId];
+    }
+
     function ownerOf(uint256 tokenId) external view returns (address) {
         address owner = _owners[tokenId];
         require(owner != address(0), "Token does not exist");

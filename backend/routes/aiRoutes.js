@@ -335,4 +335,43 @@ router.post("/predict-yield-loss", batchLimiter, async (req, res) => {
   }
 });
 
+const { calculateMultiModalShelfLife } = require("../services/spoilageDetectionService");
+
+/**
+ * @swagger
+ * /api/ai/predict-shelflife:
+ *   post:
+ *     summary: Multi-Modal Produce Shelf-Life & Spoilage Decay API
+ *     tags: [AI ML Service]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               cropType:
+ *                 type: string
+ *               temperatureC:
+ *                 type: number
+ *               humidity:
+ *                 type: number
+ *               daysInTransit:
+ *                 type: number
+ *               spotRatio:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Produce shelf-life and decay index metrics generated
+ */
+router.post("/predict-shelflife", batchLimiter, async (req, res) => {
+  try {
+    const result = calculateMultiModalShelfLife(req.body);
+    return res.json(apiResponse.successResponse(result, "Produce shelf-life metrics calculated successfully"));
+  } catch (error) {
+    logger.error("Error calculating multi-modal shelf-life", { error: error.message });
+    return res.status(500).json(apiResponse.errorResponse("Failed to calculate shelf-life", "SHELFLIFE_CALC_ERROR", 500));
+  }
+});
+
 module.exports = router;
