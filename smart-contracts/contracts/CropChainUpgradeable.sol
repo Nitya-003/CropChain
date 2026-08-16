@@ -105,10 +105,8 @@ contract CropChainUpgradeable is
 
     struct SupplyChainUpdate {
         Stage stage;
-        string actorName;
-        string location;
+        bytes32 contentHash; // keccak256(abi.encodePacked(actorName, location, notes)) — see #1287
         uint256 timestamp;
-        string notes;
         address updatedBy;
     }
 
@@ -374,10 +372,8 @@ contract CropChainUpgradeable is
         _batchUpdates[batchId].push(
             SupplyChainUpdate({
                 stage: Stage.Farmer,
-                actorName: actorName,
-                location: location,
+                contentHash: _contentHash(actorName, location, notes),
                 timestamp: block.timestamp,
-                notes: notes,
                 updatedBy: _msgSender()
             })
         );
@@ -421,10 +417,8 @@ contract CropChainUpgradeable is
         _batchUpdates[batchId].push(
             SupplyChainUpdate({
                 stage: stage,
-                actorName: actorName,
-                location: location,
+                contentHash: _contentHash(actorName, location, notes),
                 timestamp: block.timestamp,
-                notes: notes,
                 updatedBy: _msgSender()
             })
         );
@@ -537,10 +531,8 @@ contract CropChainUpgradeable is
         _batchUpdates[subBatchId].push(
             SupplyChainUpdate({
                 stage: _batchUpdates[listing.batchId].length > 0 ? _batchUpdates[listing.batchId][_batchUpdates[listing.batchId].length - 1].stage : Stage.Farmer,
-                actorName: "Buyer",
-                location: "Marketplace",
+                contentHash: _contentHash("Buyer", "Marketplace", "Purchased and split from parent batch"),
                 timestamp: block.timestamp,
-                notes: "Purchased and split from parent batch",
                 updatedBy: msg.sender
             })
         );
@@ -772,6 +764,15 @@ contract CropChainUpgradeable is
     function _validateStringLength(string memory str, uint256 minLen, uint256 maxLen) internal pure {
         uint256 length = bytes(str).length;
         if (length < minLen || length > maxLen) revert LengthValidationFailed();
+    }
+
+    /**
+     * @dev Content hash of the verbose supply-chain metadata (actorName,
+     * location, notes). Only this hash is written to storage; the raw strings
+     * are emitted in the BatchUpdated event for off-chain clients. See #1287.
+     */
+    function _contentHash(string memory actorName, string memory location, string memory notes) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(actorName, location, notes));
     }
 
     function requestIoTVerification(bytes32 batchId)

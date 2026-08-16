@@ -1,6 +1,7 @@
 import os
 import io
 import base64
+import hmac
 import numpy as np
 import joblib
 from functools import wraps
@@ -24,14 +25,23 @@ limiter = Limiter(
 )
 
 # ── API key authentication ─────────────────────────────────────────────────
-API_KEY = os.environ.get("ML_API_KEY", "change-me-in-production")
+# Fail closed: never boot with a publicly-known default credential. The old
+# fallback ("change-me-in-production") was hardcoded in the repo, so anyone
+# could bypass the X-API-Key guard on an unconfigured deployment.
+API_KEY = os.environ.get("ML_API_KEY")
+if not API_KEY:
+    raise RuntimeError(
+        "ML_API_KEY environment variable is required to start the ML service. "
+        "Set it to a strong random secret (openssl rand -hex 32) and make sure "
+        "it matches ML_API_KEY configured for the CropChain backend."
+    )
 
 
 def require_api_key(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         api_key = request.headers.get("X-API-Key")
-        if not api_key or api_key != API_KEY:
+        if not api_key or not hmac.compare_digest(api_key, API_KEY):
             return jsonify({"error": "Unauthorized"}), 401
         return f(*args, **kwargs)
     return decorated
@@ -319,6 +329,26 @@ def predict_quality():
         "estimatedShelfLifeDays": round(shelf_life, 1)
     })
 
+
+
+from weather_pipeline import predict_yield_loss
+
+@app.route("/predict-yield-loss", methods=["POST"])
+@require_api_key
+@limiter.limit(os.environ.get("ML_RATE_LIMIT_YIELD", "20 per minute"))
+def predict_yield():
+    """
+    AI Weather Anomaly & Crop Yield Loss Prediction Endpoint.
+    Predicts yield loss percentage, climate anomaly risk tier, and mitigation tips.
+    """
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        res = predict_yield_loss(data)
+        if not res.get("success"):
+            return jsonify({"error": "Prediction failed", "details": res.get("error")}), 400
+        return jsonify(res), 200
+    except Exception as e:
+        return jsonify({"error": "Failed to process yield prediction payload", "details": str(e)}), 500
 
 
 if __name__ == "__main__":

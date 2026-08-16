@@ -12,9 +12,17 @@ async function main() {
     ethers.formatEther(await ethers.provider.getBalance(deployer.address)),
   );
 
+  // Deploy the Forwarder
+  console.log("Deploying MinimalForwarder...");
+  const MinimalForwarder = await ethers.getContractFactory("MinimalForwarder");
+  const forwarder = await MinimalForwarder.deploy();
+  await forwarder.waitForDeployment();
+  const forwarderAddress = await forwarder.getAddress();
+  console.log("MinimalForwarder deployed to:", forwarderAddress);
+
   // Deploy the contract
   const CropChain = await ethers.getContractFactory("CropChain");
-  const cropChain = await CropChain.deploy();
+  const cropChain = await CropChain.deploy(forwarderAddress);
 
   await cropChain.waitForDeployment();
   const contractAddress = await cropChain.getAddress();
@@ -25,6 +33,14 @@ async function main() {
   console.log("CropChain contract deployed to:", contractAddress);
   console.log("Transaction hash:", tx.hash);
   console.log("Gas used:", receipt.gasUsed.toString());
+
+  // Deploy CropBatchDNFT contract
+  console.log("\nDeploying CropBatchDNFT contract...");
+  const CropBatchDNFT = await ethers.getContractFactory("CropBatchDNFT");
+  const cropBatchDNFT = await CropBatchDNFT.deploy("CropChain Dynamic Batch NFT", "cDNFT");
+  await cropBatchDNFT.waitForDeployment();
+  const dnftAddress = await cropBatchDNFT.getAddress();
+  console.log("CropBatchDNFT contract deployed to:", dnftAddress);
 
   // Verify deployment and RBAC setup
   console.log("\n=== Verifying RBAC Setup ===");

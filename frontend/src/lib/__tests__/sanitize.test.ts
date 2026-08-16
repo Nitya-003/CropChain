@@ -3,7 +3,7 @@ import { sanitizeObject, isBinaryOrFormData, sanitizeString } from "../sanitize"
 describe("sanitize module", () => {
   it("sanitizes HTML characters in strings", () => {
     expect(sanitizeString("<script>alert('xss')</script>")).toBe(
-      "scriptalert(&#x27;xss&#x27;)&#x2F;script",
+      "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;&#x2F;script&gt;",
     );
   });
 
