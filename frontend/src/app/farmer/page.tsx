@@ -440,20 +440,14 @@ const FarmerDashboardComponent: React.FC = () => {
               </div>
               <div>
                 <p className="font-semibold text-foreground">
-  {filters.search
-    ? `No batches match "${filters.search}"`
-    : "No batches found"}
-</p>
-
-<p className="text-sm text-muted-foreground mt-1">
-  {filters.search
-    ? "Try a different search term or clear the filters."
-    : "Try adjusting your filters or create a new batch."}
-</p>
-                  {t("farmer.noBatchesFound")}
+                  {filters.search
+                    ? `No batches match "${filters.search}"`
+                    : t("farmer.noBatchesFound")}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {t("farmer.adjustFiltersOrCreate")}
+                  {filters.search
+                    ? "Try a different search term or clear the filters."
+                    : t("farmer.adjustFiltersOrCreate")}
                 </p>
               </div>
               <Link href="/add-batch">
