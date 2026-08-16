@@ -4,6 +4,7 @@
  */
 
 const { ethers } = require("ethers");
+const axios = require("axios");
 const crypto = require("crypto");
 const blockchainConfig = require("../config/blockchain");
 const logger = require("../utils/logger");
@@ -439,6 +440,41 @@ class BlockchainService {
    */
   getContract() {
     return this.contract;
+  }
+
+  /**
+   * Query The Graph Subgraph for historical events or analytics
+   * @param {string} query - The GraphQL query string
+   * @param {Object} variables - Optional variables for the query
+   * @returns {Promise<Object>} - GraphQL response data
+   */
+  async querySubgraph(query, variables = {}) {
+    const subgraphUrl = process.env.SUBGRAPH_URL;
+    
+    if (!subgraphUrl) {
+      logger.warn("[BlockchainService] SUBGRAPH_URL is not configured. Falling back to empty data.");
+      return { data: null, error: "Subgraph URL not configured" };
+    }
+
+    try {
+      const response = await axios.post(subgraphUrl, {
+        query,
+        variables
+      }, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 10000 // 10 second timeout for queries
+      });
+
+      if (response.data.errors) {
+        logger.error("[BlockchainService] Subgraph query returned GraphQL errors:", response.data.errors);
+        return { data: null, error: response.data.errors };
+      }
+
+      return { data: response.data.data, error: null };
+    } catch (error) {
+      logger.error("[BlockchainService] Subgraph query failed:", error.message);
+      return { data: null, error: error.message };
+    }
   }
 
   /**

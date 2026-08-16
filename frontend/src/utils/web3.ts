@@ -49,3 +49,60 @@ export const getContract = async (): Promise<ethers.Contract | null> => {
   if (!signer) return null;
   return new ethers.Contract(getContractAddress(), cropChainABI, signer);
 };
+
+export const getForwarderAddress = (): string => {
+  // Use env var or default for local dev
+  return process.env.NEXT_PUBLIC_FORWARDER_ADDRESS || "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
+};
+
+/**
+ * Request MetaMask to sign an EIP-712 typed data message for a meta-transaction
+ */
+export const signMetaTransaction = async (
+  signerAddress: string,
+  targetContract: string,
+  functionData: string,
+  nonce: number,
+  gasLimit: number = 3000000
+) => {
+  if (!hasMetaMask()) throw new Error("MetaMask not found");
+  
+  const provider = getWeb3Provider();
+  if (!provider) throw new Error("Provider not found");
+  
+  const network = await provider.getNetwork();
+  const chainId = Number(network.chainId);
+  const forwarderAddress = getForwarderAddress();
+
+  const domain = {
+    name: "MinimalForwarder",
+    version: "0.0.1",
+    chainId: chainId,
+    verifyingContract: forwarderAddress
+  };
+
+  const types = {
+    ForwardRequest: [
+      { name: "from", type: "address" },
+      { name: "to", type: "address" },
+      { name: "value", type: "uint256" },
+      { name: "gas", type: "uint256" },
+      { name: "nonce", type: "uint256" },
+      { name: "data", type: "bytes" }
+    ]
+  };
+
+  const message = {
+    from: signerAddress,
+    to: targetContract,
+    value: 0,
+    gas: gasLimit,
+    nonce: nonce,
+    data: functionData
+  };
+
+  const signer = await provider.getSigner();
+  const signature = await signer.signTypedData(domain, types, message);
+
+  return { request: message, signature };
+};

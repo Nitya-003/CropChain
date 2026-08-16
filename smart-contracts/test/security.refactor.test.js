@@ -17,8 +17,12 @@ describe("CropChain Security Refactor", function () {
   async function deployFixture() {
     const [owner, buyer, oracle] = await ethers.getSigners();
 
+    const MinimalForwarder = await ethers.getContractFactory("MinimalForwarder");
+    const forwarder = await MinimalForwarder.deploy();
+    const forwarderAddress = await forwarder.getAddress();
+
     const CropChain = await ethers.getContractFactory("CropChain");
-    const cropChain = await CropChain.deploy();
+    const cropChain = await CropChain.deploy(forwarderAddress);
     await cropChain.waitForDeployment();
 
     return { cropChain, owner, buyer, oracle };

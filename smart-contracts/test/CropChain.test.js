@@ -24,8 +24,12 @@ describe("CropChain", function () {
     [owner, farmer, mandi, transporter, retailer, oracle, other] =
       await ethers.getSigners();
 
+    const MinimalForwarder = await ethers.getContractFactory("MinimalForwarder");
+    const forwarder = await MinimalForwarder.deploy();
+    const forwarderAddress = await forwarder.getAddress();
+
     const CropChain = await ethers.getContractFactory("CropChain");
-    cropChain = await CropChain.deploy();
+    cropChain = await CropChain.deploy(forwarderAddress);
     await cropChain.waitForDeployment();
 
     // Get role constants
@@ -305,6 +309,11 @@ describe("CropChain", function () {
 
     // Admin should be able to transfer
     await expect(cropChain.connect(owner).transferOwnership(other.address))
+      .to.emit(cropChain, "OwnershipTransferStarted")
+      .withArgs(owner.address, other.address);
+
+    // New owner should be able to accept
+    await expect(cropChain.connect(other).acceptOwnership())
       .to.emit(cropChain, "OwnershipTransferred")
       .withArgs(owner.address, other.address);
   });

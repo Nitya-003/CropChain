@@ -48,6 +48,7 @@ function runVerification() {
   }
 
   console.log("✓ Expo Mobile SQLite Storage Service verified!");
+  console.log("✓ Mobile i18n & Offline Persistence verification complete!");
 
   // Verify BLE Soil Sensor Service & Modal Component
   const bleServicePath = path.join(__dirname, "src", "services", "bleSensorService.ts");
@@ -64,7 +65,19 @@ function runVerification() {
   }
 
   console.log("✓ Mobile BLE Soil Sensor Service & GATT Parser verified!");
-  console.log("✓ Mobile i18n, Offline Persistence & BLE Hardware Verification complete!");
+
+  // Verify Biometric Authentication Service
+  const bioPath = path.join(__dirname, "src", "services", "biometricAuthService.ts");
+  if (!fs.existsSync(bioPath)) {
+    throw new Error("biometricAuthService.ts is missing!");
+  }
+  const bioContent = fs.readFileSync(bioPath, "utf-8");
+  if (!bioContent.includes("checkHardwareSupport") || !bioContent.includes("authenticateFarmer")) {
+    throw new Error("biometricAuthService.ts missing core hardware biometric functions!");
+  }
+
+  console.log("✓ Mobile Hardware Biometric Authentication Service verified!");
+  console.log("✓ Mobile i18n, Offline Persistence, BLE & Biometric Hardware Verification complete!");
 }
 
 runVerification();
