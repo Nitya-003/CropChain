@@ -9,6 +9,7 @@ const apiResponse = require('../utils/apiResponse');
 const { verifyMessage } = require('ethers');
 const { VALID_ROLES, ROLES } = require('../constants/permissions');
 const logger = require('../utils/logger');
+const { revokeToken } = require('../services/tokenBlacklist');
 require('dotenv').config();
 const Redis = require('ioredis');
 const { toNumber, toDecimal, fromDecimal } = require('../utils/decimalHelpers');
@@ -172,6 +173,7 @@ const registerUser = async (req, res) => {
       email,
       password: hashedPassword,
       role,
+      status: "active",
     });
 
     if (user) {
@@ -627,6 +629,7 @@ const walletRegister = async (req, res) => {
       walletAddress: normalizedAddress,
       role,
       password: await bcrypt.hash(randomPassword, 12), // Secure random password for wallet users
+      status: "active",
     });
 
     attachRefreshCookie(res, user);
@@ -718,11 +721,12 @@ const refreshSession = async (req, res) => {
         );
     }
 
-    attachRefreshCookie(res, user);
+    // Rotate the token: increment the version so this refresh token and any
+    // previously issued refresh tokens (same user) are invalidated immediately.
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
 
-    return res.json(
-      apiResponse.successResponse(buildAuthPayload(user), "Session refreshed"),
-    );
+    attachRefreshCookie(res, user);
   } catch (error) {
     clearRefreshCookie(res);
 
@@ -734,7 +738,16 @@ const refreshSession = async (req, res) => {
   }
 };
 
-const logoutUser = (req, res) => {
+const logoutUser = async (req, res) => {
+  // Revoke the specific access token so it cannot be reused after logout.
+  // `req.jwt` is attached by the `protect` middleware after signature verify.
+  try {
+    if (req.jwt) {
+      await revokeToken(req.jwt);
+    }
+  } catch (err) {
+    logger.error('Failed to revoke token on logout', { error: err.message });
+  }
   clearRefreshCookie(res);
   return res.json(apiResponse.successResponse(null, "Logout successful"));
 };
@@ -750,6 +763,16 @@ const deleteAccount = async (req, res) => {
         }
 
         await User.findByIdAndDelete(req.user._id);
+
+        // Revoke the caller's current access token so a captured token cannot
+        // be reused after the issuing account is deleted.
+        try {
+            if (req.jwt) {
+                await revokeToken(req.jwt);
+            }
+        } catch (err) {
+            logger.error('Failed to revoke token on account deletion', { error: err.message });
+        }
 
         clearRefreshCookie(res);
 

@@ -14,8 +14,10 @@ import {
   Notification,
 } from "../../services/notification.service";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "../../src/contexts/ThemeContext";
 
 export default function NotificationsScreen() {
+  const { isDark } = useTheme();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread" | "alerts">("all");
@@ -94,15 +96,15 @@ export default function NotificationsScreen() {
     }
   };
 
-  const getBgColorForType = (type: string, read: boolean) => {
-    if (read) return "#ffffff";
+  const getBgColorForType = (type: string, read: boolean, isDark: boolean) => {
+    if (read) return isDark ? "#1f2937" : "#ffffff";
     switch (type) {
       case "alert":
-        return "#fffbeb"; // amber-50
+        return isDark ? "#451a03" : "#fffbeb"; // amber
       case "recall":
-        return "#fff1f2"; // rose-50
+        return isDark ? "#4c0519" : "#fff1f2"; // rose
       default:
-        return "#f0fdf4"; // primary-50 (emerald-50)
+        return isDark ? "#064e3b" : "#f0fdf4"; // emerald
     }
   };
 
@@ -110,7 +112,7 @@ export default function NotificationsScreen() {
     <TouchableOpacity
       style={[
         styles.notificationCard,
-        { backgroundColor: getBgColorForType(item.type, item.read) },
+        { backgroundColor: getBgColorForType(item.type, item.read, isDark) },
       ]}
       onPress={() => !item.read && markAsRead(item._id)}
       disabled={item.read}
@@ -124,27 +126,27 @@ export default function NotificationsScreen() {
       </View>
       <View style={styles.contentContainer}>
         <View style={styles.headerRow}>
-          <Text style={[styles.title, !item.read && styles.bold]}>
+          <Text style={[styles.title, !item.read && styles.bold, isDark && styles.titleDark]}>
             {item.title}
           </Text>
-          <Text style={styles.timestamp}>
+          <Text style={[styles.timestamp, isDark && styles.timestampDark]}>
             {new Date(item.createdAt).toLocaleDateString()}
           </Text>
         </View>
-        <Text style={[styles.message, !item.read && styles.boldMessage]}>
+        <Text style={[styles.message, !item.read && styles.boldMessage, isDark && styles.messageDark]}>
           {item.message}
         </Text>
         {!item.read && (
-          <Text style={styles.markReadText}>Tap to mark as read</Text>
+          <Text style={[styles.markReadText, isDark && styles.markReadTextDark]}>Tap to mark as read</Text>
         )}
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={["bottom", "left", "right"]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Notifications</Text>
+    <SafeAreaView style={[styles.container, isDark && styles.containerDark]} edges={["bottom", "left", "right"]}>
+      <View style={[styles.header, isDark && styles.headerDark]}>
+        <Text style={[styles.headerTitle, isDark && styles.headerTitleDark]}>Notifications</Text>
         <TouchableOpacity
           onPress={markAllAsRead}
           disabled={!notifications.some((n) => !n.read)}
@@ -161,6 +163,7 @@ export default function NotificationsScreen() {
         <TouchableOpacity
           style={[
             styles.filterButton,
+            isDark && styles.filterButtonDark,
             filter === "all" && styles.filterButtonActive,
           ]}
           onPress={() => setFilter("all")}
@@ -168,6 +171,7 @@ export default function NotificationsScreen() {
           <Text
             style={[
               styles.filterText,
+              isDark && styles.filterTextDark,
               filter === "all" && styles.filterTextActive,
             ]}
           >
@@ -177,6 +181,7 @@ export default function NotificationsScreen() {
         <TouchableOpacity
           style={[
             styles.filterButton,
+            isDark && styles.filterButtonDark,
             filter === "unread" && styles.filterButtonActive,
           ]}
           onPress={() => setFilter("unread")}
@@ -184,6 +189,7 @@ export default function NotificationsScreen() {
           <Text
             style={[
               styles.filterText,
+              isDark && styles.filterTextDark,
               filter === "unread" && styles.filterTextActive,
             ]}
           >
@@ -193,6 +199,7 @@ export default function NotificationsScreen() {
         <TouchableOpacity
           style={[
             styles.filterButton,
+            isDark && styles.filterButtonDark,
             filter === "alerts" && styles.filterAlertActive,
           ]}
           onPress={() => setFilter("alerts")}
@@ -200,6 +207,7 @@ export default function NotificationsScreen() {
           <Text
             style={[
               styles.filterText,
+              isDark && styles.filterTextDark,
               filter === "alerts" && styles.filterTextActive,
             ]}
           >
@@ -221,9 +229,9 @@ export default function NotificationsScreen() {
             <Ionicons
               name="notifications-off-outline"
               size={64}
-              color="#d1d5db"
+              color={isDark ? "#4b5563" : "#d1d5db"}
             />
-            <Text style={styles.emptyText}>No notifications found</Text>
+            <Text style={[styles.emptyText, isDark && styles.emptyTextDark]}>No notifications found</Text>
           </View>
         }
       />
@@ -236,6 +244,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f3f4f6",
   },
+  containerDark: {
+    backgroundColor: "#111827",
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -246,10 +257,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#e5e7eb",
   },
+  headerDark: {
+    backgroundColor: "#1f2937",
+    borderBottomColor: "#374151",
+  },
   headerTitle: {
     fontSize: 20,
     fontWeight: "bold",
     color: "#111827",
+  },
+  headerTitleDark: {
+    color: "#f9fafb",
   },
   filterContainer: {
     flexDirection: "row",
@@ -262,6 +280,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: "#e5e7eb",
   },
+  filterButtonDark: {
+    backgroundColor: "#374151",
+  },
   filterButtonActive: {
     backgroundColor: "#10b981",
   },
@@ -272,6 +293,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#4b5563",
+  },
+  filterTextDark: {
+    color: "#d1d5db",
   },
   filterTextActive: {
     color: "#ffffff",
@@ -310,18 +334,30 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
+  titleDark: {
+    color: "#d1d5db",
+  },
   bold: {
     fontWeight: "bold",
     color: "#111827",
+  },
+  boldDark: {
+    color: "#f9fafb",
   },
   timestamp: {
     fontSize: 12,
     color: "#6b7280",
   },
+  timestampDark: {
+    color: "#9ca3af",
+  },
   message: {
     fontSize: 14,
     color: "#6b7280",
     lineHeight: 20,
+  },
+  messageDark: {
+    color: "#9ca3af",
   },
   boldMessage: {
     color: "#374151",
@@ -333,6 +369,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 8,
   },
+  markReadTextDark: {
+    color: "#34d399",
+  },
   emptyContainer: {
     alignItems: "center",
     justifyContent: "center",
@@ -343,5 +382,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#9ca3af",
     fontWeight: "500",
+  },
+  emptyTextDark: {
+    color: "#6b7280",
   },
 });

@@ -127,6 +127,78 @@ async function getIoTData(batchId) {
   };
 }
 
+/**
+ * Multi-Modal Produce Shelf-Life & Spoilage Decay Calculation Engine
+ * Combines IoT thermal cumulative degree-hours (Arrhenius kinetic decay rate k = A * exp(-Ea / RT)),
+ * computer vision spot/necrosis ratios, and humidity respiration factors.
+ */
+function calculateMultiModalShelfLife(params = {}) {
+  const cropType = (params.cropType || "general").toLowerCase();
+  const currentTempC = parseFloat(params.temperatureC || 25.0);
+  const currentHumidity = parseFloat(params.humidity || 75.0);
+  const daysInTransit = parseFloat(params.daysInTransit || 2.0);
+  const spotRatio = parseFloat(params.spotRatio || 0.02); // Vision leaf/skin necrosis ratio
+
+  // Baseline maximum shelf life in days at optimal cold storage (4°C)
+  const BASELINE_DAYS = {
+    rice: 365,
+    wheat: 300,
+    tomato: 14,
+    banana: 10,
+    mango: 12,
+    grapes: 21,
+    general: 14,
+  };
+
+  const initialMaxDays = BASELINE_DAYS[cropType] || BASELINE_DAYS.general;
+
+  // Arrhenius Temperature Decay Multiplier (Reference T_ref = 4°C = 277.15 K)
+  const R = 8.314; // J/(mol*K)
+  const Ea = 50000; // Activation energy ~50 kJ/mol for produce degradation
+  const T_ref = 277.15;
+  const T_actual = currentTempC + 273.15;
+
+  const arrheniusRateMultiplier = Math.exp((Ea / R) * (1 / T_ref - 1 / T_actual));
+
+  // Humidity Respiration Penalty (Optimal 85-90%)
+  let humidityMultiplier = 1.0;
+  if (currentHumidity < 60) {
+    humidityMultiplier = 1.35; // Desiccation loss
+  } else if (currentHumidity > 92) {
+    humidityMultiplier = 1.45; // Mold & microbial growth risk
+  }
+
+  // Vision Necrosis Degradation Multiplier
+  const visionNecrosisFactor = 1.0 + spotRatio * 5.0;
+
+  // Total Combined Daily Decay Rate
+  const totalDecayRate = arrheniusRateMultiplier * humidityMultiplier * visionNecrosisFactor;
+
+  // Effective days consumed
+  const effectiveDaysUsed = daysInTransit * totalDecayRate;
+  const remainingDays = Math.max(0, Math.round((initialMaxDays - effectiveDaysUsed) * 10) / 10);
+
+  // Decay Index Percentage (0% = Fresh, 100% = Fully Degraded)
+  const decayIndexPct = Math.min(100, Math.round((effectiveDaysUsed / initialMaxDays) * 100));
+
+  return {
+    cropType,
+    temperatureC: currentTempC,
+    humidity: currentHumidity,
+    daysInTransit,
+    spotRatio,
+    initialMaxDays,
+    remainingDays,
+    decayIndexPct,
+    effectiveDecayRate: Math.round(totalDecayRate * 100) / 100,
+    isSpoilageRiskHigh: decayIndexPct > 70 || remainingDays < 2,
+    suggestedAction:
+      decayIndexPct > 70
+        ? "⚠️ Immediate express distribution or liquidation required!"
+        : "✅ Cold-chain compliant. Standard distribution timeline.",
+  };
+}
+
 module.exports = {
   SPOILAGE_THRESHOLDS,
   TELEMETRY_HISTORY_LIMIT,
@@ -135,4 +207,5 @@ module.exports = {
   checkSpoiled,
   recordIoTData,
   getIoTData,
+  calculateMultiModalShelfLife,
 };

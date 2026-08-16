@@ -238,6 +238,8 @@ function RouteOptimizerComponent() {
   ) => {
     if (targetIndex === 0 || !routeData) return;
 
+    const sourceIndex = parseInt(e.dataTransfer.getData("text/plain"), 10);
+    if (Number.isNaN(sourceIndex) || sourceIndex === targetIndex) return;
     const sourceIndex = parseInt(e.dataTransfer.getData("text/plain", 10), 10);
     if (isNaN(sourceIndex) || sourceIndex === targetIndex) return;
 

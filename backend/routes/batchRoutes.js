@@ -215,6 +215,20 @@ router.get("/:batchId/pdf", batchLimiter, protect, async (req, res) => {
 // UPDATE batch - requires authentication, ownership, and stage transition authorization
 router.put('/:batchId', batchLimiter, protect, authorizeBatchOwner, authorizeStageTransition, authorizeBlockchainTransaction, batchController.updateBatch);
 
+const podService = require('../services/podService');
+
+// GET Proof of Delivery (PoD) NFT metadata for batch
+router.get("/:batchId/pod-nft", batchLimiter, async (req, res) => {
+  try {
+    const { batchId } = req.params;
+    const podData = await podService.getPoDNFTForBatch(batchId);
+    return res.json(apiResponse.successResponse(podData, "Proof of Delivery NFT details retrieved successfully"));
+  } catch (error) {
+    logger.error("Error fetching PoD NFT details", { error: error.message });
+    return res.status(500).json(apiResponse.errorResponse("Failed to fetch PoD NFT details", "POD_FETCH_ERROR", 500));
+  }
+});
+
 // SECURED RECALL ENDPOINT
 router.post('/:batchId/recall', batchLimiter, protect, adminOnly, batchController.recallBatch);
 

@@ -27,7 +27,9 @@ import { ErrorState } from "../../components/common/ErrorState";
 import { TrackBatchSkeleton } from "../../components/skeletons";
 import { useBatchSocket } from "../../hooks/useBatchSocket";
 import { JourneyPreview } from "../../components/journey/JourneyPreview";
+import { JourneyPathMap } from "../../components/journey/JourneyPathMap";
 import { verifyHashChain } from "../../utils/crypto";
+import { CropNFTVisualizer } from "../../components/CropNFTVisualizer";
 import { ExportBatchButtons } from "../../components/ExportBatchButtons";
 
 const TrackBatchContent: React.FC = () => {
@@ -39,6 +41,7 @@ const TrackBatchContent: React.FC = () => {
     null,
   );
   const [isTampered, setIsTampered] = useState(false);
+  const [selectedUpdateIndex, setSelectedUpdateIndex] = useState(0);
   const lastAutoSearchedId = useRef<string | null>(null);
 
   const { t } = useTranslation();
@@ -343,6 +346,42 @@ const TrackBatchContent: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* Interactive Leaflet GIS Route Map Card */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+              <h2 className="text-lg font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                <span>📍 Interactive Supply Chain GIS Route Map</span>
+              </h2>
+              <JourneyPathMap
+                updates={batch.updates || []}
+                selectedUpdateIndex={selectedUpdateIndex}
+                onSelectUpdate={(_, idx) => setSelectedUpdateIndex(idx)}
+              />
+            </div>
+          </div>
+
+          {/* Dynamic NFT Visualizer */}
+          <div className="md:col-span-3">
+            <CropNFTVisualizer
+              batchId={batch.batchId || batch.id}
+              cropType={batch.cropType}
+              quantity={batch.quantity}
+              origin={batch.origin}
+              currentStage={
+                batch.stageCode !== undefined
+                  ? batch.stageCode
+                  : batch.currentStage === "farmer"
+                    ? 0
+                    : batch.currentStage === "mandi"
+                      ? 1
+                      : batch.currentStage === "transport"
+                        ? 4
+                        : batch.currentStage === "retailer"
+                          ? 5
+                          : 0
+              }
+              initialNFTData={batch.nftData}
+            />
           </div>
 
           {/* IoT Data Display */}
