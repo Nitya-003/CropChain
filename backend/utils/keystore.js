@@ -329,4 +329,3 @@ module.exports = {
   ROLE_CONFIG,
   _clearCache,
 };
-

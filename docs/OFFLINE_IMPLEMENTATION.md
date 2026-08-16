@@ -1,6 +1,6 @@
 # Offline-First Data Logging Implementation Summary
 
-## 🎉 Implementation Complete!
+## 🎉 Implementation Complete
 
 Successfully implemented robust offline-first architecture for CropChain, enabling farmers and supply chain actors to work without internet connectivity.
 
@@ -34,7 +34,7 @@ Successfully implemented robust offline-first architecture for CropChain, enabli
 
 ### Core Services
 
-```
+```text
 src/services/offlineStorage.ts          # IndexedDB wrapper with idb
 src/services/syncManager.ts             # Sync orchestration and retry logic
 src/services/offlineCropBatchService.ts # Enhanced batch service with offline support
@@ -42,21 +42,21 @@ src/services/offlineCropBatchService.ts # Enhanced batch service with offline su
 
 ### UI Components
 
-```
+```text
 src/components/SyncStatusIndicator.tsx  # Top-right sync status badge
 src/components/BatchSyncBadge.tsx       # Individual batch sync status
 ```
 
 ### Documentation
 
-```
+```text
 docs/OFFLINE_FIRST.md                   # Comprehensive technical documentation
 OFFLINE_IMPLEMENTATION.md               # This summary document
 ```
 
 ### Configuration
 
-```
+```text
 package.json                            # Added idb dependency
 src/App.tsx                            # Integrated SyncStatusIndicator
 ```
@@ -89,7 +89,7 @@ window.addEventListener("online", () => {
 
 ### 3. Conflict Resolution
 
-```
+```text
 Multiple updates to same batch while offline:
 → All updates stored with timestamps
 → Synced in chronological order
@@ -152,6 +152,7 @@ Multiple updates to same batch while offline:
    ```
 
 3. **Test Retry Logic**:
+
    ```bash
    # Stop backend server
    # Create batch while online
@@ -172,7 +173,7 @@ npm test
 
 ## 📊 Architecture Diagram
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │                     User Interface                       │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │

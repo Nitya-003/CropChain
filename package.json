@@ -16,7 +16,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "type": "commonjs",
   "bugs": {
     "url": "https://github.com/AnzalKhan16/CropChain/issues"
@@ -29,5 +29,9 @@
     "lint-staged": "^17.3.0",
     "markdownlint-cli": "^0.49.1",
     "prettier": "^3.9.6"
+  },
+  "overrides": {
+    "argparse": "1.0.10",
+    "minimatch": "9.0.5"
   }
 }

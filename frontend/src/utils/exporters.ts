@@ -77,17 +77,6 @@ export function generateBatchCSVString(batch: ExportableBatch): string {
 
   const id = batch.batchId || batch.id || "N/A";
   const row = [
-    `"${id}"`,
-    `"${batch.cropType || ""}"`,
-    `"${batch.farmerName || ""}"`,
-    `"${batch.farmerAddress || ""}"`,
-    `"${batch.origin || ""}"`,
-    `"${batch.quantity || ""}"`,
-    `"${batch.harvestDate || ""}"`,
-    `"${batch.status || ""}"`,
-    `"${batch.currentStage || ""}"`,
-    `"${batch.certifications || ""}"`,
-    `"${batch.description || ""}"`,
     sanitizeCsvCell(id),
     sanitizeCsvCell(batch.cropType || ""),
     sanitizeCsvCell(batch.farmerName || ""),
@@ -109,14 +98,6 @@ export function generateBatchCSVString(batch: ExportableBatch): string {
   if (batch.updates && batch.updates.length > 0) {
     batch.updates.forEach((update) => {
       const updateRow = [
-        `"${update.timestamp ? new Date(update.timestamp).toLocaleString() : ""}"`,
-        `"${update.stage || ""}"`,
-        `"${update.location || ""}"`,
-        `"${update.updatedBy || update.actor || ""}"`,
-        `"${update.temperature !== undefined ? update.temperature : ""}"`,
-        `"${update.humidity !== undefined ? update.humidity : ""}"`,
-        `"${update.txHash || ""}"`,
-        `"${update.notes || ""}"`,
         sanitizeCsvCell(update.timestamp ? new Date(update.timestamp).toLocaleString() : ""),
         sanitizeCsvCell(update.stage || ""),
         sanitizeCsvCell(update.location || ""),

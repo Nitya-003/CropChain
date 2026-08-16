@@ -67,5 +67,9 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.7"
+  },
+  "overrides": {
+    "argparse": "1.0.10",
+    "minimatch": "9.0.5"
   }
 }

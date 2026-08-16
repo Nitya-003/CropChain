@@ -1,6 +1,6 @@
 # CropChain AI Chatbot Implementation Summary
 
-## 🎉 Implementation Complete!
+## 🎉 Implementation Complete
 
 I have successfully integrated a production-grade AI chatbot into the CropChain application following all the requirements from issue #23. Here's what has been implemented:
 
@@ -35,7 +35,7 @@ I have successfully integrated a production-grade AI chatbot into the CropChain 
 
 ### Backend Implementation
 
-```
+```text
 backend/services/aiService.js          # OpenAI integration service
 backend/.env.example                   # Updated with AI configuration
 backend/package.json                   # Added axios dependency
@@ -45,7 +45,7 @@ backend/test-ai-chat.js               # Test script for AI functionality
 
 ### Frontend Implementation
 
-```
+```text
 src/components/AIChatbot.tsx          # Main chat interface component
 src/services/aiChatService.ts         # Frontend service for API communication
 src/App.tsx                           # Integrated chatbot component
@@ -55,7 +55,7 @@ package.json                          # Added framer-motion dependency
 
 ### Documentation & Setup
 
-```
+```text
 docs/AI_CHATBOT.md                   # Comprehensive technical documentation
 scripts/setup-ai-chatbot.js          # Automated setup script
 AI_CHATBOT_IMPLEMENTATION.md         # This summary document

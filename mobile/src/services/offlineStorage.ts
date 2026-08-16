@@ -108,4 +108,3 @@ export const offlineStorage = {
     await AsyncStorage.multiRemove(Object.values(KEYS));
   },
 };
-

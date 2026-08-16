@@ -107,4 +107,3 @@ async function isMlServiceHealthy() {
 }
 
 module.exports = { getCropRecommendation, diagnoseCropImage, isMlServiceHealthy };
-

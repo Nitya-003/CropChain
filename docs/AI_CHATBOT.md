@@ -26,14 +26,14 @@ The CropChain AI Chatbot (CropAssistant) is an intelligent conversational interf
 
 ### Frontend Components
 
-```
+```text
 src/components/AIChatbot.tsx          # Main chat interface component
 src/services/aiChatService.ts         # Frontend service for API communication
 ```
 
 ### Backend Services
 
-```
+```text
 backend/services/aiService.js         # OpenAI integration and function calling
 backend/server.js                     # API route: POST /api/ai/chat
 ```
@@ -177,28 +177,28 @@ If no OpenAI API key is provided, the chatbot operates in fallback mode with pre
 
 ### Basic Queries
 
-```
+```text
 User: "How do I track a batch?"
 AI: "To track a batch, you can either scan the QR code or search by batch ID (format: CROP-YYYY-XXXX) on the Track Batch page. This will show you the complete supply chain journey."
 ```
 
 ### Batch Searches
 
-```
+```text
 User: "Where is batch CROP-2024-001?"
 AI: "Batch CROP-2024-001 is currently at the Mandi stage in Punjab. It contains 1000 kg of rice from farmer Rajesh Kumar, harvested on 2024-01-15."
 ```
 
 ### Process Explanations
 
-```
+```text
 User: "What is an immutable record?"
 AI: "An immutable record means the data cannot be changed or deleted once written to the blockchain. This ensures the integrity of crop tracking information and builds trust among farmers, retailers, and consumers."
 ```
 
 ### Context-Aware Responses
 
-```
+```text
 # On Add Batch page
 User: "Help me"
 AI: "I can help you create a new batch! Fill in the farmer details, crop type, quantity, and harvest date. The system will generate a unique batch ID and QR code for tracking."
@@ -224,7 +224,7 @@ AI: "I can help you create a new batch! Fill in the farmer details, crop type, q
 }
 ```
 
-2. **Implement Function Logic:**
+1. **Implement Function Logic:**
 
 ```javascript
 case 'get_weather_data':
@@ -340,19 +340,19 @@ function App() {
 
 ### Common Issues
 
-**1. Chat not responding**
+#### 1. Chat not responding
 
 - Check OpenAI API key in backend/.env
 - Verify backend server is running
 - Check browser console for errors
 
-**2. Function calls failing**
+#### 2. Function calls failing
 
 - Ensure batch service is properly connected
 - Check function parameter validation
 - Verify database connectivity
 
-**3. Animations not working**
+#### 3. Animations not working
 
 - Confirm framer-motion is installed
 - Check for CSS conflicts
@@ -413,4 +413,4 @@ npm test -- --testPathPattern=aiService
 
 ---
 
-**Built with ❤️ for intelligent crop tracking assistance**
+Built with ❤️ for intelligent crop tracking assistance

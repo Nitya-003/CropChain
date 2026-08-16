@@ -440,6 +440,7 @@ const FarmerDashboardComponent: React.FC = () => {
               </div>
               <div>
                 <p className="font-semibold text-foreground">
+                  {t("farmer.noBatchesFound")}
                   {filters.search
                     ? `No batches match "${filters.search}"`
                     : t("farmer.noBatchesFound")}

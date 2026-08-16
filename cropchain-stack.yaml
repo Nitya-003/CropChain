@@ -107,7 +107,7 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: !Ref InstanceType
-      ImageId: ami-0c7217cdde317cfec # Amazon Linux 2023 AMI in us-east-1
+      ImageId: ami-0c7217cdde317cfec  # Amazon Linux 2023 AMI in us-east-1
       SubnetId: !Ref PublicSubnet
       SecurityGroupIds:
         - !Ref EC2SecurityGroup
@@ -120,7 +120,8 @@ Resources:
           systemctl start docker
           systemctl enable docker
           # Install Docker Compose
-          curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          URL="https://github.com/docker/compose/releases/latest/download"
+          curl -L "$URL/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
           chmod +x /usr/local/bin/docker-compose
       Tags:
         - Key: Name

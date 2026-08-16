@@ -233,4 +233,3 @@ router.get("/:batchId/pod-nft", batchLimiter, async (req, res) => {
 router.post('/:batchId/recall', batchLimiter, protect, adminOnly, batchController.recallBatch);
 
 module.exports = router;
-

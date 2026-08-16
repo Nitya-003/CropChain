@@ -463,6 +463,8 @@ class BatchService {
       };
 
       if (
+        previousLocation &&
+        updateData.location &&
         previousLocation.toLowerCase().trim() !== updateData.location.toLowerCase().trim() &&
         ["transport", "retailer"].includes(normalizedStage)
       ) {

@@ -119,10 +119,10 @@ data "aws_ami" "amazon_linux_2023" {
 }
 
 resource "aws_instance" "backend_server" {
-  ami                  = data.aws_ami.amazon_linux_2023.id
-  instance_type        = var.instance_type
-  subnet_id            = aws_subnet.cropchain_public_subnet.id
-  iam_instance_profile = aws_iam_instance_profile.ec2_instance_profile.name
+  ami                    = data.aws_ami.amazon_linux_2023.id
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.cropchain_public_subnet.id
+  iam_instance_profile   = aws_iam_instance_profile.ec2_instance_profile.name
   vpc_security_group_ids = [aws_security_group.cropchain_sg.id]
 
   user_data = base64encode(<<-EOF

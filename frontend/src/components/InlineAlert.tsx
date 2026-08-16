@@ -20,7 +20,7 @@ const variantStyles: Record<
     iconColor: string;
     titleColor: string;
     bodyColor: string;
-    icon: React.ElementType;
+    icon: any;
   }
 > = {
   error: {
@@ -53,14 +53,14 @@ const variantStyles: Record<
   },
 };
 
-export const InlineAlert: React.FC<InlineAlertProps> = ({
+export const InlineAlert = ({
   variant = "error",
   title,
   message,
   details,
   onDismiss,
   className = "",
-}) => {
+}: InlineAlertProps): React.ReactElement | null => {
   const styles = variantStyles[variant];
   const IconComponent = styles.icon;
 

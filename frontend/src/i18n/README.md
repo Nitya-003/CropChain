@@ -4,7 +4,7 @@ This directory contains the internationalization configuration and translation f
 
 ## 📁 Structure
 
-```
+```text
 src/i18n/
 ├── config.ts          # i18n configuration and initialization
 ├── locales/           # Translation files
@@ -53,7 +53,7 @@ Language preference is automatically saved to `localStorage` and persists across
 import taTranslations from "./locales/ta.json";
 ```
 
-4. Add it to the resources object:
+1. Add it to the resources object:
 
 ```typescript
 resources: {
@@ -63,7 +63,7 @@ resources: {
 }
 ```
 
-5. Update the `LanguageSwitcher` component to include the new language:
+1. Update the `LanguageSwitcher` component to include the new language:
 
 ```typescript
 const languages = [

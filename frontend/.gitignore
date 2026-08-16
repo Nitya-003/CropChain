@@ -19,6 +19,7 @@
 
 # production
 /build
+public/worker-*.js
 
 # misc
 .DS_Store

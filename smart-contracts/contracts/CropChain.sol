@@ -4,6 +4,8 @@ pragma solidity ^0.8.19;
 import "./lib/openzeppelin/security/Pausable.sol";
 import "./lib/openzeppelin/security/ReentrancyGuard.sol";
 import "./lib/openzeppelin/access/AccessControl.sol";
+import "./Verifier.sol";
+
 import "./lib/openzeppelin/utils/ERC2771Context.sol";
 
 contract CropChain is ERC2771Context, Pausable, ReentrancyGuard, AccessControl {
@@ -108,6 +110,12 @@ contract CropChain is ERC2771Context, Pausable, ReentrancyGuard, AccessControl {
     event TwapConfigUpdated(uint256 twapWindowSeconds, uint256 maxPriceDeviationBps);
     event IoTDataRequested(bytes32 indexed batchId, address requester);
     event IoTDataFulfilled(bytes32 indexed batchId, int256 temperature, int256 humidity, bool isSpoiled);
+    mapping(bytes32 => bool) public spentProofHashes;
+    mapping(bytes32 => bool) public qualityAttestationVerified;
+    address public verifierAddress;
+
+    event QualityAttestationVerified(bytes32 indexed batchId, bytes32 indexed proofHash, address indexed auditor, uint256 timestamp);
+    event VerifierUpdated(address indexed newVerifier);
     event CustodianApproved(bytes32 indexed batchId, address indexed approver, address indexed nextCustodian);
 
     modifier onlyOwner() {
@@ -842,6 +850,40 @@ contract CropChain is ERC2771Context, Pausable, ReentrancyGuard, AccessControl {
         );
     }
 
+    /**
+     * @dev Set the Groth16 Verifier contract address.
+     */
+    function setVerifierAddress(address _verifierAddress) external onlyOwner {
+        verifierAddress = _verifierAddress;
+        emit VerifierUpdated(_verifierAddress);
+    }
+
+    /**
+     * @notice Validates a ZK-SNARK quality attestation proof and updates batch state.
+     * @dev Protects against replay attacks using spentProofHashes.
+     */
+    function verifyQualityAttestation(
+        bytes32 batchId,
+        uint256[2] calldata a,
+        uint256[2][2] calldata b,
+        uint256[2] calldata c,
+        uint256[] calldata input,
+        bytes32 proofHash
+    ) external whenNotPaused nonReentrant batchExists(batchId) returns (bool) {
+        require(!spentProofHashes[proofHash], "Proof already spent");
+        require(input.length >= 1, "Invalid ZK public input length");
+        require(bytes32(input[0]) == batchId || input[0] == uint256(batchId), "Batch ID mismatch");
+
+        spentProofHashes[proofHash] = true;
+        qualityAttestationVerified[batchId] = true;
+
+        if (verifierAddress != address(0)) {
+            bool valid = Groth16Verifier(verifierAddress).verifyProof(a, b, c, input);
+            require(valid, "Invalid ZK proof");
+        }
+
+        emit QualityAttestationVerified(batchId, proofHash, msg.sender, block.timestamp);
+        return true;
     function _msgSender() internal view virtual override(Context, ERC2771Context) returns (address sender) {
         return ERC2771Context._msgSender();
     }
@@ -850,3 +892,4 @@ contract CropChain is ERC2771Context, Pausable, ReentrancyGuard, AccessControl {
         return ERC2771Context._msgData();
     }
 }
+

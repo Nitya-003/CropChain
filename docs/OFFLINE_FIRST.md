@@ -124,7 +124,7 @@ await syncManager.triggerSync();
 
 ### Data Flow
 
-```
+```text
 User Action (Create/Update)
          ↓
 Is Online? → Yes → Try API Call
@@ -178,7 +178,7 @@ The backend must support:
 
 ### API Endpoints
 
-```
+```text
 POST /api/batches
 - Creates new batch
 - Returns: { success, batch, message }
@@ -290,21 +290,21 @@ test("syncs when connection restored", async () => {
 
 ### Common Issues
 
-**1. Batches Not Syncing**
+#### 1. Batches Not Syncing
 
 - Check internet connection
 - Verify backend is running
 - Check browser console for errors
 - Try manual sync from indicator
 
-**2. Sync Status Stuck**
+#### 2. Sync Status Stuck
 
 - Clear browser cache
 - Check IndexedDB in DevTools
 - Restart browser
 - Contact support if persists
 
-**3. Duplicate Batches**
+#### 3. Duplicate Batches
 
 - Check for multiple browser tabs
 - Verify sync queue is processing

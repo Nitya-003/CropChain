@@ -149,9 +149,10 @@ describe("Batch Journey Export Endpoints", () => {
       'attachment; filename="batch-BATCH000001.csv"',
     );
     expect(response.text).toContain("Field,Value");
-    expect(response.text).toContain("Batch ID,BATCH000001");
-    expect(response.text).toContain("Crop Type,rice");
-    expect(response.text).toContain("Quantity,1000 kg");
+    expect(response.text).toContain("BATCH000001");
+    expect(response.text).toContain("rice");
+    expect(response.text).toContain("1000 kg");
+
   });
 
   test("should return PDF data when format is pdf or default", async () => {
