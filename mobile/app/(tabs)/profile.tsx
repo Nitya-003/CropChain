@@ -1,14 +1,37 @@
+import { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, Alert } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../src/contexts/AuthContext";
 import { useTheme } from "../../src/contexts/ThemeContext";
+import { biometricAuthService } from "../../src/services/biometricAuthService";
 
 export default function ProfileScreen() {
   const { t, i18n } = useTranslation();
   const { user, logout, isLoading } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+
+  useEffect(() => {
+    biometricAuthService.getBiometricsEnabled().then(setBiometricEnabled);
+  }, []);
+
+  const toggleBiometrics = async () => {
+    const nextState = !biometricEnabled;
+    const success = await biometricAuthService.setBiometricsEnabled(nextState);
+    if (success) {
+      setBiometricEnabled(nextState);
+      Alert.alert(
+        "🔒 Biometric Authentication",
+        nextState
+          ? "Fingerprint / FaceID security lock enabled!"
+          : "Biometric security lock disabled."
+      );
+    } else {
+      Alert.alert("Authentication Failed", "Could not verify hardware biometrics.");
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert(t("auth.logout"), t("auth.logoutConfirm"), [
@@ -121,20 +144,22 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </TouchableOpacity>
 
-        {menuItems.map((item, index) => (
-          <TouchableOpacity
-            key={item.label}
-            className={`flex-row items-center justify-between px-5 py-4 ${index < menuItems.length - 1 ? "border-b border-gray-100 dark:border-zinc-700" : ""}`}
+        <TouchableOpacity
+          onPress={toggleBiometrics}
+          className="flex-row items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-zinc-700"
+        >
+          <View className="flex-row items-center">
+            <Ionicons name="finger-print" size={22} color="#16a34a" />
+            <Text className="ml-3 text-gray-900 dark:text-white font-medium">
+              Biometric Lock (फ़िंगरप्रिंट अनलॉक)
+            </Text>
+          </View>
+          <View
+            className={`w-12 h-7 rounded-full ${biometricEnabled ? "bg-primary" : "bg-gray-300"} justify-center ${biometricEnabled ? "items-end" : "items-start"} px-1`}
           >
-            <View className="flex-row items-center">
-              <Ionicons name={item.icon} size={22} color="#16a34a" />
-              <Text className="ml-3 text-gray-900 dark:text-white font-medium">
-                {item.label}
-              </Text>
-            </View>
-            <Text className="text-gray-400 text-sm">{item.right}</Text>
-          </TouchableOpacity>
-        ))}
+            <View className="w-5 h-5 bg-white rounded-full shadow-sm" />
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* Wallet Info */}

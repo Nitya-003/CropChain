@@ -1,6 +1,16 @@
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
+const {
+  updateBatchStatus,
+  bulkUpdateBatchStatus,
+  getBatches,
+  exportBatch,
+  recordIoTData,
+  getIoTData,
+} = require("../controllers/batchController");
+const { protect, adminOnly, authorizeIoTSubmission } = require("../middleware/auth");
+const { batchLimiter, iotLimiter } = require("../middleware/rateLimiters");
 const batchController = require("../controllers/batchController");
 const iotController = require("../controllers/iotController");
 const authMiddleware = require("../middleware/auth");
@@ -84,6 +94,14 @@ router.patch(
   protect,
   adminOnly,
   updateBatchStatusHandler,
+);
+
+// Bulk update multiple batches
+router.post(
+  "/batches/bulk/status",
+  batchLimiter,
+  protect,
+  bulkUpdateBatchStatus
 );
 
 // IoT sensor data — POST requires ownership/role check (fix for issue #809)

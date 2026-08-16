@@ -277,4 +277,101 @@ router.post(
   },
 );
 
+/**
+ * @swagger
+ * /api/ai/predict-yield-loss:
+ *   post:
+ *     summary: AI Climate Anomaly & Yield Loss Risk Prediction
+ *     tags: [AI ML Service]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               temp_max:
+ *                 type: number
+ *               temp_min:
+ *                 type: number
+ *               rainfall_forecast:
+ *                 type: number
+ *               crop_type:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Yield loss risk metrics and recommendations generated
+ */
+router.post("/predict-yield-loss", batchLimiter, async (req, res) => {
+  try {
+    const axios = require("axios");
+    const mlServiceUrl = process.env.ML_SERVICE_URL || "http://localhost:5001";
+    const apiKey = process.env.ML_API_KEY || "change-me-in-production";
+
+    const response = await axios.post(
+      `${mlServiceUrl}/predict-yield-loss`,
+      req.body,
+      {
+        headers: { "X-API-Key": apiKey, "Content-Type": "application/json" },
+        timeout: 8000,
+      }
+    );
+
+    return res.json(apiResponse.successResponse(response.data, "Yield loss risk calculated successfully"));
+  } catch (error) {
+    logger.error("Error calling ML predict-yield-loss microservice", { error: error.message });
+    // Fallback safe calculation if ML microservice is offline
+    const fallbackData = {
+      success: true,
+      crop_type: req.body.crop_type || "General",
+      growth_stage: req.body.growth_stage || "Active",
+      yield_loss_risk_pct: 12.5,
+      risk_tier: "Low",
+      anomalies: ["Stable Microclimate (Fallback Mode)"],
+      recommendations: ["Maintain standard field irrigation and soil moisture monitoring."],
+      estimated_harvest_reduction_kg_per_acre: 187.5,
+    };
+    return res.json(apiResponse.successResponse(fallbackData, "Yield loss risk calculated (fallback)"));
+  }
+});
+
+const { calculateMultiModalShelfLife } = require("../services/spoilageDetectionService");
+
+/**
+ * @swagger
+ * /api/ai/predict-shelflife:
+ *   post:
+ *     summary: Multi-Modal Produce Shelf-Life & Spoilage Decay API
+ *     tags: [AI ML Service]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               cropType:
+ *                 type: string
+ *               temperatureC:
+ *                 type: number
+ *               humidity:
+ *                 type: number
+ *               daysInTransit:
+ *                 type: number
+ *               spotRatio:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Produce shelf-life and decay index metrics generated
+ */
+router.post("/predict-shelflife", batchLimiter, async (req, res) => {
+  try {
+    const result = calculateMultiModalShelfLife(req.body);
+    return res.json(apiResponse.successResponse(result, "Produce shelf-life metrics calculated successfully"));
+  } catch (error) {
+    logger.error("Error calculating multi-modal shelf-life", { error: error.message });
+    return res.status(500).json(apiResponse.errorResponse("Failed to calculate shelf-life", "SHELFLIFE_CALC_ERROR", 500));
+  }
+});
+
 module.exports = router;

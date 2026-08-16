@@ -10,6 +10,11 @@ class OracleService {
     this.oracleWallet = null;
     this.isListening = false;
     this.requestQueue = new Map(); // Track pending requests
+    // In-memory sequential nonce manager. Without it, concurrent
+    // fulfillIoTData() calls race on the RPC's pending nonce and produce
+    // NONCE_EXPIRED / REPLACEMENT_UNDERPRIDED errors (#1309).
+    this._pendingNonce = null;
+    this._nonceLock = Promise.resolve();
     this.stats = {
       totalProcessed: 0,
       totalSuccess: 0,
@@ -232,6 +237,34 @@ class OracleService {
   /**
    * Fulfill IoT data on the blockchain
    */
+  async _acquireNonce() {
+    return this._withNonceLock(async () => {
+      if (this._pendingNonce === null) {
+        const address = this.oracleWallet?.address;
+        const getTn = this.provider?.getTransactionCount;
+        if (typeof getTn !== "function" || !address) {
+          return undefined;
+        }
+        this._pendingNonce = BigInt(
+          await getTn.call(this.provider, address, "pending"),
+        );
+      }
+      const nonce = this._pendingNonce;
+      this._pendingNonce += 1n;
+      return nonce;
+    });
+  }
+
+  _resetNonce() {
+    this._pendingNonce = null;
+  }
+
+  async _withNonceLock(fn) {
+    const result = this._nonceLock.then(fn, fn);
+    this._nonceLock = result.catch(() => {});
+    return result;
+  }
+
   async fulfillIoTData(batchId, iotData) {
     try {
       logger.info(`🔗 Fulfilling IoT data on blockchain...`);
@@ -263,12 +296,27 @@ class OracleService {
         overrides.gasPrice = feeData.gasPrice;
       }
 
-      const tx = await this.contract.fulfillIoTData(
-        batchId,
-        temperatureRaw,
-        iotData.humidity,
-        overrides,
-      );
+      // Acquire a sequential nonce and submit under the single-flight lock so
+      // concurrent fulfillIoTData() calls don't race on the RPC pending nonce
+      // (#1309). When no nonce source is available (e.g. tests / missing
+      // provider method), nonce is undefined and ethers auto-manages it.
+      const nonce = await this._acquireNonce();
+      if (nonce !== undefined) overrides.nonce = nonce;
+
+      let tx;
+      try {
+        tx = await this.contract.fulfillIoTData(
+          batchId,
+          temperatureRaw,
+          iotData.humidity,
+          overrides,
+        );
+      } catch (sendError) {
+        // A dropped/replaced tx invalidates the cached nonce: re-sync on the
+        // next call so a stale counter doesn't poison subsequent sends.
+        this._resetNonce();
+        throw sendError;
+      }
 
       logger.info(`📤 Transaction sent: ${tx.hash}`);
 

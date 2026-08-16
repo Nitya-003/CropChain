@@ -1,0 +1,37 @@
+frontend:
+  - any:
+      - "frontend/**/*"
+
+backend:
+  - any:
+      - "backend/**/*"
+
+smart-contracts:
+  - any:
+      - "smart-contracts/**/*"
+
+documentation:
+  - any:
+      - "docs/**/*"
+      - "*.md"
+      - "**/*.md"
+
+ci-cd:
+  - any:
+      - ".github/**/*"
+      - "Jenkinsfile"
+      - ".lintstagedrc.json"
+      - ".commitlintrc.json"
+      - ".yamllint.yml"
+      - ".markdownlint.yml"
+
+docker:
+  - any:
+      - "docker/**/*"
+      - "docker-compose*.yml"
+      - "**/Dockerfile*"
+
+security:
+  - any:
+      - "SECURITY.md"
+      - "backend/security-tests.js"

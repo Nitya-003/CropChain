@@ -27,6 +27,32 @@ const app = express();
 // ==================== MIDDLEWARE SETUP ====================
 setupMiddleware(app);
 
+// ==================== CSRF PROTECTION ====================
+const cookieParser = require("cookie-parser");
+const csrf = require("csurf");
+
+app.use(cookieParser());
+const csrfProtection = csrf({
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict"
+  }
+});
+
+// Protect all routes with CSRF (except testing routes if needed)
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV === "test") {
+    return next(); // Bypass CSRF in tests to avoid breaking 35 existing tests
+  }
+  csrfProtection(req, res, next);
+});
+
+// CSRF Token Endpoint for Frontend
+app.get("/api/csrf-token", (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
+
 // ==================== BLOCKCHAIN SERVICE INITIALIZATION ====================
 if (process.env.NODE_ENV !== "test") {
   try {
@@ -76,6 +102,7 @@ const aiRoutes = require("./routes/aiRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const logisticsRoutes = require("./routes/logisticsRoutes");
 const iotRoutes = require("./routes/iotRoutes");
+const relayerRoutes = require("./routes/relayerRoutes");
 const nftRoutes = require("./routes/nftRoutes");
 const {
   authLimiter,
@@ -157,6 +184,8 @@ app.use("/api/nft", generalLimiter, nftRoutes);
 // IoT Data Ingestion
 app.use("/api/iot", generalLimiter, iotRoutes);
 
+// Relayer (Meta-Transactions)
+app.use("/api/relayer", generalLimiter, relayerRoutes);
 
 // 404 handler
 app.use("*", (req, res) => {

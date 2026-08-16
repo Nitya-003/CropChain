@@ -1,0 +1,54 @@
+name: License Compliance Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  license-check:
+    name: Dependency License Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install license-checker
+        run: npm install -g license-checker-rseidelsohn
+
+      - name: Check Root Licenses
+        run: |
+          if [ -f "package.json" ]; then
+            npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+            npx license-checker-rseidelsohn --summary --onlyAllow "MIT;ISC;Apache-2.0;BSD-3-Clause;BSD-2-Clause;CC-BY-4.0;CC-BY-3.0;CC0-1.0;Unlicense"
+          fi
+
+      - name: Check Frontend Licenses
+        run: |
+          if [ -d "frontend" ] && [ -f "frontend/package.json" ]; then
+            cd frontend
+            npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+            npx license-checker-rseidelsohn --summary --onlyAllow "MIT;ISC;Apache-2.0;BSD-3-Clause;BSD-2-Clause;CC-BY-4.0;CC-BY-3.0;CC0-1.0;Unlicense;Python-2.0;0BSD"
+          fi
+
+      - name: Check Backend Licenses
+        run: |
+          if [ -d "backend" ] && [ -f "backend/package.json" ]; then
+            cd backend
+            npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+            npx license-checker-rseidelsohn --summary --onlyAllow "MIT;ISC;Apache-2.0;BSD-3-Clause;BSD-2-Clause;CC-BY-4.0;CC-BY-3.0;CC0-1.0;Unlicense;Python-2.0;0BSD"
+          fi
+
+      - name: Check Smart Contracts Licenses
+        run: |
+          if [ -d "smart-contracts" ] && [ -f "smart-contracts/package.json" ]; then
+            cd smart-contracts
+            npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+            npx license-checker-rseidelsohn --summary --onlyAllow "MIT;ISC;Apache-2.0;BSD-3-Clause;BSD-2-Clause;CC-BY-4.0;CC-BY-3.0;CC0-1.0;Unlicense;Python-2.0;0BSD"
+          fi
