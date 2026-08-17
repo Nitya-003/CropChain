@@ -8,13 +8,10 @@ const DEFAULT_WINDOW_MS =
 
 const buildKeyGenerator = ({ useUserId }) => {
   // If req.user exists and has an id, use it. Otherwise fall back to IP.
+  // Use req.ip (respects Express trust proxy) instead of reading
+  // X-Forwarded-For directly, which is client-controlled and spoofable.
   return (req) => {
-    const ip = (
-      req.headers["x-forwarded-for"] ||
-      req.ip ||
-      req.connection?.remoteAddress ||
-      ""
-    ).toString();
+    const ip = (req.ip || req.connection?.remoteAddress || "").toString();
     const userId = req.user?.id || req.user?._id;
 
     if (useUserId && userId) {
@@ -48,12 +45,7 @@ const createAbuseAwareLimiter = ({
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res /*, next, options */) => {
-      const ip = (
-        req.headers["x-forwarded-for"] ||
-        req.ip ||
-        req.connection?.remoteAddress ||
-        ""
-      ).toString();
+      const ip = (req.ip || req.connection?.remoteAddress || "").toString();
       const userId = req.user?.id || req.user?._id || null;
 
       // Audit logging (no sensitive details to client)

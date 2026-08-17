@@ -31,6 +31,12 @@ function createCorsOptions(uniqueAllowedOrigins) {
 }
 
 module.exports = (app) => {
+  // ── Trust first proxy (nginx / load balancer) ────────────────────────────
+  // Enables Express to correctly resolve req.ip from X-Forwarded-For
+  // when the app sits behind a reverse proxy.  Override via TRUST_PROXY
+  // env var (e.g. "loopback", "linklocal", a subnet, or "true" / "false").
+  app.set("trust proxy", process.env.TRUST_PROXY || "loopback");
+
   // Security logging middleware
   const securityLogger = (req, res, next) => {
     const timestamp = new Date().toISOString();
