@@ -348,12 +348,22 @@ exports.getBatches = async (req, res) => {
     const start = startDate || dateFrom;
     const end = endDate || dateTo;
     if (start || end) {
-      query.createdAt = {};
-      if (start) {
-        query.createdAt.$gte = new Date(start);
+      const parsedStart = start ? new Date(start) : null;
+      const parsedEnd = end ? new Date(end) : null;
+
+      if ((start && isNaN(parsedStart.getTime())) || (end && isNaN(parsedEnd.getTime()))) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid date format. Please provide a valid date string.",
+        });
       }
-      if (end) {
-        query.createdAt.$lte = new Date(end);
+
+      query.createdAt = {};
+      if (parsedStart) {
+        query.createdAt.$gte = parsedStart;
+      }
+      if (parsedEnd) {
+        query.createdAt.$lte = parsedEnd;
       }
     }
 
@@ -365,13 +375,31 @@ exports.getBatches = async (req, res) => {
     );
     const skip = (pageNumber - 1) * limitNumber;
 
+    const ALLOWED_SORT_FIELDS = [
+      "createdAt",
+      "updatedAt",
+      "batchId",
+      "farmerName",
+      "cropType",
+      "quantity",
+      "harvestDate",
+      "currentStage",
+      "status",
+      "origin",
+    ];
+
+    const ALLOWED_SORT_ORDERS = ["asc", "desc"];
+
+    const safeSortBy = ALLOWED_SORT_FIELDS.includes(sortBy) ? sortBy : "createdAt";
+    const safeSortOrder = ALLOWED_SORT_ORDERS.includes(sortOrder.toLowerCase()) ? sortOrder.toLowerCase() : "desc";
+
     const sort = {};
-    
+
     // If text search is active and no specific sort is requested, sort by relevance
-    if (search && sortBy === "createdAt") {
+    if (search && safeSortBy === "createdAt") {
       sort.score = { $meta: "textScore" };
     } else {
-      sort[sortBy] = sortOrder.toLowerCase() === "asc" ? 1 : -1;
+      sort[safeSortBy] = safeSortOrder === "asc" ? 1 : -1;
     }
 
     // Use lean() for read-only queries to skip Mongoose document hydration
