@@ -171,10 +171,36 @@ def predict_yield():
     if not body:
         return jsonify({"error": "Request body must be JSON"}), 400
 
+    errors = []
+
     crop = body.get("crop", "unknown")
-    area = float(body.get("area_hectares", 0))
-    temp = float(body.get("avg_temperature", 25))
-    rainfall = float(body.get("expected_rainfall", 100))
+
+    try:
+        area = float(body.get("area_hectares", 0))
+    except (TypeError, ValueError):
+        area = None
+        errors.append("'area_hectares' must be a number")
+
+    try:
+        temp = float(body.get("avg_temperature", 25))
+    except (TypeError, ValueError):
+        temp = None
+        errors.append("'avg_temperature' must be a number")
+
+    try:
+        rainfall = float(body.get("expected_rainfall", 100))
+    except (TypeError, ValueError):
+        rainfall = None
+        errors.append("'expected_rainfall' must be a number")
+
+    if errors:
+        return jsonify({"error": "Validation failed", "details": errors}), 422
+
+    if np.isnan(area) or np.isnan(temp) or np.isnan(rainfall):
+        return jsonify({
+            "error": "Validation failed",
+            "details": ["Numeric fields must not be NaN"]
+        }), 422
 
     if area <= 0:
         return jsonify({"error": "area_hectares must be > 0"}), 422
