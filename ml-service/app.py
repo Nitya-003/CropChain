@@ -9,9 +9,17 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from PIL import Image
+from PIL import Image, DecompressionBombError
 
 app = Flask(__name__)
+
+# ── Request body size limit ────────────────────────────────────────────────
+MAX_MB = int(os.environ.get("ML_MAX_UPLOAD_MB", "10"))
+app.config["MAX_CONTENT_LENGTH"] = MAX_MB * 1024 * 1024
+
+# ── Decompression-bomb guard (Pillow) ──────────────────────────────────────
+# Reject images exceeding ~100 megapixels before full decode.
+Image.MAX_IMAGE_PIXELS = 100_000_000
 
 # ── CORS: only allow the main backend ──────────────────────────────────────
 ALLOWED_ORIGIN = os.environ.get("CORS_ORIGIN", "http://localhost:3001")
@@ -227,6 +235,14 @@ def predict():
     })
 
 
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    return jsonify({
+        "error": "Payload too large",
+        "details": f"Request body exceeds the {MAX_MB} MB limit"
+    }), 413
+
+
 @app.route("/predict-image", methods=["POST"])
 @require_api_key
 @limiter.limit(os.environ.get("ML_RATE_LIMIT_PREDICT_IMAGE", "10 per second"))
@@ -265,6 +281,11 @@ def predict_image():
         res = analyze_crop_image(pil_img)
         return jsonify(res), 200
 
+    except DecompressionBombError:
+        return jsonify({
+            "error": "Image too large",
+            "details": f"Image exceeds the {Image.MAX_IMAGE_PIXELS:,} pixel limit (decompression bomb)"
+        }), 413
     except Exception as e:
         return jsonify({"error": "Failed to process image payload", "details": str(e)}), 422
 
