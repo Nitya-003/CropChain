@@ -73,7 +73,7 @@ services:
     environment:
       - PORT=5001
       - CORS_ORIGIN=http://localhost:3001
-      - ML_API_KEY=development-api-key
+      - ML_API_KEY=PLEASE_ADD_KEY_HERE
     networks:
       - cropchain-network
 
