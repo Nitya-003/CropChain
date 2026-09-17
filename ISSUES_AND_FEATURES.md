@@ -6,9 +6,9 @@ Based on a thorough review of the project directory structure, dependencies, and
 
 ### 1. Documentation & Stack Mismatches (RESOLVED)
 
-* ~~**Frontend Framework Mismatch**: The `README.md` states the frontend uses React + Vite, but `frontend/package.json` reveals the project has been migrated to **Next.js 16.2.6** (`"name": "cropchain-frontend-next"`).~~ (Updated in README)
-* ~~**AI Provider Discrepancy**: The README mentions "OpenAI GPT-4o mini" integration, but `backend/package.json` includes `@google/generative-ai`, suggesting a shift to Gemini that hasn't been documented.~~ (Updated in README)
-* ~~**Testing Commands**: The README documents `npm test` for the frontend, but the frontend actually uses `vitest run` as defined in its scripts.~~ (Updated in README)
+* **Frontend Framework Mismatch**: The `README.md` states the frontend uses React + Vite, but `frontend/package.json` reveals the project has been migrated to **Next.js 16.2.6** (`"name": "cropchain-frontend-next"`).~~ (Updated in README)
+* **AI Provider Discrepancy**: The README mentions "OpenAI GPT-4o mini" integration, but `backend/package.json` includes `@google/generative-ai`, suggesting a shift to Gemini that hasn't been documented.~~ (Updated in README)
+* **Testing Commands**: The README documents `npm test` for the frontend, but the frontend actually uses `vitest run` as defined in its scripts.~~ (Updated in README)
 
 ### 2. Architecture & Codebase Gaps
 
