@@ -68,7 +68,7 @@ Implemented a privacy-preserving verification system for CropChain using cryptog
    - Shows verified/unverified status
    - Animated with Framer Motion
 
-3. **Verification Dashboard** (`src/pages/VerificationDashboard.tsx`)
+3. **Verification page** (`frontend/src/app/verification/page.tsx`)
    - Admin-only dashboard
    - Statistics cards (unverified/verified counts)
    - Tabbed interface (unverified/verified users)
@@ -241,7 +241,7 @@ app.post("/api/batches", protect, verifiedOnly, async (req, res) => {
 - `backend/routes/verification.js`
 - `src/services/verificationService.ts`
 - `src/components/VerificationBadge.tsx`
-- `src/pages/VerificationDashboard.tsx`
+- `frontend/src/app/verification/page.tsx`
 - `docs/VERIFICATION.md`
 - `VERIFICATION_IMPLEMENTATION.md`
 

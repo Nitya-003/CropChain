@@ -91,8 +91,8 @@ AUTH_RATE_LIMIT_MAX=5                # Auth endpoint limit
 BATCH_RATE_LIMIT_MAX=20              # Batch endpoint limit
 
 # CORS Configuration
-FRONTEND_URL=http://localhost:5173   # Primary frontend URL
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173  # Comma-separated origins
+FRONTEND_URL=http://localhost:3000   # Primary frontend URL
+ALLOWED_ORIGINS=http://localhost:3000  # Comma-separated origins
 
 # File Upload
 MAX_FILE_SIZE=10485760               # 10MB in bytes (default)
@@ -102,7 +102,7 @@ MAX_FILE_SIZE=10485760               # 10MB in bytes (default)
 
 ```env
 INFURA_URL=https://mainnet.infura.io/v3/YOUR_PROJECT_ID     # Ethereum provider
-ALCHEMY_URL=https://polygon-mumbai.g.alchemy.com/v2/YOUR_API_KEY  # Alternative provider
+ALCHEMY_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY  # Alternative provider
 CONTRACT_ADDRESS=0x...                                      # Smart contract address
 
 # Encrypted keystore (RECOMMENDED — the private key is never stored in plaintext)

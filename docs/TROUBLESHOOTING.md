@@ -99,7 +99,7 @@ npm run dev
 3. Open the browser DevTools → Network tab:
    - Look at a failing request.
    - Confirm the Request URL is correct.
-   - If you see a CORS error, make sure the backend allows your frontend origin (for example `http://localhost:5173`).
+   - If you see a CORS error, make sure the backend allows your frontend origin (`http://localhost:3000` for the Next.js dev server).
 
 4. After changing any env or config values, restart both frontend and backend dev servers.
 
@@ -146,16 +146,16 @@ npm run dev
 
 1. If the frontend also reads the contract address from an env variable, update the frontend `.env` too and restart the frontend dev server.
 
-#### Mumbai testnet
+#### Sepolia testnet
 
 1. In `backend/.env`, make sure you have valid values:
 
 ```env
-INFURA_URL=https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID
-PRIVATE_KEY=0xYOUR_PRIVATE_KEY
+INFURA_URL=https://sepolia.infura.io/v3/YOUR_PROJECT_ID
+# Configure a signing key through the encrypted-keystore or secret-manager options.
 ```
 
-1. Deploy to Mumbai:
+1. Deploy to Sepolia from `smart-contracts/`:
 
 ```bash
 npx hardhat run scripts/deploy.js --network mumbai
@@ -191,9 +191,9 @@ PORT=3001
 NODE_ENV=development
 
 # Blockchain
-INFURA_URL=https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID
+INFURA_URL=https://sepolia.infura.io/v3/YOUR_PROJECT_ID
 CONTRACT_ADDRESS=0x... # after you deploy the contract
-PRIVATE_KEY=0xYOUR_PRIVATE_KEY
+# Configure a signing key through the encrypted-keystore or secret-manager options.
 
 # Database
 MONGODB_URI=mongodb://localhost:27017/cropchain
@@ -241,7 +241,7 @@ Before you open a new GitHub issue, run through this short checklist:
 - Backend is running on port 3001 (`cd backend && npm run dev`).
 - Frontend dev server is running (`npm run dev` from the project root).
 - `.env` files exist and have sensible values (backend and frontend if used).
-- MetaMask is on the correct network (Hardhat localhost or Mumbai) and, if needed, the account has been reset.
+- MetaMask is on the correct network (Hardhat localhost or Sepolia) and, if needed, the account has been reset.
 - The contract is deployed on the network you’re using and CONTRACT_ADDRESS is up to date.
 
 If you still can’t solve the problem:

@@ -22,7 +22,7 @@
   - Responsive color schemes per toast type
   - Accessibility features (ARIA labels, semantic HTML)
 
-- **Created `src/components/ToastContainer.tsx`**
+- **Toast rendering is handled by `frontend/src/components/Toast.tsx`**
   - Global container for rendering all active toasts
   - Fixed positioning (top-right)
   - Z-index management to prevent overlays
@@ -37,13 +37,13 @@
 
 #### Step 3: Key API Flows Integration
 
-**AddBatch Flow** (`src/pages/AddBatch.tsx`)
+**Add batch flow** (`frontend/src/app/add-batch/page.tsx`)
 
 - ✅ Success toast on batch creation
 - ✅ Error toast with readable error message on failure
 - ✅ Includes batch ID in success message
 
-**UpdateBatch Flow** (`src/pages/UpdateBatch.tsx`)
+**Update batch flow** (`frontend/src/app/update-batch/page.tsx`)
 
 - ✅ Success toast on batch search
 - ✅ Error toast when batch not found
@@ -51,7 +51,7 @@
 - ✅ Error toast on update failure
 - ✅ Includes stage information in success message
 
-**TrackBatch Flow** (`src/pages/TrackBatch.tsx`)
+**Track batch flow** (`frontend/src/app/track-batch/page.tsx`)
 
 - ✅ Success toast on batch load
 - ✅ Error toast when batch not found
@@ -60,7 +60,7 @@
 - ✅ Error toast if clipboard copy fails
 - ✅ User-friendly error messages
 
-**VerificationDashboard Flow** (`src/pages/VerificationDashboard.tsx`)
+**Verification flow** (`frontend/src/app/verification/page.tsx`)
 
 - ✅ Replaced browser `alert()` with `toast.success()`
 - ✅ Replaced browser `alert()` with `toast.error()`
@@ -210,12 +210,12 @@
 
 1. `src/context/ToastContext.tsx` (Created)
 2. `src/components/Toast.tsx` (Created)
-3. `src/components/ToastContainer.tsx` (Created)
+3. `frontend/src/components/Toast.tsx` (Implemented)
 4. `src/App.tsx` (Modified)
-5. `src/pages/AddBatch.tsx` (Modified)
-6. `src/pages/UpdateBatch.tsx` (Modified)
-7. `src/pages/TrackBatch.tsx` (Modified)
-8. `src/pages/VerificationDashboard.tsx` (Modified)
+5. `frontend/src/app/add-batch/page.tsx` (Modified)
+6. `frontend/src/app/update-batch/page.tsx` (Modified)
+7. `frontend/src/app/track-batch/page.tsx` (Modified)
+8. `frontend/src/app/verification/page.tsx` (Modified)
 
 ### 💡 Key Design Decisions
 

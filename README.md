@@ -1,6 +1,6 @@
 # CropChain - Blockchain Crop Supply Chain Tracker
 
-[![CI](https://github.com/AnzalKhan16/CropChain/actions/workflows/ci.yml/badge.svg)](https://github.com/AnzalKhan16/CropChain/actions/workflows/ci.yml)
+[![CI](https://github.com/Nitya-003/CropChain/actions/workflows/ci.yml/badge.svg)](https://github.com/Nitya-003/CropChain/actions/workflows/ci.yml)
 <p align="center">
   <img src="https://img.shields.io/badge/Apertre-3.0-orange?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Apertre 3.0 Badge">
   <img src="https://img.shields.io/badge/GSSoC-2026-ffd700?style=for-the-badge&logo=github&logoColor=black" alt="GSSoC 2026 Badge">
@@ -83,7 +83,7 @@ The system is live and deployed across production services:
 
 ---
 
-````md
+```markdown
 ## Docker Setup
 
 ### Published Images (GHCR)
@@ -112,7 +112,7 @@ Make sure the following are installed on your system:
 git clone https://github.com/Nitya-003/CropChain.git
 cd CropChain
 ```
-````
+```
 
 ### 2. Configure Environment Variables
 
@@ -138,7 +138,7 @@ ALLOWED_ORIGINS=http://localhost:3000
 # Blockchain configuration
 INFURA_URL=https://polygon-mainnet.infura.io/v3/YOUR_PROJECT_ID
 CONTRACT_ADDRESS=0xYOUR_CONTRACT_ADDRESS
-PRIVATE_KEY=0xYOUR_PRIVATE_KEY
+# Use an encrypted keystore or an external secret manager for signing keys.
 ```
 
 > **Note:** `NEXT_PUBLIC_*` variables are exposed to the browser and evaluated during build time.
@@ -261,7 +261,7 @@ docker images
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/Siddh2024/CropChain.git
+   git clone https://github.com/Nitya-003/CropChain.git
    cd CropChain
    ```
 
@@ -269,7 +269,7 @@ docker images
 
    ```bash
    # Frontend
-   npm install
+   cd frontend && npm install && cd ..
    # Backend
    cd backend && npm install && cd ..
    ```
@@ -298,6 +298,7 @@ docker images
 1. **Start Frontend Development Server**
 
    ```bash
+   cd frontend
    npm run dev
    ```
 
@@ -315,8 +316,10 @@ docker images
    npx hardhat node
    npx hardhat run scripts/deploy.js --network localhost
 
-   # For Mumbai testnet
-   npx hardhat run scripts/deploy.js --network mumbai
+   # For Sepolia, from smart-contracts/
+   cd smart-contracts
+   npm install
+   npm run deploy:sepolia
    ```
 
 ### System Architecture
@@ -342,7 +345,7 @@ graph TD
     subgraph Storage_Layer [Data & Blockchain]
         DB[(MongoDB Metadata)]
         BC{Smart Contracts - Solidity}
-        Network[Polygon / Mumbai Testnet]
+        Network[Ethereum / Sepolia]
     end
 
     UI --> API
@@ -434,7 +437,7 @@ PORT=3001
 NODE_ENV=development
 
 # Blockchain
-INFURA_URL=https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID
+INFURA_URL=https://sepolia.infura.io/v3/YOUR_PROJECT_ID
 CONTRACT_ADDRESS=0x...
 PRIVATE_KEY=0x...
 
@@ -536,8 +539,8 @@ git push heroku main
 ### Smart Contract Deployment
 
 ```bash
-# Mumbai Testnet
-npx hardhat run scripts/deploy.js --network mumbai
+# Sepolia testnet
+npm run deploy:sepolia
 
 # Polygon Mainnet
 npx hardhat run scripts/deploy.js --network polygon
@@ -746,33 +749,3 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 Built with love for transparent agriculture and food safety
 
 CropChain - Connecting farms to forks with blockchain transparency
-
-## ✨ README Improvement Notes
-
-### 📌 Formatting Enhancements Needed
-
-- Improve heading hierarchy for better readability
-- Ensure consistent spacing between sections
-- Use proper Markdown formatting for code blocks and lists
-- Align all installation and usage steps properly
-
-### 🚀 Suggested Structure Upgrade
-
-- Introduction
-- Features
-- Tech Stack
-- Installation
-- Usage
-- Project Structure
-- Contribution Guidelines
-- License
-
-### 🛠️ Documentation Improvements
-
-- Add badges (optional): build, license, contributors
-- Add screenshots for better UI understanding
-- Standardize code blocks for commands
-
-### 🎯 Goal
-
-Improve onboarding experience for new contributors and users by making README more structured, readable, and professional.

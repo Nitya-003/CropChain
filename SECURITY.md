@@ -68,9 +68,9 @@ accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [];
 ### Clean Implementation
 
 ```javascript
-// Polygon Mumbai Testnet
+// Ethereum Sepolia testnet
 mumbai: {
-  url: process.env.INFURA_URL || "https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID",
+  url: process.env.INFURA_URL || "https://sepolia.infura.io/v3/YOUR_PROJECT_ID",
   accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
   gasPrice: 20000000000,
   gas: 6000000
@@ -189,7 +189,7 @@ PRIVATE_KEY=0x... npx hardhat compile
 ```env
 # Required for external network testing
 PRIVATE_KEY=0x1111111111111111111111111111111111111111111111111111111111111111
-INFURA_URL=https://polygon-mumbai.infura.io/v3/your_project_id
+INFURA_URL=https://sepolia.infura.io/v3/your_project_id
 POLYGONSCAN_API_KEY=your_api_key_here
 ```
 

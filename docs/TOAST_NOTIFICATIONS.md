@@ -204,11 +204,11 @@ toast.success("User verified successfully!");
 
 ### Custom Styling
 
-If you need to customize toasts, edit `src/components/Toast.tsx`:
+If you need to customize toasts, edit the frontend files under `frontend/src`:
 
 - Change animation: Modify transform classes in `animationClasses`
-- Change duration: Modify `AUTO_DISMISS_DURATION` in `ToastContext.tsx`
-- Change position: Modify CSS classes in `ToastContainer.tsx`
+- Change duration: Modify `AUTO_DISMISS_DURATION` in `frontend/src/context/ToastContext.tsx`
+- Change position: Modify CSS classes in `frontend/src/components/Toast.tsx`
 
 ## Troubleshooting
 
@@ -220,7 +220,7 @@ If you need to customize toasts, edit `src/components/Toast.tsx`:
 
 ### Toast Disappearing Too Quickly
 
-- Increase `AUTO_DISMISS_DURATION` in `src/context/ToastContext.tsx`
+- Increase `AUTO_DISMISS_DURATION` in `frontend/src/context/ToastContext.tsx`
 - Default is 5000ms (5 seconds)
 
 ### Dark Mode Not Working
@@ -230,15 +230,14 @@ If you need to customize toasts, edit `src/components/Toast.tsx`:
 
 ### Multiple Toasts Overlapping
 
-- This shouldn't happen. If it does, check CSS layout in `ToastContainer.tsx`
+- This shouldn't happen. If it does, check the toast layout in `frontend/src/components/Toast.tsx`
 - Verify `z-index: 50` is high enough
 
 ## Component Files
 
-- **Context**: `src/context/ToastContext.tsx`
-- **Toast Component**: `src/components/Toast.tsx`
-- **Container**: `src/components/ToastContainer.tsx`
-- **Integration**: Check any page file (e.g., `src/pages/AddBatch.tsx`)
+- **Context**: `frontend/src/context/ToastContext.tsx`
+- **Toast component**: `frontend/src/components/Toast.tsx`
+- **Integration**: `frontend/src/app/providers.tsx`
 
 ## Migration from Alert()
 

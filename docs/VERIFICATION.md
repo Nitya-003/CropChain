@@ -36,7 +36,7 @@ CropChain implements a privacy-preserving verification system using cryptographi
    - Signature generation
    - API communication
 
-2. **Verification Dashboard** (`src/pages/VerificationDashboard.tsx`)
+2. **Verification page** (`frontend/src/app/verification/page.tsx`)
    - Admin interface for managing verifications
    - Unverified/verified user lists
    - Credential issuance and revocation
