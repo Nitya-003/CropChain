@@ -9,8 +9,6 @@ const {
   recordIoTData,
   getIoTData,
 } = require("../controllers/batchController");
-const { protect, adminOnly, authorizeIoTSubmission } = require("../middleware/auth");
-const { batchLimiter, iotLimiter } = require("../middleware/rateLimiters");
 const batchController = require("../controllers/batchController");
 const iotController = require("../controllers/iotController");
 const authMiddleware = require("../middleware/auth");

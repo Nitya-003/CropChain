@@ -804,5 +804,4 @@ exports.bulkUpdateBatchStatus = async (req, res) => {
         logger.error('Error processing bulk update', { error: error.message, stack: error.stack });
         res.status(500).json(apiResponse.errorResponse('Failed to process bulk update', 'BULK_UPDATE_ERROR', 500));
     }
-.catch(err => console.error("Promise.all failed:", err));
 };
