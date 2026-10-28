@@ -1,6 +1,13 @@
 # CropChain - Blockchain Crop Supply Chain Tracker
 
 [![CI](https://github.com/Nitya-003/CropChain/actions/workflows/ci.yml/badge.svg)](https://github.com/Nitya-003/CropChain/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Solidity](https://img.shields.io/badge/Solidity-^0.8.24-363636?logo=solidity)](https://soliditylang.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16.2.6-black?logo=next.js)](https://nextjs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-339933?logo=node.js)](https://nodejs.org/)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python)](https://python.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](https://www.docker.com/)
+
 <p align="center">
   <img src="https://img.shields.io/badge/Apertre-3.0-orange?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Apertre 3.0 Badge">
   <img src="https://img.shields.io/badge/GSSoC-2026-ffd700?style=for-the-badge&logo=github&logoColor=black" alt="GSSoC 2026 Badge">
@@ -8,354 +15,102 @@
   <img src="https://img.shields.io/badge/Mission-Open%20Source-ff69b4?style=for-the-badge&logo=github" alt="Mission Badge">
 </p>
 
-CropChain is a comprehensive full-stack web application that enables transparent tracking of crop supply chains using blockchain technology. From farm to fork, every step in the supply chain is recorded immutably, providing complete traceability and building trust between all stakeholders.
+CropChain is a decentralized agricultural supply chain provenance tracking platform built with blockchain technology. From farm to fork, every step of a crop batch journey is recorded immutably on-chain—providing verifiable transparency, automated cold-chain quality tracking, decentralized Mandi produce auctions, and deep consumer trust.
 
 ---
 
-## Live Deployment
+## 🌐 Live Deployment
 
-The system is live and deployed across production services:
+The system is deployed and active across production environments:
 
 - **Frontend Application (Vercel)**: [cropchain.sonusid.in](https://cropchain.sonusid.in)
-- **Backend API (AWS)**: [cropapi.sonusid.in](https://cropapi.sonusid.in) (Health Status: [cropapi.sonusid.in/api/health](https://cropapi.sonusid.in/api/health))
+- **Backend API (AWS EC2)**: [cropapi.sonusid.in](https://cropapi.sonusid.in)
+- **API Health Status**: [cropapi.sonusid.in/api/health](https://cropapi.sonusid.in/api/health)
+- **Interactive Swagger Documentation**: [cropapi.sonusid.in/api/docs](https://cropapi.sonusid.in/api/docs)
 - **Smart Contract (Sepolia Testnet)**: [`0x2c79F3f6b448270ADF667CA5d23d23feC4d15Fa4`](https://sepolia.etherscan.io/address/0x2c79F3f6b448270ADF667CA5d23d23feC4d15Fa4)
 
 ---
 
-## Features
+## 📸 UI Previews & Screenshots
+
+|           Home Page           |          Track Batch Journey          |
+| :---------------------------: | :-----------------------------------: |
+| ![Home](ScreenShots/Home.png) | ![Track Batch](ScreenShots/Track.png) |
+
+|     User Login & Web3 Auth      |         Account Registration          |
+| :-----------------------------: | :-----------------------------------: |
+| ![Login](ScreenShots/Login.png) | ![Register](ScreenShots/Register.png) |
+
+|    Pricing & Subscription Plans     |
+| :---------------------------------: |
+| ![Pricing](ScreenShots/Pricing.png) |
+
+---
+
+## ✨ Features
 
 ### Core Functionality
 
-- **Complete Supply Chain Tracking**: Track crops through all stages - Farmer → Mandi (Market) → Transport → Retailer
-- **Blockchain Integration**: Immutable record keeping using Ethereum/Polygon smart contracts
-- **QR Code Generation**: Unique QR codes for each batch enabling instant verification
-- **Multi-Role Support**: Different interfaces for farmers, markets, transporters, and retailers
-- **Admin Dashboard**: Comprehensive monitoring and analytics for supply chain managers
-- **AI-Powered Assistant**: Intelligent chatbot for crop tracking support and stakeholder guidance
-- **Offline-First Architecture**: Work without internet - data syncs automatically when online
+- **Immutable Provenance Tracking**: Every crop batch journey is cryptographically recorded on Ethereum / Polygon smart contracts.
+- **Dynamic QR Code Generation**: Unique QR codes generated for every batch allow instant provenance lookup and verification for consumers.
+- **6-Stage Sequential Lifecycle**: Enforces strict transitions: `Registered` → `Growing` → `Harvested` → `Quality Checked` → `Transported` → `Delivered`.
+- **Role-Based Access Control**: Tailored dashboards and granular permissioning for **Farmers**, **Mandi (Markets)**, **Transporters**, **Retailers**, and **Administrators**.
+- **Decentralized Produce Auctions**: Transparent bidding system for Mandis and buyers with high-precision financial handling (`Decimal128`).
+- **AI-Powered Chat Assistant**: Integrated Gemini (@google/generative-ai) chatbot with context-aware batch lookup, natural language queries, and streaming responses.
+- **IoT Cold-Chain Telemetry**: Ingestion endpoints for temperature, humidity, and location tracking with automated spoilage detection and alert generation.
+- **EIP-2771 Gasless Meta-Transactions**: Forwarder contracts allow farmers and stakeholders to log supply chain data without paying direct gas fees.
+- **Offline-First Resilience**: Local data caching with automatic synchronization when internet connectivity is restored.
 
-### User Experience
+### User Experience & Design
 
-- **Beautiful, Modern UI**: Apple-level design aesthetics with smooth animations
-- **Responsive Design**: Optimized for mobile, tablet, and desktop devices
-- **Real-time Timeline**: Visual supply chain journey with status indicators
-- **QR Code Scanner**: Simulate scanning QR codes for batch tracking
-- **Search & Filter**: Easy batch lookup and filtering capabilities
-- **Conversational AI**: Natural language interface for system guidance and batch queries
-- **Offline Mode**: Create batches and updates without internet connectivity
-- **Auto-Sync**: Changes automatically sync to blockchain when connection restored
+- **Apple-Grade Modern UI**: High-polish aesthetic using Tailwind CSS and Framer Motion micro-interactions.
+- **Responsive Across Devices**: Fully optimized for desktop, tablet, and mobile browsers, plus a companion React Native (Expo) mobile app.
+- **Real-Time Interactive Timelines**: Visual progress tracker with stage delay detection, hover tooltips, and on-chain transaction hash links.
+- **Interactive API Documentation**: Live Swagger/OpenAPI 3.0 explorer available at `/api/docs`.
 
 ---
 
-## Architecture
-
-### Frontend (Next.js + TypeScript)
-
-- **Framework**: Next.js with TypeScript
-- **Styling**: Tailwind CSS with custom design system
-- **Routing**: Next.js App/Pages Router
-- **Icons**: Lucide React for consistent iconography
-- **State Management**: React hooks and context
-
-### Backend (Node.js + Express)
-
-- **Runtime**: Node.js with Express framework
-- **Blockchain**: Ethers.js for smart contract interaction
-- **QR Codes**: QRCode library for batch QR generation
-- **Database**: MongoDB for metadata storage
-- **Authentication**: JWT-based auth system
-- **AI Integration**: Gemini (@google/generative-ai) for intelligent assistance
-
-### ML Service (Python + Flask)
-
-- **Runtime**: Python 3.11 with Flask framework
-- **Model**: Scikit-learn RandomForest Classifier
-- **Endpoints**: Health and Crop Quality Prediction
-- **Security**: API Key authentication and Rate Limiting
-- **Deployment**: Gunicorn WSGI HTTP Server
-
-### Smart Contracts (Solidity)
-
-- **Platform**: Ethereum/Polygon compatible
-- **Language**: Solidity ^0.8.19
-- **Features**: Batch creation, supply chain updates, access control
-- **Security**: Role-based permissions and data validation
-
----
-
-```markdown
-## Docker Setup
-
-### Published Images (GHCR)
-
-Validated Docker images are automatically published to the GitHub Container Registry (GHCR) upon merging to the `main` branch or creating a release tag.
-
-Available images include:
-- `ghcr.io/<repository-owner>/backend:latest` (or `:main`, `:sha-<commit>`)
-- `ghcr.io/<repository-owner>/frontend:latest`
-- `ghcr.io/<repository-owner>/ml-service:latest`
-
-### Prerequisites
-
-Make sure the following are installed on your system:
-
-- Docker 24+
-- Docker Compose plugin (`docker compose`)
-
----
-
-## Quick Start
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/Nitya-003/CropChain.git
-cd CropChain
-```
-```
-
-### 2. Configure Environment Variables
-
-Create a root `.env` file:
-
-```bash
-cp .env.example .env
-```
-
-Update the `.env` file with the required values:
-
-```env
-# Frontend public API endpoint
-NEXT_PUBLIC_API_URL=http://localhost:3001
-
-# Backend runtime
-NODE_ENV=production
-PORT=3001
-MONGODB_URI=mongodb://db:27017/cropchain
-FRONTEND_URL=http://localhost:3000
-ALLOWED_ORIGINS=http://localhost:3000
-
-# Blockchain configuration
-INFURA_URL=https://polygon-mainnet.infura.io/v3/YOUR_PROJECT_ID
-CONTRACT_ADDRESS=0xYOUR_CONTRACT_ADDRESS
-# Use an encrypted keystore or an external secret manager for signing keys.
-```
-
-> **Note:** `NEXT_PUBLIC_*` variables are exposed to the browser and evaluated during build time.
-> If you modify them later, rebuild the frontend image using:
->
-> ```bash
-> docker compose build frontend
-> ```
->
-> or
->
-> ```bash
-> docker compose up --build
-> ```
-
----
-
-## Start the Application Stack
-
-Build and start all services:
-
-```bash
-docker compose up --build
-```
-
-This starts:
-
-- Frontend (Next.js)
-- Backend (Node.js + Express)
-- ML Service (Python + Flask)
-- MongoDB Database
-- Hardhat Blockchain Node
-
----
-
-## Automated AWS Deployment
-
-CropChain uses GitHub Actions to automate deployments to our AWS infrastructure.
-
-When code is merged to the `main` branch and passes all CI tests, security scans, and SBOM generation, the `Deploy to AWS Production` workflow is triggered.
-
-- **Authentication**: Securely authenticates with AWS via OpenID Connect (OIDC) or Repository Secrets (`AWS_ROLE_ARN`).
-- **Deployment**: Uses the `deploy-aws.sh` script to package the codebase and deploy via AWS CloudFormation and Systems Manager (SSM) to an EC2 instance.
-- **Verification**: Automatically performs a health check on the deployed backend API to ensure successful deployment.
-
----
-
-## Access the Services
-
-| Service      | URL                         |
-| ------------ | --------------------------- |
-| Frontend     | `http://localhost:3000`     |
-| Backend API  | `http://localhost:3001`     |
-| ML Service   | `http://localhost:5001`     |
-| Hardhat Node | `http://localhost:8545`     |
-| MongoDB      | `mongodb://localhost:27017` |
-
----
-
-## Deploy Smart Contracts
-
-To deploy smart contracts to the running Hardhat container:
-
-```bash
-docker compose exec hardhat npx hardhat run scripts/deploy.js --network localhost
-```
-
----
-
-## Development Workflow
-
-Docker Compose provides:
-
-- Hot reloading for development
-- Isolated and reproducible environments
-- Internal container networking
-- Persistent MongoDB storage
-- Simplified multi-service orchestration
-
----
-
-## Stop the Services
-
-Stop all running containers:
-
-```bash
-docker compose down
-```
-
-Stop containers and remove volumes:
-
-```bash
-docker compose down -v
-```
-
----
-
-## Additional Notes
-
-- The root `Dockerfile` uses a multi-stage build setup for optimized frontend and backend images.
-- `.dockerignore` excludes unnecessary folders like `node_modules`, `dist`, `build`, and `.git` to reduce build size.
-- To inspect built image sizes, run:
-
-```bash
-docker images
-```
-
-## Quick Start
-
-### Prerequisites
-
-- Node.js (v18.18+)
-- npm or yarn
-- MetaMask wallet
-- Infura/Alchemy account (for blockchain)
-- MongoDB (for production)
-
-### Installation
-
-1. **Clone the repository**
-
-   ```bash
-   git clone https://github.com/Nitya-003/CropChain.git
-   cd CropChain
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   # Frontend
-   cd frontend && npm install && cd ..
-   # Backend
-   cd backend && npm install && cd ..
-   ```
-
-3. **Environment Setup**
-
-   ```bash
-   # Copy environment files
-   cp backend/.env.example backend/.env
-   cp .env.example .env
-
-   # Edit with your configuration
-   nano backend/.env
-   nano .env
-   ```
-
-4. **Configure AI Chatbot** (Optional)
-
-   ```bash
-   # Add Gemini API key to backend/.env
-   echo "GEMINI_API_KEY=your_gemini_api_key_here" >> backend/.env
-   ```
-
-### Development Setup
-
-1. **Start Frontend Development Server**
-
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-
-2. **Start Backend Server** (in separate terminal)
-
-   ```bash
-   cd backend
-   npm run dev
-   ```
-
-3. **Deploy Smart Contracts** (optional, for blockchain integration)
-
-   ```bash
-   # For local development
-   npx hardhat node
-   npx hardhat run scripts/deploy.js --network localhost
-
-   # For Sepolia, from smart-contracts/
-   cd smart-contracts
-   npm install
-   npm run deploy:sepolia
-   ```
-
-### System Architecture
+## 🏛️ System Architecture
 
 ```mermaid
 graph TD
-    subgraph Client_Layer [Frontend - React & TypeScript]
-        UI[User Interface]
-        QR[QR Scanner/Generator]
+    subgraph Client_Layer [Client Applications]
+        Web[Next.js 16 Web App]
+        Mobile[React Native / Expo App]
+        Consumer[Public QR Scanner]
     end
 
-    subgraph Logic_Layer [Backend - Node.js & Express]
-        API[Express API]
-        JWT[JWT Auth]
-        ETH[Ethers.js Instance]
+    subgraph Gateway_Layer [API & Ingestion]
+        API[Express.js REST API]
+        Swagger[Swagger / OpenAPI 3.0]
+        WS[Socket.IO Real-time Gateway]
     end
 
-    subgraph ML_Layer [ML Service - Python & Flask]
-        MLAPI[Flask API]
-        RF[RandomForest Model]
+    subgraph Service_Layer [Business Logic & Workers]
+        Auth[JWT & Web3 Auth]
+        AI[Gemini AI Assistant]
+        Queue[BullMQ / Redis Async Queue]
+        ML[Python Flask ML Service]
     end
 
-    subgraph Storage_Layer [Data & Blockchain]
-        DB[(MongoDB Metadata)]
-        BC{Smart Contracts - Solidity}
-        Network[Ethereum / Sepolia]
+    subgraph Storage_Blockchain [Data & Ledger]
+        Mongo[(MongoDB Database)]
+        Redis[(Redis Cache & Queues)]
+        Contracts[Solidity Smart Contracts]
+        Network[Sepolia / Polygon / Hardhat]
     end
 
-    UI --> API
-    API --> JWT
-    API --> DB
-    API --> ETH
-    API --> MLAPI
-    MLAPI --> RF
-    ETH --> BC
-    BC --> Network
+    Client_Layer --> API
+    Client_Layer --> WS
+    API --> Swagger
+    API --> Auth
+    API --> AI
+    API --> Queue
+    API --> ML
+    API --> Mongo
+    Queue --> Redis
+    Queue --> Contracts
+    Contracts --> Network
 ```
 
 ### Supply Chain Lifecycle Flow
@@ -364,388 +119,367 @@ graph TD
 sequenceDiagram
     participant F as Farmer
     participant M as Mandi (Market)
-    participant T as Transport
+    participant T as Transporter
     participant R as Retailer
     participant B as Blockchain (CropChain)
+    participant C as Consumer
 
-    F->>B: Create Batch (Harvest Info)
-    B-->>F: Generate Unique Batch ID & QR
-    F->>M: Handover Crops
-    M->>B: Update Stage (Price & Quality)
-    M->>T: Handover to Logistics
-    T->>B: Update Stage (Location & Transit)
-    T->>R: Deliver to Store
-    R->>B: Update Stage (Received/Stocked)
-    Note over R,B: Immutable History Available for Consumer
+    F->>B: 1. Register Batch (Crop details, harvest date)
+    B-->>F: Generate Unique Batch ID & QR Code
+    F->>B: 2. Update to Growing & Harvested
+    F->>M: Handover crops at Mandi
+    M->>B: 3. Verify Quality & Settle Auction (Mandi stage)
+    M->>T: Dispatch with logistics carrier
+    T->>B: 4. Telemetry streaming (Transported stage)
+    T->>R: Deliver to retail storefront
+    R->>B: 5. Stock produce (Delivered stage)
+    C->>B: 6. Scan QR Code to verify full provenance
 ```
 
 ---
 
-## Usage
+## 🛠️ Technology Stack
 
-### For Farmers
-
-1. Navigate to "Add Batch" page
-2. Fill in crop details (type, quantity, harvest date, etc.)
-3. Submit to create blockchain record and QR code
-4. Share QR code with supply chain partners
-
-### For Supply Chain Partners (Mandi, Transport, Retailers)
-
-1. Go to "Update Batch" page
-2. Search for batch using Batch ID
-3. Add your stage information (actor, location, notes)
-4. Submit update to blockchain
-
-### For Consumers & Verification
-
-1. Use "Track Batch" page
-2. Scan QR code or enter Batch ID
-3. View complete supply chain history
-4. Verify authenticity and quality information
-
-### For Administrators
-
-1. Access Admin Dashboard
-2. Monitor all batches and supply chain activity
-3. View analytics and statistics
-4. Manage system-wide operations
-
-### AI Assistant Usage
-
-1. **Access**: Click the floating chat button (bottom-right corner) on any page
-2. **Quick Actions**: Use suggested buttons for common tasks
-3. **Natural Queries**: Ask questions like:
-   - "Where is batch CROP-2024-001?"
-   - "How do I create a new batch?"
-   - "What does immutable record mean?"
-   - "Help me track my shipment"
-4. **Context Awareness**: The AI understands your current page and provides relevant help
-5. **Function Calling**: AI can search batches and provide real-time data
+| Layer              | Technologies                                                                             |
+| ------------------ | ---------------------------------------------------------------------------------------- |
+| **Frontend**       | Next.js 16, React 19, TypeScript, Tailwind CSS, Framer Motion, Lucide Icons, Leaflet GIS |
+| **Mobile**         | React Native, Expo SDK 52, NativeWind, Expo Router, VisionCamera QR Scanner              |
+| **Backend**        | Node.js 20+, Express.js, Mongoose, Ethers.js v6, BullMQ, Redis, Socket.IO, Winston       |
+| **AI & ML**        | Google Gemini SDK (`@google/generative-ai`), Python 3.11, Flask, Scikit-learn, Gunicorn  |
+| **Blockchain**     | Solidity ^0.8.24, Hardhat, OpenZeppelin Contracts v5, EIP-2771 Forwarders                |
+| **DevOps & Cloud** | Docker, Docker Compose, AWS EC2, AWS Secrets Manager, GitHub Actions CI/CD, Terraform    |
 
 ---
 
-## Configuration
+## 📁 Repository Structure
 
-### Environment Variables
-
-#### Backend (.env)
-
-```env
-# Server
-PORT=3001
-NODE_ENV=development
-
-# Blockchain
-INFURA_URL=https://sepolia.infura.io/v3/YOUR_PROJECT_ID
-CONTRACT_ADDRESS=0x...
-PRIVATE_KEY=0x...
-
-# Database
-MONGODB_URI=mongodb://localhost:27017/cropchain
-
-# Security
-JWT_SECRET=your_secret_key
-
-# AI Chatbot (Optional)
-GEMINI_API_KEY=your_gemini_api_key_here
-AI_MODEL=gemini-1.5-flash
-AI_MAX_TOKENS=500
-AI_TEMPERATURE=0.7
-
-# ML Service API Key
-ML_API_KEY=your_ml_api_key_here
-```
-
-#### Frontend (.env)
-
-```env
-# API Configuration
-NEXT_PUBLIC_API_URL=http://localhost:3001
-
-# Development
-NEXT_PUBLIC_DEV_MODE=true
-```
-
-#### Smart Contracts (hardhat.config.js)
-
-```javascript
-networks: {
-  mumbai: {
-    url: process.env.INFURA_URL,
-    accounts: [process.env.PRIVATE_KEY]
-  }
-}
+```text
+CropChain/
+├── backend/                   # Node.js + Express REST API server
+│   ├── config/                # Database and Redis connections
+│   ├── constants/             # Stage mappings and permissions
+│   ├── controllers/           # Route controllers (batch, auth, lifecycle, auction, AI)
+│   ├── middleware/            # JWT auth, CSRF, rate limiters, validators
+│   ├── models/                # Mongoose schemas (Batch, User, Auction, Verification)
+│   ├── routes/                # Express API routes with OpenAPI annotations
+│   ├── services/              # Blockchain worker, AI service, activity logger
+│   └── tests/                 # Jest integration and unit test suite
+├── frontend/                  # Next.js 16 application
+│   ├── src/app/               # App Router pages (batches, track, auth, auctions)
+│   ├── src/components/        # UI components (lifecycle tracker, QR scanner, modals)
+│   └── public/                # Static assets, icons, manifest
+├── smart-contracts/           # Solidity contracts & Hardhat environment
+│   ├── contracts/             # CropChain.sol, Forwarder.sol, DAO governance
+│   ├── scripts/               # Deployment and migration scripts
+│   └── test/                  # Chai / Hardhat smart contract tests
+├── ml-service/                # Python Flask service for crop quality & yield loss
+│   ├── app.py                 # Flask API with endpoints for image diagnosis
+│   ├── weather_pipeline.py    # Climate anomaly & yield loss risk engine
+│   └── requirements.txt       # Python dependencies
+├── mobile/                    # React Native / Expo companion mobile app
+│   ├── app/                   # Expo Router tabs and batch screens
+│   └── src/                   # Hooks, contexts, and offline sync store
+├── infrastructure/            # Terraform AWS provisioning templates
+├── docs/                      # Architectural guides, checklists, and specs
+├── ScreenShots/               # Platform UI screenshots
+├── docker-compose.yml         # Local multi-service orchestration
+└── deploy-aws.sh              # Production AWS CloudFormation deployment script
 ```
 
 ---
 
-## Testing
+## 🚀 Getting Started
 
-### Frontend Tests
+You can run CropChain locally using either **Docker Compose** (recommended for full-stack) or by **running services manually**.
+
+### Prerequisites
+
+Ensure you have the following installed:
+
+- [Git](https://git-scm.com/)
+- [Docker](https://docs.docker.com/get-docker/) & [Docker Compose](https://docs.docker.com/compose/) (for Docker setup)
+- [Node.js](https://nodejs.org/) (v20+ recommended) and `npm`
+- [Python](https://www.python.org/) 3.11+ (if running ML service manually)
+- [MetaMask](https://metamask.io/) browser extension (for Web3 wallet interactions)
+
+---
+
+### Option A: Quickstart with Docker Compose (Recommended)
+
+1. **Clone the repository:**
+
+   ```bash
+   git clone https://github.com/Nitya-003/CropChain.git
+   cd CropChain
+   ```
+
+2. **Set up the environment configuration:**
+
+   ```bash
+   cp .env.example .env
+   ```
+
+3. **Start the complete stack:**
+
+   ```bash
+   docker compose up --build
+   ```
+
+   This launches:
+   - **Frontend**: `http://localhost:3000`
+   - **Backend API**: `http://localhost:3001`
+   - **Interactive API Docs**: `http://localhost:3001/api/docs`
+   - **ML Service**: `http://localhost:5001`
+   - **Hardhat Blockchain Node**: `http://localhost:8545`
+   - **MongoDB Database**: `mongodb://localhost:27017/cropchain`
+
+4. **Deploy smart contracts to the local Hardhat container:**
+
+   ```bash
+   docker compose exec hardhat npx hardhat run scripts/deploy.js --network localhost
+   ```
+
+5. **Stop the services:**
+   ```bash
+   # Stop containers
+   docker compose down
+
+   # Stop containers and wipe database volumes
+   docker compose down -v
+   ```
+
+---
+
+### Option B: Manual Local Development Setup
+
+If you prefer running services directly on your host machine:
+
+#### 1. Clone & Setup Environment
 
 ```bash
-npx vitest
+git clone https://github.com/Nitya-003/CropChain.git
+cd CropChain
+
+cp .env.example .env
+cp backend/.env.example backend/.env
 ```
 
-### Backend Tests
+#### 2. Run Local Hardhat Blockchain Node
+
+```bash
+cd smart-contracts
+npm install
+npx hardhat node
+```
+
+In a separate terminal, deploy contracts locally:
+
+```bash
+cd smart-contracts
+npx hardhat run scripts/deploy.js --network localhost
+```
+
+#### 3. Start Backend API Server
 
 ```bash
 cd backend
+npm install
+npm run dev
+```
+
+Backend runs at `http://localhost:3001` (Health: `http://localhost:3001/api/health`).
+
+#### 4. Start Frontend Application
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend runs at `http://localhost:3000`.
+
+#### 5. Start ML Service (Optional)
+
+```bash
+cd ml-service
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python3 app.py
+```
+
+ML Service runs at `http://localhost:5001`.
+
+---
+
+## ⚙️ Environment Configuration
+
+### Key Backend Variables (`backend/.env`)
+
+| Variable                  | Description                                              | Default / Example                            |
+| ------------------------- | -------------------------------------------------------- | -------------------------------------------- |
+| `PORT`                    | API server listening port                                | `3001`                                       |
+| `NODE_ENV`                | Application environment (`development` / `production`)   | `development`                                |
+| `MONGODB_URI`             | MongoDB connection string                                | `mongodb://localhost:27017/cropchain`        |
+| `JWT_SECRET`              | Signing secret for access tokens (min 16 chars)          | `openssl rand -hex 32`                       |
+| `JWT_REFRESH_SECRET`      | Signing secret for refresh tokens (must differ)          | `openssl rand -hex 32`                       |
+| `AUDIT_EVENT_HMAC_SECRET` | Secret for audit log hash-chain integrity (min 32 chars) | `openssl rand -hex 32`                       |
+| `INFURA_URL`              | RPC endpoint URL for Ethereum / Polygon testnet          | `https://sepolia.infura.io/v3/YOUR_KEY`      |
+| `CONTRACT_ADDRESS`        | Deployed address of `CropChain.sol`                      | `0x2c79F3f6b448270ADF667CA5d23d23feC4d15Fa4` |
+| `GEMINI_API_KEY`          | Google AI Studio key for intelligent assistant           | Optional                                     |
+| `ML_API_KEY`              | Shared authentication secret for ML Service              | `openssl rand -hex 32`                       |
+
+---
+
+## 📖 API Reference & Documentation
+
+CropChain features interactive Swagger/OpenAPI documentation. When the backend is running, navigate to:
+
+👉 **`http://localhost:3001/api/docs`** (or [cropapi.sonusid.in/api/docs](https://cropapi.sonusid.in/api/docs))
+
+### Core Endpoints Overview
+
+| Method  | Endpoint                     | Description                                                   | Auth Required    |
+| ------- | ---------------------------- | ------------------------------------------------------------- | ---------------- |
+| `GET`   | `/api/health`                | Service health status and database connectivity               | No               |
+| `POST`  | `/api/auth/register`         | Register new user (farmer, mandi, transporter, retailer)      | No               |
+| `POST`  | `/api/auth/login`            | Authenticate user and receive JWT session cookies             | No               |
+| `POST`  | `/api/auth/refresh`          | Refresh expired access token                                  | No               |
+| `POST`  | `/api/auth/logout`           | Terminate session and clear authentication cookies            | Yes              |
+| `POST`  | `/api/batches`               | Create a new agricultural crop batch                          | Farmer / Admin   |
+| `GET`   | `/api/batches`               | Query and filter crop batches with pagination                 | Yes              |
+| `GET`   | `/api/batches/public/:id`    | Public provenance tracking data for consumers                 | No               |
+| `GET`   | `/api/batches/:id/lifecycle` | Get current 6-stage lifecycle progress and history            | Yes              |
+| `PATCH` | `/api/batches/:id/lifecycle` | Advance lifecycle stage (`Growing`, `Transported`, etc.)      | Role-checked     |
+| `POST`  | `/api/batches/relay-meta-tx` | Relay EIP-2771 gasless transaction to the blockchain          | Yes              |
+| `POST`  | `/api/ai/chat`               | Send queries to Gemini AI assistant (SSE streaming supported) | Yes              |
+| `POST`  | `/api/iot/:batchId`          | Ingest cold-chain temperature and humidity sensor readings    | Yes              |
+| `POST`  | `/api/auctions`              | Create an active produce auction for a batch                  | Farmer / Admin   |
+| `POST`  | `/api/auctions/:id/bid`      | Place a bid on a produce auction                              | Registered buyer |
+
+---
+
+## 🧪 Testing Suite
+
+Run automated tests across the codebase:
+
+```bash
+# Backend unit and integration tests (Jest)
+cd backend
+npm test -- --watchAll=false
+
+# Frontend tests (Vitest)
+cd frontend
 npm test
-```
 
-### Smart Contract Tests
-
-```bash
+# Smart contract tests (Hardhat & Chai)
+cd smart-contracts
 npx hardhat test
+
+# ML service verification
+cd ml-service
+python3 -m unittest test_vision.py
 ```
 
 ---
 
-## Deployment
+## 🔐 Security & Key Management
 
-### AWS EC2 + Docker Compose Deployment
+### Local Development
 
-We provide an automated script to deploy the full stack to AWS using CloudFormation and Systems Manager (SSM). This script sets up an EC2 instance, configures Docker, and starts the services.
-
-```bash
-./deploy-aws.sh
-```
-
-**Post-Deployment Verification:**
-The deployment script includes automated health checks to verify that services have started correctly before completing. It polls the following endpoints with retry logic:
-
-- Backend Health Check: `http://<EC2_IP>:3001/api/health`
-- ML Service Health Check: `http://<EC2_IP>:5001/health`
-
-The deployment will automatically fail if the services do not become healthy within the timeout period.
-
-### Frontend Deployment (Netlify/Vercel)
-
-```bash
-npm run build
-# Deploy dist/ folder to your hosting provider
-```
-
-### Backend Deployment (Heroku/Railway)
-
-```bash
-cd backend
-# Configure environment variables on your platform
-git push heroku main
-```
-
-### Smart Contract Deployment
-
-```bash
-# Sepolia testnet
-npm run deploy:sepolia
-
-# Polygon Mainnet
-npx hardhat run scripts/deploy.js --network polygon
-```
-
----
-
-## Security Features
-
-- **Access Control**: Role-based permissions in smart contracts
-- **Data Validation**: Input sanitization and validation
-- **Rate Limiting**: API rate limiting to prevent abuse
-- **CORS Protection**: Configured CORS policies
-- **Environment Variables**: Sensitive data protected via env vars
-- **Smart Contract Auditing**: Comprehensive testing and validation
-
----
-
-## Technology Stack
-
-### Frontend
-
-- React 18 + TypeScript
-- Tailwind CSS
-- Next.js App/Pages Router
-- Lucide React Icons
-- QRCode.js
-- Framer Motion (animations)
-
-### Backend
-
-- Node.js + Express
-- Ethers.js
-- MongoDB + Mongoose
-- JWT Authentication
-- QRCode Generation
-- Gemini API Integration
-- Axios HTTP Client
-
-### Machine Learning
-
-- Python 3.11
-- Flask (API framework)
-- Scikit-learn (RandomForest Model)
-- Gunicorn (WSGI server)
-- NumPy & Joblib
-
-### Blockchain
-
-- Solidity ^0.8.19
-- Hardhat Development Environment
-- Ethereum/Polygon Networks
-- OpenZeppelin Libraries
-
-### DevOps
-
-- ESLint + Prettier
-- Husky Git Hooks
-- GitHub Actions CI/CD
-- Docker Support
-
----
-
-## Crop Lifecycle Progress Tracker
-
-CropChain includes an interactive progress tracker representing the end-to-end journey of a crop batch from registration to final retailer delivery.
-
-### Lifecycle Workflow
-
-Every crop batch flows sequentially through the following 6 stages:
-
-1. **Registered**: Initial creation of crop record.
-2. **Growing**: Active cultivation phase in fields.
-3. **Harvested**: Crops harvested and ready for processing.
-4. **Quality Checked**: Certified safe and qualified by inspectors.
-5. **Transported**: Loaded and shipped in cold-chain logistics.
-6. **Delivered**: Received at final retailer destinations.
-
-### State Transition Validation & Rules
-
-- Transitions are strictly sequential (no skipping stages, no reverting backwards).
-- Prevent duplicate updates and unauthorized role changes:
-  - **Farmer**: Authorized to update stages until `Harvested` (`Growing`, `Harvested`).
-  - **Distributor** (Transporter / Mandi): Authorized to update to `Transported`.
-  - **Retailer**: Authorized to update to `Delivered`.
-  - **Admin**: Full control over all transitions (including `Quality Checked`).
-
-### REST API Documentation
-
-- **Get Crop Lifecycle Details**: `GET /api/batches/:id/lifecycle`
-  - Returns `currentStage`, `stageHistory`, and `completionPercentage`.
-- **Update Lifecycle Stage**: `PATCH /api/batches/:id/lifecycle`
-  - Body: `{ "stage": "Growing", "notes": "Growing smoothly" }`
-  - Validates role authorizations and transitions.
-
-### Premium Frontend Component
-
-The tracker renders dynamically as the `CropLifecycleTracker` component:
-
-- **Desktop**: Interactive horizontal progress bar with customized SVG and framer-motion micro-animations.
-- **Mobile**: Responsive vertical timeline cards with action details.
-- **Smart Features**:
-  - _Delay Alert Detection_: Automatically warns if a batch remains in a stage longer than configurable expectations (e.g. `⚠ Transport pending for 6 days`).
-  - _Relative Timestamps_: Displayed as "3 hours ago", "Yesterday", or "5 days ago".
-  - _Tooltip cards_: Displays complete metadata, blockchain transaction links, and timestamps on hover/focus.
-
-## 🔐 Secure Key Management
-
-CropChain uses a blockchain signing wallet to write supply chain records on-chain.
-The private key for this wallet **must never be stored as a plaintext environment variable in production**.
-
-### Local development
-
-For local testing only, add your dev wallet key to `.env`:
+For local testing, place a dedicated development private key in `.env`:
 
 ```env
 PRIVATE_KEY=0x...your_local_dev_key...
 ```
 
-> ⚠️ Never commit a real private key. Use a throwaway dev wallet with no real funds.
+> ⚠️ **Warning:** Never use real funds or commit private keys to version control.
 
-### Production deployment
+### Production Deployment
 
-In production, the private key is fetched from **AWS Secrets Manager** at startup:
+In production, plaintext private keys are prohibited. The server fetches credentials from **AWS Secrets Manager**:
 
-1. Create a secret in AWS Secrets Manager:
-   - **Secret name:** `cropchain/blockchain-private-key`
-   - **Secret value (JSON):**
-
-```json
+1. Store the secret in AWS Secrets Manager:
+   - **Secret Name:** `cropchain/blockchain-private-key`
+   - **Secret Value (JSON):**
+     ```json
      { "private_key": "0x...your_production_key..." }
-```
+     ```
 
-1. Grant your EC2 / ECS task role `secretsmanager:GetSecretValue` on that ARN.
+2. Grant your EC2 instance or ECS task role permissions for `secretsmanager:GetSecretValue`.
 
-2. Set these environment variables on your server (not `.env`):
+3. Configure runtime variables on the host:
 
-NODE_ENV=production
-AWS_SECRET_ARN=arn:aws:secretsmanager:REGION:ACCOUNT:secret:cropchain/blockchain-private-key
-AWS_REGION=us-east-1
+   ```env
+   NODE_ENV=production
+   AWS_SECRET_ARN=arn:aws:secretsmanager:REGION:ACCOUNT:secret:cropchain/blockchain-private-key
+   AWS_REGION=us-east-1
+   ```
 
-1. Do **not** set `PRIVATE_KEY` — the server will refuse to start if it is present.
-
-The server performs a startup check and exits immediately if production is
-misconfigured, preventing accidental deploys with an exposed key.
-
----
-
-## Roadmap
-
-### Phase 1 (Current)
-
-- Basic supply chain tracking
-- QR code generation and scanning
-- Multi-role interfaces
-- Admin dashboard
-- AI-powered chatbot assistant
-- Offline-first data logging with background sync
-
-### Phase 2 (Next)
-
-- Service Worker background sync
-- Progressive Web App (PWA)
-- IoT Sensor Integration
-- Advanced analytics and reporting
-- Mobile app development
-- Multi-language support
-- Enhanced AI capabilities (voice, image recognition)
-
-### Phase 3 (Future)
-
-- AI-powered quality prediction
-- Carbon footprint tracking
-- Marketplace integration
-- Government compliance features
-- Predictive supply chain analytics
-- Offline image caching and compression
+4. Do **not** supply `PRIVATE_KEY` directly—the server validates this on startup and refuses to start if exposed as plaintext.
 
 ---
 
-## Contributing
+## 🗺️ Roadmap
 
-I welcome contributions!
+- [x] **Phase 1: Core Foundation**
+  - Blockchain provenance logging on Polygon/Ethereum
+  - Dynamic QR code generation and consumer verification
+  - Multi-role dashboards (Farmer, Mandi, Transporter, Retailer, Admin)
+  - 6-Stage sequential crop lifecycle tracking
+  - AI chatbot assistant powered by Gemini
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+- [x] **Phase 2: Platform Expansion**
+  - Real-time IoT sensor telemetry ingestion and cold-chain monitoring
+  - Mandi produce auctions with Decimal128 financial calculations
+  - EIP-2771 gasless meta-transactions via relayer
+  - OpenAPI 3.0 specification with interactive Swagger UI
+  - React Native (Expo) mobile application
 
-## License
-
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for further details.
+- [ ] **Phase 3: Next Horizons**
+  - Decentralized storage on IPFS/Filecoin for media inspection records
+  - Automated IoT quality oracles with Chainlink Functions
+  - Multi-regional language localization (Hindi, Marathi, Punjabi, Telugu)
+  - Carbon footprint accounting and green certification dNFTs
 
 ---
 
-## Acknowledgments
+## 🤝 Contributing
 
-- OpenZeppelin for smart contract libraries
-- Infura/Alchemy for blockchain infrastructure
-- The amazing open-source community
-- Agricultural experts who provided domain knowledge
+We welcome contributions from the open-source community!
+
+1. Fork the repository on GitHub.
+2. Create a descriptive feature branch:
+   ```bash
+   git checkout -b feat/your-feature-name
+   ```
+3. Commit your changes following [Conventional Commits](https://www.conventionalcommits.org/):
+   ```bash
+   git commit -m "feat(batches): add batch export to PDF"
+   ```
+4. Push to your fork:
+   ```bash
+   git push origin feat/your-feature-name
+   ```
+5. Open a Pull Request against `main`.
+
+Please review our [Contributing Guidelines](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md), and [Security Policy](SECURITY.md) before submitting.
 
 ---
 
-Built with love for transparent agriculture and food safety
+## 📄 License
 
-CropChain - Connecting farms to forks with blockchain transparency
+This project is licensed under the **Apache License 2.0** — see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 💖 Acknowledgments
+
+- [OpenZeppelin](https://www.openzeppelin.com/) for battle-tested smart contract libraries.
+- [Ethereum](https://ethereum.org/) & [Polygon](https://polygon.technology/) ecosystems for decentralized ledger infrastructure.
+- The open-source contributors and agricultural experts who make transparent food supply chains possible.
+
+<p align="center">
+  <b>CropChain</b> — <i>Connecting farms to forks with immutable blockchain transparency.</i>
+</p>
