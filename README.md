@@ -19,7 +19,7 @@ CropChain is a decentralized agricultural supply chain provenance tracking platf
 
 ---
 
-## 🌐 Live Deployment
+## Live Deployment
 
 The system is deployed and active across production environments:
 
@@ -47,7 +47,7 @@ The system is deployed and active across production environments:
 
 ---
 
-## ✨ Features
+## Features
 
 ### Core Functionality
 
@@ -70,7 +70,7 @@ The system is deployed and active across production environments:
 
 ---
 
-## 🏛️ System Architecture
+## System Architecture
 
 ```mermaid
 graph TD
@@ -138,7 +138,7 @@ sequenceDiagram
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 | Layer              | Technologies                                                                             |
 | ------------------ | ---------------------------------------------------------------------------------------- |
@@ -151,7 +151,7 @@ sequenceDiagram
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```text
 CropChain/
@@ -188,7 +188,7 @@ CropChain/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 You can run CropChain locally using either **Docker Compose** (recommended for full-stack) or by **running services manually**.
 
@@ -313,7 +313,7 @@ ML Service runs at `http://localhost:5001`.
 
 ---
 
-## ⚙️ Environment Configuration
+## Environment Configuration
 
 ### Key Backend Variables (`backend/.env`)
 
@@ -332,11 +332,11 @@ ML Service runs at `http://localhost:5001`.
 
 ---
 
-## 📖 API Reference & Documentation
+## API Reference & Documentation
 
 CropChain features interactive Swagger/OpenAPI documentation. When the backend is running, navigate to:
 
-👉 **`http://localhost:3001/api/docs`** (or [cropapi.sonusid.in/api/docs](https://cropapi.sonusid.in/api/docs))
+**`http://localhost:3001/api/docs`** (or [cropapi.sonusid.in/api/docs](https://cropapi.sonusid.in/api/docs))
 
 ### Core Endpoints Overview
 
@@ -360,7 +360,7 @@ CropChain features interactive Swagger/OpenAPI documentation. When the backend i
 
 ---
 
-## 🧪 Testing Suite
+## Testing Suite
 
 Run automated tests across the codebase:
 
@@ -384,7 +384,7 @@ python3 -m unittest test_vision.py
 
 ---
 
-## 🔐 Security & Key Management
+## Security & Key Management
 
 ### Local Development
 
@@ -394,7 +394,7 @@ For local testing, place a dedicated development private key in `.env`:
 PRIVATE_KEY=0x...your_local_dev_key...
 ```
 
-> ⚠️ **Warning:** Never use real funds or commit private keys to version control.
+> **Warning:** Never use real funds or commit private keys to version control.
 
 ### Production Deployment
 
@@ -421,7 +421,7 @@ In production, plaintext private keys are prohibited. The server fetches credent
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
 - [x] **Phase 1: Core Foundation**
   - Blockchain provenance logging on Polygon/Ethereum
@@ -445,7 +445,7 @@ In production, plaintext private keys are prohibited. The server fetches credent
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions from the open-source community!
 
@@ -468,13 +468,13 @@ Please review our [Contributing Guidelines](CONTRIBUTING.md), [Code of Conduct](
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the **Apache License 2.0** — see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 💖 Acknowledgments
+## Acknowledgments
 
 - [OpenZeppelin](https://www.openzeppelin.com/) for battle-tested smart contract libraries.
 - [Ethereum](https://ethereum.org/) & [Polygon](https://polygon.technology/) ecosystems for decentralized ledger infrastructure.
